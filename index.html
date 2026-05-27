@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v82 — 27 maggio 2026 — fix: email CF, frecce 22×68, offset 316px, map init ×2, closeLegal/switchTab -->
 <html lang="it" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
@@ -84,7 +85,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 #event-count strong{color:var(--text);font-weight:600;}
 #hint-bar{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 16px;font-size:12px;color:var(--text-muted);z-index:400;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.1);transition:background .3s,color .3s;text-align:center;line-height:1.7;}
 #layers-pull-wrap{position:absolute;top:50%;right:0;transform:translateY(-50%);display:flex;align-items:center;background:transparent;border:none;z-index:401;filter:drop-shadow(-4px 0 6px rgba(0,0,0,0.35));}
-#layers-pull{width:16px;height:56px;background:var(--accent);border:none;border-radius:8px 0 0 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;transition:all .2s;padding:0;filter:drop-shadow(-3px 0 6px rgba(0,0,0,0.30));}
+#layers-pull{width:22px;height:68px;background:var(--accent);border:none;border-radius:8px 0 0 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;transition:all .2s;padding:0;filter:drop-shadow(-3px 0 6px rgba(0,0,0,0.30));}
 #layers-pull:hover{filter:brightness(1.1);}
 #layers-panel{position:absolute;top:0;right:14px;bottom:0;width:288px;background:rgba(var(--surface-rgb,253,250,244),0.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-left:1px solid rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow:hidden;transition:width .28s cubic-bezier(.4,0,.2,1);z-index:400;}
 #layers-panel.closed{width:0;background:transparent!important;border:none;}
@@ -248,7 +249,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
   #layers-pull-wrap.panel-closed{right:0;}
   #layers-panel{position:fixed;top:0;right:0;bottom:0;z-index:500;width:min(80vw,280px)!important;background:rgba(var(--surface-rgb,253,250,244),0.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-left:1px solid rgba(0,0,0,0.08);box-shadow:-4px 0 24px rgba(0,0,0,0.12);}
   #layers-panel.closed{width:0!important;overflow:hidden;}
-  #layers-pull{display:flex;width:16px;height:56px;background:var(--accent);border-radius:8px 0 0 8px;filter:drop-shadow(-3px 0 8px rgba(0,0,0,0.32));}
+  #layers-pull{display:flex;width:22px;height:68px;background:var(--accent);border-radius:8px 0 0 8px;filter:drop-shadow(-3px 0 8px rgba(0,0,0,0.32));}
 
   /* ── Popups: constrain width ── */
   .leaflet-popup-content-wrapper{max-width:min(240px,88vw)!important;}
@@ -323,7 +324,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 
 /* ── TAB SINISTRA TEMPO+PREFERENZE ── */
 #left-tab-wrap{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:500;display:flex;align-items:center;overflow:visible;filter:drop-shadow(4px 0 6px rgba(0,0,0,0.35));}
-#left-tab-btn{width:16px;height:56px;background:var(--accent);border:none;border-radius:0 8px 8px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;flex-shrink:0;transition:all .2s;filter:drop-shadow(3px 0 6px rgba(0,0,0,0.30));}
+#left-tab-btn{width:22px;height:68px;background:var(--accent);border:none;border-radius:0 8px 8px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;flex-shrink:0;transition:all .2s;filter:drop-shadow(3px 0 6px rgba(0,0,0,0.30));}
 #left-tab-btn:hover{background:var(--accent);filter:brightness(1.1);}
 #left-tab-btn svg{transition:transform .28s;}
 #left-tab-btn.open svg{transform:rotate(180deg);}
@@ -461,7 +462,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         <div id="hint-bar" style="display:none;"></div>
         <div id="left-tab-wrap">
       <button id="left-tab-btn" title="Filtro tempo e preferenze">
-        <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><polyline points="2,1 6,7 2,13" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg width="11" height="18" viewBox="0 0 8 14" fill="none"><polyline points="2,1 6,7 2,13" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div id="left-tab-panel">
         <div id="left-tab-inner">
@@ -556,7 +557,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
           <button id="fab-voice-cancel">Annulla</button>
         </div>
       </div>
-      <div id="layers-pull-wrap"><button id="layers-pull"><svg id="layers-pull-arrow" width="8" height="14" viewBox="0 0 8 14" fill="none"><polyline points="6,1 2,7 6,13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+      <div id="layers-pull-wrap"><button id="layers-pull"><svg id="layers-pull-arrow" width="11" height="18" viewBox="0 0 8 14" fill="none"><polyline points="6,1 2,7 6,13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
       <div id="layers-panel">
         <div id="layers-panel-header">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
@@ -602,7 +603,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     Note legali
   </button>
   <span class="lb-spacer"></span>
-  <span class="lb-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="87eee9e1e8a9e6e0e8f5e6f7f7c7e0eae6eeeba9e4e8ea">[email&#160;protected]</a></span>
+  <span class="lb-email"><a href="mailto:info@agorapp.it">info@agorapp.it</a></span>
 </div>
 <div id="modal-root"></div>
 <div id="legal-modal" role="dialog" aria-modal="true">
@@ -610,14 +611,14 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     <div id="legal-head">
       <div id="legal-head-text">
         <h2>Documenti legali</h2>
-        <p>Agorapp · Torino · Lorenzo Calcagno · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c2abaca4adeca3a5adb0a3b2b282a5afa3abaeeca1adaf">[email&#160;protected]</a></p>
+        <p>Agorapp · Torino · Lorenzo Calcagno · <a href="mailto:info@agorapp.it">info@agorapp.it</a></p>
       </div>
       <button id="legal-close" onclick="closeLegal()" aria-label="Chiudi">✕</button>
     </div>
     <div id="legal-tabs">
-      <button class="legal-tab active" onclick="switchTab('privacy')">Informativa privacy</button>
-      <button class="legal-tab" onclick="switchTab('storage')">Dati locali</button>
-      <button class="legal-tab" onclick="switchTab('disclaimer')">Note legali</button>
+      <button class="legal-tab active" onclick="openLegal('privacy')">Informativa privacy</button>
+      <button class="legal-tab" onclick="openLegal('storage')">Dati locali</button>
+      <button class="legal-tab" onclick="openLegal('disclaimer')">Note legali</button>
     </div>
     <div id="legal-body">
 
@@ -625,7 +626,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         <span class="legal-badge">✓ Conforme GDPR · v1.2 · Marzo 2026</span>
         <h3>1. Titolare del trattamento</h3>
         <p><strong>Agorapp</strong>, progetto di <strong>Lorenzo Calcagno</strong>, Torino<br>
-        Contatto: <a href="/cdn-cgi/l/email-protection#acc5c2cac382cdcbc3decddcdceccbc1cdc5c082cfc3c1"><span class="__cf_email__" data-cfemail="70191e161f5e11171f0211000030171d11191c5e131f1d">[email&#160;protected]</span></a></p>
+        Contatto: <a href="mailto:info@agorapp.it">info@agorapp.it</a></p>
         <h3>2. Quali dati trattiamo e perché</h3>
         <p>Agorapp è una mappa interattiva degli eventi urbani di Torino. <strong>Non raccoglie dati personali degli utenti che consultano la mappa</strong>: non ci sono account, non ci sono cookie di profilazione, non ci sono sistemi di tracciamento.</p>
         <p>Gli unici dati trattati riguardano gli <strong>organizzatori di eventi</strong> che richiedono la pubblicazione: titolo, luogo, orario, descrizione, eventualmente un nome artistico o il nome dell'organizzazione.</p>
@@ -633,7 +634,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         <h3>3. Base giuridica del trattamento</h3>
         <ul>
           <li><strong>Consenso esplicito (art. 6(1)(a) GDPR)</strong> — per gli organizzatori che ci contattano direttamente. Il consenso è documentato e conservato.</li>
-          <li><strong>Legittimo interesse (art. 6(1)(f) GDPR)</strong> — per eventi da fonti pubbliche. Il bilanciamento è documentato internamente. Puoi opporti in qualsiasi momento scrivendo a <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fd94939b92d39c9a928f9c8d8dbd9a909c9491d39e9290">[email&#160;protected]</a>.</li>
+          <li><strong>Legittimo interesse (art. 6(1)(f) GDPR)</strong> — per eventi da fonti pubbliche. Il bilanciamento è documentato internamente. Puoi opporti in qualsiasi momento scrivendo a <a href="mailto:info@agorapp.it">info@agorapp.it</a>.</li>
         </ul>
         <h3>4. Per quanto tempo conserviamo i dati</h3>
         <p>I dati di ogni evento vengono <strong>eliminati automaticamente 3 ore dopo la scadenza dell'evento</strong>. Non esiste un archivio storico. Le prove del consenso sono conservate per un massimo di 3 anni dalla data dell'evento.</p>
@@ -642,7 +643,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         <h3>6. Trasferimento dati fuori dall'UE</h3>
         <p>Agorapp non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l'indirizzo IP dell'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p>
         <h3>7. I tuoi diritti (artt. 15–21 GDPR)</h3>
-        <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a <a href="/cdn-cgi/l/email-protection#771e191118591610180516070737101a161e1b5914181a"><span class="__cf_email__" data-cfemail="89e0e7efe6a7e8eee6fbe8f9f9c9eee4e8e0e5a7eae6e4">[email&#160;protected]</span></a> — risponderemo entro 30 giorni.</p>
+        <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a <a href="mailto:info@agorapp.it">info@agorapp.it</a> — risponderemo entro 30 giorni.</p>
         <h3>8. Reclamo al Garante</h3>
         <p>Puoi proporre reclamo al Garante per la protezione dei dati personali: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Roma</p>
         <h3>9. Decisioni automatizzate</h3>
@@ -680,7 +681,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         <span class="legal-badge">Avvisi importanti</span>
         <h3>Accuratezza delle informazioni</h3>
         <p>Le informazioni sugli eventi provenienti da fonti pubbliche esterne <strong>potrebbero non essere aggiornate</strong>. <strong>Ti consigliamo di verificare sempre con l'organizzatore</strong> prima di spostarti.</p>
-        <p>Per segnalare un evento non più valido: <a href="/cdn-cgi/l/email-protection#b2dbdcd4dd9cd3d5ddc0d3c2c2f2d5dfd3dbde9cd1dddf"><span class="__cf_email__" data-cfemail="a4cdcac2cb8ac5c3cbd6c5d4d4e4c3c9c5cdc88ac7cbc9">[email&#160;protected]</span></a> — lo rimuoviamo entro 48 ore.</p>
+        <p>Per segnalare un evento non più valido: <a href="mailto:info@agorapp.it">info@agorapp.it</a> — lo rimuoviamo entro 48 ore.</p>
         <h3>Responsabilità sui contenuti</h3>
         <p>Agorapp aggrega informazioni già pubblicamente disponibili senza modificarle. Per gli eventi caricati da fonti pubbliche, Agorapp non risponde di modifiche, cancellazioni o inesattezze rispetto alla fonte originale al momento dell'acquisizione.</p>
         <h3>Eventi politici, manifestazioni e presidi</h3>
@@ -690,7 +691,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         <h3>Proprietà intellettuale</h3>
         <p>I testi e le descrizioni degli eventi sono di proprietà dei rispettivi organizzatori. Agorapp non rivendica diritti sui contenuti degli eventi pubblicati.</p>
         <h3>Contatti</h3>
-        <p>Per qualsiasi richiesta legale: <a href="/cdn-cgi/l/email-protection#dbb2b5bdb4f5babcb4a9baabab9bbcb6bab2b7f5b8b4b6"><span class="__cf_email__" data-cfemail="94fdfaf2fbbaf5f3fbe6f5e4e4d4f3f9f5fdf8baf7fbf9">[email&#160;protected]</span></a><br>
+        <p>Per qualsiasi richiesta legale: <a href="mailto:info@agorapp.it">info@agorapp.it</a><br>
         Titolare del trattamento: Lorenzo Calcagno, Torino</p>
       </div>
 
@@ -701,7 +702,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const ADMIN_PW='agorapp2024', USER_PW='agorapp', EXPIRE_DELETE_MS=3*60*60*1000, DESC_MIN=30, TITLE_MAX=100;
 function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -1161,7 +1162,7 @@ updatePresetUI();
     panelOpen=open;
     panel.classList.toggle('closed',!open);
     if(window.innerWidth>600){
-      var offset=(open?302:16)+'px';
+      var offset=(open?316:16)+'px';
       if(fab){fab.style.right=offset;}
       if(geo){geo.style.right=offset;}
       if(geoPanel){geoPanel.style.right=offset;}
@@ -1189,8 +1190,8 @@ updatePresetUI();
     if(window.innerWidth>600){
       var _fab=document.getElementById('fab-wrap');
       var _geo=document.getElementById('geo-btn');
-      if(_fab)_fab.style.right='302px';
-      if(_geo)_geo.style.right='302px';
+      if(_fab)_fab.style.right='316px';
+      if(_geo)_geo.style.right='316px';
     } else {
       // mobile: no offset, panel is overlay
       var _fab=document.getElementById('fab-wrap');
@@ -2326,15 +2327,6 @@ if(!localStorage.getItem('agorapp_onboarded')){
   },800);
 }
 
-map=L.map('map',{zoomControl:false}).setView([45.0703,7.6869],14);
-L.control.zoom({position:'bottomleft'}).addTo(map);
-map.on('click',function(e){
-  if((!isAdmin&&!isUser)||!mapClickMode)return;
-  mapClickMode=false;
-  var hb=document.getElementById('hint-bar');hb.style.background='';hb.style.color='';hb.style.display='none';
-  pendingLatLng=e.latlng;editingId=null;showModal(null);
-});
-
 // ── MODAL LEGALE ──
 function openLegal(tab){
   var m=document.getElementById('legal-modal');
@@ -2344,17 +2336,22 @@ function openLegal(tab){
   document.querySelectorAll('.legal-tab').forEach(function(t){t.classList.remove('active');});
   var panel=document.getElementById('tab-'+tab);
   if(panel)panel.classList.add('active');
-  var tabBtn=document.querySelector('.legal-tab[data-tab="'+tab+'"]');
-  if(tabBtn)tabBtn.classList.add('active');
+  // Support both data-tab and onclick-based tabs
+  document.querySelectorAll('.legal-tab').forEach(function(t){
+    var dt=t.dataset.tab;
+    var oc=t.getAttribute('onclick')||'';
+    if(dt===tab||oc.indexOf("'"+tab+"'")>=0)t.classList.add('active');
+  });
 }
-document.querySelectorAll('.legal-tab').forEach(function(t){
-  t.addEventListener('click',function(){openLegal(this.dataset.tab);});
-});
-document.getElementById('legal-close').addEventListener('click',function(){
-  document.getElementById('legal-modal').style.display='none';
-});
+function closeLegal(){
+  var m=document.getElementById('legal-modal');
+  if(m)m.style.display='none';
+}
+window.openLegal=openLegal;
+window.closeLegal=closeLegal;
+document.getElementById('legal-close').addEventListener('click',closeLegal);
 document.getElementById('legal-modal').addEventListener('click',function(e){
-  if(e.target===this)this.style.display='none';
+  if(e.target===this)closeLegal();
 });
 </script>
 </body>
