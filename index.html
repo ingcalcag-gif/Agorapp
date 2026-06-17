@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v82 — 27 maggio 2026 — fix: email CF, frecce 22×68, offset 316px, map init ×2, closeLegal/switchTab -->
+<!-- v100 — 15 giugno 2026 — Branch 3 / mini-mappa risultati Temi (puntini per tipo, evidenzia card, nascondi/mostra) -->
 <html lang="it" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
@@ -12,7 +12,7 @@
 :root{--bg:#F5F0E8;--surface:#FDFAF4;--surface-rgb:253,250,244;--surface2:#F0EBE0;--border:rgba(60,50,30,0.15);--border-strong:rgba(60,50,30,0.28);--text:#1C1712;--text-muted:#5C5246;--text-inv:#FDFAF4;--accent:#2D5A3D;--accent-light:#E8F2EB;--purple:#4A3F7A;--purple-light:#EEEAF8;--expired-bg:#E8E4DC;--expired-text:#9A9080;--menu-bg:#FDFAF4;--menu-shadow:0 6px 24px rgba(0,0,0,0.12);}
 [data-theme="dark"]{--bg:#0E0E12;--surface:#18181F;--surface2:#22222C;--border:rgba(255,255,255,0.1);--border-strong:rgba(255,255,255,0.2);--text:#E8E6F0;--text-muted:#6E6B7A;--text-inv:#0E0E12;--accent:#5DB87A;--accent-light:#1A3326;--purple:#A594F9;--purple-light:#2A2240;--expired-bg:#1A1A22;--expired-text:#555566;--menu-bg:#18181F;--menu-shadow:0 6px 24px rgba(0,0,0,0.4);}
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
-#app{display:flex;flex-direction:column;height:100vh;height:100dvh;padding-bottom:24px;}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;padding-bottom:env(safe-area-inset-bottom,0px);}
 #header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:54px;flex-shrink:0;z-index:9995;}
 .logo-name{font-family:'DM Serif Display',serif;font-size:1.625rem;color:var(--text);}
 .logo-city{font-size:0.75rem;color:var(--text-muted);margin-left:7px;}
@@ -455,6 +455,358 @@ html.simple-mode{font-size:18px;}
 button{min-height:24px;}
 .layer-arrow,#menu-search-clear,.menu-search-icon{min-width:24px;min-height:24px;display:inline-flex;align-items:center;justify-content:center;}
 </style>
+
+<style id="branch3-styles">
+/* ============================================================
+   BRANCH 3 — FOGLIO STILI CONSOLIDATO
+   Indice (in ordine di cascata):
+     1. step0-restyle
+     2. step01-tools
+     3. step01b-layersfix
+     4. step02-header
+     5. step03-cards
+     6. step04-mapfilter
+     7. step1-temi
+   ============================================================ */
+
+/* ===== step0-restyle ===== */
+/* ===================== STEP 0 — GUSCIO (innesto Branch 3) ===================== */
+/* Le sezioni scendono in basso; la vecchia barra sezioni in alto sparisce.       */
+#menubar{display:none!important;}
+
+/* Colori-accento per distinguere gli oggetti (eventi/pratiche/istanze).          */
+:root{
+  --clay:#C8743E; --clay-d:#A85C2C; --clay-pale:#F7E6D6;
+  --inst:#8B7BB8; --inst-d:#6A5B96; --inst-soft:#E7E0F2; --inst-ink:#564A7A;
+  --moss:#7FA98C; --moss-pale:#DCE8DF;
+}
+[data-theme="dark"]{
+  --clay-pale:#3A2A1C; --inst-soft:#2C2740; --moss-pale:#26352B;
+}
+
+/* Il "+" della mappa sale sopra la barra in basso. */
+#fab-wrap{bottom:78px!important;}
+
+/* Gli overlay sezione lasciano spazio in fondo per non finire sotto la barra. */
+#progetti-overlay,#agora-overlay,#cal-overlay{padding-bottom:62px;}
+
+/* ---- Barra sezioni in basso (sempre visibile) ---- */
+#bottom-nav{
+  position:absolute;left:0;right:0;bottom:0;height:62px;
+  background:rgba(var(--surface-rgb,253,250,244),0.96);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-around;
+  padding-bottom:6px;z-index:9996;
+}
+#bottom-nav .bn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  width:25%;background:none;border:none;cursor:pointer;
+  color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 0;
+}
+#bottom-nav .bn svg{width:23px;height:23px;display:block;}
+#bottom-nav .bn .bn-label{font-size:0.625rem;font-weight:500;}
+#bottom-nav .bn.on{color:var(--accent);}
+#bottom-nav .bn.on .bn-label{font-weight:600;}
+
+/* ---- Overlay Temi (ingresso provvisorio della sezione) ---- */
+#temi-overlay{
+  display:none;position:absolute;inset:0;background:var(--bg);
+  z-index:9990;flex-direction:column;overflow-y:auto;
+}
+.tov-pad{padding:18px 16px 80px;}
+.tov-h{font-family:'DM Serif Display',sans-serif;font-weight:600;font-size:1.25rem;color:var(--accent);}
+.tov-sub{font-size:0.75rem;color:var(--text-muted);margin:3px 0 14px;}
+.tov-grid{display:flex;flex-wrap:wrap;gap:7px;}
+.tov-tag{
+  font-size:0.75rem;font-weight:500;border-radius:999px;padding:6px 13px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text-muted);
+  display:inline-flex;align-items:center;gap:6px;cursor:default;
+}
+.tov-tag .tov-dot{width:7px;height:7px;border-radius:50%;}
+.tov-expl{display:flex;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;margin-top:16px;}
+.tov-expl-ic{width:38px;height:38px;border-radius:12px;background:var(--moss-pale);display:grid;place-items:center;flex:0 0 auto;}
+.tov-expl-ic svg{width:20px;height:20px;color:var(--accent);}
+.tov-expl-t{font-family:'DM Serif Display',sans-serif;font-weight:600;font-size:0.9rem;color:var(--accent);}
+.tov-expl-d{font-size:0.75rem;color:var(--text-muted);line-height:1.5;margin-top:2px;}
+.tov-note{display:flex;gap:9px;align-items:flex-start;background:var(--inst-soft);color:var(--inst-ink);border-radius:14px;padding:12px;margin-top:13px;font-size:0.72rem;line-height:1.5;}
+.tov-note svg{width:16px;height:16px;flex:0 0 auto;margin-top:1px;}
+
+/* ===== step01-tools ===== */
+/* ===================== STEP 0.1 — STRUMENTI A ICONE TONDE (mockup) ===================== */
+/* La barretta di testo diventa: [nome sezione] ............ [icone tonde].                 */
+/* !important dove serve per vincere sulla media-query mobile esistente.                    */
+#subbar{
+  height:auto!important; min-height:54px;
+  padding:8px 12px!important; gap:7px!important;
+  align-items:center!important;
+}
+#subbar .subbar-divider{display:none!important;}
+#subbar .subbar-item{flex:0 0 auto!important;}
+#mycal-subbar-group{flex:0 0 auto!important;}
+
+/* Titolo sezione a sinistra (spinge gli strumenti a destra) */
+.band-title{margin-right:auto;display:flex;flex-direction:column;justify-content:center;line-height:1.05;padding-right:8px;}
+.band-title-main{font-family:'DM Serif Display',sans-serif;font-weight:600;font-size:1.05rem;color:var(--accent);}
+.band-title-sub{font-size:0.62rem;color:var(--text-muted);margin-top:1px;}
+
+/* Gli strumenti: quadratini tondi, solo icona */
+#subbar .subbar-trigger{
+  width:38px!important;height:38px!important;padding:0!important;gap:0!important;
+  border-radius:11px!important;background:var(--surface)!important;
+  border:1px solid var(--border)!important;color:var(--text-muted)!important;
+  justify-content:center!important;font-size:0!important;font-weight:400!important;position:relative;
+}
+#subbar .subbar-trigger svg{width:16px!important;height:16px!important;}
+#subbar .subbar-trigger span{display:none!important;}
+#subbar .subbar-trigger:hover{background:var(--moss-pale)!important;color:var(--accent)!important;border-color:var(--moss)!important;}
+#subbar .subbar-trigger.open{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;}
+
+/* Su mobile: niente full-width sugli strumenti, restano quadratini */
+@media (max-width:600px){
+  #subbar{min-height:52px;padding:7px 11px!important;gap:6px!important;}
+  #subbar .subbar-item{flex:0 0 auto!important;}
+  #subbar .subbar-trigger{width:38px!important;height:38px!important;font-size:0!important;justify-content:center!important;}
+  .band-title-main{font-size:1rem;}
+}
+
+/* ===== step01b-layersfix ===== */
+/* ============== STEP 0.1 (fix) — BARRA STRATI: margini sopra/sotto ==============
+   La barra strati e' alta quanto lo schermo: ora si ferma sopra la barra sezioni in
+   basso, e su mobile parte sotto header+strumenti (altezza calcolata da JS).          */
+:root{--nav-h:62px;}
+
+/* clearance in fondo: non finisce piu' sotto la barra sezioni */
+#layers-panel{padding-bottom:calc(var(--nav-h) + 6px)!important;}
+
+@media (max-width:600px){
+  /* su mobile e' a tutta altezza (fixed): parte sotto la fascia alta */
+  #layers-panel{top:var(--chrome-top,96px)!important;bottom:var(--chrome-bottom,0px)!important;padding-bottom:calc(var(--nav-h) + 6px)!important;}
+}
+
+/* ===== step02-header ===== */
+/* ===================== STEP 0.2 — INTESTAZIONE (mockup) ===================== */
+/* germoglio accanto al nome (struttura provvisoria in attesa del logo vero) */
+#header > div:first-child{display:flex;align-items:center;}
+.logo-seed{display:inline-flex;width:27px;height:27px;border-radius:9px;background:var(--accent);align-items:center;justify-content:center;margin-right:9px;flex:0 0 auto;}
+.logo-seed svg{width:16px;height:16px;color:#fff;}
+
+/* bottoni header puliti e tondi (solo quelli dell'intestazione) */
+#header .hdr-btn{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:12px!important;padding:7px 13px!important;color:var(--text-muted)!important;font-weight:500!important;height:36px;}
+#header .hdr-btn:hover{background:var(--surface2)!important;}
+
+/* User via (l'elemento resta nascosto: il codice lo cerca ancora) */
+#user-btn{display:none!important;}
+
+/* Sole: solo icona */
+#theme-btn{width:38px!important;padding:0!important;justify-content:center!important;}
+
+/* Globo lingua */
+#lang-globe{display:flex!important;align-items:center;gap:5px;font-weight:600!important;}
+#lang-globe svg{flex:0 0 auto;}
+
+/* Admin: tondo; verde quando attivo (usa la classe active-green gia' esistente) */
+#admin-btn{border-radius:12px!important;}
+#admin-btn.active-green{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;}
+
+/* ===== step03-cards ===== */
+/* ===================== STEP 0.3 — SCHEDE (mockup, solo aspetto) ===================== */
+/* I dati reali (tipo, stato, "cosa serve") restano: cambia solo il vestito.            */
+
+/* Schede Progetti / Pratiche: piu' tonde, ombra morbida, sollevamento all'hover */
+.prog-card{border-radius:18px!important;box-shadow:0 2px 10px -6px rgba(19,48,31,.18);transition:box-shadow .2s,transform .2s!important;}
+.prog-card:hover{box-shadow:0 12px 26px -12px rgba(19,48,31,.30);transform:translateY(-1px);}
+.prog-card-bar{width:6px!important;}
+.prog-card-title{font-size:1.1rem!important;}
+.prog-card-badge{border-radius:999px!important;padding:4px 11px!important;}
+
+/* Pill degli strati: tonda, con pallino colorato davanti (come nel mockup) */
+.prog-strato-pill{border-radius:999px!important;padding:3px 10px 3px 9px!important;display:inline-flex!important;align-items:center;gap:6px;font-weight:600!important;}
+.prog-strato-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 auto;}
+
+/* Agorà / Istanze: accento viola, ancora piu' tonda */
+.agora-card{border-radius:20px!important;box-shadow:0 2px 10px -6px rgba(86,74,122,.18);transition:box-shadow .2s,transform .2s,border-color .2s!important;}
+.agora-card:hover{box-shadow:0 12px 26px -12px rgba(86,74,122,.32);transform:translateY(-1px);border-color:var(--inst)!important;}
+
+/* ===== step04-mapfilter ===== */
+/* ===== STEP 0.4a — menù lingua a scomparsa ===== */
+#lang-menu{position:fixed;display:none;flex-direction:column;min-width:152px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--menu-shadow,0 8px 28px -8px rgba(0,0,0,.25));padding:5px;z-index:9999;}
+#lang-menu.open{display:flex;}
+.lang-menu-item{text-align:left;background:none;border:none;border-radius:8px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:0.8125rem;color:var(--text);cursor:pointer;white-space:nowrap;}
+.lang-menu-item:hover{background:var(--surface2);}
+
+/* ===== STEP 0.4b — pannello "presenza sulla mappa" (eventi/pratiche/istanze) ===== */
+#type-filter{position:absolute;left:12px;bottom:calc(var(--nav-h) + 14px);z-index:600;background:rgba(var(--surface-rgb,253,250,244),.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:0 6px 18px -8px rgba(19,48,31,.3);display:flex;flex-direction:column;gap:8px;}
+.tf-row{display:flex;align-items:center;gap:9px;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.8rem;color:var(--text);padding:0;transition:opacity .15s;}
+.tf-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;}
+.tf-row.off{opacity:.4;}
+.tf-row.off .tf-dot{background:var(--text-muted)!important;}
+
+/* zoom mappa: sollevato sopra la barra sezioni; nascosto su mobile (pinch ok) */
+.leaflet-bottom.leaflet-left{bottom:calc(var(--nav-h) + 116px)!important;}
+.leaflet-control-zoom{display:none!important;}
+
+/* ===== step1-temi ===== */
+/* ===================== STEP 1/2 — PILL DEI TEMI ===================== */
+.temi-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.temi-pill{display:inline-flex;align-items:center;gap:6px;font-size:0.6875rem;font-weight:600;border-radius:999px;padding:3px 10px 3px 8px;line-height:1.4;}
+.temi-dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;}
+</style>
+
+<style id="branch3-temiview">
+/* ============ SEZIONE TEMI — stile fedele al mock-up Branch 3 ============ */
+#temi-overlay{flex-direction:column;padding-bottom:var(--nav-h,62px);box-sizing:border-box;}
+
+/* toolbar */
+.tv-toolbar{flex:0 0 auto;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:9px;min-height:54px;z-index:6;}
+.tv-ttitle{font-family:'DM Serif Display',serif;font-weight:600;font-size:1.2rem;color:var(--accent);line-height:1.05;}
+.tv-ttitle small{display:block;font-family:'DM Sans',sans-serif;font-weight:400;font-size:0.625rem;color:var(--text-muted);margin-top:2px;}
+.tv-spacer{flex:1;}
+.tv-ticon{position:relative;width:38px;height:38px;border-radius:11px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;cursor:pointer;flex:0 0 auto;transition:.15s;color:var(--text-muted);}
+.tv-ticon:hover{background:var(--moss-pale);border-color:var(--accent);}
+.tv-ticon svg{width:17px;height:17px;}
+.tv-ticon.act{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tv-badge2{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:999px;background:var(--clay);color:#fff;font-size:0.5625rem;font-weight:700;display:grid;place-items:center;padding:0 4px;border:2px solid var(--surface);}
+
+/* corpo + tendina */
+.tv-body{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column;}
+.tv-scroll{flex:1 1 auto;overflow-y:auto;}
+.tv-wrap{max-width:900px;margin:0 auto;padding:16px 16px 28px;}
+.tv-drop{position:absolute;left:0;right:0;top:0;z-index:8;pointer-events:none;}
+.tv-drop-in{pointer-events:auto;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:0 12px 28px -14px rgba(0,0,0,.35);animation:tvdrop .16s ease;max-width:900px;margin:0 auto;}
+@keyframes tvdrop{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.tv-tapcatch{position:absolute;inset:0;z-index:7;}
+
+/* esplora */
+.tv-dirhead{font-family:'DM Serif Display',serif;font-weight:600;font-size:1.3rem;color:var(--text);margin:2px 2px 4px;}
+.tv-dirsub{font-size:0.8125rem;color:var(--text-muted);margin:0 2px 14px;line-height:1.55;}
+.tv-grp{font-size:0.625rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:16px 2px 9px;}
+.tv-taggrid{display:flex;flex-wrap:wrap;gap:7px;}
+.tv-gtag{font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;border-radius:999px;padding:6px 12px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);transition:.12s;display:inline-flex;align-items:center;gap:6px;}
+.tv-gtag:hover{border-color:var(--accent);}
+.tv-gtag.sel{color:#fff;}
+.tv-dotty{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
+.tv-explainer{display:flex;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;margin-top:18px;}
+.tv-ei{width:34px;height:34px;border-radius:10px;background:var(--moss-pale);display:grid;place-items:center;flex:0 0 auto;color:var(--accent);}
+.tv-ei svg{width:18px;height:18px;}
+.tv-et{font-family:'DM Serif Display',serif;font-weight:600;font-size:0.875rem;color:var(--text);}
+.tv-ed{font-size:0.75rem;color:var(--text-muted);line-height:1.5;margin-top:2px;}
+
+/* lente */
+.tv-lensbox{padding:12px 14px 14px;display:flex;flex-direction:column;max-height:62vh;}
+.tv-sbar{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1.5px solid var(--accent);border-radius:12px;padding:10px 12px;flex:0 0 auto;}
+.tv-sbar svg{width:16px;height:16px;color:var(--accent);flex:0 0 auto;}
+.tv-sbar input{border:none;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:0.875rem;color:var(--text);width:100%;}
+.tv-clr{cursor:pointer;color:var(--text-muted);font-size:0.75rem;}
+.tv-hint{font-size:0.625rem;color:var(--text-muted);margin:6px 2px 0;flex:0 0 auto;}
+.tv-picked{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;flex:0 0 auto;}
+.tv-ptag{display:inline-flex;align-items:center;gap:6px;font-size:0.6875rem;font-weight:600;border-radius:999px;padding:5px 8px 5px 11px;}
+.tv-px{width:15px;height:15px;border-radius:50%;display:grid;place-items:center;cursor:pointer;font-size:0.625rem;background:rgba(0,0,0,.12);}
+.tv-tlhead{font-size:0.625rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:12px 2px 8px;flex:0 0 auto;}
+.tv-taglist{overflow-y:auto;flex:1 1 auto;padding-right:4px;}
+.tv-nomatch{font-size:0.75rem;color:var(--text-muted);text-align:center;padding:18px 8px;}
+.tv-applybar{margin-top:12px;display:flex;gap:8px;flex:0 0 auto;}
+.tv-btn{flex:1;border:none;border-radius:12px;padding:11px;font-family:'DM Sans',sans-serif;font-size:0.8125rem;font-weight:600;cursor:pointer;}
+.tv-btn.pri{background:var(--accent);color:#fff;}
+.tv-btn.gho{background:var(--surface2);border:1.5px solid var(--border);color:var(--text-muted);}
+
+/* strumenti */
+.tv-toolsheet{padding:8px;}
+.tv-trow{display:flex;align-items:center;gap:10px;padding:11px 10px;border-radius:11px;font-size:0.8125rem;color:var(--text);cursor:pointer;}
+.tv-trow:hover{background:var(--surface2);}
+.tv-trow svg{width:17px;height:17px;color:var(--accent);flex:0 0 auto;}
+.tv-chk{margin-left:auto;width:36px;height:20px;border-radius:999px;background:var(--border);position:relative;transition:.15s;flex:0 0 auto;}
+.tv-chk::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s;}
+.tv-trow.on .tv-chk{background:var(--accent);}.tv-trow.on .tv-chk::after{left:18px;}
+.tv-tdiv{height:1px;background:var(--border);margin:6px 4px;}
+.tv-slotlabel{font-size:0.625rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);padding:8px 10px 6px;}
+.tv-slot{display:flex;align-items:center;gap:10px;padding:10px;border-radius:11px;border:1.5px dashed var(--border);margin:0 4px 7px;cursor:pointer;transition:.15s;}
+.tv-slot:hover{border-color:var(--accent);background:var(--moss-pale);}
+.tv-slot.full{border-style:solid;background:var(--surface2);cursor:default;}
+.tv-si{width:30px;height:30px;border-radius:9px;background:var(--surface2);display:grid;place-items:center;flex:0 0 auto;color:var(--text-muted);}
+.tv-slot.full .tv-si{background:var(--accent);color:#fff;}
+.tv-si svg{width:15px;height:15px;}
+.tv-sn{font-size:0.8125rem;font-weight:600;color:var(--text);}
+.tv-sd{font-size:0.6875rem;color:var(--text-muted);}
+.tv-sact{margin-left:auto;display:flex;gap:6px;align-items:center;}
+.tv-applylink{font-size:0.6875rem;color:var(--accent);font-weight:700;cursor:pointer;}
+.tv-del{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--clay-d);cursor:pointer;}
+.tv-del:hover{background:var(--clay-pale);}.tv-del svg{width:13px;height:13px;}
+.tv-savecur{display:flex;align-items:center;gap:8px;justify-content:center;margin:4px 4px 2px;padding:10px;border-radius:11px;background:var(--moss-pale);color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;}
+.tv-savecur.dim{opacity:.5;cursor:default;background:var(--surface2);color:var(--text-muted);}
+.tv-savecur svg{width:15px;height:15px;}
+
+/* risultati */
+.tv-fixed{flex:0 0 auto;background:var(--bg);padding:12px 16px 2px;z-index:2;border-bottom:1px solid var(--border);}
+.tv-fixed .tv-wrap{padding:0;}
+.tv-activetags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;}
+.tv-lbl{font-size:0.6875rem;color:var(--text-muted);}
+.tv-cttag{font-size:0.625rem;font-weight:600;border-radius:999px;padding:3px 9px;}
+.tv-actions{margin-left:auto;display:flex;gap:10px;align-items:center;}
+.tv-mini{font-size:0.6875rem;color:var(--accent);font-weight:700;cursor:pointer;}
+.tv-typefilter{display:flex;gap:6px;margin-bottom:10px;}
+.tv-tf{flex:1;text-align:center;font-size:0.6875rem;font-weight:600;border:1px solid var(--border);border-radius:10px;padding:7px 4px;cursor:pointer;color:var(--text-muted);background:var(--surface2);}
+.tv-tf.on{color:#fff;border-color:transparent;}
+.tv-tf.on.all{background:var(--accent);}.tv-tf.on.e{background:var(--accent);}.tv-tf.on.p{background:var(--clay);}.tv-tf.on.i{background:var(--inst-d);}
+.tv-mapnote{font-size:0.625rem;color:var(--text-muted);display:flex;align-items:center;gap:6px;padding:7px 0 9px;}
+.tv-mapnote svg{width:13px;height:13px;color:var(--text-muted);}
+.tv-resmeta{font-size:0.6875rem;color:var(--text-muted);margin:2px 0 10px;}
+.tv-card{text-align:left;display:block;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px;margin-bottom:11px;position:relative;cursor:pointer;transition:.12s;}
+.tv-card:hover{border-color:var(--accent);}
+.tv-card.exp{opacity:.6;}
+.tv-corner{position:absolute;top:11px;right:11px;font-size:0.5625rem;font-weight:700;border-radius:999px;padding:3px 9px;}
+.tv-corner.e{background:var(--moss-pale);color:var(--accent);}
+.tv-corner.p{background:var(--clay-pale);color:var(--clay-d);}
+.tv-corner.i{background:var(--inst-soft);color:var(--inst-ink);}
+.tv-when{font-size:0.625rem;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:5px;color:var(--clay-d);}
+.tv-card.exp .tv-when{color:var(--text-muted);}
+.tv-when svg{width:12px;height:12px;}
+.tv-ct{font-family:'DM Serif Display',serif;font-weight:600;font-size:1rem;color:var(--text);margin-bottom:5px;padding-right:62px;line-height:1.2;}
+.tv-cdesc{font-size:0.75rem;color:var(--text-muted);line-height:1.5;margin-bottom:9px;}
+.tv-ctags{display:flex;flex-wrap:wrap;gap:5px;}
+.tv-loadmore{margin:6px auto 2px;display:block;background:var(--surface2);border:1.5px solid var(--border);border-radius:11px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;color:var(--accent);cursor:pointer;}
+.tv-empty{text-align:center;color:var(--text-muted);padding:36px 0;font-size:0.8125rem;}
+
+/* modali */
+.tv-modal{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(19,48,31,.32);}
+.tv-mbox{background:var(--surface);border-radius:20px;padding:20px;width:100%;max-width:360px;box-shadow:0 18px 40px -18px rgba(0,0,0,.5);}
+.tv-mt{font-family:'DM Serif Display',serif;font-weight:600;font-size:1rem;color:var(--text);margin-bottom:6px;}
+.tv-md{font-size:0.75rem;color:var(--text-muted);margin-bottom:14px;line-height:1.5;}
+.tv-mbox input{width:100%;border:1.5px solid var(--border);border-radius:11px;padding:11px 12px;font-family:'DM Sans',sans-serif;font-size:0.875rem;outline:none;background:var(--surface2);color:var(--text);}
+.tv-mbox input:focus{border-color:var(--accent);}
+.tv-mbtns{display:flex;gap:8px;margin-top:16px;}
+.tv-pslot{display:flex;align-items:center;gap:11px;padding:11px;border-radius:12px;border:1.5px dashed var(--border);margin-bottom:8px;cursor:pointer;transition:.14s;}
+.tv-pslot:hover{border-color:var(--accent);background:var(--moss-pale);}
+.tv-pslot.full{border-style:solid;background:var(--surface2);}
+.tv-psi{width:32px;height:32px;border-radius:9px;background:var(--surface2);display:grid;place-items:center;flex:0 0 auto;color:var(--text-muted);}
+.tv-pslot.full .tv-psi{background:var(--accent);color:#fff;}
+.tv-psi svg{width:15px;height:15px;}
+.tv-psinfo{flex:1;}
+.tv-psn{font-size:0.8125rem;font-weight:600;color:var(--text);}
+.tv-psd{font-size:0.6875rem;color:var(--text-muted);}
+.tv-psstate{font-size:0.6875rem;font-weight:700;border-radius:999px;padding:4px 10px;}
+.tv-psstate.free{background:var(--moss-pale);color:var(--accent);}
+.tv-psstate.occ{background:var(--clay-pale);color:var(--clay-d);}
+
+/* mini-mappa risultati */
+.tv-maprow{position:relative;margin:0 0 10px;}
+.tv-minimap{height:120px;border-radius:14px;overflow:hidden;position:relative;border:1px solid var(--border);background:linear-gradient(180deg,var(--surface2),var(--surface));}
+.tv-mapsvg{position:absolute;inset:0;width:100%;height:100%;}
+.tv-mappin{position:absolute;width:18px;height:18px;transform:translate(-50%,-100%);cursor:pointer;transition:.14s;background:none;border:none;padding:0;z-index:2;}
+.tv-mappin svg{width:18px;height:18px;display:block;}
+.tv-mappin.act{transform:translate(-50%,-100%) scale(1.5);z-index:3;}
+.tv-maptoggle{position:absolute;top:7px;right:7px;background:var(--surface);border:1px solid var(--border);border-radius:9px;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;z-index:4;color:var(--text-muted);}
+.tv-maptoggle svg{width:14px;height:14px;}
+.tv-maplabel{position:absolute;top:7px;left:9px;font-size:0.5625rem;font-weight:700;color:var(--accent);background:var(--surface);border-radius:7px;padding:3px 8px;z-index:4;}
+.tv-mapempty{position:absolute;inset:0;display:grid;place-items:center;font-size:0.6875rem;color:var(--text-muted);}
+.tv-mapcollapsed{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:9px 12px;font-size:0.75rem;color:var(--text-muted);cursor:pointer;}
+.tv-mapcollapsed b{color:var(--accent);}
+.tv-mapcollapsed svg{width:15px;height:15px;color:var(--accent);}
+.tv-card.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--moss-pale);}
+.tv-opener{margin-top:9px;font-size:0.6875rem;font-weight:700;color:var(--accent);display:none;align-items:center;gap:5px;}
+.tv-card.active .tv-opener{display:flex;}
+
+</style>
 </head>
 <body>
 <div id="app">
@@ -845,11 +1197,11 @@ var ITEMS_PER_PAGE=10;
 // A1 — i18n: infrastruttura. Lingue: IT (base) + EN/ES/FR/AR. Le stringhe UI si estraggono a sezioni (batch 5b+).
 let lang=localStorage.getItem('agorapp_lang')||'it';
 const T={
-  it:{aspetto:'Aspetto',chiaro:'Chiaro',scuro:'Scuro',simple:'Modalità semplice',lingua:'Lingua',admin:'Admin',user:'User',ricerca:'Ricerca',salvati:'Salvati',nascosti:'Nascosti',nav_mappa:'Mappa',nav_calendario:'Calendario',nav_progetti:'Progetti',nav_agora:'Agorà',strati:'Strati',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Seleziona cosa vuoi vedere sulla mappa',seleziona_tutti:'Seleziona tutti',eventi_visibili:'eventi visibili',legal_privacy:'Informativa sulla privacy',legal_storage:'Dati locali',legal_disclaimer:'Note legali',prog_title:'Progetti',prog_subtitle:'Pratiche collettive nel tessuto urbano',prog_intro:'La produzione culturale non avviene dove viene riconosciuta. Avviene nei cortili, nei presidi, nelle assemblee informali. Questi progetti esistono indipendentemente da Agorapp — la piattaforma si limita a rendere visibile ciò che era già in atto.',filtro_tutti:'Tutti',prog_cosa_serve:'Cosa serve:',prog_vuoto:'Nessun progetto per questo strato.',carica_altri:'Carica altri',visto_tutto:'Hai visto tutto —',progetto:'progetto',progetti:'progetti',agora_title:'Agorà',agora_subtitle:'Istanze civiche dal basso',agora_intro:'Le istanze che vedi qui non sono petizioni. Sono ipotesi di trasformazione nate dal basso — dagli eventi, dalle assemblee, dalle conversazioni nei cortili. Ogni istanza raccoglie tensioni reali e le traduce in proposte operative.',filtro_tutte:'Tutte',agora_proponi:'Proponi una nuova istanza',in_sviluppo:'⏳ In sviluppo',wip_title:'In costruzione',wip_body:'Questa sezione è ancora in fase di costruzione!',wip_body_agora:'La sezione Agorà è ancora in fase di costruzione!',onb_title:'Benvenuto su Agorapp!',onb_body:'Premi <b>User</b> per aggiungere i tuoi eventi sulla mappa.',onb_note:'Gli eventi restano solo su questo dispositivo.',m_edit:'Modifica evento',m_user_offgrid:'Il tuo evento Off-Grid',m_new:'Nuovo evento',og_badge:'Evento Off-Grid',og_note:'Visibile solo a chi ha il tuo link. Nessun dato inviato a server.',f_name:'Il tuo nome',f_name_hint:"appare sul badge dell'evento",f_name_ph:'Es. Vanessa Greco',f_title:'Titolo',f_title_hint:'ci vuole un nome',f_title_ph:"Nome dell'evento",f_title_err:"Dai un nome all'evento",f_strato:'Strato',f_strato_hint:'categoria',f_strato_err:'Scegli uno strato',f_sub:'Sottostrato',f_sub_hint:'dopo lo strato',f_sub_err:'Scegli il sottostrato',f_desc:'Descrizione',f_desc_hint:'almeno 30 caratteri',f_desc_ph:"Racconta l'evento…",f_desc_err:'Servono almeno 30 caratteri',f_dt:'Data e ora',f_dt_hint:'quando inizia',f_dt_err:'Data futura obbligatoria',f_dur:'Durata',f_dur_hint:'quanto dura',f_dur_ph:'es. 2 ore',f_dur_err:'Indica la durata',f_price:'Prezzo',f_price_hint:'o gratuito',f_price_ph:'Gratuito / 10€',f_price_err:'Indica il prezzo',f_link:'Link esterno',f_link_hint:'facoltativo',f_img:'Immagine',f_img_hint:'URL copertina, facoltativa',f_addr:'Indirizzo',f_addr_hint:'dove si svolge — obbligatorio se non usi Posiziona',f_addr_ph:'Es. Via Po 12, Torino',f_posiziona:'Posiziona',f_hidden:'🔒 Evento nascosto',f_hidden_hint:'Visibile solo a chi ha la password',f_pw:'Password di sblocco',f_pw_hint:'sceglila tu',f_pw_ph:'Una parola segreta',f_pw_err:'Scegli una password',annulla:'Annulla',elimina:'Elimina',salva_evento:'Salva evento',terminato:'Terminato',pop_modifica:'✏ Modifica',pop_elimina:'🗑 Elimina',leggi_tutto:' leggi tutto',chiudi:'Chiudi',sito_evento:'🔗 Sito evento',ci_vado:'Ci vado',sono_qui:'Sono qui',att_annulla:'Clicca di nuovo per annullare',att_segnala:'Clicca per segnalare la tua presenza',nel_cal:'Nel calendario',salva_cal:'Salva nel calendario',rimosso_cal:'Rimosso dal calendario',ricerca_semplice:'Ricerca semplice',ph_titolo_desc:'Titolo o descrizione…',mostra_terminati:'Mostra eventi terminati',ricerca_avanzata:'Ricerca avanzata',filtri_combinati:'filtri combinati',offgrid_export:'📡 Off-Grid — Esporta link',link_condivisibile:'link condivisibile',esporta_json:'Esporta eventi JSON',backup_h:'backup',importa_json:'Importa eventi JSON',merge_h:'merge',sblocca_nascosto:'Sblocca evento nascosto',ph_password_ev:'Password evento…',sblocca:'Sblocca',mostra_sbloccati:'Mostra eventi sbloccati',fab_analizza:'Analizza e crea →',fab_text_hint:'Claude leggerà il testo e precompilerà il form',fab_voice_status:'In ascolto… parla adesso',adv_keywords:'Parole chiave',adv_kw_ph:'Titolo o descrizione...',adv_da:'Da',adv_a:'A',adv_free:'Gratuiti',adv_paid:'A pagamento',adv_reset:'Reimposta',adv_cerca:'Cerca',t_admin_user:'Entra in modalità Admin o User per aggiungere eventi.',t_err_rete:'Errore di rete.',t_err_export:'Errore export.',t_err_file:'Errore lettura file — verifica il formato.',t_err:'Errore.',t_ev_nascosto:'Evento salvato — attualmente nascosto dai filtri attivi',t_file_dl:'File scaricato!',t_file_vuoto:'File vuoto — nessun evento trovato.',t_gps_no:'GPS non disponibile su questo dispositivo.',t_pos_no:'Impossibile rilevare la posizione. Controlla i permessi.',t_addr_o_pos:'Indica un indirizzo o usa Posiziona.',t_addr_no_prec:'Indirizzo non trovato — prova con un indirizzo più preciso.',t_addr_no:'Indirizzo non trovato.',t_nome_obb:'Inserisci il tuo nome — è obbligatorio per gli eventi Off-Grid.',t_link_copy:'Link copiato!',t_no_offgrid_exp:'Nessun evento Off-Grid da esportare. Crea un evento e attiva "Fuori Rete".',t_no_condividere:'Nessun evento da condividere.',t_no_stampare:'Nessun evento da stampare.',t_pw_no:'Password non riconosciuta.',t_pos_ok:'Posizione trovata!',t_ricerca_corso:'Ricerca in corso...',t_ricerca_addr:'Ricerca indirizzo...',t_voice_no:'Riconoscimento vocale non supportato — usa Chrome.',t_rilevamento:'Rilevamento posizione...',t_copy_manual:'Seleziona e copia manualmente.',conf_elimina:'Eliminare?',cal_vai_mappa:'📍 Vai alla mappa',cal_th_ora:'Ora',cal_th_evento:'Evento',cal_empty1:'Nessun evento.<br>Clicca <b>Salva nel calendario</b> su un evento.',cal_empty2:'Il tuo calendario è vuoto.<br>Clicca <b>Salva nel calendario</b> su un evento della mappa.',og_exp_label:'Modalità Off-Grid',og_exp_title:'I tuoi eventi, a modo tuo',og_exp_body1:'Gli eventi che crei in modalità User sono <b style="color:var(--accent-light);">Off-Grid</b>: esistono solo nella memoria di questo dispositivo e non passano per nessun server.<br><br>',og_exp_body2:'Puoi <b style="color:var(--accent-light);">condividerli via link</b> (WhatsApp, DM) usando <i>Esporta Off-Grid</i> nel menù Ricerca. Solo chi riceve il link vede i tuoi eventi sulla sua mappa.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Attenzione:</b> se modifichi o elimini un evento dopo averlo condiviso, l\'altra persona non sarà aggiornata automaticamente — dovrai mandare un nuovo link.',og_exp_ok:'Ho capito, cominciamo',share_title:'Condividi il calendario',share_sub:'Copia il link e mandalo a chi vuoi:',copia_link:'Copia link',fr_pkg:'📡 Pacchetto Fuori Rete',ev_sing:'evento',ev_plur:'eventi',fr_manda:'Manda questo link a chi vuoi. Solo chi lo riceve vedrà i tuoi eventi su Agorapp.',legal_docs_title:'Documenti legali',legal_tab_privacy:'Informativa privacy',legal_html_privacy:'<span class="legal-badge">✓ Conforme GDPR · v1.2 · Marzo 2026</span> <h3>1. Titolare del trattamento</h3> <p><strong>Agorapp</strong>, progetto di <strong>Lorenzo Calcagno</strong>, Torino<br> Contatto: <a href="mailto:info@agorapp.it">info@agorapp.it</a></p> <h3>2. Quali dati trattiamo e perché</h3> <p>Agorapp è una mappa interattiva degli eventi urbani di Torino. <strong>Non raccoglie dati personali degli utenti che consultano la mappa</strong>: non ci sono account, non ci sono cookie di profilazione, non ci sono sistemi di tracciamento.</p> <p>Gli unici dati trattati riguardano gli <strong>organizzatori di eventi</strong> che richiedono la pubblicazione: titolo, luogo, orario, descrizione, eventualmente un nome artistico o il nome dell\'organizzazione.</p> <p>Trattiamo inoltre informazioni su eventi provenienti da <strong>fonti pubblicamente accessibili</strong> (siti web, pagine social pubbliche), quando l\'organizzatore ha scelto consapevolmente di renderle pubbliche.</p> <h3>3. Base giuridica del trattamento</h3> <ul> <li><strong>Consenso esplicito (art. 6(1)(a) GDPR)</strong> — per gli organizzatori che ci contattano direttamente. Il consenso è documentato e conservato.</li> <li><strong>Legittimo interesse (art. 6(1)(f) GDPR)</strong> — per eventi da fonti pubbliche. Il bilanciamento è documentato internamente. Puoi opporti in qualsiasi momento scrivendo a <a href="mailto:info@agorapp.it">info@agorapp.it</a>.</li> </ul> <h3>4. Per quanto tempo conserviamo i dati</h3> <p>I dati di ogni evento vengono <strong>eliminati automaticamente 3 ore dopo la scadenza dell\'evento</strong>. Non esiste un archivio storico. Le prove del consenso sono conservate per un massimo di 3 anni dalla data dell\'evento.</p> <h3>5. Chi può vedere i dati</h3> <p>Le informazioni degli eventi sono visibili a chiunque visiti Agorapp. <strong>Nessun dato viene ceduto, venduto o comunicato a terzi</strong> per finalità commerciali o di marketing.</p> <h3>6. Trasferimento dati fuori dall\'UE</h3> <p>Agorapp non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l\'indirizzo IP dell\'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p> <h3>7. I tuoi diritti (artt. 15–21 GDPR)</h3> <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a <a href="mailto:info@agorapp.it">info@agorapp.it</a> — risponderemo entro 30 giorni.</p> <h3>8. Reclamo al Garante</h3> <p>Puoi proporre reclamo al Garante per la protezione dei dati personali: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Roma</p> <h3>9. Decisioni automatizzate</h3> <p>Agorapp non effettua profilazione né decisioni automatizzate.</p>',legal_html_storage:'<span class="legal-badge">Solo sul tuo dispositivo · Nessun server</span> <h3>Cosa viene salvato sul tuo dispositivo</h3> <p>Agorapp utilizza esclusivamente strumenti di archiviazione tecnica locale. <strong>Nessun dato viene mai trasmesso a server esterni</strong> da questi strumenti.</p> <h3>localStorage</h3> <p>Conserva sul tuo dispositivo:</p> <ul> <li>Gli eventi presenti sulla mappa</li> <li>Il tema grafico scelto (Chiaro / Scuro)</li> <li>Il calendario personale degli eventi salvati</li> <li>Lo stato dei filtri per strato</li> </ul> <p>I dati in localStorage rimangono fino a quando non vengono cancellati manualmente o finché gli eventi non scadono automaticamente.</p> <h3>Base normativa</h3> <p>Questi strumenti sono assimilabili ai <strong>cookie tecnici</strong> ai sensi del Provvedimento Garante del 10 giugno 2021 e sono <strong>esenti dall\'obbligo di consenso preventivo</strong>.</p> <p>Non vengono utilizzati cookie di profilazione, cookie analitici né strumenti di tracciamento di terze parti.</p> <h3>Servizi cartografici di terze parti</h3> <p>La visualizzazione della mappa utilizza due servizi esterni che ricevono l\'indirizzo IP dell\'utente ad ogni caricamento delle immagini geografiche:</p> <ul> <li><strong>CartoDB/Carto</strong> — fornisce le immagini della mappa. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Opera su base Clausole Contrattuali Standard UE.</li> <li><strong>OpenStreetMap</strong> — base cartografica open source. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">osmfoundation.org/wiki/Privacy_Policy</a>.</li> </ul> <p>Agorapp non ha accesso a questi dati e non li controlla.</p> <h3>Come cancellare i dati locali</h3> <p>Puoi cancellare tutti i dati locali di Agorapp in qualsiasi momento dalle impostazioni del tuo browser (Impostazioni → Privacy → Cancella dati di navigazione → Dati siti web).</p>',legal_html_disclaimer:'<span class="legal-badge">Avvisi importanti</span> <h3>Accuratezza delle informazioni</h3> <p>Le informazioni sugli eventi provenienti da fonti pubbliche esterne <strong>potrebbero non essere aggiornate</strong>. <strong>Ti consigliamo di verificare sempre con l\'organizzatore</strong> prima di spostarti.</p> <p>Per segnalare un evento non più valido: <a href="mailto:info@agorapp.it">info@agorapp.it</a> — lo rimuoviamo entro 48 ore.</p> <h3>Responsabilità sui contenuti</h3> <p>Agorapp aggrega informazioni già pubblicamente disponibili senza modificarle. Per gli eventi caricati da fonti pubbliche, Agorapp non risponde di modifiche, cancellazioni o inesattezze rispetto alla fonte originale al momento dell\'acquisizione.</p> <h3>Eventi politici, manifestazioni e presidi</h3> <p>Per eventi di natura politica, manifestazioni, cortei e presidi, la <strong>verifica preliminare con l\'organizzatore è indispensabile</strong> prima di spostarsi. Agorapp non assume alcuna responsabilità per conseguenze derivanti dalla presenza in luoghi indicati dalla mappa in relazione a eventi di questo tipo.</p> <h3>Conformità normativa degli eventi</h3> <p>Agorapp <strong>non verifica la conformità degli eventi</strong> alla normativa sugli spettacoli pubblici, alle autorizzazioni di agibilità o alle licenze richieste dalla legge. La responsabilità della regolarità dell\'evento ricade esclusivamente sull\'organizzatore.</p> <h3>Proprietà intellettuale</h3> <p>I testi e le descrizioni degli eventi sono di proprietà dei rispettivi organizzatori. Agorapp non rivendica diritti sui contenuti degli eventi pubblicati.</p> <h3>Contatti</h3> <p>Per qualsiasi richiesta legale: <a href="mailto:info@agorapp.it">info@agorapp.it</a><br> Titolare del trattamento: Lorenzo Calcagno, Torino</p>'},
-  en:{aspetto:'Appearance',chiaro:'Light',scuro:'Dark',simple:'Simple mode',lingua:'Language',admin:'Admin',user:'User',ricerca:'Search',salvati:'Saved',nascosti:'Hidden',nav_mappa:'Map',nav_calendario:'Calendar',nav_progetti:'Projects',nav_agora:'Agora',strati:'Layers',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Choose what to see on the map',seleziona_tutti:'Select all',eventi_visibili:'events visible',legal_privacy:'Privacy notice',legal_storage:'Local data',legal_disclaimer:'Legal notes',prog_title:'Projects',prog_subtitle:'Collective practices in the urban fabric',prog_intro:'Cultural production does not happen where it is recognized. It happens in courtyards, in grassroots hubs, in informal assemblies. These projects exist independently of Agorapp — the platform merely makes visible what was already underway.',filtro_tutti:'All',prog_cosa_serve:'What is needed:',prog_vuoto:'No projects for this layer.',carica_altri:'Load more',visto_tutto:'That is all —',progetto:'project',progetti:'projects',agora_title:'Agora',agora_subtitle:'Civic proposals from below',agora_intro:'The proposals you see here are not petitions. They are hypotheses for change born from below — from events, assemblies, conversations in courtyards. Each one gathers real tensions and translates them into actionable proposals.',filtro_tutte:'All',agora_proponi:'Propose a new proposal',in_sviluppo:'⏳ In development',wip_title:'Under construction',wip_body:'This section is still under construction!',wip_body_agora:'The Agora section is still under construction!',onb_title:'Welcome to Agorapp!',onb_body:'Press <b>User</b> to add your events to the map.',onb_note:'Events stay only on this device.',m_edit:'Edit event',m_user_offgrid:'Your Off-Grid event',m_new:'New event',og_badge:'Off-Grid event',og_note:'Visible only to those with your link. No data sent to any server.',f_name:'Your name',f_name_hint:'appears on the event badge',f_name_ph:'E.g. Vanessa Greco',f_title:'Title',f_title_hint:'it needs a name',f_title_ph:'Event name',f_title_err:'Give the event a name',f_strato:'Layer',f_strato_hint:'category',f_strato_err:'Choose a layer',f_sub:'Sublayer',f_sub_hint:'after the layer',f_sub_err:'Choose the sublayer',f_desc:'Description',f_desc_hint:'at least 30 characters',f_desc_ph:'Describe the event…',f_desc_err:'At least 30 characters needed',f_dt:'Date and time',f_dt_hint:'when it starts',f_dt_err:'A future date is required',f_dur:'Duration',f_dur_hint:'how long',f_dur_ph:'e.g. 2 hours',f_dur_err:'Enter the duration',f_price:'Price',f_price_hint:'or free',f_price_ph:'Free / 10€',f_price_err:'Enter the price',f_link:'External link',f_link_hint:'optional',f_img:'Image',f_img_hint:'cover URL, optional',f_addr:'Address',f_addr_hint:'where it takes place — required if you do not use Place',f_addr_ph:'E.g. Via Po 12, Turin',f_posiziona:'Place',f_hidden:'🔒 Hidden event',f_hidden_hint:'Visible only to those with the password',f_pw:'Unlock password',f_pw_hint:'choose it yourself',f_pw_ph:'A secret word',f_pw_err:'Choose a password',annulla:'Cancel',elimina:'Delete',salva_evento:'Save event',terminato:'Ended',pop_modifica:'✏ Edit',pop_elimina:'🗑 Delete',leggi_tutto:' read more',chiudi:'Close',sito_evento:'🔗 Event site',ci_vado:"I'm going",sono_qui:"I'm here",att_annulla:'Click again to undo',att_segnala:'Click to mark your presence',nel_cal:'In calendar',salva_cal:'Save to calendar',rimosso_cal:'Removed from calendar',ricerca_semplice:'Simple search',ph_titolo_desc:'Title or description…',mostra_terminati:'Show ended events',ricerca_avanzata:'Advanced search',filtri_combinati:'combined filters',offgrid_export:'📡 Off-Grid — Export link',link_condivisibile:'shareable link',esporta_json:'Export events JSON',backup_h:'backup',importa_json:'Import events JSON',merge_h:'merge',sblocca_nascosto:'Unlock hidden event',ph_password_ev:'Event password…',sblocca:'Unlock',mostra_sbloccati:'Show unlocked events',fab_analizza:'Analyze and create →',fab_text_hint:'Claude will read the text and prefill the form',fab_voice_status:'Listening… speak now',adv_keywords:'Keywords',adv_kw_ph:'Title or description...',adv_da:'From',adv_a:'To',adv_free:'Free',adv_paid:'Paid',adv_reset:'Reset',adv_cerca:'Search',t_admin_user:'Switch to Admin or User mode to add events.',t_err_rete:'Network error.',t_err_export:'Export error.',t_err_file:'File read error — check the format.',t_err:'Error.',t_ev_nascosto:'Event saved — currently hidden by active filters',t_file_dl:'File downloaded!',t_file_vuoto:'Empty file — no events found.',t_gps_no:'GPS not available on this device.',t_pos_no:'Could not detect location. Check permissions.',t_addr_o_pos:'Enter an address or use Place.',t_addr_no_prec:'Address not found — try a more precise address.',t_addr_no:'Address not found.',t_nome_obb:'Enter your name — it is required for Off-Grid events.',t_link_copy:'Link copied!',t_no_offgrid_exp:'No Off-Grid events to export. Create an event and enable "Off-Grid".',t_no_condividere:'No events to share.',t_no_stampare:'No events to print.',t_pw_no:'Password not recognized.',t_pos_ok:'Location found!',t_ricerca_corso:'Searching...',t_ricerca_addr:'Searching address...',t_voice_no:'Voice recognition not supported — use Chrome.',t_rilevamento:'Detecting location...',t_copy_manual:'Select and copy manually.',conf_elimina:'Delete?',cal_vai_mappa:'📍 Go to map',cal_th_ora:'Time',cal_th_evento:'Event',cal_empty1:'No events.<br>Tap <b>Save to calendar</b> on an event.',cal_empty2:'Your calendar is empty.<br>Tap <b>Save to calendar</b> on an event on the map.',og_exp_label:'Off-Grid mode',og_exp_title:'Your events, your way',og_exp_body1:'Events you create in User mode are <b style="color:var(--accent-light);">Off-Grid</b>: they exist only in this device memory and never pass through any server.<br><br>',og_exp_body2:'You can <b style="color:var(--accent-light);">share them via link</b> (WhatsApp, DM) using <i>Export Off-Grid</i> in the Search menu. Only those who receive the link see your events on their map.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Warning:</b> if you edit or delete an event after sharing it, the other person will not be updated automatically — you will need to send a new link.',og_exp_ok:'Got it, let us start',share_title:'Share the calendar',share_sub:'Copy the link and send it to whoever you want:',copia_link:'Copy link',fr_pkg:'📡 Off-Grid package',ev_sing:'event',ev_plur:'events',fr_manda:'Send this link to whoever you want. Only those who receive it will see your events on Agorapp.',legal_docs_title:'Legal documents',legal_tab_privacy:'Privacy notice',legal_html_privacy:'<span class="legal-badge">✓ GDPR-compliant · v1.2 · March 2026</span><p style="font-size:.7rem;opacity:.6;margin:0 0 8px;">Courtesy translation — the Italian version is the binding one.</p><h3>1. Data controller</h3><p><strong>Agorapp</strong>, a project by <strong>Lorenzo Calcagno</strong>, Turin<br>Contact: <a href="mailto:info@agorapp.it">info@agorapp.it</a></p><h3>2. What data we process and why</h3><p>Agorapp is an interactive map of urban events in Turin. <strong>It does not collect personal data from users browsing the map</strong>: no accounts, no profiling cookies, no tracking systems.</p><p>The only data processed concerns <strong>event organizers</strong> who request publication: title, location, time, description, and possibly a stage name or the organization\'s name.</p><p>We also process event information from <strong>publicly accessible sources</strong> (websites, public social pages), where the organizer knowingly chose to make it public.</p><h3>3. Legal basis for processing</h3><ul><li><strong>Explicit consent (art. 6(1)(a) GDPR)</strong> — for organizers who contact us directly. Consent is documented and stored.</li><li><strong>Legitimate interest (art. 6(1)(f) GDPR)</strong> — for events from public sources. The balancing test is documented internally. You may object at any time by writing to <a href="mailto:info@agorapp.it">info@agorapp.it</a>.</li></ul><h3>4. How long we keep data</h3><p>Each event\'s data is <strong>automatically deleted 3 hours after the event ends</strong>. There is no historical archive. Consent records are kept for a maximum of 3 years from the event date.</p><h3>5. Who can see the data</h3><p>Event information is visible to anyone visiting Agorapp. <strong>No data is transferred, sold or disclosed to third parties</strong> for commercial or marketing purposes.</p><h3>6. Data transfer outside the EU</h3><p>Agorapp does not transfer personal data to non-EU countries. The map display uses <strong>CartoDB/Carto</strong> for geographic imagery. That service may record the user\'s IP address under its privacy policy available at <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. operates under Standard Contractual Clauses approved by the European Commission.</p><h3>7. Your rights (arts. 15–21 GDPR)</h3><p>You may exercise the rights of access, rectification, erasure, restriction, objection and portability at any time. Event removal requests are carried out within <strong>48 hours</strong>. Write to <a href="mailto:info@agorapp.it">info@agorapp.it</a> — we reply within 30 days.</p><h3>8. Complaint to the supervisory authority</h3><p>You may lodge a complaint with the Italian Data Protection Authority: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Rome</p><h3>9. Automated decisions</h3><p>Agorapp performs no profiling or automated decision-making.</p>',legal_html_storage:'<span class="legal-badge">Only on your device · No server</span><p style="font-size:.7rem;opacity:.6;margin:0 0 8px;">Courtesy translation — the Italian version is the binding one.</p><h3>What is saved on your device</h3><p>Agorapp uses only local technical storage. <strong>No data is ever transmitted to external servers</strong> by these tools.</p><h3>localStorage</h3><p>Stores on your device:</p><ul><li>The events shown on the map</li><li>The chosen theme (Light / Dark)</li><li>Your personal calendar of saved events</li><li>The per-layer filter state</li></ul><p>Data in localStorage remains until it is cleared manually or until events expire automatically.</p><h3>Legal basis</h3><p>These tools are equivalent to <strong>technical cookies</strong> under the Italian DPA measure of 10 June 2021 and are <strong>exempt from prior consent</strong>.</p><p>No profiling cookies, analytics cookies or third-party tracking tools are used.</p><h3>Third-party map services</h3><p>The map display uses two external services that receive the user\'s IP address each time geographic imagery loads:</p><ul><li><strong>CartoDB/Carto</strong> — provides the map imagery. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Operates under EU Standard Contractual Clauses.</li><li><strong>OpenStreetMap</strong> — open-source base map. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">osmfoundation.org/wiki/Privacy_Policy</a>.</li></ul><p>Agorapp has no access to and does not control this data.</p><h3>How to clear local data</h3><p>You can clear all of Agorapp local data at any time from your browser settings (Settings → Privacy → Clear browsing data → Site data).</p>',legal_html_disclaimer:'<span class="legal-badge">Important notices</span><p style="font-size:.7rem;opacity:.6;margin:0 0 8px;">Courtesy translation — the Italian version is the binding one.</p><h3>Accuracy of information</h3><p>Event information from external public sources <strong>may not be up to date</strong>. <strong>We recommend always checking with the organizer</strong> before setting out.</p><p>To report an event that is no longer valid: <a href="mailto:info@agorapp.it">info@agorapp.it</a> — we remove it within 48 hours.</p><h3>Responsibility for content</h3><p>Agorapp aggregates already publicly available information without altering it. For events loaded from public sources, Agorapp is not liable for changes, deletions or inaccuracies relative to the original source at the time of acquisition.</p><h3>Political events, demonstrations and pickets</h3><p>For events of a political nature, demonstrations, marches and pickets, <strong>preliminary verification with the organizer is essential</strong> before setting out. Agorapp assumes no responsibility for consequences arising from presence at locations indicated on the map in relation to events of this kind.</p><h3>Regulatory compliance of events</h3><p>Agorapp <strong>does not verify the compliance of events</strong> with public-entertainment regulations, occupancy permits or licenses required by law. Responsibility for an event\'s lawfulness lies solely with the organizer.</p><h3>Intellectual property</h3><p>Event texts and descriptions belong to their respective organizers. Agorapp claims no rights over the content of published events.</p><h3>Contacts</h3><p>For any legal request: <a href="mailto:info@agorapp.it">info@agorapp.it</a><br>Data controller: Lorenzo Calcagno, Turin</p>'},
-  es:{aspetto:'Aspecto',chiaro:'Claro',scuro:'Oscuro',simple:'Modo simple',lingua:'Idioma',admin:'Admin',user:'User',ricerca:'Buscar',salvati:'Guardados',nascosti:'Ocultos',nav_mappa:'Mapa',nav_calendario:'Calendario',nav_progetti:'Proyectos',nav_agora:'Ágora',strati:'Capas',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Elige qué ver en el mapa',seleziona_tutti:'Seleccionar todo',eventi_visibili:'eventos visibles',legal_privacy:'Aviso de privacidad',legal_storage:'Datos locales',legal_disclaimer:'Notas legales',prog_title:'Proyectos',prog_subtitle:'Prácticas colectivas en el tejido urbano',prog_intro:'La producción cultural no ocurre donde se reconoce. Ocurre en los patios, en los centros de base, en las asambleas informales. Estos proyectos existen independientemente de Agorapp — la plataforma se limita a hacer visible lo que ya estaba en marcha.',filtro_tutti:'Todos',prog_cosa_serve:'Qué se necesita:',prog_vuoto:'No hay proyectos para esta capa.',carica_altri:'Cargar más',visto_tutto:'Has visto todo —',progetto:'proyecto',progetti:'proyectos',agora_title:'Ágora',agora_subtitle:'Propuestas cívicas desde abajo',agora_intro:'Las propuestas que ves aquí no son peticiones. Son hipótesis de transformación nacidas desde abajo — de los eventos, las asambleas, las conversaciones en los patios. Cada propuesta recoge tensiones reales y las traduce en propuestas operativas.',filtro_tutte:'Todas',agora_proponi:'Proponer una nueva propuesta',in_sviluppo:'⏳ En desarrollo',wip_title:'En construcción',wip_body:'¡Esta sección aún está en construcción!',wip_body_agora:'¡La sección Ágora aún está en construcción!',onb_title:'¡Bienvenido a Agorapp!',onb_body:'Pulsa <b>User</b> para añadir tus eventos en el mapa.',onb_note:'Los eventos permanecen solo en este dispositivo.',m_edit:'Editar evento',m_user_offgrid:'Tu evento Off-Grid',m_new:'Nuevo evento',og_badge:'Evento Off-Grid',og_note:'Visible solo para quien tenga tu enlace. Ningún dato enviado a un servidor.',f_name:'Tu nombre',f_name_hint:'aparece en la etiqueta del evento',f_name_ph:'Ej. Vanessa Greco',f_title:'Título',f_title_hint:'hace falta un nombre',f_title_ph:'Nombre del evento',f_title_err:'Dale un nombre al evento',f_strato:'Capa',f_strato_hint:'categoría',f_strato_err:'Elige una capa',f_sub:'Subcapa',f_sub_hint:'después de la capa',f_sub_err:'Elige la subcapa',f_desc:'Descripción',f_desc_hint:'al menos 30 caracteres',f_desc_ph:'Cuenta el evento…',f_desc_err:'Se necesitan al menos 30 caracteres',f_dt:'Fecha y hora',f_dt_hint:'cuándo empieza',f_dt_err:'Se requiere una fecha futura',f_dur:'Duración',f_dur_hint:'cuánto dura',f_dur_ph:'ej. 2 horas',f_dur_err:'Indica la duración',f_price:'Precio',f_price_hint:'o gratis',f_price_ph:'Gratis / 10€',f_price_err:'Indica el precio',f_link:'Enlace externo',f_link_hint:'opcional',f_img:'Imagen',f_img_hint:'URL de portada, opcional',f_addr:'Dirección',f_addr_hint:'dónde se realiza — obligatorio si no usas Ubicar',f_addr_ph:'Ej. Via Po 12, Turín',f_posiziona:'Ubicar',f_hidden:'🔒 Evento oculto',f_hidden_hint:'Visible solo para quien tenga la contraseña',f_pw:'Contraseña de desbloqueo',f_pw_hint:'elígela tú',f_pw_ph:'Una palabra secreta',f_pw_err:'Elige una contraseña',annulla:'Cancelar',elimina:'Eliminar',salva_evento:'Guardar evento',terminato:'Terminado',pop_modifica:'✏ Editar',pop_elimina:'🗑 Eliminar',leggi_tutto:' leer más',chiudi:'Cerrar',sito_evento:'🔗 Sitio del evento',ci_vado:'Voy',sono_qui:'Estoy aquí',att_annulla:'Pulsa de nuevo para cancelar',att_segnala:'Pulsa para indicar tu presencia',nel_cal:'En el calendario',salva_cal:'Guardar en el calendario',rimosso_cal:'Eliminado del calendario',ricerca_semplice:'Búsqueda simple',ph_titolo_desc:'Título o descripción…',mostra_terminati:'Mostrar eventos terminados',ricerca_avanzata:'Búsqueda avanzada',filtri_combinati:'filtros combinados',offgrid_export:'📡 Off-Grid — Exportar enlace',link_condivisibile:'enlace para compartir',esporta_json:'Exportar eventos JSON',backup_h:'copia',importa_json:'Importar eventos JSON',merge_h:'fusionar',sblocca_nascosto:'Desbloquear evento oculto',ph_password_ev:'Contraseña del evento…',sblocca:'Desbloquear',mostra_sbloccati:'Mostrar eventos desbloqueados',fab_analizza:'Analizar y crear →',fab_text_hint:'Claude leerá el texto y rellenará el formulario',fab_voice_status:'Escuchando… habla ahora',adv_keywords:'Palabras clave',adv_kw_ph:'Título o descripción...',adv_da:'Desde',adv_a:'Hasta',adv_free:'Gratuitos',adv_paid:'De pago',adv_reset:'Restablecer',adv_cerca:'Buscar',t_admin_user:'Entra en modo Admin o User para añadir eventos.',t_err_rete:'Error de red.',t_err_export:'Error de exportación.',t_err_file:'Error al leer el archivo — verifica el formato.',t_err:'Error.',t_ev_nascosto:'Evento guardado — actualmente oculto por los filtros activos',t_file_dl:'¡Archivo descargado!',t_file_vuoto:'Archivo vacío — no se encontraron eventos.',t_gps_no:'GPS no disponible en este dispositivo.',t_pos_no:'No se pudo detectar la ubicación. Comprueba los permisos.',t_addr_o_pos:'Indica una dirección o usa Ubicar.',t_addr_no_prec:'Dirección no encontrada — prueba con una más precisa.',t_addr_no:'Dirección no encontrada.',t_nome_obb:'Introduce tu nombre — es obligatorio para los eventos Off-Grid.',t_link_copy:'¡Enlace copiado!',t_no_offgrid_exp:'No hay eventos Off-Grid para exportar. Crea un evento y activa "Off-Grid".',t_no_condividere:'No hay eventos para compartir.',t_no_stampare:'No hay eventos para imprimir.',t_pw_no:'Contraseña no reconocida.',t_pos_ok:'¡Ubicación encontrada!',t_ricerca_corso:'Buscando...',t_ricerca_addr:'Buscando dirección...',t_voice_no:'Reconocimiento de voz no compatible — usa Chrome.',t_rilevamento:'Detectando ubicación...',t_copy_manual:'Selecciona y copia manualmente.',conf_elimina:'¿Eliminar?',cal_vai_mappa:'📍 Ir al mapa',cal_th_ora:'Hora',cal_th_evento:'Evento',cal_empty1:'Sin eventos.<br>Pulsa <b>Guardar en el calendario</b> en un evento.',cal_empty2:'Tu calendario está vacío.<br>Pulsa <b>Guardar en el calendario</b> en un evento del mapa.',og_exp_label:'Modo Off-Grid',og_exp_title:'Tus eventos, a tu manera',og_exp_body1:'Los eventos que creas en modo User son <b style="color:var(--accent-light);">Off-Grid</b>: existen solo en la memoria de este dispositivo y no pasan por ningún servidor.<br><br>',og_exp_body2:'Puedes <b style="color:var(--accent-light);">compartirlos por enlace</b> (WhatsApp, DM) usando <i>Exportar Off-Grid</i> en el menú Buscar. Solo quien recibe el enlace ve tus eventos en su mapa.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Atención:</b> si modificas o eliminas un evento tras compartirlo, la otra persona no se actualizará automáticamente — deberás enviar un nuevo enlace.',og_exp_ok:'Entendido, empecemos',share_title:'Compartir el calendario',share_sub:'Copia el enlace y envíalo a quien quieras:',copia_link:'Copiar enlace',fr_pkg:'📡 Paquete Off-Grid',ev_sing:'evento',ev_plur:'eventos',fr_manda:'Envía este enlace a quien quieras. Solo quien lo reciba verá tus eventos en Agorapp.',legal_docs_title:'Documentos legales',legal_tab_privacy:'Aviso de privacidad'},
-  fr:{aspetto:'Apparence',chiaro:'Clair',scuro:'Sombre',simple:'Mode simple',lingua:'Langue',admin:'Admin',user:'User',ricerca:'Recherche',salvati:'Enregistrés',nascosti:'Masqués',nav_mappa:'Carte',nav_calendario:'Calendrier',nav_progetti:'Projets',nav_agora:'Agora',strati:'Couches',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Choisissez quoi voir sur la carte',seleziona_tutti:'Tout sélectionner',eventi_visibili:'événements visibles',legal_privacy:'Avis de confidentialité',legal_storage:'Données locales',legal_disclaimer:'Mentions légales',prog_title:'Projets',prog_subtitle:'Pratiques collectives dans le tissu urbain',prog_intro:'La production culturelle n\'a pas lieu là où elle est reconnue. Elle a lieu dans les cours, dans les lieux de quartier, dans les assemblées informelles. Ces projets existent indépendamment d\'Agorapp — la plateforme se limite à rendre visible ce qui était déjà en cours.',filtro_tutti:'Tous',prog_cosa_serve:'Ce qu\'il faut :',prog_vuoto:'Aucun projet pour cette couche.',carica_altri:'Charger plus',visto_tutto:'Vous avez tout vu —',progetto:'projet',progetti:'projets',agora_title:'Agora',agora_subtitle:'Propositions citoyennes venues d\'en bas',agora_intro:'Les propositions que vous voyez ici ne sont pas des pétitions. Ce sont des hypothèses de transformation nées d\'en bas — des événements, des assemblées, des conversations dans les cours. Chacune rassemble des tensions réelles et les traduit en propositions concrètes.',filtro_tutte:'Toutes',agora_proponi:'Proposer une nouvelle proposition',in_sviluppo:'⏳ En développement',wip_title:'En construction',wip_body:'Cette section est encore en construction !',wip_body_agora:'La section Agora est encore en construction !',onb_title:'Bienvenue sur Agorapp !',onb_body:'Appuyez sur <b>User</b> pour ajouter vos événements sur la carte.',onb_note:'Les événements restent uniquement sur cet appareil.',m_edit:'Modifier l\'événement',m_user_offgrid:'Votre événement Off-Grid',m_new:'Nouvel événement',og_badge:'Événement Off-Grid',og_note:'Visible uniquement par ceux qui ont votre lien. Aucune donnée envoyée à un serveur.',f_name:'Votre nom',f_name_hint:'apparaît sur le badge de l\'événement',f_name_ph:'Ex. Vanessa Greco',f_title:'Titre',f_title_hint:'il faut un nom',f_title_ph:'Nom de l\'événement',f_title_err:'Donnez un nom à l\'événement',f_strato:'Couche',f_strato_hint:'catégorie',f_strato_err:'Choisissez une couche',f_sub:'Sous-couche',f_sub_hint:'après la couche',f_sub_err:'Choisissez la sous-couche',f_desc:'Description',f_desc_hint:'au moins 30 caractères',f_desc_ph:'Racontez l\'événement…',f_desc_err:'Au moins 30 caractères requis',f_dt:'Date et heure',f_dt_hint:'quand ça commence',f_dt_err:'Une date future est requise',f_dur:'Durée',f_dur_hint:'combien de temps',f_dur_ph:'ex. 2 heures',f_dur_err:'Indiquez la durée',f_price:'Prix',f_price_hint:'ou gratuit',f_price_ph:'Gratuit / 10€',f_price_err:'Indiquez le prix',f_link:'Lien externe',f_link_hint:'facultatif',f_img:'Image',f_img_hint:'URL de couverture, facultatif',f_addr:'Adresse',f_addr_hint:'où ça se déroule — obligatoire si vous n\'utilisez pas Localiser',f_addr_ph:'Ex. Via Po 12, Turin',f_posiziona:'Localiser',f_hidden:'🔒 Événement masqué',f_hidden_hint:'Visible uniquement par ceux qui ont le mot de passe',f_pw:'Mot de passe de déverrouillage',f_pw_hint:'choisissez-le',f_pw_ph:'Un mot secret',f_pw_err:'Choisissez un mot de passe',annulla:'Annuler',elimina:'Supprimer',salva_evento:'Enregistrer l\'événement',terminato:'Terminé',pop_modifica:'✏ Modifier',pop_elimina:'🗑 Supprimer',leggi_tutto:' lire plus',chiudi:'Fermer',sito_evento:'🔗 Site de l\'événement',ci_vado:'J\'y vais',sono_qui:'Je suis là',att_annulla:'Cliquez à nouveau pour annuler',att_segnala:'Cliquez pour signaler votre présence',nel_cal:'Dans le calendrier',salva_cal:'Ajouter au calendrier',rimosso_cal:'Retiré du calendrier',ricerca_semplice:'Recherche simple',ph_titolo_desc:'Titre ou description…',mostra_terminati:'Afficher les événements terminés',ricerca_avanzata:'Recherche avancée',filtri_combinati:'filtres combinés',offgrid_export:'📡 Off-Grid — Exporter le lien',link_condivisibile:'lien partageable',esporta_json:'Exporter les événements JSON',backup_h:'sauvegarde',importa_json:'Importer les événements JSON',merge_h:'fusion',sblocca_nascosto:'Déverrouiller un événement masqué',ph_password_ev:'Mot de passe de l\'événement…',sblocca:'Déverrouiller',mostra_sbloccati:'Afficher les événements déverrouillés',fab_analizza:'Analyser et créer →',fab_text_hint:'Claude lira le texte et préremplira le formulaire',fab_voice_status:'À l\'écoute… parlez maintenant',adv_keywords:'Mots-clés',adv_kw_ph:'Titre ou description...',adv_da:'Du',adv_a:'Au',adv_free:'Gratuits',adv_paid:'Payants',adv_reset:'Réinitialiser',adv_cerca:'Rechercher',t_admin_user:'Passez en mode Admin ou User pour ajouter des événements.',t_err_rete:'Erreur réseau.',t_err_export:'Erreur d\'export.',t_err_file:'Erreur de lecture du fichier — vérifiez le format.',t_err:'Erreur.',t_ev_nascosto:'Événement enregistré — actuellement masqué par les filtres actifs',t_file_dl:'Fichier téléchargé !',t_file_vuoto:'Fichier vide — aucun événement trouvé.',t_gps_no:'GPS non disponible sur cet appareil.',t_pos_no:'Impossible de détecter la position. Vérifiez les autorisations.',t_addr_o_pos:'Indiquez une adresse ou utilisez Localiser.',t_addr_no_prec:'Adresse introuvable — essayez une adresse plus précise.',t_addr_no:'Adresse introuvable.',t_nome_obb:'Saisissez votre nom — il est obligatoire pour les événements Off-Grid.',t_link_copy:'Lien copié !',t_no_offgrid_exp:'Aucun événement Off-Grid à exporter. Créez un événement et activez "Off-Grid".',t_no_condividere:'Aucun événement à partager.',t_no_stampare:'Aucun événement à imprimer.',t_pw_no:'Mot de passe non reconnu.',t_pos_ok:'Position trouvée !',t_ricerca_corso:'Recherche en cours...',t_ricerca_addr:'Recherche d\'adresse...',t_voice_no:'Reconnaissance vocale non prise en charge — utilisez Chrome.',t_rilevamento:'Détection de la position...',t_copy_manual:'Sélectionnez et copiez manuellement.',conf_elimina:'Supprimer ?',cal_vai_mappa:'📍 Aller à la carte',cal_th_ora:'Heure',cal_th_evento:'Événement',cal_empty1:'Aucun événement.<br>Appuyez sur <b>Ajouter au calendrier</b> sur un événement.',cal_empty2:'Votre calendrier est vide.<br>Appuyez sur <b>Ajouter au calendrier</b> sur un événement de la carte.',og_exp_label:'Mode Off-Grid',og_exp_title:'Vos événements, à votre façon',og_exp_body1:'Les événements que vous créez en mode User sont <b style="color:var(--accent-light);">Off-Grid</b> : ils existent uniquement dans la mémoire de cet appareil et ne passent par aucun serveur.<br><br>',og_exp_body2:'Vous pouvez <b style="color:var(--accent-light);">les partager par lien</b> (WhatsApp, DM) via <i>Exporter Off-Grid</i> dans le menu Recherche. Seul celui qui reçoit le lien voit vos événements sur sa carte.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Attention :</b> si vous modifiez ou supprimez un événement après l\'avoir partagé, l\'autre personne ne sera pas mise à jour automatiquement — vous devrez envoyer un nouveau lien.',og_exp_ok:'Compris, commençons',share_title:'Partager le calendrier',share_sub:'Copiez le lien et envoyez-le à qui vous voulez :',copia_link:'Copier le lien',fr_pkg:'📡 Paquet Off-Grid',ev_sing:'événement',ev_plur:'événements',fr_manda:'Envoyez ce lien à qui vous voulez. Seul celui qui le reçoit verra vos événements sur Agorapp.',legal_docs_title:'Documents légaux',legal_tab_privacy:'Avis de confidentialité'},
-  ar:{aspetto:'المظهر',chiaro:'فاتح',scuro:'داكن',simple:'الوضع البسيط',lingua:'اللغة',admin:'Admin',user:'User',ricerca:'بحث',salvati:'المحفوظة',nascosti:'المخفية',nav_mappa:'الخريطة',nav_calendario:'التقويم',nav_progetti:'المشاريع',nav_agora:'أغورا',strati:'الطبقات',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'اختر ما تريد رؤيته على الخريطة',seleziona_tutti:'تحديد الكل',eventi_visibili:'فعاليات مرئية',legal_privacy:'إشعار الخصوصية',legal_storage:'بيانات محلية',legal_disclaimer:'ملاحظات قانونية',prog_title:'المشاريع',prog_subtitle:'ممارسات جماعية في النسيج الحضري',prog_intro:'الإنتاج الثقافي لا يحدث حيث يُعترف به. بل يحدث في الأفنية، وفي المراكز المحلية، وفي التجمعات غير الرسمية. هذه المشاريع موجودة بشكل مستقل عن Agorapp — المنصة تكتفي بإظهار ما كان جارياً بالفعل.',filtro_tutti:'الكل',prog_cosa_serve:'ما المطلوب:',prog_vuoto:'لا توجد مشاريع لهذه الطبقة.',carica_altri:'تحميل المزيد',visto_tutto:'لقد رأيت كل شيء —',progetto:'مشروع',progetti:'مشاريع',agora_title:'أغورا',agora_subtitle:'مقترحات مدنية من القاعدة',agora_intro:'المقترحات التي تراها هنا ليست عرائض. إنها فرضيات للتغيير وُلدت من القاعدة — من الفعاليات والتجمعات والمحادثات في الأفنية. كل مقترح يجمع توترات حقيقية ويترجمها إلى مقترحات عملية.',filtro_tutte:'الكل',agora_proponi:'اقترح مقترحاً جديداً',in_sviluppo:'⏳ قيد التطوير',wip_title:'قيد الإنشاء',wip_body:'هذا القسم لا يزال قيد الإنشاء!',wip_body_agora:'قسم أغورا لا يزال قيد الإنشاء!',onb_title:'مرحباً بك في Agorapp!',onb_body:'اضغط <b>User</b> لإضافة فعالياتك على الخريطة.',onb_note:'تبقى الفعاليات على هذا الجهاز فقط.',m_edit:'تعديل الفعالية',m_user_offgrid:'فعاليتك Off-Grid',m_new:'فعالية جديدة',og_badge:'فعالية Off-Grid',og_note:'مرئية فقط لمن لديه رابطك. لا تُرسَل أي بيانات إلى أي خادم.',f_name:'اسمك',f_name_hint:'يظهر على شارة الفعالية',f_name_ph:'مثال: Vanessa Greco',f_title:'العنوان',f_title_hint:'يلزم اسم',f_title_ph:'اسم الفعالية',f_title_err:'أعطِ اسماً للفعالية',f_strato:'الطبقة',f_strato_hint:'الفئة',f_strato_err:'اختر طبقة',f_sub:'الطبقة الفرعية',f_sub_hint:'بعد الطبقة',f_sub_err:'اختر الطبقة الفرعية',f_desc:'الوصف',f_desc_hint:'30 حرفاً على الأقل',f_desc_ph:'صف الفعالية…',f_desc_err:'يلزم 30 حرفاً على الأقل',f_dt:'التاريخ والوقت',f_dt_hint:'متى تبدأ',f_dt_err:'يلزم تاريخ مستقبلي',f_dur:'المدة',f_dur_hint:'كم تستغرق',f_dur_ph:'مثال: ساعتان',f_dur_err:'حدد المدة',f_price:'السعر',f_price_hint:'أو مجاني',f_price_ph:'مجاني / 10€',f_price_err:'حدد السعر',f_link:'رابط خارجي',f_link_hint:'اختياري',f_img:'صورة',f_img_hint:'رابط صورة الغلاف، اختياري',f_addr:'العنوان',f_addr_hint:'مكان الإقامة — إلزامي إن لم تستخدم تحديد الموقع',f_addr_ph:'مثال: Via Po 12, تورينو',f_posiziona:'تحديد الموقع',f_hidden:'🔒 فعالية مخفية',f_hidden_hint:'مرئية فقط لمن لديه كلمة المرور',f_pw:'كلمة مرور الفتح',f_pw_hint:'اخترها بنفسك',f_pw_ph:'كلمة سرية',f_pw_err:'اختر كلمة مرور',annulla:'إلغاء',elimina:'حذف',salva_evento:'حفظ الفعالية',terminato:'منتهية',pop_modifica:'✏ تعديل',pop_elimina:'🗑 حذف',leggi_tutto:' اقرأ المزيد',chiudi:'إغلاق',sito_evento:'🔗 موقع الفعالية',ci_vado:'سأذهب',sono_qui:'أنا هنا',att_annulla:'اضغط مرة أخرى للإلغاء',att_segnala:'اضغط للإشارة إلى حضورك',nel_cal:'في التقويم',salva_cal:'حفظ في التقويم',rimosso_cal:'أُزيل من التقويم',ricerca_semplice:'بحث بسيط',ph_titolo_desc:'العنوان أو الوصف…',mostra_terminati:'إظهار الفعاليات المنتهية',ricerca_avanzata:'بحث متقدم',filtri_combinati:'مرشحات مدمجة',offgrid_export:'📡 Off-Grid — تصدير الرابط',link_condivisibile:'رابط قابل للمشاركة',esporta_json:'تصدير الفعاليات JSON',backup_h:'نسخة احتياطية',importa_json:'استيراد الفعاليات JSON',merge_h:'دمج',sblocca_nascosto:'فتح فعالية مخفية',ph_password_ev:'كلمة مرور الفعالية…',sblocca:'فتح',mostra_sbloccati:'إظهار الفعاليات المفتوحة',fab_analizza:'حلّل وأنشئ →',fab_text_hint:'سيقرأ Claude النص ويملأ النموذج',fab_voice_status:'جارٍ الاستماع… تحدّث الآن',adv_keywords:'كلمات مفتاحية',adv_kw_ph:'العنوان أو الوصف...',adv_da:'من',adv_a:'إلى',adv_free:'مجانية',adv_paid:'مدفوعة',adv_reset:'إعادة تعيين',adv_cerca:'بحث',t_admin_user:'ادخل وضع Admin أو User لإضافة فعاليات.',t_err_rete:'خطأ في الشبكة.',t_err_export:'خطأ في التصدير.',t_err_file:'خطأ في قراءة الملف — تحقق من الصيغة.',t_err:'خطأ.',t_ev_nascosto:'حُفظت الفعالية — مخفية حالياً بواسطة المرشحات النشطة',t_file_dl:'تم تنزيل الملف!',t_file_vuoto:'ملف فارغ — لم يُعثر على فعاليات.',t_gps_no:'نظام تحديد المواقع غير متاح على هذا الجهاز.',t_pos_no:'تعذّر تحديد الموقع. تحقق من الأذونات.',t_addr_o_pos:'أدخل عنواناً أو استخدم تحديد الموقع.',t_addr_no_prec:'العنوان غير موجود — جرّب عنواناً أدق.',t_addr_no:'العنوان غير موجود.',t_nome_obb:'أدخل اسمك — إلزامي لفعاليات Off-Grid.',t_link_copy:'تم نسخ الرابط!',t_no_offgrid_exp:'لا توجد فعاليات Off-Grid للتصدير. أنشئ فعالية وفعّل "Off-Grid".',t_no_condividere:'لا توجد فعاليات للمشاركة.',t_no_stampare:'لا توجد فعاليات للطباعة.',t_pw_no:'كلمة المرور غير معروفة.',t_pos_ok:'تم العثور على الموقع!',t_ricerca_corso:'جارٍ البحث...',t_ricerca_addr:'جارٍ البحث عن العنوان...',t_voice_no:'التعرّف على الصوت غير مدعوم — استخدم Chrome.',t_rilevamento:'جارٍ تحديد الموقع...',t_copy_manual:'حدّد وانسخ يدوياً.',conf_elimina:'هل تريد الحذف؟',cal_vai_mappa:'📍 اذهب إلى الخريطة',cal_th_ora:'الوقت',cal_th_evento:'الفعالية',cal_empty1:'لا توجد فعاليات.<br>اضغط <b>حفظ في التقويم</b> على فعالية.',cal_empty2:'تقويمك فارغ.<br>اضغط <b>حفظ في التقويم</b> على فعالية في الخريطة.',og_exp_label:'وضع Off-Grid',og_exp_title:'فعالياتك، على طريقتك',og_exp_body1:'الفعاليات التي تنشئها في وضع User هي <b style="color:var(--accent-light);">Off-Grid</b>: توجد فقط في ذاكرة هذا الجهاز ولا تمر عبر أي خادم.<br><br>',og_exp_body2:'يمكنك <b style="color:var(--accent-light);">مشاركتها عبر رابط</b> (WhatsApp، DM) باستخدام <i>تصدير Off-Grid</i> في قائمة البحث. فقط من يستلم الرابط يرى فعالياتك على خريطته.<br><br>',og_exp_body3:'<b style="color:#FFD599;">تنبيه:</b> إذا عدّلت أو حذفت فعالية بعد مشاركتها، فلن يتم تحديث الشخص الآخر تلقائياً — عليك إرسال رابط جديد.',og_exp_ok:'فهمت، لنبدأ',share_title:'مشاركة التقويم',share_sub:'انسخ الرابط وأرسله لمن تشاء:',copia_link:'نسخ الرابط',fr_pkg:'📡 حزمة Off-Grid',ev_sing:'فعالية',ev_plur:'فعاليات',fr_manda:'أرسل هذا الرابط لمن تشاء. فقط من يستلمه سيرى فعالياتك على Agorapp.',legal_docs_title:'مستندات قانونية',legal_tab_privacy:'إشعار الخصوصية'}
+  it:{aspetto:'Aspetto',chiaro:'Chiaro',scuro:'Scuro',simple:'Modalità semplice',lingua:'Lingua',admin:'Admin',user:'User',ricerca:'Ricerca',salvati:'Salvati',nascosti:'Nascosti',nav_mappa:'Mappa',nav_calendario:'Calendario',nav_progetti:'Progetti',nav_agora:'Agorà',strati:'Strati',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Seleziona cosa vuoi vedere sulla mappa',seleziona_tutti:'Seleziona tutti',eventi_visibili:'eventi visibili',legal_privacy:'Informativa sulla privacy',legal_storage:'Dati locali',legal_disclaimer:'Note legali',prog_title:'Progetti',prog_subtitle:'Pratiche collettive nel tessuto urbano',prog_intro:'La produzione culturale non avviene dove viene riconosciuta. Avviene nei cortili, nei presidi, nelle assemblee informali. Questi progetti esistono indipendentemente da Agorapp — la piattaforma si limita a rendere visibile ciò che era già in atto.',filtro_tutti:'Tutti',prog_cosa_serve:'Cosa serve:',prog_vuoto:'Nessun progetto per questo strato.',carica_altri:'Carica altri',visto_tutto:'Hai visto tutto —',progetto:'progetto',progetti:'progetti',agora_title:'Agorà',agora_subtitle:'Istanze civiche dal basso',agora_intro:'Le istanze che vedi qui non sono petizioni. Sono ipotesi di trasformazione nate dal basso — dagli eventi, dalle assemblee, dalle conversazioni nei cortili. Ogni istanza raccoglie tensioni reali e le traduce in proposte operative.',filtro_tutte:'Tutte',agora_proponi:'Proponi una nuova istanza',prog_proponi:'Proponi un nuovo progetto',in_sviluppo:'⏳ In sviluppo',wip_title:'In costruzione',wip_body:'Questa sezione è ancora in fase di costruzione!',wip_body_agora:'La sezione Agorà è ancora in fase di costruzione!',onb_title:'Benvenuto su Agorapp!',onb_body:'Premi <b>User</b> per aggiungere i tuoi eventi sulla mappa.',onb_note:'Gli eventi restano solo su questo dispositivo.',m_edit:'Modifica evento',m_user_offgrid:'Il tuo evento Off-Grid',m_new:'Nuovo evento',og_badge:'Evento Off-Grid',og_note:'Visibile solo a chi ha il tuo link. Nessun dato inviato a server.',f_name:'Il tuo nome',f_name_hint:"appare sul badge dell'evento",f_name_ph:'Es. Vanessa Greco',f_title:'Titolo',f_title_hint:'ci vuole un nome',f_title_ph:"Nome dell'evento",f_title_err:"Dai un nome all'evento",f_strato:'Strato',f_strato_hint:'categoria',f_strato_err:'Scegli uno strato',f_sub:'Sottostrato',f_sub_hint:'dopo lo strato',f_sub_err:'Scegli il sottostrato',f_desc:'Descrizione',f_desc_hint:'almeno 30 caratteri',f_desc_ph:"Racconta l'evento…",f_desc_err:'Servono almeno 30 caratteri',f_dt:'Data e ora',f_dt_hint:'quando inizia',f_dt_err:'Data futura obbligatoria',f_dur:'Durata',f_dur_hint:'quanto dura',f_dur_ph:'es. 2 ore',f_dur_err:'Indica la durata',f_price:'Prezzo',f_price_hint:'o gratuito',f_price_ph:'Gratuito / 10€',f_price_err:'Indica il prezzo',f_link:'Link esterno',f_link_hint:'facoltativo',f_img:'Immagine',f_img_hint:'URL copertina, facoltativa',f_addr:'Indirizzo',f_addr_hint:'dove si svolge — obbligatorio se non usi Posiziona',f_addr_ph:'Es. Via Po 12, Torino',f_posiziona:'Posiziona',f_hidden:'🔒 Evento nascosto',f_hidden_hint:'Visibile solo a chi ha la password',f_pw:'Password di sblocco',f_pw_hint:'sceglila tu',f_pw_ph:'Una parola segreta',f_pw_err:'Scegli una password',annulla:'Annulla',elimina:'Elimina',salva_evento:'Salva evento',terminato:'Terminato',pop_modifica:'✏ Modifica',pop_elimina:'🗑 Elimina',leggi_tutto:' leggi tutto',chiudi:'Chiudi',sito_evento:'🔗 Sito evento',ci_vado:'Ci vado',sono_qui:'Sono qui',att_annulla:'Clicca di nuovo per annullare',att_segnala:'Clicca per segnalare la tua presenza',nel_cal:'Nel calendario',salva_cal:'Salva nel calendario',rimosso_cal:'Rimosso dal calendario',ricerca_semplice:'Ricerca semplice',ph_titolo_desc:'Titolo o descrizione…',mostra_terminati:'Mostra eventi terminati',ricerca_avanzata:'Ricerca avanzata',filtri_combinati:'filtri combinati',offgrid_export:'📡 Off-Grid — Esporta link',link_condivisibile:'link condivisibile',esporta_json:'Esporta eventi JSON',backup_h:'backup',importa_json:'Importa eventi JSON',merge_h:'merge',sblocca_nascosto:'Sblocca evento nascosto',ph_password_ev:'Password evento…',sblocca:'Sblocca',mostra_sbloccati:'Mostra eventi sbloccati',fab_analizza:'Analizza e crea →',fab_text_hint:'Claude leggerà il testo e precompilerà il form',fab_voice_status:'In ascolto… parla adesso',adv_keywords:'Parole chiave',adv_kw_ph:'Titolo o descrizione...',adv_da:'Da',adv_a:'A',adv_free:'Gratuiti',adv_paid:'A pagamento',adv_reset:'Reimposta',adv_cerca:'Cerca',t_admin_user:'Entra in modalità Admin o User per aggiungere eventi.',t_err_rete:'Errore di rete.',t_err_export:'Errore export.',t_err_file:'Errore lettura file — verifica il formato.',t_err:'Errore.',t_ev_nascosto:'Evento salvato — attualmente nascosto dai filtri attivi',t_file_dl:'File scaricato!',t_file_vuoto:'File vuoto — nessun evento trovato.',t_gps_no:'GPS non disponibile su questo dispositivo.',t_pos_no:'Impossibile rilevare la posizione. Controlla i permessi.',t_addr_o_pos:'Indica un indirizzo o usa Posiziona.',t_addr_no_prec:'Indirizzo non trovato — prova con un indirizzo più preciso.',t_addr_no:'Indirizzo non trovato.',t_nome_obb:'Inserisci il tuo nome — è obbligatorio per gli eventi Off-Grid.',t_link_copy:'Link copiato!',t_no_offgrid_exp:'Nessun evento Off-Grid da esportare. Crea un evento e attiva "Fuori Rete".',t_no_condividere:'Nessun evento da condividere.',t_no_stampare:'Nessun evento da stampare.',t_pw_no:'Password non riconosciuta.',t_pos_ok:'Posizione trovata!',t_ricerca_corso:'Ricerca in corso...',t_ricerca_addr:'Ricerca indirizzo...',t_voice_no:'Riconoscimento vocale non supportato — usa Chrome.',t_rilevamento:'Rilevamento posizione...',t_copy_manual:'Seleziona e copia manualmente.',conf_elimina:'Eliminare?',cal_vai_mappa:'📍 Vai alla mappa',cal_th_ora:'Ora',cal_th_evento:'Evento',cal_empty1:'Nessun evento.<br>Clicca <b>Salva nel calendario</b> su un evento.',cal_empty2:'Il tuo calendario è vuoto.<br>Clicca <b>Salva nel calendario</b> su un evento della mappa.',og_exp_label:'Modalità Off-Grid',og_exp_title:'I tuoi eventi, a modo tuo',og_exp_body1:'Gli eventi che crei in modalità User sono <b style="color:var(--accent-light);">Off-Grid</b>: esistono solo nella memoria di questo dispositivo e non passano per nessun server.<br><br>',og_exp_body2:'Puoi <b style="color:var(--accent-light);">condividerli via link</b> (WhatsApp, DM) usando <i>Esporta Off-Grid</i> nel menù Ricerca. Solo chi riceve il link vede i tuoi eventi sulla sua mappa.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Attenzione:</b> se modifichi o elimini un evento dopo averlo condiviso, l\'altra persona non sarà aggiornata automaticamente — dovrai mandare un nuovo link.',og_exp_ok:'Ho capito, cominciamo',share_title:'Condividi il calendario',share_sub:'Copia il link e mandalo a chi vuoi:',copia_link:'Copia link',fr_pkg:'📡 Pacchetto Fuori Rete',ev_sing:'evento',ev_plur:'eventi',fr_manda:'Manda questo link a chi vuoi. Solo chi lo riceve vedrà i tuoi eventi su Agorapp.',legal_docs_title:'Documenti legali',legal_tab_privacy:'Informativa privacy',legal_html_privacy:'<span class="legal-badge">✓ Conforme GDPR · v1.2 · Marzo 2026</span> <h3>1. Titolare del trattamento</h3> <p><strong>Agorapp</strong>, progetto di <strong>Lorenzo Calcagno</strong>, Torino<br> Contatto: <a href="mailto:info@agorapp.it">info@agorapp.it</a></p> <h3>2. Quali dati trattiamo e perché</h3> <p>Agorapp è una mappa interattiva degli eventi urbani di Torino. <strong>Non raccoglie dati personali degli utenti che consultano la mappa</strong>: non ci sono account, non ci sono cookie di profilazione, non ci sono sistemi di tracciamento.</p> <p>Gli unici dati trattati riguardano gli <strong>organizzatori di eventi</strong> che richiedono la pubblicazione: titolo, luogo, orario, descrizione, eventualmente un nome artistico o il nome dell\'organizzazione.</p> <p>Trattiamo inoltre informazioni su eventi provenienti da <strong>fonti pubblicamente accessibili</strong> (siti web, pagine social pubbliche), quando l\'organizzatore ha scelto consapevolmente di renderle pubbliche.</p> <h3>3. Base giuridica del trattamento</h3> <ul> <li><strong>Consenso esplicito (art. 6(1)(a) GDPR)</strong> — per gli organizzatori che ci contattano direttamente. Il consenso è documentato e conservato.</li> <li><strong>Legittimo interesse (art. 6(1)(f) GDPR)</strong> — per eventi da fonti pubbliche. Il bilanciamento è documentato internamente. Puoi opporti in qualsiasi momento scrivendo a <a href="mailto:info@agorapp.it">info@agorapp.it</a>.</li> </ul> <h3>4. Per quanto tempo conserviamo i dati</h3> <p>I dati di ogni evento vengono <strong>eliminati automaticamente 3 ore dopo la scadenza dell\'evento</strong>. Non esiste un archivio storico. Le prove del consenso sono conservate per un massimo di 3 anni dalla data dell\'evento.</p> <h3>5. Chi può vedere i dati</h3> <p>Le informazioni degli eventi sono visibili a chiunque visiti Agorapp. <strong>Nessun dato viene ceduto, venduto o comunicato a terzi</strong> per finalità commerciali o di marketing.</p> <h3>6. Trasferimento dati fuori dall\'UE</h3> <p>Agorapp non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l\'indirizzo IP dell\'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p> <h3>7. I tuoi diritti (artt. 15–21 GDPR)</h3> <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a <a href="mailto:info@agorapp.it">info@agorapp.it</a> — risponderemo entro 30 giorni.</p> <h3>8. Reclamo al Garante</h3> <p>Puoi proporre reclamo al Garante per la protezione dei dati personali: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Roma</p> <h3>9. Decisioni automatizzate</h3> <p>Agorapp non effettua profilazione né decisioni automatizzate.</p>',legal_html_storage:'<span class="legal-badge">Solo sul tuo dispositivo · Nessun server</span> <h3>Cosa viene salvato sul tuo dispositivo</h3> <p>Agorapp utilizza esclusivamente strumenti di archiviazione tecnica locale. <strong>Nessun dato viene mai trasmesso a server esterni</strong> da questi strumenti.</p> <h3>localStorage</h3> <p>Conserva sul tuo dispositivo:</p> <ul> <li>Gli eventi presenti sulla mappa</li> <li>Il tema grafico scelto (Chiaro / Scuro)</li> <li>Il calendario personale degli eventi salvati</li> <li>Lo stato dei filtri per strato</li> </ul> <p>I dati in localStorage rimangono fino a quando non vengono cancellati manualmente o finché gli eventi non scadono automaticamente.</p> <h3>Base normativa</h3> <p>Questi strumenti sono assimilabili ai <strong>cookie tecnici</strong> ai sensi del Provvedimento Garante del 10 giugno 2021 e sono <strong>esenti dall\'obbligo di consenso preventivo</strong>.</p> <p>Non vengono utilizzati cookie di profilazione, cookie analitici né strumenti di tracciamento di terze parti.</p> <h3>Servizi cartografici di terze parti</h3> <p>La visualizzazione della mappa utilizza due servizi esterni che ricevono l\'indirizzo IP dell\'utente ad ogni caricamento delle immagini geografiche:</p> <ul> <li><strong>CartoDB/Carto</strong> — fornisce le immagini della mappa. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Opera su base Clausole Contrattuali Standard UE.</li> <li><strong>OpenStreetMap</strong> — base cartografica open source. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">osmfoundation.org/wiki/Privacy_Policy</a>.</li> </ul> <p>Agorapp non ha accesso a questi dati e non li controlla.</p> <h3>Come cancellare i dati locali</h3> <p>Puoi cancellare tutti i dati locali di Agorapp in qualsiasi momento dalle impostazioni del tuo browser (Impostazioni → Privacy → Cancella dati di navigazione → Dati siti web).</p>',legal_html_disclaimer:'<span class="legal-badge">Avvisi importanti</span> <h3>Accuratezza delle informazioni</h3> <p>Le informazioni sugli eventi provenienti da fonti pubbliche esterne <strong>potrebbero non essere aggiornate</strong>. <strong>Ti consigliamo di verificare sempre con l\'organizzatore</strong> prima di spostarti.</p> <p>Per segnalare un evento non più valido: <a href="mailto:info@agorapp.it">info@agorapp.it</a> — lo rimuoviamo entro 48 ore.</p> <h3>Responsabilità sui contenuti</h3> <p>Agorapp aggrega informazioni già pubblicamente disponibili senza modificarle. Per gli eventi caricati da fonti pubbliche, Agorapp non risponde di modifiche, cancellazioni o inesattezze rispetto alla fonte originale al momento dell\'acquisizione.</p> <h3>Eventi politici, manifestazioni e presidi</h3> <p>Per eventi di natura politica, manifestazioni, cortei e presidi, la <strong>verifica preliminare con l\'organizzatore è indispensabile</strong> prima di spostarsi. Agorapp non assume alcuna responsabilità per conseguenze derivanti dalla presenza in luoghi indicati dalla mappa in relazione a eventi di questo tipo.</p> <h3>Conformità normativa degli eventi</h3> <p>Agorapp <strong>non verifica la conformità degli eventi</strong> alla normativa sugli spettacoli pubblici, alle autorizzazioni di agibilità o alle licenze richieste dalla legge. La responsabilità della regolarità dell\'evento ricade esclusivamente sull\'organizzatore.</p> <h3>Proprietà intellettuale</h3> <p>I testi e le descrizioni degli eventi sono di proprietà dei rispettivi organizzatori. Agorapp non rivendica diritti sui contenuti degli eventi pubblicati.</p> <h3>Contatti</h3> <p>Per qualsiasi richiesta legale: <a href="mailto:info@agorapp.it">info@agorapp.it</a><br> Titolare del trattamento: Lorenzo Calcagno, Torino</p>'},
+  en:{aspetto:'Appearance',chiaro:'Light',scuro:'Dark',simple:'Simple mode',lingua:'Language',admin:'Admin',user:'User',ricerca:'Search',salvati:'Saved',nascosti:'Hidden',nav_mappa:'Map',nav_calendario:'Calendar',nav_progetti:'Projects',nav_agora:'Agora',strati:'Layers',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Choose what to see on the map',seleziona_tutti:'Select all',eventi_visibili:'events visible',legal_privacy:'Privacy notice',legal_storage:'Local data',legal_disclaimer:'Legal notes',prog_title:'Projects',prog_subtitle:'Collective practices in the urban fabric',prog_intro:'Cultural production does not happen where it is recognized. It happens in courtyards, in grassroots hubs, in informal assemblies. These projects exist independently of Agorapp — the platform merely makes visible what was already underway.',filtro_tutti:'All',prog_cosa_serve:'What is needed:',prog_vuoto:'No projects for this layer.',carica_altri:'Load more',visto_tutto:'That is all —',progetto:'project',progetti:'projects',agora_title:'Agora',agora_subtitle:'Civic proposals from below',agora_intro:'The proposals you see here are not petitions. They are hypotheses for change born from below — from events, assemblies, conversations in courtyards. Each one gathers real tensions and translates them into actionable proposals.',filtro_tutte:'All',agora_proponi:'Propose a new proposal',prog_proponi:'Propose a new project',in_sviluppo:'⏳ In development',wip_title:'Under construction',wip_body:'This section is still under construction!',wip_body_agora:'The Agora section is still under construction!',onb_title:'Welcome to Agorapp!',onb_body:'Press <b>User</b> to add your events to the map.',onb_note:'Events stay only on this device.',m_edit:'Edit event',m_user_offgrid:'Your Off-Grid event',m_new:'New event',og_badge:'Off-Grid event',og_note:'Visible only to those with your link. No data sent to any server.',f_name:'Your name',f_name_hint:'appears on the event badge',f_name_ph:'E.g. Vanessa Greco',f_title:'Title',f_title_hint:'it needs a name',f_title_ph:'Event name',f_title_err:'Give the event a name',f_strato:'Layer',f_strato_hint:'category',f_strato_err:'Choose a layer',f_sub:'Sublayer',f_sub_hint:'after the layer',f_sub_err:'Choose the sublayer',f_desc:'Description',f_desc_hint:'at least 30 characters',f_desc_ph:'Describe the event…',f_desc_err:'At least 30 characters needed',f_dt:'Date and time',f_dt_hint:'when it starts',f_dt_err:'A future date is required',f_dur:'Duration',f_dur_hint:'how long',f_dur_ph:'e.g. 2 hours',f_dur_err:'Enter the duration',f_price:'Price',f_price_hint:'or free',f_price_ph:'Free / 10€',f_price_err:'Enter the price',f_link:'External link',f_link_hint:'optional',f_img:'Image',f_img_hint:'cover URL, optional',f_addr:'Address',f_addr_hint:'where it takes place — required if you do not use Place',f_addr_ph:'E.g. Via Po 12, Turin',f_posiziona:'Place',f_hidden:'🔒 Hidden event',f_hidden_hint:'Visible only to those with the password',f_pw:'Unlock password',f_pw_hint:'choose it yourself',f_pw_ph:'A secret word',f_pw_err:'Choose a password',annulla:'Cancel',elimina:'Delete',salva_evento:'Save event',terminato:'Ended',pop_modifica:'✏ Edit',pop_elimina:'🗑 Delete',leggi_tutto:' read more',chiudi:'Close',sito_evento:'🔗 Event site',ci_vado:"I'm going",sono_qui:"I'm here",att_annulla:'Click again to undo',att_segnala:'Click to mark your presence',nel_cal:'In calendar',salva_cal:'Save to calendar',rimosso_cal:'Removed from calendar',ricerca_semplice:'Simple search',ph_titolo_desc:'Title or description…',mostra_terminati:'Show ended events',ricerca_avanzata:'Advanced search',filtri_combinati:'combined filters',offgrid_export:'📡 Off-Grid — Export link',link_condivisibile:'shareable link',esporta_json:'Export events JSON',backup_h:'backup',importa_json:'Import events JSON',merge_h:'merge',sblocca_nascosto:'Unlock hidden event',ph_password_ev:'Event password…',sblocca:'Unlock',mostra_sbloccati:'Show unlocked events',fab_analizza:'Analyze and create →',fab_text_hint:'Claude will read the text and prefill the form',fab_voice_status:'Listening… speak now',adv_keywords:'Keywords',adv_kw_ph:'Title or description...',adv_da:'From',adv_a:'To',adv_free:'Free',adv_paid:'Paid',adv_reset:'Reset',adv_cerca:'Search',t_admin_user:'Switch to Admin or User mode to add events.',t_err_rete:'Network error.',t_err_export:'Export error.',t_err_file:'File read error — check the format.',t_err:'Error.',t_ev_nascosto:'Event saved — currently hidden by active filters',t_file_dl:'File downloaded!',t_file_vuoto:'Empty file — no events found.',t_gps_no:'GPS not available on this device.',t_pos_no:'Could not detect location. Check permissions.',t_addr_o_pos:'Enter an address or use Place.',t_addr_no_prec:'Address not found — try a more precise address.',t_addr_no:'Address not found.',t_nome_obb:'Enter your name — it is required for Off-Grid events.',t_link_copy:'Link copied!',t_no_offgrid_exp:'No Off-Grid events to export. Create an event and enable "Off-Grid".',t_no_condividere:'No events to share.',t_no_stampare:'No events to print.',t_pw_no:'Password not recognized.',t_pos_ok:'Location found!',t_ricerca_corso:'Searching...',t_ricerca_addr:'Searching address...',t_voice_no:'Voice recognition not supported — use Chrome.',t_rilevamento:'Detecting location...',t_copy_manual:'Select and copy manually.',conf_elimina:'Delete?',cal_vai_mappa:'📍 Go to map',cal_th_ora:'Time',cal_th_evento:'Event',cal_empty1:'No events.<br>Tap <b>Save to calendar</b> on an event.',cal_empty2:'Your calendar is empty.<br>Tap <b>Save to calendar</b> on an event on the map.',og_exp_label:'Off-Grid mode',og_exp_title:'Your events, your way',og_exp_body1:'Events you create in User mode are <b style="color:var(--accent-light);">Off-Grid</b>: they exist only in this device memory and never pass through any server.<br><br>',og_exp_body2:'You can <b style="color:var(--accent-light);">share them via link</b> (WhatsApp, DM) using <i>Export Off-Grid</i> in the Search menu. Only those who receive the link see your events on their map.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Warning:</b> if you edit or delete an event after sharing it, the other person will not be updated automatically — you will need to send a new link.',og_exp_ok:'Got it, let us start',share_title:'Share the calendar',share_sub:'Copy the link and send it to whoever you want:',copia_link:'Copy link',fr_pkg:'📡 Off-Grid package',ev_sing:'event',ev_plur:'events',fr_manda:'Send this link to whoever you want. Only those who receive it will see your events on Agorapp.',legal_docs_title:'Legal documents',legal_tab_privacy:'Privacy notice',legal_html_privacy:'<span class="legal-badge">✓ GDPR-compliant · v1.2 · March 2026</span><p style="font-size:.7rem;opacity:.6;margin:0 0 8px;">Courtesy translation — the Italian version is the binding one.</p><h3>1. Data controller</h3><p><strong>Agorapp</strong>, a project by <strong>Lorenzo Calcagno</strong>, Turin<br>Contact: <a href="mailto:info@agorapp.it">info@agorapp.it</a></p><h3>2. What data we process and why</h3><p>Agorapp is an interactive map of urban events in Turin. <strong>It does not collect personal data from users browsing the map</strong>: no accounts, no profiling cookies, no tracking systems.</p><p>The only data processed concerns <strong>event organizers</strong> who request publication: title, location, time, description, and possibly a stage name or the organization\'s name.</p><p>We also process event information from <strong>publicly accessible sources</strong> (websites, public social pages), where the organizer knowingly chose to make it public.</p><h3>3. Legal basis for processing</h3><ul><li><strong>Explicit consent (art. 6(1)(a) GDPR)</strong> — for organizers who contact us directly. Consent is documented and stored.</li><li><strong>Legitimate interest (art. 6(1)(f) GDPR)</strong> — for events from public sources. The balancing test is documented internally. You may object at any time by writing to <a href="mailto:info@agorapp.it">info@agorapp.it</a>.</li></ul><h3>4. How long we keep data</h3><p>Each event\'s data is <strong>automatically deleted 3 hours after the event ends</strong>. There is no historical archive. Consent records are kept for a maximum of 3 years from the event date.</p><h3>5. Who can see the data</h3><p>Event information is visible to anyone visiting Agorapp. <strong>No data is transferred, sold or disclosed to third parties</strong> for commercial or marketing purposes.</p><h3>6. Data transfer outside the EU</h3><p>Agorapp does not transfer personal data to non-EU countries. The map display uses <strong>CartoDB/Carto</strong> for geographic imagery. That service may record the user\'s IP address under its privacy policy available at <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. operates under Standard Contractual Clauses approved by the European Commission.</p><h3>7. Your rights (arts. 15–21 GDPR)</h3><p>You may exercise the rights of access, rectification, erasure, restriction, objection and portability at any time. Event removal requests are carried out within <strong>48 hours</strong>. Write to <a href="mailto:info@agorapp.it">info@agorapp.it</a> — we reply within 30 days.</p><h3>8. Complaint to the supervisory authority</h3><p>You may lodge a complaint with the Italian Data Protection Authority: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Rome</p><h3>9. Automated decisions</h3><p>Agorapp performs no profiling or automated decision-making.</p>',legal_html_storage:'<span class="legal-badge">Only on your device · No server</span><p style="font-size:.7rem;opacity:.6;margin:0 0 8px;">Courtesy translation — the Italian version is the binding one.</p><h3>What is saved on your device</h3><p>Agorapp uses only local technical storage. <strong>No data is ever transmitted to external servers</strong> by these tools.</p><h3>localStorage</h3><p>Stores on your device:</p><ul><li>The events shown on the map</li><li>The chosen theme (Light / Dark)</li><li>Your personal calendar of saved events</li><li>The per-layer filter state</li></ul><p>Data in localStorage remains until it is cleared manually or until events expire automatically.</p><h3>Legal basis</h3><p>These tools are equivalent to <strong>technical cookies</strong> under the Italian DPA measure of 10 June 2021 and are <strong>exempt from prior consent</strong>.</p><p>No profiling cookies, analytics cookies or third-party tracking tools are used.</p><h3>Third-party map services</h3><p>The map display uses two external services that receive the user\'s IP address each time geographic imagery loads:</p><ul><li><strong>CartoDB/Carto</strong> — provides the map imagery. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Operates under EU Standard Contractual Clauses.</li><li><strong>OpenStreetMap</strong> — open-source base map. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">osmfoundation.org/wiki/Privacy_Policy</a>.</li></ul><p>Agorapp has no access to and does not control this data.</p><h3>How to clear local data</h3><p>You can clear all of Agorapp local data at any time from your browser settings (Settings → Privacy → Clear browsing data → Site data).</p>',legal_html_disclaimer:'<span class="legal-badge">Important notices</span><p style="font-size:.7rem;opacity:.6;margin:0 0 8px;">Courtesy translation — the Italian version is the binding one.</p><h3>Accuracy of information</h3><p>Event information from external public sources <strong>may not be up to date</strong>. <strong>We recommend always checking with the organizer</strong> before setting out.</p><p>To report an event that is no longer valid: <a href="mailto:info@agorapp.it">info@agorapp.it</a> — we remove it within 48 hours.</p><h3>Responsibility for content</h3><p>Agorapp aggregates already publicly available information without altering it. For events loaded from public sources, Agorapp is not liable for changes, deletions or inaccuracies relative to the original source at the time of acquisition.</p><h3>Political events, demonstrations and pickets</h3><p>For events of a political nature, demonstrations, marches and pickets, <strong>preliminary verification with the organizer is essential</strong> before setting out. Agorapp assumes no responsibility for consequences arising from presence at locations indicated on the map in relation to events of this kind.</p><h3>Regulatory compliance of events</h3><p>Agorapp <strong>does not verify the compliance of events</strong> with public-entertainment regulations, occupancy permits or licenses required by law. Responsibility for an event\'s lawfulness lies solely with the organizer.</p><h3>Intellectual property</h3><p>Event texts and descriptions belong to their respective organizers. Agorapp claims no rights over the content of published events.</p><h3>Contacts</h3><p>For any legal request: <a href="mailto:info@agorapp.it">info@agorapp.it</a><br>Data controller: Lorenzo Calcagno, Turin</p>'},
+  es:{aspetto:'Aspecto',chiaro:'Claro',scuro:'Oscuro',simple:'Modo simple',lingua:'Idioma',admin:'Admin',user:'User',ricerca:'Buscar',salvati:'Guardados',nascosti:'Ocultos',nav_mappa:'Mapa',nav_calendario:'Calendario',nav_progetti:'Proyectos',nav_agora:'Ágora',strati:'Capas',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Elige qué ver en el mapa',seleziona_tutti:'Seleccionar todo',eventi_visibili:'eventos visibles',legal_privacy:'Aviso de privacidad',legal_storage:'Datos locales',legal_disclaimer:'Notas legales',prog_title:'Proyectos',prog_subtitle:'Prácticas colectivas en el tejido urbano',prog_intro:'La producción cultural no ocurre donde se reconoce. Ocurre en los patios, en los centros de base, en las asambleas informales. Estos proyectos existen independientemente de Agorapp — la plataforma se limita a hacer visible lo que ya estaba en marcha.',filtro_tutti:'Todos',prog_cosa_serve:'Qué se necesita:',prog_vuoto:'No hay proyectos para esta capa.',carica_altri:'Cargar más',visto_tutto:'Has visto todo —',progetto:'proyecto',progetti:'proyectos',agora_title:'Ágora',agora_subtitle:'Propuestas cívicas desde abajo',agora_intro:'Las propuestas que ves aquí no son peticiones. Son hipótesis de transformación nacidas desde abajo — de los eventos, las asambleas, las conversaciones en los patios. Cada propuesta recoge tensiones reales y las traduce en propuestas operativas.',filtro_tutte:'Todas',agora_proponi:'Proponer una nueva propuesta',prog_proponi:'Proponer un nuevo proyecto',in_sviluppo:'⏳ En desarrollo',wip_title:'En construcción',wip_body:'¡Esta sección aún está en construcción!',wip_body_agora:'¡La sección Ágora aún está en construcción!',onb_title:'¡Bienvenido a Agorapp!',onb_body:'Pulsa <b>User</b> para añadir tus eventos en el mapa.',onb_note:'Los eventos permanecen solo en este dispositivo.',m_edit:'Editar evento',m_user_offgrid:'Tu evento Off-Grid',m_new:'Nuevo evento',og_badge:'Evento Off-Grid',og_note:'Visible solo para quien tenga tu enlace. Ningún dato enviado a un servidor.',f_name:'Tu nombre',f_name_hint:'aparece en la etiqueta del evento',f_name_ph:'Ej. Vanessa Greco',f_title:'Título',f_title_hint:'hace falta un nombre',f_title_ph:'Nombre del evento',f_title_err:'Dale un nombre al evento',f_strato:'Capa',f_strato_hint:'categoría',f_strato_err:'Elige una capa',f_sub:'Subcapa',f_sub_hint:'después de la capa',f_sub_err:'Elige la subcapa',f_desc:'Descripción',f_desc_hint:'al menos 30 caracteres',f_desc_ph:'Cuenta el evento…',f_desc_err:'Se necesitan al menos 30 caracteres',f_dt:'Fecha y hora',f_dt_hint:'cuándo empieza',f_dt_err:'Se requiere una fecha futura',f_dur:'Duración',f_dur_hint:'cuánto dura',f_dur_ph:'ej. 2 horas',f_dur_err:'Indica la duración',f_price:'Precio',f_price_hint:'o gratis',f_price_ph:'Gratis / 10€',f_price_err:'Indica el precio',f_link:'Enlace externo',f_link_hint:'opcional',f_img:'Imagen',f_img_hint:'URL de portada, opcional',f_addr:'Dirección',f_addr_hint:'dónde se realiza — obligatorio si no usas Ubicar',f_addr_ph:'Ej. Via Po 12, Turín',f_posiziona:'Ubicar',f_hidden:'🔒 Evento oculto',f_hidden_hint:'Visible solo para quien tenga la contraseña',f_pw:'Contraseña de desbloqueo',f_pw_hint:'elígela tú',f_pw_ph:'Una palabra secreta',f_pw_err:'Elige una contraseña',annulla:'Cancelar',elimina:'Eliminar',salva_evento:'Guardar evento',terminato:'Terminado',pop_modifica:'✏ Editar',pop_elimina:'🗑 Eliminar',leggi_tutto:' leer más',chiudi:'Cerrar',sito_evento:'🔗 Sitio del evento',ci_vado:'Voy',sono_qui:'Estoy aquí',att_annulla:'Pulsa de nuevo para cancelar',att_segnala:'Pulsa para indicar tu presencia',nel_cal:'En el calendario',salva_cal:'Guardar en el calendario',rimosso_cal:'Eliminado del calendario',ricerca_semplice:'Búsqueda simple',ph_titolo_desc:'Título o descripción…',mostra_terminati:'Mostrar eventos terminados',ricerca_avanzata:'Búsqueda avanzada',filtri_combinati:'filtros combinados',offgrid_export:'📡 Off-Grid — Exportar enlace',link_condivisibile:'enlace para compartir',esporta_json:'Exportar eventos JSON',backup_h:'copia',importa_json:'Importar eventos JSON',merge_h:'fusionar',sblocca_nascosto:'Desbloquear evento oculto',ph_password_ev:'Contraseña del evento…',sblocca:'Desbloquear',mostra_sbloccati:'Mostrar eventos desbloqueados',fab_analizza:'Analizar y crear →',fab_text_hint:'Claude leerá el texto y rellenará el formulario',fab_voice_status:'Escuchando… habla ahora',adv_keywords:'Palabras clave',adv_kw_ph:'Título o descripción...',adv_da:'Desde',adv_a:'Hasta',adv_free:'Gratuitos',adv_paid:'De pago',adv_reset:'Restablecer',adv_cerca:'Buscar',t_admin_user:'Entra en modo Admin o User para añadir eventos.',t_err_rete:'Error de red.',t_err_export:'Error de exportación.',t_err_file:'Error al leer el archivo — verifica el formato.',t_err:'Error.',t_ev_nascosto:'Evento guardado — actualmente oculto por los filtros activos',t_file_dl:'¡Archivo descargado!',t_file_vuoto:'Archivo vacío — no se encontraron eventos.',t_gps_no:'GPS no disponible en este dispositivo.',t_pos_no:'No se pudo detectar la ubicación. Comprueba los permisos.',t_addr_o_pos:'Indica una dirección o usa Ubicar.',t_addr_no_prec:'Dirección no encontrada — prueba con una más precisa.',t_addr_no:'Dirección no encontrada.',t_nome_obb:'Introduce tu nombre — es obligatorio para los eventos Off-Grid.',t_link_copy:'¡Enlace copiado!',t_no_offgrid_exp:'No hay eventos Off-Grid para exportar. Crea un evento y activa "Off-Grid".',t_no_condividere:'No hay eventos para compartir.',t_no_stampare:'No hay eventos para imprimir.',t_pw_no:'Contraseña no reconocida.',t_pos_ok:'¡Ubicación encontrada!',t_ricerca_corso:'Buscando...',t_ricerca_addr:'Buscando dirección...',t_voice_no:'Reconocimiento de voz no compatible — usa Chrome.',t_rilevamento:'Detectando ubicación...',t_copy_manual:'Selecciona y copia manualmente.',conf_elimina:'¿Eliminar?',cal_vai_mappa:'📍 Ir al mapa',cal_th_ora:'Hora',cal_th_evento:'Evento',cal_empty1:'Sin eventos.<br>Pulsa <b>Guardar en el calendario</b> en un evento.',cal_empty2:'Tu calendario está vacío.<br>Pulsa <b>Guardar en el calendario</b> en un evento del mapa.',og_exp_label:'Modo Off-Grid',og_exp_title:'Tus eventos, a tu manera',og_exp_body1:'Los eventos que creas en modo User son <b style="color:var(--accent-light);">Off-Grid</b>: existen solo en la memoria de este dispositivo y no pasan por ningún servidor.<br><br>',og_exp_body2:'Puedes <b style="color:var(--accent-light);">compartirlos por enlace</b> (WhatsApp, DM) usando <i>Exportar Off-Grid</i> en el menú Buscar. Solo quien recibe el enlace ve tus eventos en su mapa.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Atención:</b> si modificas o eliminas un evento tras compartirlo, la otra persona no se actualizará automáticamente — deberás enviar un nuevo enlace.',og_exp_ok:'Entendido, empecemos',share_title:'Compartir el calendario',share_sub:'Copia el enlace y envíalo a quien quieras:',copia_link:'Copiar enlace',fr_pkg:'📡 Paquete Off-Grid',ev_sing:'evento',ev_plur:'eventos',fr_manda:'Envía este enlace a quien quieras. Solo quien lo reciba verá tus eventos en Agorapp.',legal_docs_title:'Documentos legales',legal_tab_privacy:'Aviso de privacidad'},
+  fr:{aspetto:'Apparence',chiaro:'Clair',scuro:'Sombre',simple:'Mode simple',lingua:'Langue',admin:'Admin',user:'User',ricerca:'Recherche',salvati:'Enregistrés',nascosti:'Masqués',nav_mappa:'Carte',nav_calendario:'Calendrier',nav_progetti:'Projets',nav_agora:'Agora',strati:'Couches',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Choisissez quoi voir sur la carte',seleziona_tutti:'Tout sélectionner',eventi_visibili:'événements visibles',legal_privacy:'Avis de confidentialité',legal_storage:'Données locales',legal_disclaimer:'Mentions légales',prog_title:'Projets',prog_subtitle:'Pratiques collectives dans le tissu urbain',prog_intro:'La production culturelle n\'a pas lieu là où elle est reconnue. Elle a lieu dans les cours, dans les lieux de quartier, dans les assemblées informelles. Ces projets existent indépendamment d\'Agorapp — la plateforme se limite à rendre visible ce qui était déjà en cours.',filtro_tutti:'Tous',prog_cosa_serve:'Ce qu\'il faut :',prog_vuoto:'Aucun projet pour cette couche.',carica_altri:'Charger plus',visto_tutto:'Vous avez tout vu —',progetto:'projet',progetti:'projets',agora_title:'Agora',agora_subtitle:'Propositions citoyennes venues d\'en bas',agora_intro:'Les propositions que vous voyez ici ne sont pas des pétitions. Ce sont des hypothèses de transformation nées d\'en bas — des événements, des assemblées, des conversations dans les cours. Chacune rassemble des tensions réelles et les traduit en propositions concrètes.',filtro_tutte:'Toutes',agora_proponi:'Proposer une nouvelle proposition',prog_proponi:'Proposer un nouveau projet',in_sviluppo:'⏳ En développement',wip_title:'En construction',wip_body:'Cette section est encore en construction !',wip_body_agora:'La section Agora est encore en construction !',onb_title:'Bienvenue sur Agorapp !',onb_body:'Appuyez sur <b>User</b> pour ajouter vos événements sur la carte.',onb_note:'Les événements restent uniquement sur cet appareil.',m_edit:'Modifier l\'événement',m_user_offgrid:'Votre événement Off-Grid',m_new:'Nouvel événement',og_badge:'Événement Off-Grid',og_note:'Visible uniquement par ceux qui ont votre lien. Aucune donnée envoyée à un serveur.',f_name:'Votre nom',f_name_hint:'apparaît sur le badge de l\'événement',f_name_ph:'Ex. Vanessa Greco',f_title:'Titre',f_title_hint:'il faut un nom',f_title_ph:'Nom de l\'événement',f_title_err:'Donnez un nom à l\'événement',f_strato:'Couche',f_strato_hint:'catégorie',f_strato_err:'Choisissez une couche',f_sub:'Sous-couche',f_sub_hint:'après la couche',f_sub_err:'Choisissez la sous-couche',f_desc:'Description',f_desc_hint:'au moins 30 caractères',f_desc_ph:'Racontez l\'événement…',f_desc_err:'Au moins 30 caractères requis',f_dt:'Date et heure',f_dt_hint:'quand ça commence',f_dt_err:'Une date future est requise',f_dur:'Durée',f_dur_hint:'combien de temps',f_dur_ph:'ex. 2 heures',f_dur_err:'Indiquez la durée',f_price:'Prix',f_price_hint:'ou gratuit',f_price_ph:'Gratuit / 10€',f_price_err:'Indiquez le prix',f_link:'Lien externe',f_link_hint:'facultatif',f_img:'Image',f_img_hint:'URL de couverture, facultatif',f_addr:'Adresse',f_addr_hint:'où ça se déroule — obligatoire si vous n\'utilisez pas Localiser',f_addr_ph:'Ex. Via Po 12, Turin',f_posiziona:'Localiser',f_hidden:'🔒 Événement masqué',f_hidden_hint:'Visible uniquement par ceux qui ont le mot de passe',f_pw:'Mot de passe de déverrouillage',f_pw_hint:'choisissez-le',f_pw_ph:'Un mot secret',f_pw_err:'Choisissez un mot de passe',annulla:'Annuler',elimina:'Supprimer',salva_evento:'Enregistrer l\'événement',terminato:'Terminé',pop_modifica:'✏ Modifier',pop_elimina:'🗑 Supprimer',leggi_tutto:' lire plus',chiudi:'Fermer',sito_evento:'🔗 Site de l\'événement',ci_vado:'J\'y vais',sono_qui:'Je suis là',att_annulla:'Cliquez à nouveau pour annuler',att_segnala:'Cliquez pour signaler votre présence',nel_cal:'Dans le calendrier',salva_cal:'Ajouter au calendrier',rimosso_cal:'Retiré du calendrier',ricerca_semplice:'Recherche simple',ph_titolo_desc:'Titre ou description…',mostra_terminati:'Afficher les événements terminés',ricerca_avanzata:'Recherche avancée',filtri_combinati:'filtres combinés',offgrid_export:'📡 Off-Grid — Exporter le lien',link_condivisibile:'lien partageable',esporta_json:'Exporter les événements JSON',backup_h:'sauvegarde',importa_json:'Importer les événements JSON',merge_h:'fusion',sblocca_nascosto:'Déverrouiller un événement masqué',ph_password_ev:'Mot de passe de l\'événement…',sblocca:'Déverrouiller',mostra_sbloccati:'Afficher les événements déverrouillés',fab_analizza:'Analyser et créer →',fab_text_hint:'Claude lira le texte et préremplira le formulaire',fab_voice_status:'À l\'écoute… parlez maintenant',adv_keywords:'Mots-clés',adv_kw_ph:'Titre ou description...',adv_da:'Du',adv_a:'Au',adv_free:'Gratuits',adv_paid:'Payants',adv_reset:'Réinitialiser',adv_cerca:'Rechercher',t_admin_user:'Passez en mode Admin ou User pour ajouter des événements.',t_err_rete:'Erreur réseau.',t_err_export:'Erreur d\'export.',t_err_file:'Erreur de lecture du fichier — vérifiez le format.',t_err:'Erreur.',t_ev_nascosto:'Événement enregistré — actuellement masqué par les filtres actifs',t_file_dl:'Fichier téléchargé !',t_file_vuoto:'Fichier vide — aucun événement trouvé.',t_gps_no:'GPS non disponible sur cet appareil.',t_pos_no:'Impossible de détecter la position. Vérifiez les autorisations.',t_addr_o_pos:'Indiquez une adresse ou utilisez Localiser.',t_addr_no_prec:'Adresse introuvable — essayez une adresse plus précise.',t_addr_no:'Adresse introuvable.',t_nome_obb:'Saisissez votre nom — il est obligatoire pour les événements Off-Grid.',t_link_copy:'Lien copié !',t_no_offgrid_exp:'Aucun événement Off-Grid à exporter. Créez un événement et activez "Off-Grid".',t_no_condividere:'Aucun événement à partager.',t_no_stampare:'Aucun événement à imprimer.',t_pw_no:'Mot de passe non reconnu.',t_pos_ok:'Position trouvée !',t_ricerca_corso:'Recherche en cours...',t_ricerca_addr:'Recherche d\'adresse...',t_voice_no:'Reconnaissance vocale non prise en charge — utilisez Chrome.',t_rilevamento:'Détection de la position...',t_copy_manual:'Sélectionnez et copiez manuellement.',conf_elimina:'Supprimer ?',cal_vai_mappa:'📍 Aller à la carte',cal_th_ora:'Heure',cal_th_evento:'Événement',cal_empty1:'Aucun événement.<br>Appuyez sur <b>Ajouter au calendrier</b> sur un événement.',cal_empty2:'Votre calendrier est vide.<br>Appuyez sur <b>Ajouter au calendrier</b> sur un événement de la carte.',og_exp_label:'Mode Off-Grid',og_exp_title:'Vos événements, à votre façon',og_exp_body1:'Les événements que vous créez en mode User sont <b style="color:var(--accent-light);">Off-Grid</b> : ils existent uniquement dans la mémoire de cet appareil et ne passent par aucun serveur.<br><br>',og_exp_body2:'Vous pouvez <b style="color:var(--accent-light);">les partager par lien</b> (WhatsApp, DM) via <i>Exporter Off-Grid</i> dans le menu Recherche. Seul celui qui reçoit le lien voit vos événements sur sa carte.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Attention :</b> si vous modifiez ou supprimez un événement après l\'avoir partagé, l\'autre personne ne sera pas mise à jour automatiquement — vous devrez envoyer un nouveau lien.',og_exp_ok:'Compris, commençons',share_title:'Partager le calendrier',share_sub:'Copiez le lien et envoyez-le à qui vous voulez :',copia_link:'Copier le lien',fr_pkg:'📡 Paquet Off-Grid',ev_sing:'événement',ev_plur:'événements',fr_manda:'Envoyez ce lien à qui vous voulez. Seul celui qui le reçoit verra vos événements sur Agorapp.',legal_docs_title:'Documents légaux',legal_tab_privacy:'Avis de confidentialité'},
+  ar:{aspetto:'المظهر',chiaro:'فاتح',scuro:'داكن',simple:'الوضع البسيط',lingua:'اللغة',admin:'Admin',user:'User',ricerca:'بحث',salvati:'المحفوظة',nascosti:'المخفية',nav_mappa:'الخريطة',nav_calendario:'التقويم',nav_progetti:'المشاريع',nav_agora:'أغورا',strati:'الطبقات',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'اختر ما تريد رؤيته على الخريطة',seleziona_tutti:'تحديد الكل',eventi_visibili:'فعاليات مرئية',legal_privacy:'إشعار الخصوصية',legal_storage:'بيانات محلية',legal_disclaimer:'ملاحظات قانونية',prog_title:'المشاريع',prog_subtitle:'ممارسات جماعية في النسيج الحضري',prog_intro:'الإنتاج الثقافي لا يحدث حيث يُعترف به. بل يحدث في الأفنية، وفي المراكز المحلية، وفي التجمعات غير الرسمية. هذه المشاريع موجودة بشكل مستقل عن Agorapp — المنصة تكتفي بإظهار ما كان جارياً بالفعل.',filtro_tutti:'الكل',prog_cosa_serve:'ما المطلوب:',prog_vuoto:'لا توجد مشاريع لهذه الطبقة.',carica_altri:'تحميل المزيد',visto_tutto:'لقد رأيت كل شيء —',progetto:'مشروع',progetti:'مشاريع',agora_title:'أغورا',agora_subtitle:'مقترحات مدنية من القاعدة',agora_intro:'المقترحات التي تراها هنا ليست عرائض. إنها فرضيات للتغيير وُلدت من القاعدة — من الفعاليات والتجمعات والمحادثات في الأفنية. كل مقترح يجمع توترات حقيقية ويترجمها إلى مقترحات عملية.',filtro_tutte:'الكل',agora_proponi:'اقترح مقترحاً جديداً',prog_proponi:'اقترح مشروعاً جديداً',in_sviluppo:'⏳ قيد التطوير',wip_title:'قيد الإنشاء',wip_body:'هذا القسم لا يزال قيد الإنشاء!',wip_body_agora:'قسم أغورا لا يزال قيد الإنشاء!',onb_title:'مرحباً بك في Agorapp!',onb_body:'اضغط <b>User</b> لإضافة فعالياتك على الخريطة.',onb_note:'تبقى الفعاليات على هذا الجهاز فقط.',m_edit:'تعديل الفعالية',m_user_offgrid:'فعاليتك Off-Grid',m_new:'فعالية جديدة',og_badge:'فعالية Off-Grid',og_note:'مرئية فقط لمن لديه رابطك. لا تُرسَل أي بيانات إلى أي خادم.',f_name:'اسمك',f_name_hint:'يظهر على شارة الفعالية',f_name_ph:'مثال: Vanessa Greco',f_title:'العنوان',f_title_hint:'يلزم اسم',f_title_ph:'اسم الفعالية',f_title_err:'أعطِ اسماً للفعالية',f_strato:'الطبقة',f_strato_hint:'الفئة',f_strato_err:'اختر طبقة',f_sub:'الطبقة الفرعية',f_sub_hint:'بعد الطبقة',f_sub_err:'اختر الطبقة الفرعية',f_desc:'الوصف',f_desc_hint:'30 حرفاً على الأقل',f_desc_ph:'صف الفعالية…',f_desc_err:'يلزم 30 حرفاً على الأقل',f_dt:'التاريخ والوقت',f_dt_hint:'متى تبدأ',f_dt_err:'يلزم تاريخ مستقبلي',f_dur:'المدة',f_dur_hint:'كم تستغرق',f_dur_ph:'مثال: ساعتان',f_dur_err:'حدد المدة',f_price:'السعر',f_price_hint:'أو مجاني',f_price_ph:'مجاني / 10€',f_price_err:'حدد السعر',f_link:'رابط خارجي',f_link_hint:'اختياري',f_img:'صورة',f_img_hint:'رابط صورة الغلاف، اختياري',f_addr:'العنوان',f_addr_hint:'مكان الإقامة — إلزامي إن لم تستخدم تحديد الموقع',f_addr_ph:'مثال: Via Po 12, تورينو',f_posiziona:'تحديد الموقع',f_hidden:'🔒 فعالية مخفية',f_hidden_hint:'مرئية فقط لمن لديه كلمة المرور',f_pw:'كلمة مرور الفتح',f_pw_hint:'اخترها بنفسك',f_pw_ph:'كلمة سرية',f_pw_err:'اختر كلمة مرور',annulla:'إلغاء',elimina:'حذف',salva_evento:'حفظ الفعالية',terminato:'منتهية',pop_modifica:'✏ تعديل',pop_elimina:'🗑 حذف',leggi_tutto:' اقرأ المزيد',chiudi:'إغلاق',sito_evento:'🔗 موقع الفعالية',ci_vado:'سأذهب',sono_qui:'أنا هنا',att_annulla:'اضغط مرة أخرى للإلغاء',att_segnala:'اضغط للإشارة إلى حضورك',nel_cal:'في التقويم',salva_cal:'حفظ في التقويم',rimosso_cal:'أُزيل من التقويم',ricerca_semplice:'بحث بسيط',ph_titolo_desc:'العنوان أو الوصف…',mostra_terminati:'إظهار الفعاليات المنتهية',ricerca_avanzata:'بحث متقدم',filtri_combinati:'مرشحات مدمجة',offgrid_export:'📡 Off-Grid — تصدير الرابط',link_condivisibile:'رابط قابل للمشاركة',esporta_json:'تصدير الفعاليات JSON',backup_h:'نسخة احتياطية',importa_json:'استيراد الفعاليات JSON',merge_h:'دمج',sblocca_nascosto:'فتح فعالية مخفية',ph_password_ev:'كلمة مرور الفعالية…',sblocca:'فتح',mostra_sbloccati:'إظهار الفعاليات المفتوحة',fab_analizza:'حلّل وأنشئ →',fab_text_hint:'سيقرأ Claude النص ويملأ النموذج',fab_voice_status:'جارٍ الاستماع… تحدّث الآن',adv_keywords:'كلمات مفتاحية',adv_kw_ph:'العنوان أو الوصف...',adv_da:'من',adv_a:'إلى',adv_free:'مجانية',adv_paid:'مدفوعة',adv_reset:'إعادة تعيين',adv_cerca:'بحث',t_admin_user:'ادخل وضع Admin أو User لإضافة فعاليات.',t_err_rete:'خطأ في الشبكة.',t_err_export:'خطأ في التصدير.',t_err_file:'خطأ في قراءة الملف — تحقق من الصيغة.',t_err:'خطأ.',t_ev_nascosto:'حُفظت الفعالية — مخفية حالياً بواسطة المرشحات النشطة',t_file_dl:'تم تنزيل الملف!',t_file_vuoto:'ملف فارغ — لم يُعثر على فعاليات.',t_gps_no:'نظام تحديد المواقع غير متاح على هذا الجهاز.',t_pos_no:'تعذّر تحديد الموقع. تحقق من الأذونات.',t_addr_o_pos:'أدخل عنواناً أو استخدم تحديد الموقع.',t_addr_no_prec:'العنوان غير موجود — جرّب عنواناً أدق.',t_addr_no:'العنوان غير موجود.',t_nome_obb:'أدخل اسمك — إلزامي لفعاليات Off-Grid.',t_link_copy:'تم نسخ الرابط!',t_no_offgrid_exp:'لا توجد فعاليات Off-Grid للتصدير. أنشئ فعالية وفعّل "Off-Grid".',t_no_condividere:'لا توجد فعاليات للمشاركة.',t_no_stampare:'لا توجد فعاليات للطباعة.',t_pw_no:'كلمة المرور غير معروفة.',t_pos_ok:'تم العثور على الموقع!',t_ricerca_corso:'جارٍ البحث...',t_ricerca_addr:'جارٍ البحث عن العنوان...',t_voice_no:'التعرّف على الصوت غير مدعوم — استخدم Chrome.',t_rilevamento:'جارٍ تحديد الموقع...',t_copy_manual:'حدّد وانسخ يدوياً.',conf_elimina:'هل تريد الحذف؟',cal_vai_mappa:'📍 اذهب إلى الخريطة',cal_th_ora:'الوقت',cal_th_evento:'الفعالية',cal_empty1:'لا توجد فعاليات.<br>اضغط <b>حفظ في التقويم</b> على فعالية.',cal_empty2:'تقويمك فارغ.<br>اضغط <b>حفظ في التقويم</b> على فعالية في الخريطة.',og_exp_label:'وضع Off-Grid',og_exp_title:'فعالياتك، على طريقتك',og_exp_body1:'الفعاليات التي تنشئها في وضع User هي <b style="color:var(--accent-light);">Off-Grid</b>: توجد فقط في ذاكرة هذا الجهاز ولا تمر عبر أي خادم.<br><br>',og_exp_body2:'يمكنك <b style="color:var(--accent-light);">مشاركتها عبر رابط</b> (WhatsApp، DM) باستخدام <i>تصدير Off-Grid</i> في قائمة البحث. فقط من يستلم الرابط يرى فعالياتك على خريطته.<br><br>',og_exp_body3:'<b style="color:#FFD599;">تنبيه:</b> إذا عدّلت أو حذفت فعالية بعد مشاركتها، فلن يتم تحديث الشخص الآخر تلقائياً — عليك إرسال رابط جديد.',og_exp_ok:'فهمت، لنبدأ',share_title:'مشاركة التقويم',share_sub:'انسخ الرابط وأرسله لمن تشاء:',copia_link:'نسخ الرابط',fr_pkg:'📡 حزمة Off-Grid',ev_sing:'فعالية',ev_plur:'فعاليات',fr_manda:'أرسل هذا الرابط لمن تشاء. فقط من يستلمه سيرى فعالياتك على Agorapp.',legal_docs_title:'مستندات قانونية',legal_tab_privacy:'إشعار الخصوصية'}
 };
 function dloc(){return {it:dloc(),en:'en-GB',es:'es-ES',fr:'fr-FR',ar:'ar'}[lang]||dloc();}
 function t(k){var v=T[lang]&&T[lang][k];if(v!=null)return v;v=T.it[k];return v!=null?v:k;}
@@ -917,7 +1269,13 @@ var DEMO_EVENTS=[
   {id:'demo-pilates',title:'Pilates in Parco — San Salvario',category:'benessere',sublayer:'Pilates',description:'Lezione all\'aperto nel parco Valentino. Massimo 12 partecipanti, prenotazione sul sito.',datetime:'2026-05-03T09:30',duration:'1 ora',price:'8€',lat:45.0578,lng:7.6880,going:7,here:2},
   {id:'demo-ambiente-v',title:'Pulizia del Parco — Collina Torinese',category:'volontariato',sublayer:'Ambiente',description:'Raccolta rifiuti con i guanti forniti dal Comune. Colazione offerta a fine lavori.',datetime:'2026-04-19T09:00',duration:'3 ore',price:'Gratuito',lat:45.0590,lng:7.7091,going:13,here:5},
   {id:'demo-sociale-v',title:'Mensa Comunitaria — Porta Palazzo',category:'volontariato',sublayer:'Sociale',description:'Ogni venerdì sera. Cerchiamo volontari per cucina, servizio e pulizie. Turno dalle 17 alle 21.',datetime:'2026-04-18T17:00',duration:'4 ore',price:'Gratuito',lat:45.0769,lng:7.6822,going:6,here:3},
-  {id:'demo-animali',title:'Giornata Adozioni — Canile Municipale',category:'volontariato',sublayer:'Animali',description:'Porte aperte al canile. Porteggio con i cani, incontro con i responsabili, procedure di adozione.',datetime:'2026-05-10T10:00',duration:'4 ore',price:'Gratuito',lat:45.0471,lng:7.6490,going:9,here:2}
+  {id:'demo-animali',title:'Giornata Adozioni — Canile Municipale',category:'volontariato',sublayer:'Animali',description:'Porte aperte al canile. Porteggio con i cani, incontro con i responsabili, procedure di adozione.',datetime:'2026-05-10T10:00',duration:'4 ore',price:'Gratuito',lat:45.0471,lng:7.6490,going:9,here:2},
+  {id:'demo-prat-tambures',title:'Prova aperta dei Tambures',category:'musica',sublayer:'Folk e world music',description:'Prova aperta della banda di percussioni. Chiunque puo unirsi e provare uno strumento.',datetime:'2026-06-25T18:30',duration:'2 ore',price:'Gratuito',lat:45.0890,lng:7.7050,going:14,here:5,parentType:'progetto',parentId:'tambures',tema:'Inclusione'},
+  {id:'demo-prat-cantiere',title:'Cantiere Aperto: la panchina',category:'laboratori',sublayer:'Artigianato',description:'Costruiamo insieme una panchina per il cortile. Si lavora il legno imparando facendo.',datetime:'2026-06-28T10:00',duration:'4 ore',price:'Gratuito',lat:45.0420,lng:7.6300,going:9,here:3,parentType:'progetto',parentId:'cantiere',tema:'Beni comuni'},
+  {id:'demo-prat-sartoria',title:'Sartoria Condivisa: taglio e cucito',category:'laboratori',sublayer:'Creativi',description:'Laboratorio aperto di sartoria. Porta una stoffa o usa le nostre. Macchine disponibili.',datetime:'2026-07-02T16:00',duration:'3 ore',price:'5',lat:45.0760,lng:7.6830,going:11,here:4,parentType:'progetto',parentId:'sartoria',tema:'Autoproduzione'},
+  {id:'demo-ist-abitativo',title:'Assemblea inquilini: casa e affitti',category:'sociale',sublayer:'Assemblee',description:'Incontro aperto del comitato inquilini: affitti, sfratti, edilizia pubblica accessibile.',datetime:'2026-06-26T18:00',duration:'2 ore',price:'Gratuito',lat:45.0610,lng:7.6780,going:22,here:8,parentType:'istanza',parentId:'abitativo',tema:'Diritto all\'abitare'},
+  {id:'demo-ist-verde',title:'Camminata per il verde urbano',category:'manifestazioni',sublayer:'Presidi',description:'Passeggiata-presidio per chiedere standard minimi di verde pubblico nel quartiere.',datetime:'2026-06-30T17:30',duration:'1 ora e mezza',price:'Gratuito',lat:45.0700,lng:7.6500,going:31,here:12,parentType:'istanza',parentId:'verde',tema:'Aree verdi'},
+  {id:'demo-ist-autogestiti',title:'Presidio per gli spazi autogestiti',category:'manifestazioni',sublayer:'Presidi',description:'Presidio a sostegno del riconoscimento dei centri sociali e degli spazi indipendenti.',datetime:'2026-07-05T18:00',duration:'2 ore',price:'Gratuito',lat:45.0750,lng:7.6650,going:18,here:6,parentType:'istanza',parentId:'autogestiti',tema:'Spazi autogestiti'}
 ];
 // Inject demo events - always ensure isDemo flag is set
 (function(){
@@ -1129,7 +1487,7 @@ function buildPopup(ev){
     +frBadge
     +'<span class="popup-cat-badge" style="background:'+l.bg+';color:'+l.text+'">'+iconHtml+' '+l.label+subLabel+'</span>'
     +expBadge
-    +'<div class="popup-title">'+safeTitle+'</div>'
+    +'<div class="popup-title">'+safeTitle+'</div>'+(window.popupTags?window.popupTags(ev):'')
     +descHtml
     +(dateStr?'<div class="popup-meta">📅 '+esc(dateStr)+'</div>':'')
     +(ev.duration?'<div class="popup-meta">⏱ '+esc(ev.duration)+'</div>':'')
@@ -1489,7 +1847,6 @@ function showModal(ev,prefill){
   });
 })();
 
-
 }
 
 function validate(){
@@ -1529,7 +1886,6 @@ function saveEvent(){
   if(editingId){var ev=events.find(function(x){return x.id===editingId;});Object.assign(ev,fields);saveEvents();closeModal();initTimeline();refreshMarkers();renderLayers();setTimeout(function(){if(markers[ev.id])markers[ev.id].openPopup();},100);}
   else{var newEv=Object.assign({id:Date.now().toString(),lat:pendingLatLng.lat,lng:pendingLatLng.lng,going:0,here:0},fields);events.push(newEv);saveEvents();closeModal();initTimeline();if(isVisible(newEv)){addMarker(newEv);setTimeout(function(){if(markers[newEv.id])markers[newEv.id].openPopup();},100);}else{showToast(t('t_ev_nascosto'));}updateCount();renderLayers();}
 }
-
 
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3000);}
 // ── TAB SINISTRA: filtro tempo + preferenze ─────────────────────────
@@ -1671,7 +2027,7 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
   var ov=document.createElement('div');
   ov.id='cal-overlay';
   ov.style.cssText='display:none;position:absolute;inset:0;background:var(--bg);z-index:9990;flex-direction:column;';
-  ov.innerHTML='<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);flex-shrink:0;">'
+  ov.innerHTML='<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--surface);flex-shrink:0;">'
     +'<span style="font-family:\'DM Serif Display\',serif;font-size:1.125rem;color:var(--text);">Salvati</span>'
     +'<div style="display:flex;gap:8px;align-items:center;">'
     +'<button id="cal-view-month" class="cal-view-btn cal-active">Mese</button>'
@@ -2005,7 +2361,7 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
         +'<span class="prog-card-zona">📍 '+p.zona+'</span>'
         +'<span class="prog-card-stato" style="background:'+stato.bg+';color:'+stato.color+';">'+stato.label+'</span>'
         +'</div>'
-        +'<div class="prog-card-strati">'+stratiPills+'</div>'
+        +'<div class="prog-card-strati">'+stratiPills+'</div>'+(window.renderTemiPills?window.renderTemiPills((window.TAGS_BY_ID||{})[p.id],'p'):'')
         +'<div class="prog-card-desc">'+p.descrizione+'</div>'
         +'<div class="prog-card-cerca"><b>'+t('prog_cosa_serve')+'</b> '+p.cerca+'</div>'
         +'</div></div>';
@@ -2018,7 +2374,7 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
       pagerHtml='<div style="text-align:center;color:var(--text-muted);font-size:0.75rem;padding:18px 0 4px;">'+t('visto_tutto')+' '+filtered.length+' '+(filtered.length===1?t('progetto'):t('progetti'))+'</div>';
     }
 
-        progettiOv.innerHTML='<div id="prog-scroll" style="flex:1;overflow-y:auto;">'      +'<div style="max-width:960px;margin:0 auto;padding:24px 20px;">'      +'<div class="section-title-row" style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px;">'      +'<h1 style="font-family:\'DM Serif Display\',serif;font-size:1.75rem;color:var(--text);margin:0;flex-shrink:0;">'+t('prog_title')+'</h1>'      +'<span class="section-subtitle" style="font-size:0.875rem;font-weight:500;color:var(--text-muted);filter:brightness(0.7);">'+t('prog_subtitle')+'</span>'      +'</div>'      +'<p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 24px;line-height:1.6;">'+t('prog_intro')+'</p>'      +'<div class="prog-filters" style="margin-bottom:20px;">'+filterHtml+'</div>'      +(filtered.length===0?'<div style="text-align:center;color:var(--text-muted);padding:40px 0;font-size:0.8125rem;">'+t('prog_vuoto')+'</div>':cardsHtml+pagerHtml)      +'</div></div>';
+        progettiOv.innerHTML='<div id="prog-scroll" style="flex:1;overflow-y:auto;">'      +'<div style="max-width:960px;margin:0 auto;padding:24px 20px;">'      +'<div class="section-title-row" style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px;">'      +'<h1 style="font-family:\'DM Serif Display\',serif;font-size:1.75rem;color:var(--text);margin:0;flex-shrink:0;">'+t('prog_title')+'</h1>'      +'<span class="section-subtitle" style="font-size:0.875rem;font-weight:500;color:var(--text-muted);filter:brightness(0.7);">'+t('prog_subtitle')+'</span>'      +'</div>'      +'<p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 24px;line-height:1.6;">'+t('prog_intro')+'</p>'      +'<div class="prog-filters" style="margin-bottom:20px;">'+filterHtml+'</div>'      +(filtered.length===0?'<div style="text-align:center;color:var(--text-muted);padding:40px 0;font-size:0.8125rem;">'+t('prog_vuoto')+'</div>':cardsHtml+pagerHtml)+'<div id="prog-proponi-btn" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:2px dashed var(--border-strong);border-radius:18px;padding:22px;margin-top:10px;cursor:pointer;color:var(--text-muted);"><div style="font-size:2rem;line-height:1;">+</div><div style="font-size:0.875rem;font-weight:500;">'+t('prog_proponi')+'</div></div>'      +'</div></div>';
 
     var pclose=document.getElementById('progetti-close');if(pclose)pclose.addEventListener('click',closeProgetti);
     var plm=document.getElementById('prog-load-more');if(plm)plm.addEventListener('click',function(){var sc=document.getElementById('prog-scroll');var y=sc?sc.scrollTop:0;progShown+=ITEMS_PER_PAGE;renderProgetti();var sc2=document.getElementById('prog-scroll');if(sc2)sc2.scrollTop=y;});
@@ -2035,6 +2391,7 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
         showWipModal();
       });
     });
+    var ppb=document.getElementById('prog-proponi-btn');if(ppb)ppb.addEventListener('click',showWipModal);
   }
 
   function showWipModal(){
@@ -2142,7 +2499,7 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
         if(!lay)return;
         istLayerPills+='<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.625rem;font-weight:600;padding:2px 8px;border-radius:12px;background:'+lay.bg+';color:'+lay.text+';margin-right:4px;margin-bottom:4px;">'+lay.label+'</span>';
       });
-      html+='<div class="agora-card" data-agora-id="'+ist.id+'">'        +(ist.icona.startsWith('<svg')?'<div style="width:52px;height:52px;border-radius:14px;background:'+ist.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px;">'+ist.icona+'</div>':'<div style="font-size:1.75rem;width:52px;height:52px;border-radius:14px;background:'+ist.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+ist.icona+'</div>')        +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.125rem;color:var(--text);line-height:1.2;">'+ist.titolo+'</div>'        +'<div style="font-size:0.75rem;color:var(--text-muted);line-height:1.5;flex:1;">'+ist.descrizione+'</div>'        +(istLayerPills?'<div style="display:flex;flex-wrap:wrap;margin-top:6px;">'+istLayerPills+'</div>':'')        +'<div style="margin-top:auto;padding-top:8px;">'        +'<span style="font-size:0.6875rem;font-weight:600;color:var(--text-muted);">'+t('in_sviluppo')+'</span>'        +'</div>'        +'</div>'
+      html+='<div class="agora-card" data-agora-id="'+ist.id+'">'        +(ist.icona.startsWith('<svg')?'<div style="width:52px;height:52px;border-radius:14px;background:'+ist.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px;">'+ist.icona+'</div>':'<div style="font-size:1.75rem;width:52px;height:52px;border-radius:14px;background:'+ist.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+ist.icona+'</div>')        +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.125rem;color:var(--text);line-height:1.2;">'+ist.titolo+'</div>'        +'<div style="font-size:0.75rem;color:var(--text-muted);line-height:1.5;flex:1;">'+ist.descrizione+'</div>'        +(istLayerPills?'<div style="display:flex;flex-wrap:wrap;margin-top:6px;">'+istLayerPills+'</div>':'')+(window.renderTemiPills?window.renderTemiPills((window.TAGS_BY_ID||{})[ist.id],'i'):'')        +'<div style="margin-top:auto;padding-top:8px;">'        +'<span style="font-size:0.6875rem;font-weight:600;color:var(--text-muted);">'+t('in_sviluppo')+'</span>'        +'</div>'        +'</div>'
     });
 
     html+='<div class="agora-card-plus" id="agora-proponi-btn">'
@@ -2385,9 +2742,6 @@ document.getElementById('row-adv-search').addEventListener('click',function(){
   });
 })
 
-
-
-
 // ── GEOLOCALIZZAZIONE ───────────────────────────────────────────────
 var geoMarker=null;
 function geoFlashPin(latlng){
@@ -2478,6 +2832,665 @@ document.getElementById('legal-close').addEventListener('click',closeLegal);
 document.getElementById('legal-modal').addEventListener('click',function(e){
   if(e.target===this)closeLegal();
 });
+</script>
+
+<script>
+/* ===================== STEP 0 — GUSCIO (logica) ===================== */
+/* Additivo: gira a fine pagina, riusa i bottoni-sezione gia' esistenti.  */
+window.addEventListener('load',function(){
+  try{
+    var IC={
+      mappa:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5-6 2v12l6-2 6 2 6-2V5l-6 2-6-2Z"/><path d="M9 5v12M15 7v12"/></svg>',
+      progetti:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>',
+      agora:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 12 4l8 5"/><path d="M5 9v8M9 9v8M15 9v8M19 9v8"/><path d="M3 20h18"/></svg>',
+      temi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/></svg>',
+      cal:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>',
+      compass:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-4 1 2-5 4-1Z"/></svg>'
+    };
+
+    /* chiave i18n per la quarta sezione (nelle 5 lingue) */
+    try{ if(typeof T!=='undefined'){
+      if(T.it)T.it.nav_temi='Temi'; if(T.en)T.en.nav_temi='Themes';
+      if(T.es)T.es.nav_temi='Temas'; if(T.fr)T.fr.nav_temi='Thèmes';
+      if(T.ar)T.ar.nav_temi='السمات';
+    } }catch(e){}
+
+    var mapWrap=document.getElementById('map-wrap');
+    if(!mapWrap)return;
+
+    /* ---- Overlay Temi (placeholder dell'ingresso sezione) ---- */
+    function hideTemi(){var t=document.getElementById('temi-overlay');if(t)t.style.display='none';var sb=document.getElementById('subbar');if(sb)sb.style.display='';}
+    function showTemi(){
+      if(window.closeCal)window.closeCal();
+      if(window.closeProgetti)window.closeProgetti();
+      if(window.closeAgora)window.closeAgora();
+      var sb=document.getElementById('subbar');if(sb)sb.style.display='none';
+      var t=document.getElementById('temi-overlay');if(t)t.style.display='flex';
+      if(window.renderTemiView){try{window.renderTemiView();}catch(e){if(window.console)console.error(e);}}
+    }
+    if(!document.getElementById('temi-overlay')){
+      var TAGS=[['Aree verdi','e'],['Ciclabili','i'],['Cultura','e'],['Diritti','i'],
+        ['Diritto all\'abitare','i'],['Inclusione','i'],['Laboratori','p'],['Mercati','e'],
+        ['Mobilità','i'],['Musica','e'],['Orti condivisi','p'],['Riuso','p'],
+        ['Sostenibilità','p'],['Spazi autogestiti','i'],['Teatro','e']];
+      var COL={e:'var(--accent)',p:'var(--clay)',i:'var(--inst)'};
+      var pills=TAGS.map(function(x){
+        return '<span class="tov-tag"><span class="tov-dot" style="background:'+COL[x[1]]+'"></span>'+x[0]+'</span>';
+      }).join('');
+      var tov=document.createElement('div'); tov.id='temi-overlay';
+      tov.innerHTML='<div class="tov-pad">'
+        +'<div class="tov-h">Esplora per tema</div>'
+        +'<div class="tov-sub">Tutti i temi, in ordine alfabetico · nessuna classifica</div>'
+        +'<div class="tov-grid">'+pills+'</div>'
+        +'<div class="tov-expl"><div class="tov-expl-ic">'+IC.compass+'</div><div>'
+          +'<div class="tov-expl-t">Un tema, tutte le sezioni insieme</div>'
+          +'<div class="tov-expl-d">Scegli uno o più temi: eventi, pratiche e istanze appaiono mescolati, in ordine di tempo, con i loro punti sulla mappa.</div>'
+        +'</div></div>'
+        +'<div class="tov-note">'+IC.compass+'<div>Questo è l\'ingresso della sezione. Lente, filtri, risultati e mini-mappa fissa arrivano nei prossimi step (riferimento: mockup Branch 3). I temi qui elencati sono provvisori.</div></div>'
+        +'</div>';
+      mapWrap.appendChild(tov);
+    }
+
+    /* ---- Barra sezioni in basso ---- */
+    function bnBtn(sec,svg,key,fallback){
+      return '<button class="bn" data-sec="'+sec+'"><span class="bn-ic">'+svg+'</span>'
+        +'<span class="bn-label" data-i18n="'+key+'">'+fallback+'</span></button>';
+    }
+    if(!document.getElementById('bottom-nav')){
+      var bn=document.createElement('nav'); bn.id='bottom-nav';
+      bn.innerHTML=bnBtn('mappa',IC.mappa,'nav_mappa','Mappa')
+        +bnBtn('progetti',IC.progetti,'nav_progetti','Progetti')
+        +bnBtn('agora',IC.agora,'nav_agora','Agorà')
+        +bnBtn('temi',IC.temi,'nav_temi','Temi');
+      mapWrap.appendChild(bn);
+    }
+
+    function syncBottom(){
+      var t=document.getElementById('temi-overlay');
+      var p=document.getElementById('progetti-overlay');
+      var a=document.getElementById('agora-overlay');
+      var active='mappa';
+      if(t&&t.style.display==='flex')active='temi';
+      else if(p&&p.style.display==='flex')active='progetti';
+      else if(a&&a.style.display==='flex')active='agora';
+      var btns=document.querySelectorAll('#bottom-nav .bn');
+      for(var i=0;i<btns.length;i++){
+        btns[i].classList.toggle('on',btns[i].getAttribute('data-sec')===active);
+      }
+    }
+    window.__syncBottomNav=syncBottom;
+
+    document.getElementById('bottom-nav').addEventListener('click',function(e){
+      var b=e.target.closest('.bn'); if(!b)return;
+      var sec=b.getAttribute('data-sec');
+      if(sec==='mappa'){ hideTemi(); var m=document.getElementById('mt-mappa'); if(m)m.click(); }
+      else if(sec==='progetti'){ hideTemi(); var pr=document.getElementById('mt-progetti'); if(pr)pr.click(); }
+      else if(sec==='agora'){ hideTemi(); var ag=document.getElementById('mt-agora'); if(ag)ag.click(); }
+      else if(sec==='temi'){ showTemi(); }
+      syncBottom();
+    });
+
+    /* ---- Strumenti in alto: Calendario raggruppato + Modalita' Semplice li spegne in blocco ---- */
+    var sub=document.getElementById('subbar');
+    if(sub){
+      sub.classList.add('complex-only');
+      if(!document.getElementById('mt-cal-top')){
+        var divd=document.createElement('div'); divd.className='subbar-divider';
+        var item=document.createElement('div'); item.className='subbar-item';
+        item.innerHTML='<button class="subbar-trigger" id="mt-cal-top">'+IC.cal+' <span data-i18n="nav_calendario">Calendario</span></button>';
+        sub.appendChild(divd); sub.appendChild(item);
+        document.getElementById('mt-cal-top').addEventListener('click',function(){
+          hideTemi(); var c=document.getElementById('mt-cal'); if(c)c.click(); syncBottom();
+        });
+      }
+    }
+
+    /* tieni la barra in basso allineata a qualunque cambio di sezione */
+    document.addEventListener('click',function(){ setTimeout(syncBottom,0); });
+
+    if(window.applyTranslations)window.applyTranslations();
+    syncBottom();
+  }catch(err){ if(window.console)console.error('Step0 graft:',err); }
+});
+
+</script>
+
+<script>
+/* ===================== STEP 0.1 — STRUMENTI A ICONE TONDE (logica) ===================== */
+/* Additivo: gira dopo lo script Step 0 (gli elementi della subbar gia' esistono).         */
+window.addEventListener('load',function(){
+  try{
+    var sub=document.getElementById('subbar'); if(!sub)return;
+
+    /* titolo sezione a sinistra della barra */
+    if(!document.getElementById('band-title')){
+      var bt=document.createElement('div'); bt.id='band-title'; bt.className='band-title';
+      bt.innerHTML='<div class="band-title-main" id="band-title-main">Mappa</div>'
+                 +'<div class="band-title-sub" id="band-title-sub"></div>';
+      sub.insertBefore(bt, sub.firstChild);
+    }
+
+    /* riordino: Calendario subito dopo Ricerca, come nel mockup */
+    var str=document.getElementById('mt-strumenti');
+    var cal=document.getElementById('mt-cal-top');
+    if(str&&cal){
+      var si=str.closest('.subbar-item');
+      var ci=cal.closest('.subbar-item');
+      if(si&&ci&&si.nextSibling!==ci){ si.parentNode.insertBefore(ci, si.nextSibling); }
+    }
+
+    /* titolo che segue la sezione attiva (la sottoriga e' provvisoria in IT) */
+    var BANDS={
+      mappa:['Mappa','gli eventi attorno a te'],
+      progetti:['Progetti','pratiche collettive'],
+      agora:['Agorà','istanze dal basso'],
+      temi:['Temi','le passerelle tra le sezioni'],
+      cal:['Calendario','i tuoi eventi salvati']
+    };
+    function tr(key,fb){ try{ return (typeof t==='function')? t(key): fb; }catch(e){ return fb; } }
+    function updateBand(){
+      var t_=document.getElementById('temi-overlay');
+      var p=document.getElementById('progetti-overlay');
+      var a=document.getElementById('agora-overlay');
+      var c=document.getElementById('cal-overlay');
+      var key='mappa';
+      if(c&&c.style.display==='flex')key='cal';
+      else if(t_&&t_.style.display==='flex')key='temi';
+      else if(p&&p.style.display==='flex')key='progetti';
+      else if(a&&a.style.display==='flex')key='agora';
+      var m=document.getElementById('band-title-main');
+      var s=document.getElementById('band-title-sub');
+      var i18nKey = (key==='cal')?'nav_calendario':('nav_'+key);
+      if(m)m.textContent=tr(i18nKey, BANDS[key][0]);
+      if(s)s.textContent=BANDS[key][1];
+    }
+    window.__updateBand=updateBand;
+    document.addEventListener('click',function(){ setTimeout(updateBand,0); });
+    updateBand();
+  }catch(err){ if(window.console)console.error('Step0.1 tools:',err); }
+});
+
+</script>
+
+<script>
+/* ============== STEP 0.1 (fix) — calcolo altezza fascia alta ============== */
+/* Misura dove inizia la mappa (= sotto header+strumenti) e lo passa al CSS.   */
+/* Si aggiorna anche quando la Modalita' Semplice nasconde la barra strumenti. */
+window.addEventListener('load',function(){
+  function setChromeTop(){
+    var mw=document.getElementById('map-wrap');
+    if(mw){
+      var topY=Math.max(0, Math.round(mw.getBoundingClientRect().top));
+      document.documentElement.style.setProperty('--chrome-top', topY+'px');document.documentElement.style.setProperty('--chrome-bottom', Math.max(0,Math.round(window.innerHeight-mw.getBoundingClientRect().bottom))+'px');
+    }
+  }
+  setChromeTop();
+  window.addEventListener('resize', setChromeTop);
+  /* ricalcola dopo i click (es. toggle Modalita' Semplice cambia l'altezza) */
+  document.addEventListener('click', function(){ setTimeout(setChromeTop, 0); });
+});
+
+</script>
+
+<script>
+/* ===================== STEP 0.2 — INTESTAZIONE (logica) ===================== */
+window.addEventListener('load',function(){
+  try{
+    var hdr=document.getElementById('header'); if(!hdr)return;
+
+    /* germoglio nel logo */
+    var logoWrap=hdr.querySelector('div');
+    if(logoWrap && !logoWrap.querySelector('.logo-seed')){
+      var seed=document.createElement('span'); seed.className='logo-seed';
+      seed.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 8 9 6 4 6c0 5 3 6 8 6Z"/><path d="M12 13c0-4 3-6 8-6 0 4-3 6-8 6Z"/></svg>';
+      logoWrap.insertBefore(seed, logoWrap.firstChild);
+    }
+
+    /* sole: solo icona */
+    var themeBtn=document.getElementById('theme-btn');
+    if(themeBtn){
+      themeBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>';
+    }
+
+    /* globo lingua: cicla tra le 5 lingue (lista completa resta nel pannello Aspetto) */
+    var ORDER=['it','en','es','fr','ar'];
+    function curLang(){ var a=document.querySelector('#lang-switch .lang-btn.on'); return a?a.getAttribute('data-lang'):(window.lang||'it'); }
+    var hr=hdr.querySelector('.header-right');
+    if(hr && !document.getElementById('lang-globe')){
+      var g=document.createElement('button'); g.id='lang-globe'; g.className='hdr-btn';
+      g.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span id="lang-globe-lbl">'+curLang().toUpperCase()+'</span>';
+      hr.appendChild(g);
+      var menu=document.createElement('div'); menu.id='lang-menu';
+      [['it','IT \u2014 Italiano'],['en','EN \u2014 English'],['es','ES \u2014 Espa\u00f1ol'],['fr','FR \u2014 Fran\u00e7ais'],['ar','AR \u2014 \u0627\u0644\u0639\u0631\u0628\u064a\u0629']].forEach(function(o){
+        var b=document.createElement('button'); b.className='lang-menu-item'; b.setAttribute('data-lang',o[0]); b.textContent=o[1]; menu.appendChild(b);
+      });
+      document.body.appendChild(menu);
+      g.addEventListener('click',function(ev){
+        ev.stopPropagation();
+        var r=g.getBoundingClientRect();
+        menu.style.top=(r.bottom+6)+'px';
+        menu.style.right=Math.max(8,(window.innerWidth-r.right))+'px';
+        menu.classList.toggle('open');
+      });
+      menu.addEventListener('click',function(ev){
+        var it=ev.target.closest('[data-lang]'); if(!it)return;
+        var n=it.getAttribute('data-lang');
+        if(window.setLang)setLang(n);
+        var lbl=document.getElementById('lang-globe-lbl'); if(lbl)lbl.textContent=n.toUpperCase();
+        menu.classList.remove('open');
+      });
+      document.addEventListener('click',function(e){ if(menu.classList.contains('open') && !menu.contains(e.target) && !g.contains(e.target)) menu.classList.remove('open'); });
+    }
+
+    /* ordine: sole · globo · Admin */
+    if(hr){
+      var t=document.getElementById('theme-btn');
+      var g2=document.getElementById('lang-globe');
+      var a2=document.getElementById('admin-btn');
+      if(t)hr.appendChild(t); if(g2)hr.appendChild(g2); if(a2)hr.appendChild(a2);
+    }
+
+    /* tieni aggiornata l'etichetta del globo se la lingua cambia dal pannello */
+    document.addEventListener('click',function(){
+      setTimeout(function(){ var lbl=document.getElementById('lang-globe-lbl'); if(lbl)lbl.textContent=curLang().toUpperCase(); },0);
+    });
+  }catch(err){ if(window.console)console.error('Step0.2 header:',err); }
+});
+
+</script>
+
+<script>
+/* ===== STEP 0.4b — filtro presenza per tipo sulla mappa ===== */
+window.addEventListener('load',function(){
+  try{
+    var mw=document.getElementById('map-wrap'); if(!mw)return;
+    if(!window.__typeState) window.__typeState={evento:true,pratica:true,istanza:true};
+
+    /* aggancio additivo: estende isVisible col filtro per tipo (default 'evento') */
+    if(typeof window.isVisible==='function' && !window.__typeWrapped){
+      var __orig=window.isVisible;
+      window.isVisible=function(ev){
+        if(!__orig(ev)) return false;
+        var tp=window.eventTipo?window.eventTipo(ev):((ev&&ev.tipo)?ev.tipo:'evento');
+        return window.__typeState[tp]!==false;
+      };
+      window.__typeWrapped=true;
+    }
+
+    /* i tipi (evento/pratica/istanza) derivano dal cappello: vedi window.eventTipo */
+
+    /* pannello in basso a sinistra */
+    function row(tp,col,lbl){
+      return '<button class="tf-row" data-type="'+tp+'"><span class="tf-dot" style="background:'+col+'"></span>'+lbl+'</button>';
+    }
+    if(!document.getElementById('type-filter')){
+      var p=document.createElement('div'); p.id='type-filter';
+      p.innerHTML=row('evento','var(--accent)','Eventi')
+                 +row('pratica','var(--clay)','Pratiche')
+                 +row('istanza','var(--inst)','Istanze');
+      mw.appendChild(p);
+      p.addEventListener('click',function(e){
+        var r=e.target.closest('.tf-row'); if(!r)return;
+        var tp=r.getAttribute('data-type');
+        window.__typeState[tp]=!window.__typeState[tp];
+        r.classList.toggle('off', !window.__typeState[tp]);
+        if(window.refreshMarkers) refreshMarkers();
+      });
+    }
+
+    if(window.refreshMarkers) refreshMarkers();
+  }catch(err){ if(window.console)console.error('type-filter:',err); }
+});
+
+</script>
+
+<script>
+/* ===================== STEP 1 — MODELLO TAG (Temi) ===================== */
+/* Definizioni globali: girano a parse, disponibili prima di ogni render schede. */
+
+/* Vocabolario curato dei Temi (dati, come gli Strati: non si traducono) */
+window.TEMI=[
+  "Diritto all'abitare","Spazi autogestiti","Riuso e rigenerazione","Beni comuni",
+  "Aree verdi","Orti urbani","Mobilità dolce","Ciclabili","Sostenibilità","Clima",
+  "Inclusione","Accoglienza e migrazione","Accessibilità","Parità di genere","Diritti",
+  "Antirazzismo","Cultura libera","Educazione popolare","Memoria e territorio",
+  "Autoproduzione","Mutualismo","Salute di comunità","Infanzia e famiglie","Convivialità"
+];
+
+/* Tag PROPRI di ogni oggetto (assegnati dal "creatore" = seed, dai contenuti).
+   L'ereditarietà evento -> progetto/istanza verra' agganciata quando gli eventi
+   avranno il riferimento al loro "cappello" (step successivo). */
+window.TAGS_BY_ID={
+  /* progetti */
+  tambures:["Inclusione","Accoglienza e migrazione","Cultura libera"],
+  cori:["Inclusione","Accoglienza e migrazione","Convivialità"],
+  radiobarriera:["Educazione popolare","Memoria e territorio","Cultura libera"],
+  orchestra:["Riuso e rigenerazione","Spazi autogestiti","Cultura libera"],
+  cantiere:["Beni comuni","Autoproduzione","Spazi autogestiti"],
+  bibliostrada:["Cultura libera","Beni comuni","Convivialità"],
+  cortile:["Beni comuni","Convivialità","Spazi autogestiti"],
+  nonne:["Convivialità","Memoria e territorio","Accoglienza e migrazione"],
+  calcio:["Inclusione","Convivialità","Antirazzismo"],
+  teatro:["Inclusione","Diritti","Cultura libera"],
+  portoni:["Memoria e territorio","Cultura libera"],
+  giornale:["Educazione popolare","Memoria e territorio"],
+  competenze:["Mutualismo","Autoproduzione","Convivialità"],
+  sartoria:["Inclusione","Autoproduzione","Parità di genere"],
+  ambulatorio:["Salute di comunità","Mutualismo","Diritti"],
+  spazioneutro:["Beni comuni","Salute di comunità","Convivialità"],
+  nonnidigitali:["Educazione popolare","Convivialità","Accessibilità"],
+  /* istanze */
+  fuorisede:["Diritti","Educazione popolare"],
+  abitativo:["Diritto all'abitare","Diritti"],
+  verde:["Aree verdi","Clima","Sostenibilità"],
+  autogestiti:["Spazi autogestiti","Cultura libera","Beni comuni"],
+  gentrificazione:["Diritto all'abitare","Memoria e territorio","Beni comuni"],
+  uguaglianza:["Diritti","Inclusione","Mutualismo"],
+  "agorapp-critica":["Accessibilità","Inclusione","Beni comuni"]
+};
+
+/* Colore proprio di ogni Tema (palette varia, NON legata al tipo evento/pratica/istanza). */
+window.TEMA_PALETTE={
+  blue:{bg:'#E3F2FD',tx:'#1565C0',dot:'#1E88E5'},
+  cyan:{bg:'#E0F7FA',tx:'#00838F',dot:'#00ACC1'},
+  teal:{bg:'#E0F2F1',tx:'#00695C',dot:'#00897B'},
+  rose:{bg:'#FCE4EC',tx:'#AD1457',dot:'#D81B60'},
+  gold:{bg:'#FBF4DD',tx:'#8A6D0B',dot:'#C9A227'},
+  slate:{bg:'#ECEFF1',tx:'#455A64',dot:'#607D8B'}
+};
+window.TEMA_FAM={
+  "Mobilità dolce":'blue',"Ciclabili":'blue',"Diritti":'blue',"Educazione popolare":'blue',
+  "Sostenibilità":'cyan',"Clima":'cyan',"Aree verdi":'cyan',"Orti urbani":'cyan',
+  "Beni comuni":'teal',"Spazi autogestiti":'teal',"Riuso e rigenerazione":'teal',"Autoproduzione":'teal',
+  "Diritto all'abitare":'rose',"Inclusione":'rose',"Accoglienza e migrazione":'rose',"Antirazzismo":'rose',
+  "Cultura libera":'gold',"Memoria e territorio":'gold',"Convivialità":'gold',"Infanzia e famiglie":'gold',
+  "Accessibilità":'slate',"Parità di genere":'slate',"Mutualismo":'slate',"Salute di comunità":'slate'
+};
+window.temaColor=function(label){ var f=window.TEMA_FAM[label]; return (f&&window.TEMA_PALETTE[f])||window.TEMA_PALETTE.slate; };
+
+/* Tipo dell'evento DERIVATO dal cappello: dentro un progetto -> pratica, dentro un'istanza -> istanza, altrimenti evento. */
+window.eventTipo=function(ev){
+  if(!ev) return 'evento';
+  if(ev.parentType==='progetto') return 'pratica';
+  if(ev.parentType==='istanza')  return 'istanza';
+  return ev.tipo||'evento';
+};
+
+/* Nomi dei cappelli (per il popup: "di quale pratica/istanza fa parte"). */
+window.CAPPELLO_NAME={
+  tambures:'Les Tambures de Turin',cori:'Cori di Porta Palazzo',radiobarriera:'Radio Barriera',orchestra:'Orchestra degli Spazi',cantiere:'Cantiere Aperto',bibliostrada:'Biblioteche di Strada',cortile:'Il Cortile Comune',nonne:'Nonne Senza Confini',calcio:'Calcio di Quartiere 3.0',teatro:'Teatro dei Margini',portoni:'Storie di Portone',giornale:'Giornale di Strada',competenze:'Mercato delle Competenze',sartoria:'Sartoria Condivisa',ambulatorio:'Ambulatorio di Quartiere Diffuso',spazioneutro:'Spazio Neutro',nonnidigitali:'Nonni Digitali',
+  fuorisede:'Voto per i fuorisede',abitativo:'Diritto abitativo',verde:'Soglie minime di verde urbano',autogestiti:'Tutela degli spazi autogestiti',gentrificazione:'Tutela anti-gentrificazione',uguaglianza:'Politiche operative di uguaglianza sociale','agorapp-critica':'Agorapp sostenibile e inclusiva'
+};
+
+/* Tap sul tag-cappello: mostra di quale progetto/istanza fa parte. */
+window.showCappello=function(ptype,pid){
+  var name=(window.CAPPELLO_NAME||{})[pid]||pid;
+  var label=ptype==='progetto'?'Pratica del progetto':'Istanza';
+  if(window.showToast) showToast(label+': '+name);
+};
+
+/* Tag dell'evento per il popup: tema (col suo colore) + cappello (clay/viola, toccabile). */
+window.popupTags=function(ev){
+  var pills='';
+  if(ev && ev.tema && window.temaColor){
+    var c=window.temaColor(ev.tema);
+    pills+='<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.625rem;font-weight:600;border-radius:999px;padding:3px 9px;background:'+c.bg+';color:'+c.tx+';"><span style="width:6px;height:6px;border-radius:50%;background:'+c.dot+';"></span>'+ev.tema+'</span>';
+  }
+  var tp=window.eventTipo?window.eventTipo(ev):'evento';
+  if(tp==='pratica'||tp==='istanza'){
+    var isP=tp==='pratica';
+    var bg=isP?'var(--clay-pale)':'var(--inst-soft)', tx=isP?'var(--clay-d)':'var(--inst-ink)';
+    pills+='<span onclick="window.showCappello(\''+(ev.parentType||'')+'\',\''+(ev.parentId||'')+'\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:0.625rem;font-weight:600;border-radius:999px;padding:3px 9px;background:'+bg+';color:'+tx+';">'+(isP?'Pratica':'Istanza')+' \u25B8</span>';
+  }
+  return pills?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin:5px 0 7px;">'+pills+'</div>':'';
+};
+/* Render dei pill Temi: ogni tema col suo colore (il tipo dell'oggetto si legge altrove). */
+window.renderTemiPills=function(ids,type){
+  if(!ids||!ids.length)return '';
+  return '<div class="temi-row">'+ids.map(function(l){
+    var c=window.temaColor(l);
+    return '<span class="temi-pill" style="background:'+c.bg+';color:'+c.tx+';"><span class="temi-dot" style="background:'+c.dot+';"></span>'+l+'</span>';
+  }).join('')+'</div>';
+};
+
+</script>
+
+<script>
+/* ============ SEZIONE TEMI — interazione fedele al mock-up Branch 3 ============ */
+/* Arricchisco alcuni eventi-demo con un tema (trasversalita' visibile). */
+window.addEventListener('load',function(){
+  try{
+    var ET={'demo-running':'Inclusione','demo-street-art':'Cultura libera','demo-assemblee':'Mobilità dolce',
+            'demo-sociale-v':'Mutualismo','demo-ambiente-v':'Sostenibilità','demo-ciclismo':'Ciclabili',
+            'demo-hiphop':'Educazione popolare','demo-folk':'Convivialità'};
+    if(typeof events!=='undefined'&&Array.isArray(events)){
+      events.forEach(function(e){ if(ET[e.id]&&!e.tema) e.tema=ET[e.id]; });
+    }
+  }catch(e){}
+});
+
+(function(){
+  var IC={
+    search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>',
+    sliders:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M19 6h1M4 12h3M11 12h9M4 18h7M15 18h5"/><circle cx="17" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>',
+    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+    eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+    bookmark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v16l-6-4-6 4V4Z"/></svg>',
+    plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+    trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>',
+    compass:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-4 1 2-5 4-1Z"/></svg>'
+  };
+  var SLOT_KEY='agorapp_temi_slots';
+  var S={picked:[],q:'',sheet:null,type:'all',resShown:6,tools:{terminati:false,nascosti:false},slots:loadSlots(),modal:null,pending:null,mapOn:true,activeId:null};
+
+  function loadSlots(){ try{var a=JSON.parse(localStorage.getItem(SLOT_KEY)||'null'); if(Array.isArray(a)&&a.length===3)return a;}catch(e){} return [null,null,null]; }
+  function saveSlots(){ try{localStorage.setItem(SLOT_KEY,JSON.stringify(S.slots));}catch(e){} }
+  function toast(m){ if(window.showToast)showToast(m); }
+  function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function universe(){
+    var out=[];
+    if(typeof LAYERS!=='undefined') LAYERS.forEach(function(l){ out.push({label:l.label,kind:'strato',stratoId:l.id,col:{bg:l.bg,tx:l.text,dot:l.pin}}); });
+    (window.TEMI||[]).forEach(function(lb){ out.push({label:lb,kind:'tema',col:(window.temaColor?window.temaColor(lb):{bg:'#eee',tx:'#333',dot:'#999'})}); });
+    return out;
+  }
+  function colorFor(lb){ var U=universe(); for(var i=0;i<U.length;i++) if(U[i].label===lb) return U[i].col; return {bg:'#eee',tx:'#333',dot:'#999'}; }
+  function entryFor(lb){ var U=universe(); for(var i=0;i<U.length;i++) if(U[i].label===lb) return U[i]; return null; }
+  function inPicked(lb){ return S.picked.indexOf(lb)>=0; }
+
+  function typeKey(ev){ var t=window.eventTipo?window.eventTipo(ev):'evento'; return t==='pratica'?'p':t==='istanza'?'i':'e'; }
+  function typeName(k){ return k==='p'?'Pratica':k==='i'?'Istanza':'Evento'; }
+
+  function eventTags(ev){ // etichette-tema dell'evento: strato + tema
+    var out=[]; var l=(typeof LAYERS!=='undefined'?LAYERS.find(function(x){return x.id===ev.category;}):null); if(l)out.push(l.label); if(ev.tema)out.push(ev.tema); return out;
+  }
+  function matchEvents(){
+    if(typeof events==='undefined'||!S.picked.length) return [];
+    var seen={},out=[];
+    events.forEach(function(ev){
+      if(ev.hidden && !S.tools.nascosti) return;
+      var exp=(typeof isExpired==='function')&&isExpired(ev);
+      if(exp && !S.tools.terminati) return;
+      var hit=S.picked.some(function(lb){ var e=entryFor(lb); if(!e)return false; return e.kind==='strato'?ev.category===e.stratoId:ev.tema===lb; });
+      if(hit && !seen[ev.id]){ seen[ev.id]=1; ev.__exp=exp; out.push(ev); }
+    });
+    return out.sort(function(a,b){ var av=a.__exp?'9':'0', bv=b.__exp?'9':'0'; return (av+(a.datetime||'')).localeCompare(bv+(b.datetime||'')); });
+  }
+  function fmtDate(dt){ if(!dt)return ''; try{var d=new Date(dt);
+    return d.toLocaleDateString('it-IT',{day:'2-digit',month:'short'})+' · '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){return '';} }
+
+  /* ---- mini-mappa stilizzata (come il mock-up) ---- */
+  function projectPts(list){
+    var pts=list.filter(function(e){return typeof e.lat==='number'&&typeof e.lng==='number';});
+    if(!pts.length) return [];
+    var lats=pts.map(function(p){return p.lat;}), lngs=pts.map(function(p){return p.lng;});
+    var minLa=Math.min.apply(null,lats),maxLa=Math.max.apply(null,lats),minLo=Math.min.apply(null,lngs),maxLo=Math.max.apply(null,lngs);
+    var dLa=(maxLa-minLa)||1, dLo=(maxLo-minLo)||1;
+    return pts.map(function(p){
+      var x=pts.length===1?50:((p.lng-minLo)/dLo*78+11);
+      var y=pts.length===1?50:((maxLa-p.lat)/dLa*62+17);
+      return {ev:p,x:x,y:y};
+    });
+  }
+  function pinSVG(col){ return '<svg viewBox="0 0 24 24" fill="'+col+'" stroke="#fff" stroke-width="1.6"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7Z"/><circle cx="12" cy="9" r="2.4" fill="#fff" stroke="none"/></svg>'; }
+  function typeColor(k){ return k==='p'?'#C8743E':k==='i'?'#8B7BB8':'#2D5A3D'; }
+  function miniMapHTML(shown){
+    if(!S.mapOn) return '<div class="tv-maprow"><div class="tv-mapcollapsed" data-maptoggle>'+IC.compass+'<span>Mostra mappa · <b>'+shown.length+' punti</b></span></div></div>';
+    var pts=projectPts(shown);
+    var grid='<svg class="tv-mapsvg" preserveAspectRatio="none" viewBox="0 0 380 120"><defs><pattern id="tvg" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" stroke="rgba(127,169,140,.18)" stroke-width="1"/></pattern></defs><rect width="380" height="120" fill="url(#tvg)"/><path d="M0 78 Q120 56 200 84 T380 70" fill="none" stroke="rgba(127,169,140,.28)" stroke-width="6"/></svg>';
+    var pins=pts.map(function(p){ var k=typeKey(p.ev); return '<button class="tv-mappin'+(S.activeId===p.ev.id?' act':'')+'" data-pin="'+esc2(p.ev.id)+'" style="left:'+p.x+'%;top:'+p.y+'%">'+pinSVG(typeColor(k))+'</button>'; }).join('');
+    var empty=pts.length?'':'<div class="tv-mapempty">Nessun punto con coordinate</div>';
+    return '<div class="tv-maprow"><div class="tv-minimap"><span class="tv-maplabel">'+pts.length+' sulla mappa</span><button class="tv-maptoggle" data-maptoggle title="Nascondi mappa">'+IC.eye+'</button>'+grid+pins+empty+'</div></div>';
+  }
+
+  /* ---- chip tag (esplora + lente) ---- */
+  function gtag(tm,attr){ var on=inPicked(tm.label); var st=on?('background:'+tm.col.dot+';color:#fff;border-color:'+tm.col.dot+';'):'';
+    return '<button class="tv-gtag'+(on?' sel':'')+'" '+attr+'="'+esc2(tm.label)+'" style="'+st+'"><span class="tv-dotty" style="background:'+(on?'rgba(255,255,255,.9)':tm.col.dot)+'"></span>'+esc2(tm.label)+'</button>'; }
+
+  /* ---- toolbar ---- */
+  function toolbarHTML(){
+    var badge=S.picked.length?'<span class="tv-badge2">'+S.picked.length+'</span>':'';
+    return '<div class="tv-toolbar"><div class="tv-ttitle">Temi<small>le passerelle tra le sezioni</small></div><div class="tv-spacer"></div>'
+      +'<button class="tv-ticon'+(S.sheet==='lens'?' act':'')+'" data-sheet="lens" title="Lente">'+IC.search+badge+'</button>'
+      +'<button class="tv-ticon'+(S.sheet==='tools'?' act':'')+'" data-sheet="tools" title="Strumenti">'+IC.sliders+'</button></div>';
+  }
+
+  /* ---- esplora (nessun tema scelto) ---- */
+  function exploreHTML(){
+    var U=universe();
+    function grid(kind){ return U.filter(function(t){return t.kind===kind;}).map(function(t){return gtag(t,'data-quick');}).join(''); }
+    return '<div class="tv-scroll"><div class="tv-wrap">'
+      +'<div class="tv-dirhead">Esplora per tema</div>'
+      +'<div class="tv-dirsub">Tutti i temi · nessuna classifica. Tocca un tema, o apri la lente 🔍 per combinarne più di uno.</div>'
+      +'<div class="tv-grp">Strati</div><div class="tv-taggrid">'+grid('strato')+'</div>'
+      +'<div class="tv-grp">Temi trasversali</div><div class="tv-taggrid">'+grid('tema')+'</div>'
+      +'<div class="tv-explainer"><span class="tv-ei">'+IC.compass+'</span><div><div class="tv-et">Un tema, tutte le sezioni insieme</div><div class="tv-ed">Eventi, pratiche e istanze che portano i temi scelti appaiono mescolati, in ordine di tempo.</div></div></div>'
+      +'</div></div>';
+  }
+
+  /* ---- risultati ---- */
+  function resultsHTML(){
+    var all=matchEvents();
+    var shown=all.slice(0,S.resShown);
+    var active='<div class="tv-activetags"><span class="tv-lbl">Temi attivi:</span>'
+      +S.picked.map(function(lb){var c=colorFor(lb);return '<span class="tv-cttag" style="background:'+c.bg+';color:'+c.tx+';">'+esc2(lb)+'</span>';}).join('')
+      +'<span class="tv-actions"><span class="tv-mini" data-savehere>salva lente</span><span class="tv-mini" data-sheet="lens">modifica</span></span></div>';
+    var tf='<div class="tv-typefilter">'+[['all','Tutti'],['e','Eventi'],['p','Pratiche'],['i','Istanze']].map(function(x){
+      return '<button class="tv-tf '+x[0]+(S.type===x[0]?' on':'')+'" data-type="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>';
+    var fixed='<div class="tv-fixed">'+active+tf+miniMapHTML(shown)+'</div>';
+    var cards=shown.map(function(ev){
+      var k=typeKey(ev); var l=(typeof LAYERS!=='undefined'?LAYERS.find(function(x){return x.id===ev.category;}):null)||{label:ev.category};
+      var tags=eventTags(ev).map(function(lb){var c=colorFor(lb);var hit=inPicked(lb);return '<span class="tv-cttag'+(hit?' hit':'')+'" style="background:'+c.bg+';color:'+c.tx+(hit?';outline:1.5px solid '+c.dot:'')+';">'+esc2(lb)+'</span>';}).join('');
+      return '<button class="tv-card'+(ev.__exp?' exp':'')+(S.activeId===ev.id?' active':'')+'" data-id="'+esc2(ev.id)+'"><span class="tv-corner '+k+'">'+typeName(k)+'</span>'
+        +'<div class="tv-when">'+IC.clock+' '+(ev.__exp?'concluso':fmtDate(ev.datetime))+'</div>'
+        +'<div class="tv-ct">'+esc2(ev.title)+'</div>'
+        +'<div class="tv-cdesc">'+esc2((ev.description||'').slice(0,90))+((ev.description||'').length>90?'…':'')+'</div>'
+        +'<div class="tv-ctags">'+tags+'</div><div class="tv-opener">Tocca di nuovo per aprire sulla mappa →</div></button>';
+    }).join('');
+    var more=all.length>S.resShown?'<button class="tv-loadmore" data-loadres>Mostra altri ('+(all.length-S.resShown)+')</button>':'';
+    var scroll='<div class="tv-scroll"><div class="tv-wrap"><div class="tv-resmeta">'+all.length+' elementi · in ordine di tempo</div>'
+      +(shown.length?cards:'<div class="tv-empty">Nessun elemento con questi temi e questo filtro.</div>')+more+'</div></div>';
+    return fixed+scroll;
+  }
+
+  /* ---- tendina LENTE ---- */
+  function lensHTML(){
+    var q=S.q, U=universe();
+    var list=q.length===0?U:(q.length>=3?U.filter(function(t){return t.label.toLowerCase().indexOf(q.toLowerCase())>=0;}):[]);
+    var grid=list.map(function(t){return gtag(t,'data-tag');}).join('');
+    var body=(q.length>=3&&list.length===0)?'<div class="tv-nomatch">Nessun tema contiene "'+esc2(q)+'".</div>':(q.length>0&&q.length<3?'':'<div class="tv-taggrid">'+grid+'</div>');
+    var label=q.length===0?'Tutti i temi · A→Z':(q.length<3?'':list.length+' risultati');
+    var picked=S.picked.length?'<div class="tv-picked">'+S.picked.map(function(lb){var c=colorFor(lb);return '<span class="tv-ptag" style="background:'+c.bg+';color:'+c.tx+';">'+esc2(lb)+'<span class="tv-px" data-unpin="'+esc2(lb)+'">✕</span></span>';}).join('')+'</div>':'';
+    var apply=S.picked.length?'<div class="tv-applybar"><button class="tv-btn gho" data-clearall>Pulisci</button><button class="tv-btn pri" data-apply>Mostra '+S.picked.length+' '+(S.picked.length===1?'tema':'temi')+'</button></div>':'';
+    return '<div class="tv-lensbox"><div class="tv-sbar">'+IC.search+'<input id="tv-lensinput" placeholder="Cerca un tema…" value="'+esc2(q)+'">'+(q?'<span class="tv-clr" data-clear>✕</span>':'')+'</div>'
+      +'<div class="tv-hint">Scrivi almeno 3 lettere · trova anche dentro la parola</div>'+picked
+      +(label?'<div class="tv-tlhead">'+label+'</div>':'<div style="height:6px"></div>')
+      +'<div class="tv-taglist">'+body+'</div>'+apply+'</div>';
+  }
+
+  /* ---- tendina STRUMENTI (interruttori + lenti salvate) ---- */
+  function toolsHTML(){
+    function slot(i){ var s=S.slots[i];
+      return s?'<div class="tv-slot full"><span class="tv-si">'+IC.bookmark+'</span><div><div class="tv-sn">'+esc2(s.name)+'</div><div class="tv-sd">'+s.tags.length+' temi</div></div><div class="tv-sact"><span class="tv-applylink" data-applyslot="'+i+'">Applica</span><span class="tv-del" data-delslot="'+i+'">'+IC.trash+'</span></div></div>'
+        :'<div class="tv-slot" data-saveslot="'+i+'"><span class="tv-si">'+IC.plus+'</span><div><div class="tv-sn">Lente '+(i+1)+' libera</div><div class="tv-sd">Vuota</div></div></div>'; }
+    var canSave=S.picked.length>0;
+    return '<div class="tv-toolsheet">'
+      +'<div class="tv-trow'+(S.tools.terminati?' on':'')+'" data-tool="terminati">'+IC.clock+' Mostra elementi terminati <span class="tv-chk"></span></div>'
+      +'<div class="tv-trow'+(S.tools.nascosti?' on':'')+'" data-tool="nascosti">'+IC.eye+' Mostra nascosti <span class="tv-chk"></span></div>'
+      +'<div class="tv-tdiv"></div><div class="tv-slotlabel">Le tue lenti</div>'+slot(0)+slot(1)+slot(2)
+      +'<div class="tv-savecur '+(canSave?'':'dim')+'" '+(canSave?'data-savecur':'')+'>'+IC.bookmark+(canSave?'Salva selezione come lente ('+S.picked.length+')':'Scegli dei temi per salvare una lente')+'</div></div>';
+  }
+
+  /* ---- modali (salva lente) ---- */
+  function modalHTML(){
+    if(!S.modal) return '';
+    var inner;
+    if(S.modal==='pick'){
+      inner='<div class="tv-mt">In quale lente salvi?</div><div class="tv-md">Stai salvando '+S.picked.length+' temi. Le lenti occupate verranno sovrascritte.</div>'
+        +S.slots.map(function(s,i){ return s?'<div class="tv-pslot full" data-pickslot="'+i+'"><span class="tv-psi">'+IC.bookmark+'</span><div class="tv-psinfo"><div class="tv-psn">'+esc2(s.name)+'</div><div class="tv-psd">Occupata · '+s.tags.length+' temi</div></div><span class="tv-psstate occ">Sovrascrivi</span></div>'
+          :'<div class="tv-pslot" data-pickslot="'+i+'"><span class="tv-psi">'+IC.plus+'</span><div class="tv-psinfo"><div class="tv-psn">Lente '+(i+1)+'</div><div class="tv-psd">Libera</div></div><span class="tv-psstate free">Salva qui</span></div>'; }).join('')
+        +'<div class="tv-mbtns"><button class="tv-btn gho" data-mod="cancel">Annulla</button></div>';
+    } else { // name
+      var ov=!!S.slots[S.pending];
+      inner='<div class="tv-mt">'+(ov?'Sovrascrivere la lente?':'Nome della lente')+'</div><div class="tv-md">'+(ov?'La lente "'+esc2(S.slots[S.pending].name)+'" verra\' sostituita. ':'')+'Salvi '+S.picked.length+' temi. Max 16 caratteri.</div>'
+        +'<input id="tv-slotname" maxlength="16" placeholder="es. Casa e verde"><div class="tv-mbtns"><button class="tv-btn gho" data-mod="cancel">Annulla</button><button class="tv-btn pri" data-mod="ok">'+(ov?'Sovrascrivi':'Salva')+'</button></div>';
+    }
+    return '<div class="tv-modal"><div class="tv-mbox">'+inner+'</div></div>';
+  }
+
+  function render(){
+    var ov=document.getElementById('temi-overlay'); if(!ov)return;
+    ensureHandlers(ov);
+    var content=S.picked.length?resultsHTML():exploreHTML();
+    var drop='';
+    if(S.sheet==='lens') drop='<div class="tv-drop"><div class="tv-drop-in">'+lensHTML()+'</div></div><div class="tv-tapcatch" data-tapcatch></div>';
+    if(S.sheet==='tools') drop='<div class="tv-drop"><div class="tv-drop-in">'+toolsHTML()+'</div></div><div class="tv-tapcatch" data-tapcatch></div>';
+    ov.innerHTML=toolbarHTML()+'<div class="tv-body">'+content+drop+'</div>'+modalHTML();
+    if(S.sheet==='lens'){ var li=document.getElementById('tv-lensinput'); if(li){ li.focus(); try{li.setSelectionRange(li.value.length,li.value.length);}catch(e){} } }
+    if(S.modal==='name'){ setTimeout(function(){var x=document.getElementById('tv-slotname'); if(x)x.focus();},40); }
+  }
+  window.renderTemiView=render;
+
+  function jumpToEvent(id){
+    var ev=(typeof events!=='undefined')?events.find(function(x){return x.id===id;}):null;
+    var ov=document.getElementById('temi-overlay'); if(ov)ov.style.display='none';
+    var nav=document.getElementById('bottom-nav'); if(nav) nav.querySelectorAll('.bn').forEach(function(b){ b.classList.toggle('on',b.dataset.sec==='mappa'); });
+    if(typeof map==='undefined'||!ev) return;
+    if(!markers[id] && typeof addMarker==='function') addMarker(ev);
+    if(markers[id]){ map.once('moveend',function(){ if(markers[id])markers[id].openPopup(); }); map.setView(markers[id].getLatLng(),16,{animate:true}); }
+  }
+
+  function ensureHandlers(ov){
+    if(ov.__tvWired) return; ov.__tvWired=true;
+    ov.addEventListener('click',function(e){
+      var t=e.target;
+      var sh=t.closest('[data-sheet]'); if(sh){ S.sheet=S.sheet===sh.dataset.sheet?null:sh.dataset.sheet; render(); return; }
+      if(t.closest('[data-tapcatch]')){ S.sheet=null; render(); return; }
+      var qk=t.closest('[data-quick]'); if(qk){ S.picked=[qk.dataset.quick]; S.resShown=6; S.type='all'; S.activeId=null; render(); return; }
+      var tg=t.closest('[data-tag]'); if(tg){ var n=tg.dataset.tag; var k=S.picked.indexOf(n); if(k>=0)S.picked.splice(k,1); else S.picked.push(n); render(); return; }
+      var up=t.closest('[data-unpin]'); if(up){ var j=S.picked.indexOf(up.dataset.unpin); if(j>=0)S.picked.splice(j,1); render(); return; }
+      if(t.closest('[data-clear]')){ S.q=''; render(); return; }
+      if(t.closest('[data-clearall]')){ S.picked=[]; S.sheet=null; render(); return; }
+      if(t.closest('[data-apply]')){ S.sheet=null; S.resShown=6; S.activeId=null; render(); return; }
+      if(t.closest('[data-loadres]')){ S.resShown+=6; render(); return; }
+      var tl=t.closest('[data-tool]'); if(tl){ S.tools[tl.dataset.tool]=!S.tools[tl.dataset.tool]; S.activeId=null; render(); return; }
+      var ty=t.closest('[data-type]'); if(ty){ S.type=ty.dataset.type; S.resShown=6; S.activeId=null; render(); return; }
+      var sv=t.closest('[data-saveslot]'); if(sv){ if(!S.picked.length){toast('Scegli dei temi prima.');return;} S.pending=+sv.dataset.saveslot; S.modal='name'; render(); return; }
+      if(t.closest('[data-savecur]')||t.closest('[data-savehere]')){ if(!S.picked.length){toast('Scegli dei temi prima.');return;} S.modal='pick'; render(); return; }
+      var ps=t.closest('[data-pickslot]'); if(ps){ S.pending=+ps.dataset.pickslot; S.modal='name'; render(); return; }
+      var ap=t.closest('[data-applyslot]'); if(ap){ S.picked=(S.slots[+ap.dataset.applyslot].tags||[]).slice(); S.sheet=null; S.resShown=6; render(); toast('Lente applicata.'); return; }
+      var dl=t.closest('[data-delslot]'); if(dl){ S.slots[+dl.dataset.delslot]=null; saveSlots(); render(); return; }
+      var md=t.closest('[data-mod]'); if(md){ if(md.dataset.mod==='ok'){ var nm=((document.getElementById('tv-slotname')||{}).value||'').trim()||('Lente '+(S.pending+1)); S.slots[S.pending]={name:nm,tags:S.picked.slice()}; saveSlots(); toast('Salvata: '+nm); } S.modal=null; render(); return; }
+      if(t.classList&&t.classList.contains('tv-modal')){ S.modal=null; render(); return; }
+      if(t.closest('[data-maptoggle]')){ S.mapOn=!S.mapOn; render(); return; }
+      var pn=t.closest('[data-pin]'); if(pn){ S.activeId=pn.dataset.pin; render(); var ae=ov.querySelector('.tv-card.active'); if(ae)ae.scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
+      var cd=t.closest('.tv-card'); if(cd){ var cid=cd.dataset.id; if(S.activeId===cid){ jumpToEvent(cid); } else { S.activeId=cid; render(); } return; }
+    });
+    ov.addEventListener('input',function(e){ if(e.target.id==='tv-lensinput'){ S.q=e.target.value; render(); } });
+  }
+})();
+
 </script>
 </body>
 </html>
