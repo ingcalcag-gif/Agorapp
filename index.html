@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v104 — 26 settembre 2026 — Logo = Home; menù città/zone (Torino, Venezia, Fi-Pi-Li, Bologna, Piazza Armerina); barra di ricerca Eventi/Indirizzi sulla mappa; Calendario a interruttore con "Salvati" grigio; barra in basso scura in modalità scura -->
 <!-- v103 — 26 settembre 2026 — Attribuzione OSM/CARTO spostata nell'angolo in basso a destra della mappa (sopra la barra, accanto al pannello Strati) -->
 <!-- v102 — 26 settembre 2026 — Base cartografica CARTO vettoriale (MapLibre GL via maplibre-gl-leaflet), chiave CARTO configurabile, attribuzione OSM/CARTO visibile -->
 <!-- v101 — 15 giugno 2026 — Branch 3 / mappa VERA nei risultati Temi (Leaflet persistente, stesse tile/icone, filtro tipo) + fix filtro tipo -->
@@ -1827,13 +1828,13 @@ function showModal(ev,prefill){
     if(val.length<3){sug.style.display='none';sug.innerHTML='';return;}
     _timer=setTimeout(function(){
       // Turin bounding box: SW 44.97,7.52 NE 45.17,7.82
-      var bbox='&viewbox=7.52%2C44.97%2C7.82%2C45.17&bounded=1';
+      var bbox=(window.__agrCityBox||'&viewbox=7.52%2C44.97%2C7.82%2C45.17')+'&bounded=1';
       fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(val)+'&format=json&limit=5&addressdetails=1'+bbox,{headers:{'Accept-Language':'it'}})
         .then(function(r){return r.json();})
         .then(function(data){
           if(!data.length){
             // Fallback: search without bounded box
-            return fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(val+' Torino')+'&format=json&limit=4&addressdetails=1',{headers:{'Accept-Language':'it'}}).then(function(r){return r.json();});
+            return fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(val+' '+(window.__agrCityGeo||'Torino'))+'&format=json&limit=4&addressdetails=1',{headers:{'Accept-Language':'it'}}).then(function(r){return r.json();});
           }
           return data;
         })
@@ -1885,7 +1886,7 @@ function validate(){
 function closeModal(){document.getElementById('modal-root').innerHTML='';editingId=null;pendingLatLng=null;}
 function openEdit(id){var ev=events.find(function(x){return x.id===id;});if(!ev)return;editingId=id;map.closePopup();showModal(ev);}
 function saveEvent(){
-  if(!editingId&&!pendingLatLng){var addr=document.getElementById('f-addr');if(addr&&addr.value.trim().length>3){showToast(t('t_ricerca_addr'));fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(addr.value.trim()+', Torino')+'&format=json&limit=1',{headers:{'Accept-Language':'it'}}).then(function(r){return r.json();}).then(function(gd){if(gd.length>0){pendingLatLng={lat:parseFloat(gd[0].lat),lng:parseFloat(gd[0].lon)};saveEvent();}else{showToast(t('t_addr_no_prec'));}}).catch(function(){showToast('Errore durante la ricerca dell\'indirizzo.');});return;}showToast(t('t_addr_o_pos'));return;}
+  if(!editingId&&!pendingLatLng){var addr=document.getElementById('f-addr');if(addr&&addr.value.trim().length>3){showToast(t('t_ricerca_addr'));fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(addr.value.trim()+', '+(window.__agrCityGeo||'Torino'))+'&format=json&limit=1',{headers:{'Accept-Language':'it'}}).then(function(r){return r.json();}).then(function(gd){if(gd.length>0){pendingLatLng={lat:parseFloat(gd[0].lat),lng:parseFloat(gd[0].lon)};saveEvent();}else{showToast(t('t_addr_no_prec'));}}).catch(function(){showToast('Errore durante la ricerca dell\'indirizzo.');});return;}showToast(t('t_addr_o_pos'));return;}
   if(!validate()){
     var se=document.getElementById('m-save-error');
     if(se){
@@ -2027,7 +2028,7 @@ async function parseEventText(text){
   if(!match)throw new Error('no json');
   var parsed=JSON.parse(match[0]);
   if(parsed.address&&parsed.address.trim().length>3){
-    try{var geo=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(parsed.address+', Torino')+'&format=json&limit=1',{headers:{'Accept-Language':'it'}});var gd=await geo.json();if(gd.length>0){pendingLatLng={lat:parseFloat(gd[0].lat),lng:parseFloat(gd[0].lon)};map.setView([pendingLatLng.lat,pendingLatLng.lng],16);}}catch(e){}
+    try{var geo=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(parsed.address+', '+(window.__agrCityGeo||'Torino'))+'&format=json&limit=1',{headers:{'Accept-Language':'it'}});var gd=await geo.json();if(gd.length>0){pendingLatLng={lat:parseFloat(gd[0].lat),lng:parseFloat(gd[0].lon)};map.setView([pendingLatLng.lat,pendingLatLng.lng],16);}}catch(e){}
   }
   return parsed;
 }
@@ -2795,7 +2796,7 @@ document.getElementById('geo-go-btn').addEventListener('click',function(){
   var addr=document.getElementById('geo-address').value.trim();
   if(!addr)return;
   showToast(t('t_ricerca_corso'));
-  fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(addr+', Torino')+'&format=json&limit=1',{headers:{'Accept-Language':'it'}})
+  fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(addr+', '+(window.__agrCityGeo||'Torino'))+'&format=json&limit=1',{headers:{'Accept-Language':'it'}})
     .then(function(r){return r.json();})
     .then(function(d){if(d.length){geoGoTo([parseFloat(d[0].lat),parseFloat(d[0].lon)]);}else{showToast(t('t_addr_no'));}})
     .catch(function(){showToast(t('t_err_rete'));});
@@ -3541,5 +3542,334 @@ window.addEventListener('load',function(){
 })();
 
 </script>
+<style>
+/* ===================== v104 — HOME, CITTÀ, RICERCA, CALENDARIO, BARRA SCURA ===================== */
+
+/* (5) Barra in basso in modalità scura: la tinta semitrasparente segue il tema */
+[data-theme="dark"]{--surface-rgb:24,24,31;}
+
+/* (1) Logo = tasto Home */
+#header .logo-name{cursor:pointer;user-select:none;}
+#header .logo-seed{cursor:pointer;}
+
+/* (2) Menù città accanto al logo */
+#city-btn{display:inline-flex;align-items:center;gap:3px;margin-left:7px;padding:3px 7px 3px 8px;border-radius:999px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:'DM Sans',sans-serif;
+  font-size:0.75rem;font-weight:500;cursor:pointer;line-height:1.2;}
+#city-btn:hover,#city-btn.open{border-color:var(--accent);color:var(--accent);}
+#city-btn svg{width:10px;height:10px;transition:transform .15s;}
+#city-btn.open svg{transform:rotate(180deg);}
+#city-menu{position:fixed;display:none;flex-direction:column;min-width:170px;background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:12px;box-shadow:var(--menu-shadow,0 8px 28px -8px rgba(0,0,0,.25));padding:5px;z-index:9999;}
+#city-menu.open{display:flex;}
+#city-menu .city-item{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;background:none;border:none;
+  border-radius:8px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:0.8125rem;color:var(--text);cursor:pointer;white-space:nowrap;}
+#city-menu .city-item:hover{background:var(--surface2);}
+#city-menu .city-item.on{color:var(--accent);font-weight:600;}
+#city-menu .city-item.on::after{content:"✓";font-size:0.75rem;}
+#city-menu .city-hint{font-size:0.625rem;color:var(--text-muted);padding:4px 11px 6px;}
+@media (max-width:600px){#city-btn{font-size:0.625rem;padding:2px 6px;margin-left:5px;}}
+
+/* (3) Barra di ricerca in cima alla mappa, con switch Eventi / Indirizzi */
+#agr-search{position:absolute;top:12px;left:12px;right:12px;max-width:500px;margin:0 auto;z-index:450;}
+@media (min-width:601px){#map-and-panel:has(#layers-panel:not(.closed)) #agr-search{right:316px;}}
+#agr-search-bar{display:flex;align-items:center;gap:6px;background:rgba(var(--surface-rgb,253,250,244),.97);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;padding:5px 6px 5px 5px;
+  box-shadow:0 4px 16px -6px rgba(0,0,0,.25);}
+#agr-search-bar:focus-within{border-color:var(--accent);}
+#agr-mode{display:flex;background:var(--surface2);border-radius:10px;padding:2px;flex:0 0 auto;}
+#agr-mode button{border:none;background:none;border-radius:8px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:500;
+  color:var(--text-muted);cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+#agr-mode button svg{width:13px;height:13px;flex:0 0 auto;}
+#agr-mode button.on{background:var(--surface);color:var(--accent);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+#agr-search-input{flex:1 1 auto;min-width:0;border:none;background:transparent;outline:none;color:var(--text);
+  font-family:'DM Sans',sans-serif;font-size:0.8125rem;padding:6px 2px;}
+#agr-search-input::placeholder{color:var(--text-muted);}
+#agr-search-clear,#agr-search-go{flex:0 0 auto;border:none;background:none;cursor:pointer;color:var(--text-muted);
+  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;}
+#agr-search-clear{display:none;font-size:0.8rem;}
+#agr-search-clear.visible{display:grid;}
+#agr-search-go{background:var(--accent);color:#fff;}
+#agr-search-go svg{width:14px;height:14px;}
+#agr-search-results{display:none;margin-top:6px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;
+  box-shadow:var(--menu-shadow,0 8px 28px -8px rgba(0,0,0,.25));padding:4px;max-height:260px;overflow-y:auto;}
+#agr-search-results.open{display:block;}
+.agr-res{display:block;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;
+  font-family:'DM Sans',sans-serif;color:var(--text);}
+.agr-res:hover{background:var(--surface2);}
+.agr-res-main{font-size:0.8125rem;font-weight:500;}
+.agr-res-sub{font-size:0.6875rem;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.agr-res-empty{font-size:0.75rem;color:var(--text-muted);padding:10px;}
+#event-count{top:64px!important;}
+@media (max-width:600px){
+  #agr-search{top:8px;left:8px;right:8px;}
+  #agr-mode button{padding:6px 8px;}
+  #agr-mode button span{display:none;}
+  #event-count{top:58px!important;}
+}
+
+/* (4) Calendario: tasto acceso finché il calendario è aperto; "Salvati" resta, ma grigio */
+#subbar .subbar-trigger#mt-cal-top.cal-on{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;}
+#mycal-subbar-group.agr-disabled #mt-mycal{opacity:.38;filter:grayscale(1);pointer-events:none;cursor:default;}
+</style>
+
+<script>
+/* ===================== v104 — logica ===================== */
+window.addEventListener('load',function(){
+  try{
+    /* ---------- (2) Città / zone ---------- */
+    var CITIES=[
+      {id:'torino',  name:'Torino',          geo:'Torino',          center:[45.0703,7.6869],  zoom:14},
+      {id:'venezia', name:'Venezia',         geo:'Venezia',         center:[45.4380,12.3358], zoom:14},
+      {id:'fipili',  name:'Fi-Pi-Li',        geo:'Toscana',         bounds:[[43.52,10.28],[43.83,11.30]], hint:'Firenze · Pisa · Livorno'},
+      {id:'bologna', name:'Bologna',         geo:'Bologna',         center:[44.4939,11.3428], zoom:14},
+      {id:'parmerina',name:'Piazza Armerina',geo:'Piazza Armerina', center:[37.3847,14.3686], zoom:15}
+    ];
+    function byId(id){for(var i=0;i<CITIES.length;i++)if(CITIES[i].id===id)return CITIES[i];return CITIES[0];}
+    var cur='torino';
+    try{var saved=localStorage.getItem('agorapp_city');if(saved)cur=byId(saved).id;}catch(e){}
+
+    function cityBox(c){
+      var b;
+      if(c.bounds){b=c.bounds;}
+      else{var d=0.12;b=[[c.center[0]-d,c.center[1]-d*1.4],[c.center[0]+d,c.center[1]+d*1.4]];}
+      /* viewbox Nominatim: lon_min,lat_max,lon_max,lat_min */
+      return '&viewbox='+encodeURIComponent(b[0][1]+','+b[1][0]+','+b[1][1]+','+b[0][0]);
+    }
+    function goCityView(c,animate){
+      if(typeof map==='undefined'||!map)return;
+      if(c.bounds){ map.fitBounds(c.bounds,{animate:!!animate}); }
+      else if(animate){ map.flyTo(c.center,c.zoom,{duration:0.9}); }
+      else{ map.setView(c.center,c.zoom); }
+    }
+    function applyCity(id,animate){
+      var c=byId(id); cur=c.id;
+      window.__agrCityGeo=c.geo;
+      window.__agrCityBox=cityBox(c);
+      try{localStorage.setItem('agorapp_city',c.id);}catch(e){}
+      var lbl=document.getElementById('city-btn-label'); if(lbl)lbl.textContent=c.name;
+      document.title='Agorapp — '+c.name;
+      var items=document.querySelectorAll('#city-menu .city-item');
+      for(var i=0;i<items.length;i++)items[i].classList.toggle('on',items[i].getAttribute('data-city')===c.id);
+      goCityView(c,animate);
+    }
+    window.__agrGoHomeView=function(){ goCityView(byId(cur),true); };
+
+    var cityEl=document.querySelector('#header .logo-city');
+    if(cityEl){
+      var btn=document.createElement('button');
+      btn.id='city-btn'; btn.type='button'; btn.title='Scegli città o zona';
+      btn.innerHTML='<span id="city-btn-label">Torino</span><svg viewBox="0 0 10 10" fill="none"><path d="M2 3.5 5 6.5 8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      cityEl.parentNode.replaceChild(btn,cityEl);
+
+      var menu=document.createElement('div'); menu.id='city-menu';
+      var html='<div class="city-hint">Zone con più eventi sulla mappa</div>';
+      CITIES.forEach(function(c){
+        html+='<button class="city-item" type="button" data-city="'+c.id+'"><span>'+c.name
+          +(c.hint?'<span style="display:block;font-size:0.625rem;color:var(--text-muted);font-weight:400;">'+c.hint+'</span>':'')
+          +'</span></button>';
+      });
+      menu.innerHTML=html;
+      document.body.appendChild(menu);
+
+      function closeCityMenu(){menu.classList.remove('open');btn.classList.remove('open');}
+      window.__agrCloseCityMenu=closeCityMenu;
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(menu.classList.contains('open')){closeCityMenu();return;}
+        var r=btn.getBoundingClientRect();
+        menu.style.left=Math.max(8,r.left)+'px';
+        menu.style.top=(r.bottom+6)+'px';
+        menu.classList.add('open');btn.classList.add('open');
+      });
+      menu.addEventListener('click',function(e){
+        var it=e.target.closest('.city-item'); if(!it)return;
+        e.stopPropagation();
+        applyCity(it.getAttribute('data-city'),true);
+        closeCityMenu();
+      });
+      document.addEventListener('click',function(e){ if(!e.target.closest('#city-menu')&&!e.target.closest('#city-btn'))closeCityMenu(); });
+    }
+    applyCity(cur,false);
+
+    /* ---------- (3) Barra di ricerca Eventi / Indirizzi ---------- */
+    var mapWrap=document.getElementById('map-wrap');
+    var addrMarker=null, mode='eventi';
+    if(mapWrap&&!document.getElementById('agr-search')){
+      var ICS='<svg viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.3" stroke="currentColor" stroke-width="1.6"/><line x1="9.3" y1="9.3" x2="12.8" y2="12.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+      var ICE='<svg viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2.5" width="11" height="10" rx="1.8" stroke="currentColor" stroke-width="1.4"/><line x1="4.5" y1="1" x2="4.5" y2="4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><line x1="9.5" y1="1" x2="9.5" y2="4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      var ICA='<svg viewBox="0 0 14 14" fill="none"><path d="M7 13s4.5-4.1 4.5-7.5a4.5 4.5 0 0 0-9 0C2.5 8.9 7 13 7 13z" stroke="currentColor" stroke-width="1.4"/><circle cx="7" cy="5.5" r="1.6" stroke="currentColor" stroke-width="1.4"/></svg>';
+      var box=document.createElement('div'); box.id='agr-search';
+      box.innerHTML='<div id="agr-search-bar">'
+        +'<div id="agr-mode" role="tablist">'
+        +'<button type="button" data-mode="eventi" class="on" title="Cerca tra gli eventi">'+ICE+'<span>Eventi</span></button>'
+        +'<button type="button" data-mode="indirizzi" title="Cerca un indirizzo">'+ICA+'<span>Indirizzi</span></button>'
+        +'</div>'
+        +'<input id="agr-search-input" type="text" autocomplete="off" placeholder="Cerca un evento…"/>'
+        +'<button type="button" id="agr-search-clear" title="Cancella">✕</button>'
+        +'<button type="button" id="agr-search-go" title="Cerca">'+ICS+'</button>'
+        +'</div>'
+        +'<div id="agr-search-results"></div>';
+      mapWrap.appendChild(box);
+      /* i click sulla barra non devono arrivare alla mappa */
+      if(window.L&&L.DomEvent){L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);}
+
+      var inp=document.getElementById('agr-search-input');
+      var clr=document.getElementById('agr-search-clear');
+      var go=document.getElementById('agr-search-go');
+      var res=document.getElementById('agr-search-results');
+      var msi=document.getElementById('menu-search-input');
+      var msc=document.getElementById('menu-search-clear');
+
+      function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+      function closeRes(){res.classList.remove('open');res.innerHTML='';}
+      function setEventQuery(q){
+        searchQuery=q;
+        if(msi){msi.value=q;} if(msc){msc.classList.toggle('visible',q.length>0);}
+        if(typeof refreshMarkers==='function')refreshMarkers();
+      }
+      function removeAddrMarker(){ if(addrMarker){addrMarker.remove();addrMarker=null;} }
+      function syncClear(){ clr.classList.toggle('visible',inp.value.length>0); }
+
+      function setMode(m){
+        mode=m;
+        var bs=document.querySelectorAll('#agr-mode button');
+        for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',bs[i].getAttribute('data-mode')===m);
+        inp.value=''; syncClear(); closeRes();
+        if(m==='eventi'){ inp.placeholder='Cerca un evento…'; removeAddrMarker(); }
+        else{ inp.placeholder='Via, piazza, luogo…'; if(searchQuery)setEventQuery(''); }
+        inp.focus();
+      }
+      document.getElementById('agr-mode').addEventListener('click',function(e){
+        var b=e.target.closest('button'); if(b)setMode(b.getAttribute('data-mode'));
+      });
+
+      function searchAddress(){
+        var q=inp.value.trim(); if(q.length<3){return;}
+        res.innerHTML='<div class="agr-res-empty">Ricerca in corso…</div>'; res.classList.add('open');
+        var vb='';
+        try{var b=map.getBounds();vb='&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth());}catch(e){vb=window.__agrCityBox||'';}
+        fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=5&addressdetails=1&countrycodes=it'+vb,{headers:{'Accept-Language':'it'}})
+          .then(function(r){return r.json();})
+          .then(function(data){
+            if(!data||!data.length){res.innerHTML='<div class="agr-res-empty">Nessun indirizzo trovato. Prova ad aggiungere la città.</div>';return;}
+            var h='';
+            data.forEach(function(d,i){
+              var parts=(d.display_name||'').split(',');
+              var main=parts.slice(0,2).join(',').trim();
+              var sub=parts.slice(2).join(',').trim();
+              h+='<button type="button" class="agr-res" data-i="'+i+'"><div class="agr-res-main">'+esc(main)+'</div><div class="agr-res-sub">'+esc(sub)+'</div></button>';
+            });
+            res.innerHTML=h;
+            res.onclick=function(e){
+              var it=e.target.closest('.agr-res'); if(!it)return;
+              var d=data[+it.getAttribute('data-i')];
+              pointTo(parseFloat(d.lat),parseFloat(d.lon),(d.display_name||'').split(',').slice(0,2).join(','));
+              closeRes();
+            };
+          })
+          .catch(function(){res.innerHTML='<div class="agr-res-empty">Errore di rete, riprova.</div>';});
+      }
+      function pointTo(lat,lng,label){
+        removeAddrMarker();
+        addrMarker=L.circleMarker([lat,lng],{radius:9,color:'#fff',weight:3,fillColor:'#C8743E',fillOpacity:1}).addTo(map);
+        if(label)addrMarker.bindTooltip(esc(label),{direction:'top',offset:[0,-8]}).openTooltip();
+        map.flyTo([lat,lng],17,{duration:0.9});
+      }
+
+      inp.addEventListener('input',function(){
+        syncClear();
+        if(mode==='eventi'){ setEventQuery(inp.value.trim()); }
+        else{ closeRes(); }
+      });
+      inp.addEventListener('keydown',function(e){
+        if(e.key==='Enter'){ e.preventDefault(); if(mode==='indirizzi')searchAddress(); else inp.blur(); }
+        if(e.key==='Escape'){ closeRes(); inp.blur(); }
+      });
+      go.addEventListener('click',function(){ if(mode==='indirizzi')searchAddress(); else { setEventQuery(inp.value.trim()); inp.focus(); } });
+      clr.addEventListener('click',function(){
+        inp.value=''; syncClear(); closeRes();
+        if(mode==='eventi')setEventQuery(''); else removeAddrMarker();
+        inp.focus();
+      });
+      /* la ricerca semplice nel menù "Ricerca" resta allineata alla barra */
+      if(msi)msi.addEventListener('input',function(){ if(mode==='eventi'){inp.value=msi.value;syncClear();} });
+      if(msc)msc.addEventListener('click',function(){ if(mode==='eventi'){inp.value='';syncClear();} });
+      document.addEventListener('click',function(e){ if(!e.target.closest('#agr-search'))closeRes(); });
+
+      window.__agrResetSearch=function(){
+        inp.value=''; syncClear(); closeRes(); removeAddrMarker();
+        if(searchQuery)setEventQuery('');
+        if(mode!=='eventi'){ mode='eventi'; var bs=document.querySelectorAll('#agr-mode button');
+          for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',bs[i].getAttribute('data-mode')==='eventi');
+          inp.placeholder='Cerca un evento…'; }
+      };
+    }
+
+    /* ---------- (4) Calendario: tasto a interruttore + "Salvati" grigio ---------- */
+    var calOv=document.getElementById('cal-overlay');
+    var calTop=document.getElementById('mt-cal-top');
+    var myGroup=document.getElementById('mycal-subbar-group');
+    function goMap(){
+      var bm=document.querySelector('#bottom-nav .bn[data-sec="mappa"]');
+      if(bm)bm.click(); else { var m=document.getElementById('mt-mappa'); if(m)m.click(); }
+    }
+    function calIsOpen(){ return !!(calOv&&calOv.style.display==='flex'); }
+    function syncCal(){
+      var open=calIsOpen();
+      if(calTop&&calTop.classList.contains('cal-on')!==open)calTop.classList.toggle('cal-on',open);
+      if(myGroup){
+        if(open){
+          if(myGroup.style.display==='none')myGroup.style.display='flex';
+          if(!myGroup.classList.contains('agr-disabled'))myGroup.classList.add('agr-disabled');
+        }else if(myGroup.classList.contains('agr-disabled')){
+          myGroup.classList.remove('agr-disabled');
+        }
+      }
+      if(open){ var bns=document.querySelectorAll('#bottom-nav .bn.on'); for(var j=0;j<bns.length;j++)bns[j].classList.remove('on'); }
+    }
+    if(calTop){
+      /* in fase di cattura: se il calendario è già aperto, la seconda pressione riporta alla mappa */
+      calTop.addEventListener('click',function(e){
+        if(calIsOpen()){ e.stopImmediatePropagation(); e.preventDefault(); goMap(); setTimeout(syncCal,0); }
+      },true);
+    }
+    if(window.MutationObserver){
+      var mo=new MutationObserver(function(){ syncCal(); });
+      if(calOv)mo.observe(calOv,{attributes:true,attributeFilter:['style']});
+      if(myGroup)mo.observe(myGroup,{attributes:true,attributeFilter:['style']});
+    }
+    document.addEventListener('click',function(){ setTimeout(syncCal,0); });
+    syncCal();
+
+    /* ---------- (1) Logo = Home ---------- */
+    function goHome(){
+      goMap();                                                      /* chiude Calendario, Progetti, Agorà, Temi */
+      document.querySelectorAll('.subbar-dropdown,.menu-dropdown').forEach(function(d){d.classList.remove('open');});
+      document.querySelectorAll('.subbar-trigger,.menu-trigger').forEach(function(t){t.classList.remove('open');});
+      var tp=document.getElementById('theme-panel'); if(tp)tp.classList.remove('open');
+      var lm=document.getElementById('lang-menu'); if(lm)lm.classList.remove('open');
+      if(window.__agrCloseCityMenu)window.__agrCloseCityMenu();
+      var lp=document.getElementById('left-tab-panel'), lb=document.getElementById('left-tab-btn');
+      if(lp)lp.classList.remove('open'); if(lb)lb.classList.remove('open');
+      if(typeof closeFab==='function'){try{closeFab();}catch(e){}}
+      if(typeof window.setPanelOpen==='function')window.setPanelOpen(window.innerWidth>600);   /* strati: stato iniziale */
+      try{ map.closePopup(); }catch(e){}
+      if(window.__agrResetSearch)window.__agrResetSearch();
+      if(window.__agrGoHomeView)window.__agrGoHomeView();
+      setTimeout(function(){ syncCal(); if(window.__syncBottomNav)window.__syncBottomNav(); if(window.__updateBand)window.__updateBand(); },0);
+    }
+    window.agrGoHome=goHome;
+    var logoName=document.querySelector('#header .logo-name');
+    var logoSeed=document.querySelector('#header .logo-seed');
+    [logoName,logoSeed].forEach(function(el){
+      if(!el)return;
+      el.setAttribute('role','link'); el.setAttribute('title','Torna alla mappa');
+      el.addEventListener('click',function(e){ e.stopPropagation(); goHome(); });
+    });
+  }catch(err){ if(window.console)console.error('v104:',err); }
+});
+</script>
+
 </body>
 </html>
