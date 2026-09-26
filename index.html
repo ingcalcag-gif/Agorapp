@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v102 — 26 settembre 2026 — Base cartografica CARTO vettoriale (MapLibre GL via maplibre-gl-leaflet), chiave CARTO configurabile, attribuzione OSM/CARTO visibile -->
 <!-- v101 — 15 giugno 2026 — Branch 3 / mappa VERA nei risultati Temi (Leaflet persistente, stesse tile/icone, filtro tipo) + fix filtro tipo -->
 <html lang="it" data-theme="light">
 <head>
@@ -6,6 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Agorapp — Torino</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -645,6 +647,8 @@ button{min-height:24px;}
 /* zoom mappa: sollevato sopra la barra sezioni; nascosto su mobile (pinch ok) */
 .leaflet-bottom.leaflet-left{bottom:calc(var(--nav-h) + 116px)!important;}
 .leaflet-control-zoom{display:none!important;}
+#map .leaflet-control-attribution{font-size:10px;line-height:1.4;padding:1px 6px;border-radius:0 6px 0 0;background:var(--surface)!important;color:var(--text);opacity:.85;}
+#map .leaflet-control-attribution a{color:inherit;text-decoration:underline;}
 
 /* ===== step1-temi ===== */
 /* ===================== STEP 1/2 — PILL DEI TEMI ===================== */
@@ -793,7 +797,7 @@ button{min-height:24px;}
 .tv-realmap-wrap{position:relative;height:150px;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:var(--surface2);}
 .tv-map-slot{position:absolute;inset:0;}
 .tv-realmap{width:100%;height:100%;}
-.tv-realmap .leaflet-control-attribution{display:none;}
+.tv-realmap .leaflet-control-attribution{font-size:9px;line-height:1.3;padding:0 4px;background:rgba(255,255,255,0.75);}
 .tv-maptoggle{position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;width:30px;height:30px;display:grid;place-items:center;cursor:pointer;z-index:5;color:var(--text-muted);box-shadow:0 1px 4px rgba(0,0,0,.12);}
 .tv-maptoggle svg{width:15px;height:15px;}
 .tv-maplabel{position:absolute;top:8px;left:9px;font-size:0.5625rem;font-weight:700;color:var(--accent);background:var(--surface);border-radius:7px;padding:4px 8px;z-index:5;box-shadow:0 1px 4px rgba(0,0,0,.12);}
@@ -1133,6 +1137,8 @@ button{min-height:24px;}
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
 <script>
 const ADMIN_PW='agorapp2024', USER_PW='agorapp', EXPIRE_DELETE_MS=3*60*60*1000, DESC_MIN=30, TITLE_MAX=100;
 function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -1168,7 +1174,28 @@ const LAYERS=[
   {id:'benessere',label:'Benessere e meditazione',pin:'#7CB342',bg:'#F1F8E9',text:'#1A5C28',sub:[{id:'yoga',label:'Yoga'},{id:'meditazione',label:'Meditazione'},{id:'pilates',label:'Pilates'}]},
   {id:'volontariato',label:'Volontariato',pin:'#388E3C',bg:'#E8F5E9',text:'#1A4D2A',sub:[{id:'ambiente-v',label:'Ambiente'},{id:'sociale-v',label:'Sociale'},{id:'animali',label:'Animali'}]},
 ];
+// ── BASEMAP (CARTO vettoriale) ─────────────────────────────────────────────
+// Unico punto di configurazione della base cartografica. La chiave è pubblica per
+// natura (finisce nel browser): va limitata ai domini di Agorapp dal pannello CARTO.
+const CARTO_KEY='';
+const CARTO_ATTRIB='© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+const BASEMAP_STYLES={light:'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',dark:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'};
+// Fallback raster usato solo se MapLibre/WebGL non sono disponibili
 const TILE_URLS={light:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',dark:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'};
+function cartoUrl(u){
+  if(!CARTO_KEY||typeof u!=='string'||u.indexOf('basemaps.cartocdn.com')<0||/[?&]key=/.test(u))return u;
+  return u+(u.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(CARTO_KEY);
+}
+function makeBaseLayer(theme,withAttrib){
+  var attrib=withAttrib===false?'':CARTO_ATTRIB;
+  if(typeof maplibregl!=='undefined'&&L.maplibreGL&&(!maplibregl.supported||maplibregl.supported())){
+    try{
+      return L.maplibreGL({style:cartoUrl(BASEMAP_STYLES[theme]||BASEMAP_STYLES.light),attributionControl:{customAttribution:attrib},
+        transformRequest:function(url){return {url:cartoUrl(url)};}});
+    }catch(e){}
+  }
+  return L.tileLayer(cartoUrl(TILE_URLS[theme]||TILE_URLS.light),{attribution:attrib,subdomains:'abcd',maxZoom:19});
+}
 
 let map,tileLayer;
 let layerState={};
@@ -1328,7 +1355,7 @@ function isVisible(ev){
 function applyTheme(t){
   currentTheme=t;document.documentElement.setAttribute('data-theme',t);localStorage.setItem('agorapp_theme',t);
   document.querySelectorAll('.theme-opt').forEach(function(o){o.classList.toggle('active',o.dataset.themeSet===t);});
-  if(map&&tileLayer){map.removeLayer(tileLayer);tileLayer=L.tileLayer(TILE_URLS[t]||TILE_URLS.light,{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);}
+  if(map&&tileLayer){map.removeLayer(tileLayer);tileLayer=makeBaseLayer(t).addTo(map);}
 }
 document.getElementById('theme-btn').addEventListener('click',function(e){
   e.stopPropagation();
@@ -1948,6 +1975,8 @@ if(document.getElementById('fab-opt-map'))document.getElementById('fab-opt-map')
   var hb=document.getElementById('hint-bar');hb.textContent='Clicca sulla mappa per posizionare l\'evento';hb.style.background='var(--accent)';hb.style.color='white';
 });
 map=L.map('map',{zoomControl:false}).setView([45.0703,7.6869],14);
+// Attribuzione OSM/CARTO sempre visibile (obbligo dei termini CARTO): in basso a destra finirebbe sotto il pannello Strati
+map.attributionControl.setPosition('bottomleft');
 L.control.zoom({position:'bottomleft'}).addTo(map);
 
 map.on('click',function(e){
@@ -2015,7 +2044,7 @@ function closeVoiceBar(){fabVoiceBar.classList.remove('open');if(recognition){tr
 document.getElementById('fab-voice-cancel').addEventListener('click',closeVoiceBar);
 document.getElementById('fab-voice-pulse').addEventListener('click',closeVoiceBar);
 
-tileLayer=L.tileLayer(TILE_URLS[currentTheme]||TILE_URLS.light,{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+tileLayer=makeBaseLayer(currentTheme).addTo(map);
 setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();renderLayers();}},60000);
 // ── CALENDARIO ────────────────────────────────────────────────────────────────
 (function(){
@@ -3430,9 +3459,9 @@ window.addEventListener('load',function(){
     if(!holder){ holder=document.createElement('div'); holder.id='tv-map-holder'; holder.style.cssText='position:fixed;left:-9999px;top:0;width:340px;height:150px;pointer-events:none;'; document.body.appendChild(holder); }
     holder.appendChild(realMapEl);
     try{
-      realMap=L.map(realMapEl,{zoomControl:false,attributionControl:false}).setView([45.0703,7.6869],13);
-      var url=(typeof TILE_URLS!=='undefined')?(TILE_URLS[(typeof currentTheme!=='undefined'?currentTheme:'light')]||TILE_URLS.light):'';
-      if(url) L.tileLayer(url,{attribution:'',subdomains:'abcd',maxZoom:19}).addTo(realMap);
+      realMap=L.map(realMapEl,{zoomControl:false,attributionControl:true}).setView([45.0703,7.6869],13);
+      realMap.attributionControl.setPrefix(false);
+      if(typeof makeBaseLayer==='function') makeBaseLayer(typeof currentTheme!=='undefined'?currentTheme:'light').addTo(realMap);
     }catch(e){ realMap=null; }
   }
   function mountRealMap(list){
