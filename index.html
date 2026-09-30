@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OG 1.4 — 30 settembre 2026 — Calendario: viste nell'ordine Giornata · Mese · Agenda (Giornata all'apertura); oggi evidenziato nella vista Mese (griglia sempre visibile); Agenda divisa per giorni con intestazione e riga di separazione; PDF con anteprima: tutti gli eventi selezionati, si tolgono quelli da non condividere -->
 <!-- OG 1.3 — 30 settembre 2026 — "La mia giornata": terza vista del Calendario (Mese · Agenda · Giornata) con tappe numerate, tempi di spostamento stimati a piedi/in bici/con i mezzi, margini, avvisi di tempo stretto e sovrapposizioni, tempi liberi con "+ Aggiungi qui", e percorso numerato disegnato sulla mappa -->
 <!-- OG 1.2 — 30 settembre 2026 — Fine prima dell'inizio = evento che finisce il giorno dopo, segnalato in chiaro (form, popup, calendario); fine uguale all'inizio = errore; suggerimenti indirizzo mentre scrivi solo da Photon (policy Nominatim: niente autocompletamento), Nominatim usato una volta sola alla scelta per cercare il civico esatto -->
 <!-- OG 1.1 — 30 settembre 2026 — Indirizzo completo con numero civico (suggerimenti + riquadro "Registriamo questo punto", avviso se il civico non è in mappa); errore se la fine non è dopo l'inizio; Duplica nel pannello (copia di un evento e "Parti da un tuo evento"); scadenze: tutti gli eventi spariscono da mappa e Agenda 3 ore dopo la fine, gli Off-Grid restano nel calendario (vista Mese) per 3 mesi senza poter tornare sulla mappa -->
@@ -1995,13 +1996,13 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
     +'.cal-month-dayname{font-size:0.625rem;font-weight:600;color:var(--text-muted);text-align:center;padding:4px 0;}'
     +'.cal-month-cell{min-height:60px;border-radius:8px;border:1px solid var(--border);padding:4px;background:var(--surface);overflow:hidden;}'
     +'.cal-month-cell.empty{background:transparent;border-color:transparent;}'
-    +'.cal-month-cell.today{border-color:var(--accent);}'
+    +'.cal-month-cell.today{border:2px solid var(--accent)!important;background:rgba(45,90,61,0.10)!important;box-shadow:0 0 0 3px rgba(45,90,61,0.12);}'+'.cal-month-cell.today .cal-day-num{display:inline-flex;align-items:center;gap:4px;}'
     +'.cal-day-num{font-size:0.6875rem;font-weight:600;color:var(--text-muted);margin-bottom:2px;}'
-    +'.cal-day-num.today-num{color:var(--accent);}'
+    +'.cal-day-num.today-num{color:var(--accent);font-weight:700;}'+'.cal-day-num.today-num:before{content:"";}'
     +'.cal-ev-pill{font-size:0.5625rem;padding:2px 4px;border-radius:4px;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;display:block;}'
     +'.cal-agenda-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:8px;cursor:pointer;display:flex;gap:12px;align-items:flex-start;}'
     +'.cal-agenda-item:hover{border-color:var(--accent);}'
-    +'.cal-agenda-date{font-size:0.6875rem;color:var(--text-muted);white-space:pre-line;min-width:60px;}'
+    +'.cal-agenda-date{font-size:0.75rem;font-weight:600;color:var(--text-muted);white-space:pre-line;min-width:44px;line-height:1.35;}'+'.cal-agenda-day{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:18px 0 8px;padding-top:12px;border-top:1.5px solid var(--border-strong);font-family:\'DM Serif Display\',serif;font-size:0.95rem;color:var(--text);}'+'.cal-agenda-day.first{margin-top:0;padding-top:0;border-top:none;}'+'.cal-agenda-day b{font-family:\'DM Sans\',sans-serif;font-size:0.72rem;color:var(--accent);}'+'.cal-agenda-day .cnt{font-family:\'DM Sans\',sans-serif;font-size:0.6875rem;color:var(--text-muted);}'
     +'.cal-agenda-title{font-family:\'DM Serif Display\',serif;font-size:0.875rem;color:var(--text);}'
     +'.cal-agenda-meta{font-size:0.6875rem;color:var(--text-muted);margin-top:3px;}'
     +'.cal-empty{color:var(--text-muted);font-size:0.8125rem;text-align:center;padding:40px 0;line-height:1.8;}'
@@ -2517,7 +2518,7 @@ function getCalEventsArr(){return Object.keys(calEvents).map(function(id){return
 function renderCalOverlay(){if(calViewMode==='month')renderCalMonth();else renderCalAgenda();}
 function renderCalMonth(){
   var body=document.getElementById('cal-body');var evs=getCalEventsArr();
-  if(!evs.length){body.innerHTML='<div class="cal-empty">'+t('cal_empty1')+'</div>';return;}
+  var emptyNote=evs.length?'':'<div class="cal-empty" style="padding:10px 0 14px;">'+t('cal_empty1')+'</div>';
   var y=calMonthDate.getFullYear(),m=calMonthDate.getMonth();
   var mn=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
   var html='<div class="cal-month-nav"><button class="tl-cal-nav" id="cal-mp">&lsaquo;</button><span class="cal-month-title">'+mn[m]+' '+y+'</span><button class="tl-cal-nav" id="cal-mn">&rsaquo;</button></div><div class="cal-month-grid">';
@@ -2528,11 +2529,11 @@ function renderCalMonth(){
     var isT=(today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d2);
     var ds=new Date(y,m,d2,0,0,0).getTime(),de=new Date(y,m,d2,23,59,59).getTime();
     var dEvs=evs.filter(function(ev){if(!ev.datetime)return false;var t=new Date(ev.datetime).getTime();return t>=ds&&t<=de;});
-    html+='<div class="cal-month-cell'+(isT?' today':'')+'"><div class="cal-day-num'+(isT?' today-num':'')+'">'+d2+'</div>';
+    html+='<div class="cal-month-cell'+(isT?' today':'')+'"'+(isT?' aria-current="date"':'')+'><div class="cal-day-num'+(isT?' today-num':'')+'">'+(isT?'<span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;align-items:center;justify-content:center;">'+d2+'</span>':d2)+'</div>';
     dEvs.forEach(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);var _g=isGone(ev);html+='<div class="cal-ev-pill'+(_g?' cal-ev-past':'')+'" style="background:'+l.bg+';color:'+l.text+';'+(_g?'opacity:.5;text-decoration:line-through;':'')+'" data-action="cal-expand" data-id="'+ev.id+'" title="'+(_g?'Concluso':'')+'">'+esc(ev.title)+'</div>';});
     html+='</div>';
   }
-  html+='</div>';body.innerHTML=html;
+  html+='</div>';body.innerHTML=emptyNote+html;
   document.getElementById('cal-mp').addEventListener('click',function(){calMonthDate.setMonth(calMonthDate.getMonth()-1);renderCalOverlay();});
   document.getElementById('cal-mn').addEventListener('click',function(){calMonthDate.setMonth(calMonthDate.getMonth()+1);renderCalOverlay();});
 }
@@ -2550,15 +2551,23 @@ function buildAgendaPlaceholder(){
 function renderCalAgenda(){
   var body=document.getElementById('cal-body');var evs=getCalEventsArr().filter(function(ev){return !isGone(ev);});
   if(!evs.length){body.innerHTML='<div class="cal-empty" style="padding:30px 0 10px;">'    +'<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:20px;">'+t('cal_empty2')+'</div>'    +'<div style="opacity:.4;pointer-events:none;">'+buildAgendaPlaceholder()+'</div>'    +'</div>';return;}
-  var html='';
+  var html='',lastDay='',todayKey=new Date().toDateString(),tmr=new Date();tmr.setDate(tmr.getDate()+1);var tmrKey=tmr.toDateString();
   evs.forEach(function(ev){
     var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);
-    var ds='';try{if(ev.datetime){var d=new Date(ev.datetime);ds=d.toLocaleDateString(dloc(),{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}}catch(ex){}
+    var d=ev.datetime?new Date(ev.datetime):null;var dk=d?d.toDateString():'—';
+    if(dk!==lastDay){
+      var lbl=d?d.toLocaleDateString(dloc(),{weekday:'long',day:'numeric',month:'long'}):'Senza data';lbl=lbl.charAt(0).toUpperCase()+lbl.slice(1);
+      var rel=dk===todayKey?'Oggi':(dk===tmrKey?'Domani':'');
+      var n=evs.filter(function(x){return x.datetime&&new Date(x.datetime).toDateString()===dk;}).length;
+      html+='<div class="cal-agenda-day'+(lastDay?'':' first')+'"><span>'+esc(lbl)+(rel?' <b>· '+rel+'</b>':'')+'</span><span class="cnt">'+n+(n===1?' evento':' eventi')+'</span></div>';
+      lastDay=dk;
+    }
+    var ds='';try{if(d){ds=d.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});if(ev.end){var en=new Date(ev.end);ds+='\n'+en.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}}}catch(ex){}
     html+='<div class="cal-agenda-item" data-action="cal-popup" data-id="'+ev.id+'">'
       +'<div class="cal-agenda-date">'+esc(ds)+'</div>'
       +'<div style="flex:1;"><div class="cal-agenda-title">'+esc(ev.title)+'</div>'
       +'<div class="cal-agenda-meta"><span style="background:'+l.bg+';color:'+l.text+';padding:1px 6px;border-radius:8px;font-size:0.625rem;font-weight:600;">'+l.label+'</span>'
-      +(ev.price?' &nbsp;'+formatPrice(esc(ev.price)):'')+(ev.duration?' &nbsp;'+esc(ev.duration):'')+'</div></div>'
+      +(ev.price?' &nbsp;'+formatPrice(esc(ev.price)):'')+(ev.duration?' &nbsp;'+esc(ev.duration):'')+(ev.personal&&(ev.addressFull||ev.address)?' &nbsp;'+esc(ev.addressFull||ev.address):'')+'</div></div>'
       +'<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">'
       +'<button data-action="cal-open" data-id="'+ev.id+'" style="font-size:0.625rem;color:var(--accent);white-space:nowrap;padding:3px 7px;border:1px solid var(--accent);border-radius:20px;background:transparent;cursor:pointer;">Mappa</button>'
       +'<button data-action="cal-remove" data-id="'+ev.id+'" style="font-size:1rem;color:var(--text-muted);background:none;border:none;cursor:pointer;" title="Rimuovi">&times;</button>'
@@ -2589,14 +2598,42 @@ function showCalDetailPopup(ev){
   overlay.addEventListener('click',function(e){if(e.target===overlay||e.target.classList.contains('cal-popup-close'))overlay.remove();});
 }
 function printCalendar(){
-  var evs=getCalEventsArr();if(!evs.length){showToast(t('t_no_stampare'));return;}
-  var byDay={};evs.forEach(function(ev){if(!ev.datetime)return;var d=new Date(ev.datetime);var k=d.toLocaleDateString(dloc(),{weekday:'long',day:'2-digit',month:'long',year:'numeric'});if(!byDay[k])byDay[k]=[];byDay[k].push(ev);});
-  var rows=Object.keys(byDay).map(function(day){
-    return '<tr><td colspan="5" style="padding:10px;background:#f5f0e8;font-weight:600;font-size:0.8125rem;border:1px solid #ddd;">'+day+'</td></tr>'
-      +byDay[day].map(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);var t='';try{t=new Date(ev.datetime).toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}catch(e){}
-        return '<tr><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.75rem;color:#666;">'+t+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.8125rem;font-weight:500;">'+esc(ev.title)+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.6875rem;color:#666;">'+l.label+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.6875rem;color:#666;">'+(ev.duration||'')+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.6875rem;color:#666;">'+(ev.price||'')+'</td></tr>';}).join('');
+  /* OG 1.4 — anteprima: tutti gli eventi selezionati, si tolgono quelli da non condividere */
+  var evs=getCalEventsArr().filter(function(ev){return !isGone(ev);});
+  if(!evs.length){showToast(t('t_no_stampare'));return;}
+  var sel={};evs.forEach(function(ev){sel[ev.id]=true;});
+  var ov=document.createElement('div');ov.className='pdf-prev-ov';
+  function dayLbl(d){var x=d.toLocaleDateString(dloc(),{weekday:'long',day:'numeric',month:'long'});return x.charAt(0).toUpperCase()+x.slice(1);}
+  function tm(v){try{return new Date(v).toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+  var list='',last='';
+  evs.forEach(function(ev){var d=new Date(ev.datetime),k=d.toDateString();
+    if(k!==last){list+='<div class="pdf-prev-day">'+esc(dayLbl(d))+'</div>';last=k;}
+    var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);
+    list+='<label class="pdf-prev-row"><input type="checkbox" data-pdf-id="'+esc(ev.id)+'" checked><span class="tm">'+tm(ev.datetime)+(ev.end?'–'+tm(ev.end):'')+'</span><span class="tt">'+esc(ev.title)+'<small>'+esc(l.label)+(ev.personal?' · solo tuo':'')+'</small></span></label>';});
+  ov.innerHTML='<div class="pdf-prev" role="dialog" aria-modal="true" aria-labelledby="pdf-prev-t">'
+    +'<div class="pdf-prev-head"><div><div id="pdf-prev-t" class="ttl">Scarica il PDF</div><div class="sub">Togli la spunta agli eventi che non vuoi far vedere.</div></div><button type="button" class="pdf-x" aria-label="Chiudi">&times;</button></div>'
+    +'<div class="pdf-prev-tools"><span id="pdf-prev-count"></span><span><button type="button" data-pdf-all="1">Tutti</button> · <button type="button" data-pdf-all="0">Nessuno</button></span></div>'
+    +'<div class="pdf-prev-list">'+list+'</div>'
+    +'<div class="pdf-prev-actions"><button type="button" class="sec pdf-x">Annulla</button><button type="button" class="pri" id="pdf-prev-go">Scarica PDF</button></div></div>';
+  document.body.appendChild(ov);
+  function upd(){var n=Object.keys(sel).filter(function(k){return sel[k];}).length;document.getElementById('pdf-prev-count').textContent=n+' di '+evs.length+' nel PDF';var g=document.getElementById('pdf-prev-go');g.disabled=!n;g.textContent=n?'Scarica PDF ('+n+')':'Scarica PDF';}
+  upd();
+  ov.addEventListener('change',function(e){var c=e.target.closest('[data-pdf-id]');if(c){sel[c.dataset.pdfId]=c.checked;upd();}});
+  ov.addEventListener('click',function(e){
+    if(e.target===ov||e.target.closest('.pdf-x')){ov.remove();return;}
+    var a=e.target.closest('[data-pdf-all]');if(a){var on=a.dataset.pdfAll==='1';ov.querySelectorAll('[data-pdf-id]').forEach(function(c){c.checked=on;sel[c.dataset.pdfId]=on;});upd();return;}
+    if(e.target.id==='pdf-prev-go'){var chosen=evs.filter(function(ev){return sel[ev.id];});ov.remove();printCalendarDoc(chosen);}
+  });
+}
+function printCalendarDoc(evs){
+  function tm(v){try{return new Date(v).toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+  var byDay=[],idx={};evs.forEach(function(ev){var d=new Date(ev.datetime);var k=d.toLocaleDateString(dloc(),{weekday:'long',day:'numeric',month:'long',year:'numeric'});if(!(k in idx)){idx[k]=byDay.length;byDay.push({k:k,list:[]});}byDay[idx[k]].list.push(ev);});
+  var rows=byDay.map(function(g){
+    return '<tr><td colspan="4" class="day">'+esc(g.k)+'</td></tr>'+g.list.map(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);
+      var where=ev.personal?(ev.addressFull||ev.address||''):(ev.address||'');
+      return '<tr><td class="tm">'+tm(ev.datetime)+(ev.end?'–'+tm(ev.end):'')+'</td><td class="tt">'+esc(ev.title)+(ev.notes?'<div class="nt">'+esc(ev.notes)+'</div>':'')+'</td><td>'+esc(where)+'</td><td>'+esc(l.label)+(ev.price?' · '+esc(ev.price):'')+'</td></tr>';}).join('');
   }).join('');
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+t('nav_calendario')+' Agorapp</title><style>body{font-family:Georgia,serif;max-width:700px;margin:24px auto;color:#1c1712;}h1{font-size:22px;}p{font-size:12px;color:#888;margin-bottom:20px;}table{width:100%;border-collapse:collapse;}th{text-align:left;padding:7px 10px;background:#2d5a3d;color:white;font-size:11px;text-transform:uppercase;}</style></head><body><h1>'+t('salvati')+'</h1><p>Agorapp Torino - '+new Date().toLocaleDateString(dloc(),{day:'2-digit',month:'long',year:'numeric'})+'</p><table><thead><tr><th>'+t('cal_th_ora')+'</th><th>'+t('cal_th_evento')+'</th><th>'+t('f_strato')+'</th><th>'+t('f_dur')+'</th><th>'+t('f_price')+'</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+  var html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Calendario Agorapp</title><style>body{font-family:Georgia,serif;max-width:760px;margin:24px auto;color:#1c1712;padding:0 16px;}h1{font-size:22px;margin:0 0 4px;}p{font-size:12px;color:#777;margin:0 0 18px;}table{width:100%;border-collapse:collapse;font-family:Helvetica,Arial,sans-serif;}th{text-align:left;padding:7px 10px;background:#2d5a3d;color:white;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}td{padding:7px 10px;border-bottom:1px solid #e3ddd0;font-size:12px;vertical-align:top;}td.day{background:#f5f0e8;font-weight:700;font-size:13px;border-top:2px solid #cfc6b4;}td.tm{white-space:nowrap;color:#555;}td.tt{font-weight:600;}.nt{font-weight:400;color:#666;font-size:11px;margin-top:2px;white-space:pre-wrap;}@media print{body{margin:0 auto;}}</style></head><body><h1>Il mio calendario</h1><p>Agorapp · stampato il '+new Date().toLocaleDateString(dloc(),{day:'numeric',month:'long',year:'numeric'})+' · '+evs.length+(evs.length===1?' evento':' eventi')+'</p><table><thead><tr><th>Ora</th><th>Evento</th><th>Dove</th><th>Tipo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
   var blob=new Blob([html],{type:'text/html'});var url=URL.createObjectURL(blob);var w=window.open(url,'_blank');
   if(w){setTimeout(function(){w.print();URL.revokeObjectURL(url);},600);}
   else{var a=document.createElement('a');a.href=url;a.download='calendario-agorapp.html';a.click();URL.revokeObjectURL(url);showToast(t('t_file_dl'));}
@@ -4399,6 +4436,31 @@ window.addEventListener('load',function(){
 })();
 </script>
 
+<style>
+.pdf-prev-ov{position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;}
+.pdf-prev{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);font-family:'DM Sans',sans-serif;color:var(--text);}
+.pdf-prev-head{display:flex;justify-content:space-between;gap:10px;padding:16px 18px 8px;}
+.pdf-prev-head .ttl{font-family:'DM Serif Display',serif;font-size:1.2rem;}
+.pdf-prev-head .sub{font-size:0.75rem;color:var(--text-muted);margin-top:2px;}
+.pdf-prev-head .pdf-x{background:none;border:none;font-size:1.4rem;line-height:1;color:var(--text-muted);cursor:pointer;align-self:flex-start;}
+.pdf-prev-tools{display:flex;justify-content:space-between;align-items:center;padding:4px 18px 8px;font-size:0.72rem;color:var(--text-muted);}
+.pdf-prev-tools button{background:none;border:none;color:var(--accent);font-family:inherit;font-size:0.72rem;font-weight:600;cursor:pointer;padding:6px 2px;}
+.pdf-prev-list{overflow-y:auto;padding:0 18px;flex:1;}
+.pdf-prev-day{font-family:'DM Serif Display',serif;font-size:0.9rem;margin:12px 0 4px;padding-top:10px;border-top:1.5px solid var(--border-strong);}
+.pdf-prev-day:first-child{border-top:none;padding-top:0;margin-top:4px;}
+.pdf-prev-row{display:flex;align-items:flex-start;gap:10px;padding:8px 4px;border-radius:8px;cursor:pointer;}
+.pdf-prev-row:hover{background:var(--surface2);}
+.pdf-prev-row input{width:18px;height:18px;margin:1px 0 0;accent-color:var(--accent);flex-shrink:0;}
+.pdf-prev-row .tm{font-size:0.72rem;font-weight:600;color:var(--text-muted);min-width:78px;}
+.pdf-prev-row .tt{font-size:0.8125rem;font-weight:600;}
+.pdf-prev-row .tt small{display:block;font-weight:400;font-size:0.6875rem;color:var(--text-muted);}
+.pdf-prev-row:has(input:not(:checked)) .tt{color:var(--text-muted);text-decoration:line-through;}
+.pdf-prev-actions{display:flex;gap:8px;padding:12px 18px 16px;border-top:1px solid var(--border);}
+.pdf-prev-actions button{flex:1;height:44px;border-radius:12px;font-family:inherit;font-size:0.8125rem;font-weight:600;cursor:pointer;}
+.pdf-prev-actions .sec{border:1px solid var(--border-strong);background:transparent;color:var(--text);}
+.pdf-prev-actions .pri{border:none;background:var(--accent);color:white;}
+.pdf-prev-actions .pri:disabled{opacity:.5;cursor:default;}
+</style>
 <!-- ===================== OG 1.3 — LA MIA GIORNATA ===================== -->
 <style>
 .day-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
@@ -4617,7 +4679,9 @@ window.addEventListener('load',function(){
     if(!ag||typeof renderCalOverlay!=='function'){return setTimeout(install,300);}
     if($('cal-view-day'))return;
     var btn=document.createElement('button');btn.id='cal-view-day';btn.className='cal-view-btn';btn.type='button';btn.textContent='Giornata';
-    ag.parentNode.insertBefore(btn,ag.nextSibling);
+    var mo=$('cal-view-month');mo.parentNode.insertBefore(btn,mo);
+    /* Giornata è la vista di partenza */
+    calViewMode='day';mo.classList.remove('cal-active');btn.classList.add('cal-active');
     btn.addEventListener('click',setView);
     ['cal-view-month','cal-view-agenda'].forEach(function(id){var x=$(id);if(x)x.addEventListener('click',function(){btn.classList.remove('cal-active');});});
     var orig=renderCalOverlay;
