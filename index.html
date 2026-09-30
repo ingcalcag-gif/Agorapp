@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OG 1.3 — 30 settembre 2026 — "La mia giornata": terza vista del Calendario (Mese · Agenda · Giornata) con tappe numerate, tempi di spostamento stimati a piedi/in bici/con i mezzi, margini, avvisi di tempo stretto e sovrapposizioni, tempi liberi con "+ Aggiungi qui", e percorso numerato disegnato sulla mappa -->
 <!-- OG 1.2 — 30 settembre 2026 — Fine prima dell'inizio = evento che finisce il giorno dopo, segnalato in chiaro (form, popup, calendario); fine uguale all'inizio = errore; suggerimenti indirizzo mentre scrivi solo da Photon (policy Nominatim: niente autocompletamento), Nominatim usato una volta sola alla scelta per cercare il civico esatto -->
 <!-- OG 1.1 — 30 settembre 2026 — Indirizzo completo con numero civico (suggerimenti + riquadro "Registriamo questo punto", avviso se il civico non è in mappa); errore se la fine non è dopo l'inizio; Duplica nel pannello (copia di un evento e "Parti da un tuo evento"); scadenze: tutti gli eventi spariscono da mappa e Agenda 3 ore dopo la fine, gli Off-Grid restano nel calendario (vista Mese) per 3 mesi senza poter tornare sulla mappa -->
 <!-- OG 1.0 — 30 settembre 2026 — Nuovo ramo "offgrid-og1" (versione operativa, numerazione ripartita da v105). Tasto + diretto al form Off-Grid personale (titolo, indirizzo, data/inizio/fine, note, link utili), fumetto "?" che spiega l'Off-Grid; rimossi Scrivi/Analizza e Voce (nessuna chiamata a servizi AI); pressione lunga sulla mappa = nuovo evento in quel punto; popup dedicato con indicazioni, modifica ed elimina; eventi personali salvati in automatico nel calendario; corretto bug date (dloc ricorsivo) -->
@@ -4392,9 +4393,244 @@ window.addEventListener('load',function(){
   }
   hookMap();
 
-  window.ogOpenForm=function(){openForm(null);};
+  window.ogOpenForm=function(preset){openForm(null,preset||{});};
   window.ogEdit=function(id){var ev=events.find(function(x){return x.id===id;});if(ev)openForm(ev);};
   window.__ogTest={parseAddr:parseAddr,build:build,fullLine:fullLine};
+})();
+</script>
+
+<!-- ===================== OG 1.3 — LA MIA GIORNATA ===================== -->
+<style>
+.day-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.day-nav-btn{width:44px;height:36px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.day-title{text-align:center;min-width:0;}
+.day-title .d{font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--text);line-height:1.15;}
+.day-title .s{font-size:0.6875rem;color:var(--text-muted);}
+.day-today-btn{font-family:'DM Sans',sans-serif;font-size:0.6875rem;border:none;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0;}
+.day-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.day-sum .n{font-family:'DM Serif Display',serif;font-size:1.05rem;color:var(--text);}
+.day-sum .m{font-size:0.72rem;color:var(--text-muted);}
+.day-modes{display:flex;gap:2px;padding:3px;background:var(--surface2);border-radius:10px;}
+.day-modes button{width:44px;height:32px;border:none;border-radius:8px;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.day-modes button[aria-checked="true"]{background:var(--accent);color:white;}
+.day-row{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;}
+.day-time{font-size:0.75rem;font-weight:600;color:var(--text-muted);text-align:right;padding-top:10px;}
+.day-card{border-radius:12px;background:rgba(var(--surface-rgb,253,250,244),0.92);border:1px solid var(--border);padding:9px 11px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;color:var(--text);width:100%;box-sizing:border-box;}
+.day-card:hover{border-color:var(--accent);}
+.day-card.past{opacity:.5;}
+.day-num{width:24px;height:24px;flex-shrink:0;box-sizing:border-box;border-radius:50%;font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.day-card .t{font-size:0.875rem;font-weight:600;}
+.day-card .i{font-size:0.72rem;color:var(--text-muted);margin-top:1px;}
+.day-tag{font-size:0.625rem;font-weight:600;border:1px solid;border-radius:20px;padding:1px 7px;white-space:nowrap;flex-shrink:0;}
+.day-leg{margin-left:11px;border-left:2px dashed rgba(45,90,61,0.45);padding:6px 0 6px 12px;font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
+[data-theme="dark"] .day-leg{border-left-color:rgba(93,184,122,0.5);}
+.day-leg.tight{border-left-color:#B4541C;}
+.day-warn{margin:2px 0 4px;border-radius:10px;background:#FBEEE3;border:1px solid #D9A57E;padding:7px 10px;font-size:0.75rem;color:#1C1712;line-height:1.4;display:flex;gap:7px;align-items:flex-start;}
+[data-theme="dark"] .day-warn{background:rgba(180,84,28,0.18);color:#F1D9C6;border-color:#9A4E1C;}
+.day-free{border:1.5px dashed var(--border-strong);border-radius:12px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0;}
+.day-free .t{font-size:0.8125rem;font-weight:600;color:var(--text);}
+.day-free .i{font-size:0.72rem;color:var(--text-muted);}
+.day-add{height:36px;padding:0 12px;border:none;border-radius:10px;background:var(--accent);color:white;font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap;}
+.day-actions{display:flex;gap:8px;margin-top:14px;position:sticky;bottom:0;padding:8px 0 2px;}
+.day-actions button{flex:1;height:44px;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.8125rem;font-weight:600;cursor:pointer;}
+.day-actions .sec{border:1px solid var(--border-strong);background:var(--surface);color:var(--text);}
+.day-actions .pri{border:none;background:var(--accent);color:white;}
+.day-empty{text-align:center;color:var(--text-muted);font-size:0.8125rem;line-height:1.7;padding:30px 12px;background:rgba(var(--surface-rgb,253,250,244),0.8);border-radius:14px;}
+.day-note{font-size:0.625rem;color:var(--text-muted);text-align:center;margin-top:10px;}
+/* percorso sulla mappa */
+.day-pin{width:30px;height:30px;box-sizing:border-box;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px 'DM Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.28);}
+.day-leglbl{background:var(--surface);color:var(--text);border-radius:20px;padding:2px 8px;font:600 11px 'DM Sans',sans-serif;box-shadow:0 1px 4px rgba(0,0,0,0.2);white-space:nowrap;display:inline-block;transform:translate(-50%,-50%);}
+.day-leglbl.tight{background:#9A4E1C;color:#FDFAF4;}
+#day-route-bar{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:640;display:none;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border-strong);border-radius:24px;padding:5px 6px 5px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.2);font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--text);white-space:nowrap;max-width:calc(100% - 24px);}
+#day-route-bar.show{display:flex;}
+#day-route-bar button{border:none;border-radius:18px;padding:6px 12px;font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:600;cursor:pointer;}
+#day-route-open{background:var(--accent);color:white;}
+#day-route-x{background:transparent;color:var(--text-muted);font-size:1rem!important;padding:4px 8px!important;}
+</style>
+<script>
+(function(){
+  'use strict';
+  function $(id){return document.getElementById(id);}
+  function e(x){return typeof esc==='function'?esc(x):String(x||'');}
+  function pad(n){return (n<10?'0':'')+n;}
+  function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  function hm(ms){var d=new Date(ms);return pad(d.getHours())+':'+pad(d.getMinutes());}
+  function durTxt(min){min=Math.round(min);if(min<60)return min+' min';var h=Math.floor(min/60),m=min%60;return h+' h'+(m?' '+pad(m):'');}
+  function kmTxt(km){return (km<1?Math.round(km*1000)+' m':km.toFixed(1).replace('.',',')+' km');}
+
+  /* velocità di stima (distanza in linea d'aria × 1,3 per le curve delle strade) */
+  var MODES={piedi:{label:'a piedi',speed:4.8,wait:0},bici:{label:'in bici',speed:14,wait:2},mezzi:{label:'con i mezzi',speed:16,wait:8}};
+  var mode='piedi';try{var _m=localStorage.getItem('agorapp_day_mode');if(MODES[_m])mode=_m;}catch(_){}
+  var day=new Date();day.setHours(0,0,0,0);
+
+  function distKm(a,b){var R=6371,toR=Math.PI/180,dLat=(b.lat-a.lat)*toR,dLng=(b.lng-a.lng)*toR;
+    var h=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return 2*R*Math.asin(Math.sqrt(h))*1.3;}
+  function travelMin(km,m){var M=MODES[m];return km<0.05?0:Math.max(1,Math.round(M.wait+km/M.speed*60));}
+
+  function colorOf(ev){
+    if(ev.personal)return {fill:'#2D5A3D',text:'#FDFAF4',border:'#FDFAF4',tag:'Off-Grid',tagc:'#2D5A3D'};
+    var l=(typeof LAYERS!=='undefined'&&LAYERS.find(function(x){return x.id===ev.category;}))||{pin:'#5C5246',label:''};
+    return {fill:'#FDFAF4',text:l.pin||'#5C5246',border:l.pin||'#5C5246',tag:l.label||'',tagc:l.pin||'#5C5246'};
+  }
+
+  /* ---- dati della giornata: gli eventi salvati nel calendario che iniziano quel giorno ---- */
+  function dayItems(){
+    var key=ymd(day);
+    var list=(typeof getCalEventsArr==='function'?getCalEventsArr():[]).filter(function(ev){return (ev.datetime||'').slice(0,10)===key&&typeof ev.lat==='number';});
+    list=list.map(function(ev){var s=new Date(ev.datetime).getTime();var en=(typeof getEnd==='function'?getEnd(ev):null)||s;
+      return {ev:ev,start:s,end:en,noEnd:en<=s,schedEnd:en>s?en:s+3600000,gone:typeof isGone==='function'&&isGone(ev)};});
+    list.sort(function(a,b){return a.start-b.start;});
+    var live=list.filter(function(x){return !x.gone;});
+    live.forEach(function(x,i){x.n=i+1;});
+    /* tratti tra una tappa e la successiva */
+    for(var i=0;i<live.length-1;i++){
+      var a=live[i],b=live[i+1];var km=distKm(a.ev,b.ev);var mins=travelMin(km,mode);
+      var depart=a.schedEnd,arrive=depart+mins*60000,margin=Math.round((b.start-arrive)/60000);
+      var alt=[];Object.keys(MODES).forEach(function(k){if(k===mode)return;var m2=travelMin(km,k);if(depart+m2*60000<=b.start)alt.push({k:k,min:m2});});
+      a.leg={km:km,min:mins,margin:margin,arrive:arrive,overlap:b.start<a.schedEnd,alt:alt,freeFrom:depart,freeTo:b.start-mins*60000};
+    }
+    return {all:list,live:live};
+  }
+
+  function legIcon(){
+    if(mode==='bici')return '<svg width="16" height="14" viewBox="0 0 18 16" fill="none" aria-hidden="true"><circle cx="4" cy="11" r="3" stroke="currentColor" stroke-width="1.3"/><circle cx="14" cy="11" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M4 11 7 5h5l2 6M7 5l3 6h4M11 3h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    if(mode==='mezzi')return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="2" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M3 7h10M5.5 14l1-2M10.5 14l-1-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+    return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8.5" cy="2.5" r="1.4" fill="currentColor"/><path d="M7 5.5 5.5 9l2 1.2L6.5 14M8 5.5l1 3 2.3 1M7.5 10.2 10 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+
+  /* ---- vista Giornata nel pannello Calendario ---- */
+  function renderDay(){
+    var body=$('cal-body');if(!body)return;
+    var d=dayItems(),today=new Date();today.setHours(0,0,0,0);var isToday=day.getTime()===today.getTime();
+    var title=day.toLocaleDateString(dloc(),{weekday:'long',day:'numeric',month:'long'});title=title.charAt(0).toUpperCase()+title.slice(1);
+    var rel=isToday?'Oggi':(day.getTime()-today.getTime()===86400000?'Domani':(day.getTime()-today.getTime()===-86400000?'Ieri':''));
+    var h='<div class="day-nav"><button type="button" class="day-nav-btn" id="day-prev" aria-label="Giorno precedente"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2 4 7l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+      +'<div class="day-title"><div class="d">'+e(title)+'</div><div class="s">'+(rel?e(rel):'<button type="button" class="day-today-btn" id="day-today">Torna a oggi</button>')+'</div></div>'
+      +'<button type="button" class="day-nav-btn" id="day-next" aria-label="Giorno successivo"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="m5 2 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
+    if(!d.all.length){
+      h+='<div class="day-empty">Nessun appuntamento in questo giorno.<br>Aggiungi un tuo evento Off-Grid, oppure salva nel calendario gli eventi della città che ti interessano.</div>';
+      h+='<div class="day-actions"><button type="button" class="pri" id="day-new">+ Nuovo Off-Grid</button></div>';
+      body.innerHTML=h;wireDay();return;
+    }
+    var totKm=0,totMin=0,free=0;d.live.forEach(function(x){if(x.leg){totKm+=x.leg.km;totMin+=x.leg.min;if(x.leg.freeTo-x.leg.freeFrom>=3600000)free++;}});
+    h+='<div class="day-head"><div class="day-sum"><div class="n">'+d.live.length+(d.live.length===1?' tappa':' tappe')+'</div><div class="m">'
+      +(d.live.length>1?kmTxt(totKm)+' · '+durTxt(totMin)+' '+MODES[mode].label+(free?' · '+free+(free===1?' tempo libero':' tempi liberi'):''):'Una sola tappa oggi')
+      +(d.all.length>d.live.length?' · '+(d.all.length-d.live.length)+' concluse':'')+'</div></div>'
+      +'<div class="day-modes" role="radiogroup" aria-label="Come ti muovi">'
+      +['piedi','bici','mezzi'].map(function(k){var sv={piedi:'A piedi',bici:'In bici',mezzi:'Con i mezzi'}[k];var m0=mode;mode=k;var ic=legIcon();mode=m0;
+        return '<button type="button" role="radio" data-mode="'+k+'" aria-checked="'+(k===mode)+'" aria-label="'+sv+'" title="'+sv+'">'+ic+'</button>';}).join('')
+      +'</div></div>';
+    d.all.forEach(function(x){
+      var ev=x.ev,c=colorOf(ev);
+      var when=hm(x.start)+(x.noEnd?'':'–'+hm(x.end))+(ymd(new Date(x.end))!==ymd(new Date(x.start))?' (giorno dopo)':'');
+      var where=ev.personal?(ev.addressFull||ev.address||''):(ev.address||ev.sublayer||'');
+      var num=x.gone?'✓':x.n;
+      h+='<div class="day-row"><div class="day-time">'+hm(x.start)+'</div>'
+        +'<button type="button" class="day-card'+(x.gone?' past':'')+'" data-day-ev="'+e(ev.id)+'">'
+        +'<span class="day-num" style="background:'+(x.gone?'var(--surface2)':c.fill)+';color:'+(x.gone?'var(--text-muted)':c.text)+';border:2px solid '+(x.gone?'var(--border-strong)':c.border)+'">'+num+'</span>'
+        +'<span style="flex:1;min-width:0"><span class="t" style="display:block">'+e(ev.title)+'</span><span class="i" style="display:block">'+e(when)+(where?' · '+e(where):'')+(x.gone?' · concluso':'')+'</span></span>'
+        +(c.tag?'<span class="day-tag" style="color:'+c.tagc+';border-color:'+c.tagc+'">'+e(c.tag)+'</span>':'')
+        +'</button></div>';
+      if(x.leg){
+        var L=x.leg,tight=L.margin<0;
+        h+='<div class="day-row"><div></div><div><div class="day-leg'+(tight?' tight':'')+'">'+legIcon()+'<span>≈ '+durTxt(L.min)+' '+MODES[mode].label+' · '+kmTxt(L.km)+(tight?'':' · '+durTxt(L.margin)+' di margine')+'</span></div>';
+        if(L.overlap){
+          h+='<div class="day-warn" role="alert">'+warnIcon()+'<span><strong>Si sovrappone.</strong> «'+e(x.ev.title)+'» finisce alle '+hm(x.schedEnd)+', dopo l’inizio della tappa successiva.</span></div>';
+        }else if(tight){
+          var alt=L.alt.length?' '+L.alt.map(function(a){return MODES[a.k].label.replace(/^./,function(c){return c.toUpperCase();})+' ≈ '+durTxt(a.min);}).join(', ')+': ce la fai.':'';
+          h+='<div class="day-warn" role="alert">'+warnIcon()+'<span><strong>Tempo stretto.</strong> Arrivi verso le '+hm(L.arrive)+', '+durTxt(-L.margin)+' dopo l’inizio.'+e(alt)+'</span></div>';
+        }else if(L.freeTo-L.freeFrom>=3600000){
+          h+='<div class="day-free"><div><div class="t">Libero · '+durTxt((L.freeTo-L.freeFrom)/60000)+'</div><div class="i">'+hm(L.freeFrom)+'–'+hm(L.freeTo)+', prima di partire per la tappa '+(x.n+1)+'</div></div>'
+            +'<button type="button" class="day-add" data-day-free="'+L.freeFrom+'">+ Aggiungi qui</button></div>';
+        }
+        h+='</div></div>';
+      }
+    });
+    h+='<div class="day-actions">'+(d.live.length?'<button type="button" class="sec" id="day-route">Percorso sulla mappa</button>':'')+'<button type="button" class="pri" id="day-new">+ Nuovo Off-Grid</button></div>';
+    h+='<div class="day-note">Tempi stimati in linea d’aria: non tengono conto di traffico e orari dei mezzi.</div>';
+    body.innerHTML=h;wireDay();
+    if(routeOn&&routeDay&&routeDay.getTime()===day.getTime())drawRoute(false);
+  }
+  function warnIcon(){return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px" aria-hidden="true"><path d="M8 2 1.5 13.5h13L8 2Z" stroke="#9A4E1C" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.5v3.2" stroke="#9A4E1C" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".85" fill="#9A4E1C"/></svg>';}
+
+  function wireDay(){
+    function shift(n){day.setDate(day.getDate()+n);renderDay();}
+    if($('day-prev'))$('day-prev').onclick=function(){shift(-1);};
+    if($('day-next'))$('day-next').onclick=function(){shift(1);};
+    if($('day-today'))$('day-today').onclick=function(){day=new Date();day.setHours(0,0,0,0);renderDay();};
+    document.querySelectorAll('.day-modes [data-mode]').forEach(function(b){b.onclick=function(){mode=b.dataset.mode;try{localStorage.setItem('agorapp_day_mode',mode);}catch(_){}renderDay();};});
+    if($('day-new'))$('day-new').onclick=function(){if(window.ogOpenForm)window.ogOpenForm({date:ymd(day)});};
+    document.querySelectorAll('[data-day-free]').forEach(function(b){b.onclick=function(){var s=new Date(+b.dataset.dayFree);var m=s.getMinutes();s.setMinutes(m+(5-m%5)%5);var en=new Date(s.getTime()+3600000);
+      if(window.ogOpenForm)window.ogOpenForm({date:ymd(s),start:pad(s.getHours())+':'+pad(s.getMinutes()),end:pad(en.getHours())+':'+pad(en.getMinutes()),endTouched:true});};});
+    document.querySelectorAll('[data-day-ev]').forEach(function(b){b.onclick=function(){var ev=events.find(function(x){return x.id===b.dataset.dayEv;});if(!ev)return;
+      if(typeof showCalDetailPopup==='function')showCalDetailPopup(ev);};});
+    if($('day-route'))$('day-route').onclick=function(){drawRoute(true);};
+  }
+
+  /* ---- percorso numerato sulla mappa principale ---- */
+  var routeLayer=null,routeOn=false,routeDay=null;
+  var routeIds=[];function dimBase(on){routeIds.forEach(function(id){var m=markers[id];if(m){try{m.setOpacity(on?0:1);}catch(_){}}});}
+  function clearRoute(){dimBase(false);routeIds=[];if(routeLayer){try{map.removeLayer(routeLayer);}catch(_){}}routeLayer=null;routeOn=false;var b=$('day-route-bar');if(b)b.classList.remove('show');}
+  function drawRoute(goToMap){
+    if(typeof map==='undefined'||!map)return;
+    var d=dayItems();clearRoute();if(!d.live.length)return;
+    routeLayer=L.layerGroup();var pts=[];
+    d.live.forEach(function(x){var c=colorOf(x.ev);pts.push([x.ev.lat,x.ev.lng]);
+      var ic=L.divIcon({className:'',iconSize:[30,30],iconAnchor:[15,15],html:'<div class="day-pin" style="background:'+c.fill+';color:'+c.text+';border:2.5px solid '+c.border+'">'+x.n+'</div>'});
+      var m=L.marker([x.ev.lat,x.ev.lng],{icon:ic,zIndexOffset:1000,title:x.n+'. '+x.ev.title});
+      m.on('click',function(){if(markers[x.ev.id])markers[x.ev.id].openPopup();else if(typeof showCalDetailPopup==='function')showCalDetailPopup(x.ev);});
+      routeLayer.addLayer(m);
+      if(x.leg){var nx=d.live[x.n];var tight=x.leg.margin<0;
+        routeLayer.addLayer(L.polyline([[x.ev.lat,x.ev.lng],[nx.ev.lat,nx.ev.lng]],{color:tight?'#B4541C':'#2D5A3D',weight:3,dashArray:'2 8',lineCap:'round',interactive:false}));
+        var mid=[(x.ev.lat+nx.ev.lat)/2,(x.ev.lng+nx.ev.lng)/2];
+        routeLayer.addLayer(L.marker(mid,{interactive:false,icon:L.divIcon({className:'',iconSize:[0,0],html:'<span class="day-leglbl'+(tight?' tight':'')+'">'+durTxt(x.leg.min)+(tight?' · stretto':'')+'</span>'})}));}
+    });
+    routeLayer.addTo(map);routeOn=true;routeDay=new Date(day.getTime());
+    /* i numeri prendono il posto dei segnaposto normali di quegli eventi */
+    routeIds=d.live.map(function(x){return x.ev.id;});dimBase(true);
+    var bar=$('day-route-bar');
+    if(!bar){bar=document.createElement('div');bar.id='day-route-bar';$('map-wrap').appendChild(bar);}
+    var lbl=routeDay.toLocaleDateString(dloc(),{weekday:'short',day:'numeric',month:'short'});
+    bar.innerHTML='<span>La mia giornata · '+e(lbl)+'</span><button type="button" id="day-route-open">Apri</button><button type="button" id="day-route-x" aria-label="Togli il percorso">&times;</button>';
+    bar.classList.add('show');
+    $('day-route-open').onclick=function(){day=new Date(routeDay.getTime());openDayView();};
+    $('day-route-x').onclick=clearRoute;
+    if(goToMap){if(typeof closeCal==='function')closeCal();
+      setTimeout(function(){try{if(pts.length===1)map.setView(pts[0],16);else map.fitBounds(pts,{paddingTopLeft:[40,140],paddingBottomRight:[40,110],maxZoom:17});}catch(_){}},60);}
+  }
+
+  /* ---- innesto nel pannello Calendario: terza vista "Giornata" ---- */
+  function openDayView(){
+    var trig=$('mt-cal');var ov=$('cal-overlay');
+    if(ov&&ov.style.display!=='flex'&&trig)trig.click();
+    setView();
+  }
+  function setView(){
+    calViewMode='day';
+    ['cal-view-month','cal-view-agenda'].forEach(function(id){var b=$(id);if(b)b.classList.remove('cal-active');});
+    var b=$('cal-view-day');if(b)b.classList.add('cal-active');
+    renderCalOverlay();
+  }
+  function install(){
+    var ag=$('cal-view-agenda');
+    if(!ag||typeof renderCalOverlay!=='function'){return setTimeout(install,300);}
+    if($('cal-view-day'))return;
+    var btn=document.createElement('button');btn.id='cal-view-day';btn.className='cal-view-btn';btn.type='button';btn.textContent='Giornata';
+    ag.parentNode.insertBefore(btn,ag.nextSibling);
+    btn.addEventListener('click',setView);
+    ['cal-view-month','cal-view-agenda'].forEach(function(id){var x=$(id);if(x)x.addEventListener('click',function(){btn.classList.remove('cal-active');});});
+    var orig=renderCalOverlay;
+    renderCalOverlay=function(){if(calViewMode==='day'){renderDay();return;}orig.apply(this,arguments);};
+    /* aggiorna la vista e il percorso quando si salva/modifica/elimina un evento */
+    var origRefresh=refreshMarkers;
+    refreshMarkers=function(){origRefresh.apply(this,arguments);if(routeOn)dimBase(true);};
+    var origSave=saveEvents;
+    saveEvents=function(){origSave.apply(this,arguments);
+      setTimeout(function(){var ov=$('cal-overlay');if(calViewMode==='day'&&ov&&ov.style.display==='flex')renderDay();else if(routeOn){var d0=day;day=new Date(routeDay.getTime());drawRoute(false);day=d0;}},30);};
+  }
+  install();
+  window.ogOpenDay=function(dateStr){if(dateStr){day=new Date(dateStr+'T00:00');}openDayView();};
 })();
 </script>
 
