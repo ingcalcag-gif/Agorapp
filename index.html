@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OG 1.2 — 30 settembre 2026 — Fine prima dell'inizio = evento che finisce il giorno dopo, segnalato in chiaro (form, popup, calendario); fine uguale all'inizio = errore; suggerimenti indirizzo mentre scrivi solo da Photon (policy Nominatim: niente autocompletamento), Nominatim usato una volta sola alla scelta per cercare il civico esatto -->
 <!-- OG 1.1 — 30 settembre 2026 — Indirizzo completo con numero civico (suggerimenti + riquadro "Registriamo questo punto", avviso se il civico non è in mappa); errore se la fine non è dopo l'inizio; Duplica nel pannello (copia di un evento e "Parti da un tuo evento"); scadenze: tutti gli eventi spariscono da mappa e Agenda 3 ore dopo la fine, gli Off-Grid restano nel calendario (vista Mese) per 3 mesi senza poter tornare sulla mappa -->
 <!-- OG 1.0 — 30 settembre 2026 — Nuovo ramo "offgrid-og1" (versione operativa, numerazione ripartita da v105). Tasto + diretto al form Off-Grid personale (titolo, indirizzo, data/inizio/fine, note, link utili), fumetto "?" che spiega l'Off-Grid; rimossi Scrivi/Analizza e Voce (nessuna chiamata a servizi AI); pressione lunga sulla mappa = nuovo evento in quel punto; popup dedicato con indicazioni, modifica ed elimina; eventi personali salvati in automatico nel calendario; corretto bug date (dloc ricorsivo) -->
 <!-- v105 — 26 settembre 2026 — Calendario traslucido sopra la mappa; indirizzi: suggerimenti mentre scrivi (Photon) + ricerca a cascata (pulizia CAP/sigla, fallback Nominatim, fallback senza civico); rimosso pulsante Cerca posizione nascosto -->
@@ -3926,6 +3927,9 @@ window.addEventListener('load',function(){
 .og-time-row input{width:100%;min-width:0;padding-left:8px;padding-right:4px;}
 .og-time-row input.error{border-color:#E53935!important;}
 .og-days{display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
+.og-nextday{display:none;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;border-radius:9px;background:#EEE6F7;border:1px solid #8B6BB8;color:#4A2F78;font-size:0.75rem;font-weight:600;}
+.og-nextday.show{display:flex;}
+[data-theme="dark"] .og-nextday{background:rgba(139,107,184,0.16);color:#CDB6F0;border-color:#8B6BB8;}
 .og-day{font-family:'DM Sans',sans-serif;font-size:0.6875rem;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;}
 .og-day.on{background:var(--accent);border-color:var(--accent);color:white;}
 .og-links .og-link-row{display:flex;gap:6px;margin-bottom:6px;}
@@ -3972,7 +3976,8 @@ window.addEventListener('load',function(){
       sug_street_w:'Civico non in mappa · punto sulla via',
       sug_foot_num:'Aggiungi il numero civico per un punto preciso',
       f_date:'Giorno', f_start:'Inizio', f_end:'Fine', f_time_err:'Indica almeno giorno e orario di inizio',
-      f_end_err:'L’orario di fine deve essere dopo quello di inizio',
+      f_end_err:'L’orario di fine coincide con l’inizio: cambialo',
+      next_day_note:'Finisce il giorno dopo: %s', next_day_tag:'fino al giorno dopo',
       oggi:'Oggi', domani:'Domani',
       f_notes:'Note', f_notes_ph:'Cosa portare, con chi, promemoria…',
       f_links:'Link utili', f_add_link:'+ Aggiungi un link',
@@ -4005,7 +4010,8 @@ window.addEventListener('load',function(){
       sug_street_w:'Number not on the map · pin on the street',
       sug_foot_num:'Add the house number for a precise spot',
       f_date:'Day', f_start:'Start', f_end:'End', f_time_err:'Set at least a day and a start time',
-      f_end_err:'The end time must be after the start time',
+      f_end_err:'The end time is the same as the start: change it',
+      next_day_note:'Ends the next day: %s', next_day_tag:'until the next day',
       oggi:'Today', domani:'Tomorrow',
       f_notes:'Notes', f_notes_ph:'What to bring, who with, reminders…',
       f_links:'Useful links', f_add_link:'+ Add a link',
@@ -4024,7 +4030,7 @@ window.addEventListener('load',function(){
   function pad(n){return (n<10?'0':'')+n;}
   function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
   function hm(d){return pad(d.getHours())+':'+pad(d.getMinutes());}
-  function autoEnd(t){var p=t.split(':');var x=(+p[0])*60+(+p[1])+60;if(x>=1440)x=1439;return pad(Math.floor(x/60))+':'+pad(x%60);}
+  function autoEnd(t){var p=t.split(':');var x=((+p[0])*60+(+p[1])+60)%1440;return pad(Math.floor(x/60))+':'+pad(x%60);}
   function toast(m){if(typeof showToast==='function')showToast(m);}
   function normLink(u){u=(u||'').trim();if(!u)return '';if(!/^https?:\/\//i.test(u)&&/^[\w-]+(\.[\w-]+)+/.test(u))u='https://'+u;return safeUrl(u);}
   function myEvents(){return (events||[]).filter(function(x){return x.personal;});}
@@ -4069,7 +4075,7 @@ window.addEventListener('load',function(){
     h+='<div class="field"><label>'+tt('f_date')+' · '+tt('f_start')+' · '+tt('f_end')+' <span class="og-req">*</span></label>'
       +'<div class="og-days"><button type="button" class="og-day" data-d="0">'+tt('oggi')+'</button><button type="button" class="og-day" data-d="1">'+tt('domani')+'</button></div>'
       +'<div class="og-time-row"><input id="og-date" type="date" aria-label="'+e(tt('f_date'))+'" value="'+e(date)+'"><input id="og-start" type="time" step="300" aria-label="'+e(tt('f_start'))+'" value="'+e(start)+'"><input id="og-end" type="time" step="300" aria-label="'+e(tt('f_end'))+'" value="'+e(end)+'"></div>'
-      +'<div class="err-msg" id="og-err-time">'+tt('f_time_err')+'</div><div class="err-msg" id="og-err-end">'+tt('f_end_err')+'</div></div>';
+      +'<div class="err-msg" id="og-err-time">'+tt('f_time_err')+'</div><div class="err-msg" id="og-err-end">'+tt('f_end_err')+'</div><div class="og-nextday" id="og-nextday" aria-live="polite"></div></div>';
     h+='<div class="field"><label for="og-notes">'+tt('f_notes')+' <span class="field-hint">'+tt('opt')+'</span></label><textarea id="og-notes" maxlength="1000" placeholder="'+e(tt('f_notes_ph'))+'">'+e(isEdit?(ev.notes||''):(preset.notes||''))+'</textarea></div>';
     h+='<div class="field og-links"><label>'+tt('f_links')+' <span class="field-hint">'+tt('opt')+'</span></label><div id="og-links"></div><button type="button" class="og-add-link" id="og-add-link">'+tt('f_add_link')+'</button></div>';
     h+='<div class="modal-actions"><button class="btn-secondary" id="og-cancel">'+tt('cancel')+'</button>'+(isEdit?'<button class="btn-danger" id="og-del">'+tt('del')+'</button>':'')+'<button class="btn-primary" id="og-save">'+tt(isEdit?'save_edit':'save')+'</button></div>';
@@ -4078,7 +4084,7 @@ window.addEventListener('load',function(){
     h+='</div></div>';
     document.getElementById('modal-root').innerHTML=h;
     renderLinks();markDay();renderConfirm();
-    wire(isEdit);
+    wire(isEdit);checkTimes();
     if(preset.dupOf)setTimeout(function(){var d=document.getElementById('og-date');if(d)d.focus();},60);
     else if(!isEdit&&!preset.title)setTimeout(function(){var t=document.getElementById('og-title');if(t)t.focus();},60);
   }
@@ -4103,11 +4109,16 @@ window.addEventListener('load',function(){
   function closeForm(){document.getElementById('modal-root').innerHTML='';st=null;closeSug();}
 
   function checkTimes(show){
-    var s=val('og-start'),en=val('og-end');var bad=!!(s&&en&&en<=s);
-    if(show!==false){var er=document.getElementById('og-err-end');if(er)er.classList.toggle('show',bad);var ie=document.getElementById('og-end');if(ie)ie.classList.toggle('error',bad);}
+    var s0=val('og-start'),en=val('og-end'),d=val('og-date');var bad=!!(s0&&en&&en===s0);var next=!!(s0&&en&&en<s0);
+    if(show!==false){var er=document.getElementById('og-err-end');if(er)er.classList.toggle('show',bad);var ie=document.getElementById('og-end');if(ie)ie.classList.toggle('error',bad);
+      var nd=document.getElementById('og-nextday');
+      if(nd){if(next&&d){var x=new Date(d+'T00:00');x.setDate(x.getDate()+1);
+          var lbl=x.toLocaleDateString(dloc(),{weekday:'long',day:'numeric',month:'long'})+' alle '+en;
+          nd.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 0 6H4M4 10l2-2M4 10l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>'+e(tt('next_day_note',lbl))+'</span>';
+          nd.classList.add('show');}
+        else{nd.classList.remove('show');nd.innerHTML='';}}}
     return !bad;
   }
-
   function wire(isEdit){
     var $=function(id){return document.getElementById(id);};
     $('og-x').onclick=closeForm;$('og-cancel').onclick=closeForm;
@@ -4115,8 +4126,8 @@ window.addEventListener('load',function(){
     var hb=$('og-help-btn'),bub=$('og-bubble');
     hb.onclick=function(){var o=!bub.classList.contains('open');bub.classList.toggle('open',o);hb.setAttribute('aria-expanded',o);
       try{var r1=hb.getBoundingClientRect(),r2=bub.parentNode.getBoundingClientRect();bub.style.setProperty('--og-arrow-x',Math.max(12,r1.left-r2.left+4)+'px');}catch(_){}};
-    $('og-date').addEventListener('change',markDay);
-    document.querySelectorAll('.og-day').forEach(function(b){b.onclick=function(){var d=new Date();d.setDate(d.getDate()+(+b.dataset.d));$('og-date').value=ymd(d);markDay();};});
+    $('og-date').addEventListener('change',function(){markDay();checkTimes();});
+    document.querySelectorAll('.og-day').forEach(function(b){b.onclick=function(){var d=new Date();d.setDate(d.getDate()+(+b.dataset.d));$('og-date').value=ymd(d);markDay();checkTimes();};});
     $('og-start').addEventListener('change',function(){if(!st.endTouched&&this.value)$('og-end').value=autoEnd(this.value);checkTimes();});
     $('og-end').addEventListener('input',function(){st.endTouched=true;});
     $('og-end').addEventListener('change',function(){checkTimes();});
@@ -4147,7 +4158,7 @@ window.addEventListener('load',function(){
   var sugT=null,sugCtrl=null,sugList=[],sugI=-1,cache={};
   function sugOpen(){var b=document.getElementById('og-sug');return b&&b.classList.contains('open');}
   function closeSug(){var b=document.getElementById('og-sug');if(b){b.classList.remove('open');b.innerHTML='';}sugList=[];sugI=-1;}
-  function getJ(u,sig){if(cache[u])return Promise.resolve(cache[u]);return fetch(u,{signal:sig,headers:{'Accept-Language':'it'}}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){cache[u]=j;return j;});}
+  function getJ(u,sig){if(cache[u])return Promise.resolve(cache[u]);var go=u.indexOf('nominatim.openstreetmap.org')>=0?nomiGate():Promise.resolve();return go.then(function(){return fetch(u,{signal:sig,headers:{'Accept-Language':'it'}});}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){cache[u]=j;return j;});}
   function ctr(){try{var c=map.getCenter();return {lat:c.lat,lng:c.lng,z:Math.round(map.getZoom())};}catch(_){return {lat:45.07,lng:7.69,z:12};}}
   function norm(x){return (x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
   /* "Piazza del Popolo 3, Castelfiorentino" → {street:'Piazza del Popolo', num:'3', city:'Castelfiorentino'} */
@@ -4198,17 +4209,21 @@ window.addEventListener('load',function(){
     if(!pa.city){try{var b=map.getBounds();u+='&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth());}catch(_){}}
     return getJ(u,sig).then(function(d){return (d||[]).map(fromNomi);}).catch(function(){return [];});
   }
+  var _nomiLast=0;function nomiGate(){var w=Math.max(0,_nomiLast+1100-Date.now());_nomiLast=Date.now()+w;return new Promise(function(r){setTimeout(r,w);});}
   function nomiFree(q,sig){var vb='';try{var b=map.getBounds();vb='&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth());}catch(_){}
     return getJ('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&addressdetails=1&limit=5&countrycodes=it'+vb,sig).then(function(d){return (d||[]).map(fromNomi);}).catch(function(){return [];});}
   function streetMatches(r,pa){var a=norm(pa.street),b=norm(r.street||r.name);return !!a&&!!b&&(a===b||b.indexOf(a)>=0||a.indexOf(b)>=0);}
   function cityMatches(r,pa){if(!pa.city)return true;var a=norm(pa.city),b=norm(r.city);return !b||a===b||b.indexOf(a)>=0||a.indexOf(b)>=0;}
   /* Costruisce la lista: prima i civici esatti, poi la via con il civico dichiarato (se in mappa manca), poi luoghi e vie */
-  function lookup(q,sig){
+  /* Mentre si scrive: solo Photon (la policy di Nominatim vieta l'autocompletamento lato client).
+     Alla scelta o al salvataggio: UNA ricerca mirata su Nominatim per trovare il civico esatto. */
+  function lookup(q,sig,precise){
     var pa=parseAddr(q);
-    return Promise.all([photon(q,sig),nomiStructured(pa,sig)]).then(function(res){
-      var all=res[1].concat(res[0]);
-      if(!all.length)return nomiFree(q,sig).then(function(r){return build(r,pa);});
-      return build(all,pa);
+    return photon(q,sig).then(function(ph){
+      if(!precise)return build(ph,pa);
+      return nomiStructured(pa,sig).then(function(nm){var all=nm.concat(ph);
+        if(!all.length)return nomiFree(q,sig).then(function(r){return build(r,pa);});
+        return build(all,pa);});
     });
   }
   function build(all,pa){
@@ -4250,7 +4265,10 @@ window.addEventListener('load',function(){
     st.addrFull=disp;st.precision=r.precision||'exact';st.hn=r.hn||'';
     setPos({lat:r.lat,lng:r.lng});
   }
-  function pickSug(i){var r=sugList[i];if(!r)return;applyResult(r);closeSug();}
+  function pickSug(i){var r=sugList[i];if(!r)return;applyResult(r);closeSug();
+    /* civico dichiarato ma non trovato da Photon: una sola verifica su Nominatim */
+    if(r.precision==='street'&&r.hn){var pa={street:r.street,num:r.hn,city:r.city};var myPos=st.pos;
+      nomiStructured(pa).then(function(nm){if(!st||st.pos!==myPos)return;var b=build(nm,pa).list.filter(function(x){return x.precision==='exact';})[0];if(b)applyResult(b);});}}
   function sugKeys(ev){if(!sugOpen())return;var n=sugList.length;if(!n)return;
     if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ev.preventDefault();sugI=(sugI+(ev.key==='ArrowDown'?1:-1)+n)%n;[].forEach.call(document.querySelectorAll('#og-sug [data-si]'),function(x,k){x.classList.toggle('hl',k===sugI);});}
     else if(ev.key==='Enter'){ev.preventDefault();pickSug(sugI<0?0:sugI);}}
@@ -4301,13 +4319,13 @@ window.addEventListener('load',function(){
     if(!st.pos){
       if(addr.length<3){flag('og-err-addr',true,'og-addr');return;}
       toast(tt('searching'));
-      lookup(addr).then(function(res){if(!st)return;
+      lookup(addr,null,true).then(function(res){if(!st)return;
         if(res.list.length){applyResult(res.list[0]);closeSug();toast(tt('conf_check'));
           var cb=document.getElementById('og-confirm');if(cb&&cb.scrollIntoView)cb.scrollIntoView({block:'center',behavior:'smooth'});}
         else{flag('og-err-addr',true,'og-addr');toast(tt('not_found'));}});
       return;
     }
-    var sdt=date+'T'+start,edt=end?date+'T'+end:'';
+    var sdt=date+'T'+start,edt='';if(end){if(end<start){var nd=new Date(date+'T00:00');nd.setDate(nd.getDate()+1);edt=ymd(nd)+'T'+end;}else edt=date+'T'+end;}
     var links=st.links.map(normLink).filter(Boolean);
     var fields={title:title,address:addr,addressFull:st.addrFull||addr,addrPrecision:st.precision||'exact',addrNum:st.hn||'',lat:st.pos.lat,lng:st.pos.lng,datetime:sdt,end:edt,duration:'',notes:val('og-notes').trim(),description:val('og-notes').trim(),
       links:links,link:links[0]||'',offgrid:true,personal:true,category:'',sublayer:'',hidden:false,hiddenPassword:'',price:'',image:''};
@@ -4336,7 +4354,7 @@ window.addEventListener('load',function(){
   /* ================= POPUP ================= */
   function whenStr(ev){
     try{var s=new Date(ev.datetime);var day=s.toLocaleDateString(dloc(),{weekday:'short',day:'numeric',month:'long'});
-      var r=day+' · '+hm(s);if(ev.end){r+='–'+hm(new Date(ev.end));}return r;}catch(_){return '';}
+      var r=day+' · '+hm(s);if(ev.end){var en=new Date(ev.end);r+='–'+hm(en);if(ymd(en)!==ymd(s))r+=' ('+en.toLocaleDateString(dloc(),{weekday:'short',day:'numeric',month:'short'})+')';}return r;}catch(_){return '';}
   }
   window.ogBuildPopup=function(ev){
     var exp=typeof isExpired==='function'&&isExpired(ev);
@@ -4346,7 +4364,7 @@ window.addEventListener('load',function(){
     return '<div style="position:relative;"><button class="popup-close-btn" data-action="close-popup" title="'+t('chiudi')+'">&times;</button><div class="popup-body">'
       +'<div style="margin-bottom:6px;"><span class="og-pill">📡 Off-Grid · '+tt('only_you')+'</span>'+(exp?' <span class="popup-expired-badge">'+t('terminato')+'</span>':'')+'</div>'
       +'<div class="popup-title">'+(typeof hl==='function'?hl(e(ev.title),e(searchQuery)):e(ev.title))+'</div>'
-      +'<div class="og-pop-when">🕒 '+e(whenStr(ev))+'</div>'
+      +'<div class="og-pop-when">🕒 '+e(whenStr(ev))+'</div>'+(ev.end&&ev.end.slice(0,10)!==(ev.datetime||'').slice(0,10)?'<div class="og-nextday show" style="margin:0 0 6px;"><span>↪ '+e(tt('next_day_tag'))+'</span></div>':'')
       +((ev.addressFull||ev.address)?'<div class="og-pop-addr">📍 '+e(ev.addressFull||ev.address)+'</div>':'')
       +(ev.notes?'<div class="og-pop-notes">'+e(ev.notes)+'</div>':'')
       +(links.length?'<div class="og-pop-links">'+links.map(function(u){var lbl=u.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,'');return '<a href="'+e(u)+'" target="_blank" rel="noopener">🔗 '+e(lbl)+'</a>';}).join('')+'</div>':'')
