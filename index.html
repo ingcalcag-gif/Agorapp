@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OG 1.0 — 30 settembre 2026 — Nuovo ramo "offgrid-og1" (versione operativa, numerazione ripartita da v105). Tasto + diretto al form Off-Grid personale (titolo, indirizzo, data/inizio/fine, note, link utili), fumetto "?" che spiega l'Off-Grid; rimossi Scrivi/Analizza e Voce (nessuna chiamata a servizi AI); pressione lunga sulla mappa = nuovo evento in quel punto; popup dedicato con indicazioni, modifica ed elimina; eventi personali salvati in automatico nel calendario; corretto bug date (dloc ricorsivo) -->
 <!-- v105 — 26 settembre 2026 — Calendario traslucido sopra la mappa; indirizzi: suggerimenti mentre scrivi (Photon) + ricerca a cascata (pulizia CAP/sigla, fallback Nominatim, fallback senza civico); rimosso pulsante Cerca posizione nascosto -->
 <!-- v104 — 26 settembre 2026 — Logo = Home; menù città/zone (Torino, Venezia, Fi-Pi-Li, Bologna, Piazza Armerina); barra di ricerca Eventi/Indirizzi sulla mappa; Calendario a interruttore con "Salvati" grigio; barra in basso scura in modalità scura -->
 <!-- v103 — 26 settembre 2026 — Attribuzione OSM/CARTO spostata nell'angolo in basso a destra della mappa (sopra la barra, accanto al pannello Strati) -->
@@ -133,25 +134,8 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .fab-option-btn svg{color:var(--accent);}
 #fab-overlay{position:absolute;inset:0;background:rgba(10,8,5,0.15);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);z-index:499;opacity:0;pointer-events:none;transition:opacity .22s;}
 #fab-overlay.open{opacity:1;pointer-events:all;}
-#fab-text-bar{position:absolute;bottom:16px;left:16px;right:76px;background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;padding:12px 14px;z-index:501;box-shadow:0 8px 28px rgba(0,0,0,0.16);display:none;}
-#fab-text-bar.open{display:block;}
-#fab-text-bar label{font-size:0.6875rem;color:var(--text-muted);font-family:'DM Sans',sans-serif;display:block;margin-bottom:6px;}
-#fab-text-input{width:100%;font-family:'DM Sans',sans-serif;font-size:0.8125rem;padding:8px 10px;border-radius:10px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);outline:none;margin-bottom:8px;}
-#fab-text-input:focus{border-color:var(--accent);}
-.fab-text-actions{display:flex;gap:6px;}
-#fab-text-parse{flex:1;padding:8px;background:var(--accent);color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.8125rem;font-weight:500;cursor:pointer;}
-#fab-text-parse:disabled{opacity:.6;cursor:default;}
-#fab-text-cancel-btn{padding:8px 12px;background:transparent;color:var(--text-muted);border:1px solid var(--border-strong);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.8125rem;cursor:pointer;}
-#fab-text-hint{font-size:0.625rem;color:var(--text-muted);font-family:'DM Sans',sans-serif;margin-top:5px;}
-#fab-voice-bar{position:absolute;bottom:16px;left:16px;right:76px;background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;padding:16px 14px;z-index:501;box-shadow:0 8px 28px rgba(0,0,0,0.16);display:none;text-align:center;}
-#fab-voice-bar.open{display:block;}
-#fab-voice-status{font-family:'DM Sans',sans-serif;font-size:0.8125rem;color:var(--text-muted);margin-bottom:12px;}
-#fab-voice-pulse{width:50px;height:50px;border-radius:50%;background:var(--accent);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:vPulse 1.4s infinite;}
 @keyframes vPulse{0%,100%{box-shadow:0 0 0 0 rgba(45,90,61,0.4);}50%{box-shadow:0 0 0 14px rgba(45,90,61,0);}}
-[data-theme="dark"] #fab-voice-pulse{animation:vPulseDark 1.4s infinite;}
 @keyframes vPulseDark{0%,100%{box-shadow:0 0 0 0 rgba(93,184,122,0.4);}50%{box-shadow:0 0 0 14px rgba(93,184,122,0);}}
-#fab-voice-result{font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--text);min-height:18px;margin-bottom:10px;font-style:italic;}
-#fab-voice-cancel{font-family:'DM Sans',sans-serif;font-size:0.75rem;padding:5px 16px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;}
 
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:100px 16px 16px;overflow-y:auto;}
 .modal{background:var(--surface);border-radius:16px;border:1px solid var(--border);padding:18px;width:100%;max-width:400px;max-height:88vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,0.25);}
@@ -948,54 +932,9 @@ button{min-height:24px;}
           <button id="geo-go-btn">Centra mappa →</button>
         </div>
         <div id="fab-wrap">
-          <div class="fab-options" id="fab-options">
-            <div class="fab-option" id="fab-opt-voice">
-              <span class="fab-option-label">Voce</span>
-              <button class="fab-option-btn">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <rect x="6" y="1" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M3 9c0 3.31 2.69 6 6 6s6-2.69 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                  <line x1="9" y1="15" x2="9" y2="17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-              </button>
-            </div>
-            <div class="fab-option" id="fab-opt-text">
-              <span class="fab-option-label">Scrivi</span>
-              <button class="fab-option-btn">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <line x1="3" y1="5" x2="15" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                  <line x1="3" y1="9" x2="12" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                  <line x1="3" y1="13" x2="9" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-              </button>
-            </div>
-
-            <div class="fab-option" id="fab-opt-compila">
-              <span class="fab-option-label">Compila</span>
-              <button class="fab-option-btn">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <rect x="3" y="2" width="12" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                  <line x1="6" y1="6" x2="12" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-                  <line x1="6" y1="9" x2="12" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-                  <line x1="6" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <button id="fab-main"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><line x1="10" y1="3" x2="10" y2="17" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="3" y1="10" x2="17" y2="10" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+          <button id="fab-main" title="Nuovo evento Off-Grid" aria-label="Nuovo evento Off-Grid"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><line x1="10" y1="3" x2="10" y2="17" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="3" y1="10" x2="17" y2="10" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg></button>
         </div>
-        <div id="fab-text-bar">
-          <label>Descrivi l'evento in linguaggio libero</label>
-          <input id="fab-text-input" type="text" placeholder='es. "Jazz al Blah Blah sabato sera alle 21, ingresso 10€"'/>
-          <div class="fab-text-actions"><button id="fab-text-cancel-btn" data-i18n="annulla">Annulla</button><button id="fab-text-parse" data-i18n="fab_analizza">Analizza e crea →</button></div>
-          <div id="fab-text-hint" data-i18n="fab_text_hint">Claude leggerà il testo e precompilerà il form</div>
-        </div>
-        <div id="fab-voice-bar">
-          <div id="fab-voice-status" data-i18n="fab_voice_status">In ascolto… parla adesso</div>
-          <div id="fab-voice-pulse"><svg width="22" height="22" viewBox="0 0 18 18" fill="none"><rect x="6" y="1" width="6" height="10" rx="3" stroke="white" stroke-width="1.5"/><path d="M3 9c0 3.31 2.69 6 6 6s6-2.69 6-6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="9" y1="15" x2="9" y2="17" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-          <div id="fab-voice-result"></div>
-          <button id="fab-voice-cancel" data-i18n="annulla">Annulla</button>
-        </div>
+        
       </div>
       <div id="layers-pull-wrap"><button id="layers-pull"><svg id="layers-pull-arrow" width="11" height="18" viewBox="0 0 8 14" fill="none"><polyline points="6,1 2,7 6,13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
       <div id="layers-panel">
@@ -1148,6 +1087,8 @@ button{min-height:24px;}
 <script>
 const ADMIN_PW='agorapp2024', USER_PW='agorapp', EXPIRE_DELETE_MS=3*60*60*1000, DESC_MIN=30, TITLE_MAX=100;
 function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function ogLayerFor(ev){return ev&&ev.personal?{id:'__og_personal',label:'Off-Grid',bg:'#E8F2EB',text:'#2D5A3D',pin:'#2D5A3D'}:{bg:'#eee',text:'#333',label:ev?ev.category:''};}
+function ogPersonalIcon(expired){var k='__og_'+(expired?1:0);if(!window.__ogIcons)window.__ogIcons={};if(window.__ogIcons[k])return window.__ogIcons[k];var c=expired?'#AAAAAA':'#2D5A3D';var html='<div style="width:30px;height:38px;opacity:'+(expired?0.55:1)+'"><svg viewBox="0 0 30 38" width="30" height="38"><path d="M15 36.5C15 36.5 2 23.5 2 14.2 2 7 7.8 1.5 15 1.5S28 7 28 14.2C28 23.5 15 36.5 15 36.5Z" fill="'+c+'" stroke="white" stroke-width="2"/><circle cx="15" cy="14" r="5.2" fill="none" stroke="white" stroke-width="1.8"/><circle cx="15" cy="14" r="1.8" fill="white"/></svg></div>';var ic=L.divIcon({html:html,iconSize:[30,38],iconAnchor:[15,37],popupAnchor:[0,-34],className:''});window.__ogIcons[k]=ic;return ic;}
 function safeUrl(u){if(!u)return '';var s=u.trim();return(s.startsWith('http://')||s.startsWith('https://'))?s:'';}
 function formatPrice(p){if(!p)return p;var s=p.trim();if(/^(gratuito|gratis|free|ingresso libero|libero)$/i.test(s))return s;if(s.includes('€')||/euro/i.test(s))return s;if(/^\d+([.,]\d+)?$/.test(s))return s+'€';return s+'€';}
 const LAYER_ICONS={
@@ -1231,7 +1172,7 @@ const T={
   fr:{aspetto:'Apparence',chiaro:'Clair',scuro:'Sombre',simple:'Mode simple',lingua:'Langue',admin:'Admin',user:'User',ricerca:'Recherche',salvati:'Enregistrés',nascosti:'Masqués',nav_mappa:'Carte',nav_calendario:'Calendrier',nav_progetti:'Projets',nav_agora:'Agora',strati:'Couches',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'Choisissez quoi voir sur la carte',seleziona_tutti:'Tout sélectionner',eventi_visibili:'événements visibles',legal_privacy:'Avis de confidentialité',legal_storage:'Données locales',legal_disclaimer:'Mentions légales',prog_title:'Projets',prog_subtitle:'Pratiques collectives dans le tissu urbain',prog_intro:'La production culturelle n\'a pas lieu là où elle est reconnue. Elle a lieu dans les cours, dans les lieux de quartier, dans les assemblées informelles. Ces projets existent indépendamment d\'Agorapp — la plateforme se limite à rendre visible ce qui était déjà en cours.',filtro_tutti:'Tous',prog_cosa_serve:'Ce qu\'il faut :',prog_vuoto:'Aucun projet pour cette couche.',carica_altri:'Charger plus',visto_tutto:'Vous avez tout vu —',progetto:'projet',progetti:'projets',agora_title:'Agora',agora_subtitle:'Propositions citoyennes venues d\'en bas',agora_intro:'Les propositions que vous voyez ici ne sont pas des pétitions. Ce sont des hypothèses de transformation nées d\'en bas — des événements, des assemblées, des conversations dans les cours. Chacune rassemble des tensions réelles et les traduit en propositions concrètes.',filtro_tutte:'Toutes',agora_proponi:'Proposer une nouvelle proposition',prog_proponi:'Proposer un nouveau projet',in_sviluppo:'⏳ En développement',wip_title:'En construction',wip_body:'Cette section est encore en construction !',wip_body_agora:'La section Agora est encore en construction !',onb_title:'Bienvenue sur Agorapp !',onb_body:'Appuyez sur <b>User</b> pour ajouter vos événements sur la carte.',onb_note:'Les événements restent uniquement sur cet appareil.',m_edit:'Modifier l\'événement',m_user_offgrid:'Votre événement Off-Grid',m_new:'Nouvel événement',og_badge:'Événement Off-Grid',og_note:'Visible uniquement par ceux qui ont votre lien. Aucune donnée envoyée à un serveur.',f_name:'Votre nom',f_name_hint:'apparaît sur le badge de l\'événement',f_name_ph:'Ex. Vanessa Greco',f_title:'Titre',f_title_hint:'il faut un nom',f_title_ph:'Nom de l\'événement',f_title_err:'Donnez un nom à l\'événement',f_strato:'Couche',f_strato_hint:'catégorie',f_strato_err:'Choisissez une couche',f_sub:'Sous-couche',f_sub_hint:'après la couche',f_sub_err:'Choisissez la sous-couche',f_desc:'Description',f_desc_hint:'au moins 30 caractères',f_desc_ph:'Racontez l\'événement…',f_desc_err:'Au moins 30 caractères requis',f_dt:'Date et heure',f_dt_hint:'quand ça commence',f_dt_err:'Une date future est requise',f_dur:'Durée',f_dur_hint:'combien de temps',f_dur_ph:'ex. 2 heures',f_dur_err:'Indiquez la durée',f_price:'Prix',f_price_hint:'ou gratuit',f_price_ph:'Gratuit / 10€',f_price_err:'Indiquez le prix',f_link:'Lien externe',f_link_hint:'facultatif',f_img:'Image',f_img_hint:'URL de couverture, facultatif',f_addr:'Adresse',f_addr_hint:'où ça se déroule — obligatoire si vous n\'utilisez pas Localiser',f_addr_ph:'Ex. Via Po 12, Turin',f_posiziona:'Localiser',f_hidden:'🔒 Événement masqué',f_hidden_hint:'Visible uniquement par ceux qui ont le mot de passe',f_pw:'Mot de passe de déverrouillage',f_pw_hint:'choisissez-le',f_pw_ph:'Un mot secret',f_pw_err:'Choisissez un mot de passe',annulla:'Annuler',elimina:'Supprimer',salva_evento:'Enregistrer l\'événement',terminato:'Terminé',pop_modifica:'✏ Modifier',pop_elimina:'🗑 Supprimer',leggi_tutto:' lire plus',chiudi:'Fermer',sito_evento:'🔗 Site de l\'événement',ci_vado:'J\'y vais',sono_qui:'Je suis là',att_annulla:'Cliquez à nouveau pour annuler',att_segnala:'Cliquez pour signaler votre présence',nel_cal:'Dans le calendrier',salva_cal:'Ajouter au calendrier',rimosso_cal:'Retiré du calendrier',ricerca_semplice:'Recherche simple',ph_titolo_desc:'Titre ou description…',mostra_terminati:'Afficher les événements terminés',ricerca_avanzata:'Recherche avancée',filtri_combinati:'filtres combinés',offgrid_export:'📡 Off-Grid — Exporter le lien',link_condivisibile:'lien partageable',esporta_json:'Exporter les événements JSON',backup_h:'sauvegarde',importa_json:'Importer les événements JSON',merge_h:'fusion',sblocca_nascosto:'Déverrouiller un événement masqué',ph_password_ev:'Mot de passe de l\'événement…',sblocca:'Déverrouiller',mostra_sbloccati:'Afficher les événements déverrouillés',fab_analizza:'Analyser et créer →',fab_text_hint:'Claude lira le texte et préremplira le formulaire',fab_voice_status:'À l\'écoute… parlez maintenant',adv_keywords:'Mots-clés',adv_kw_ph:'Titre ou description...',adv_da:'Du',adv_a:'Au',adv_free:'Gratuits',adv_paid:'Payants',adv_reset:'Réinitialiser',adv_cerca:'Rechercher',t_admin_user:'Passez en mode Admin ou User pour ajouter des événements.',t_err_rete:'Erreur réseau.',t_err_export:'Erreur d\'export.',t_err_file:'Erreur de lecture du fichier — vérifiez le format.',t_err:'Erreur.',t_ev_nascosto:'Événement enregistré — actuellement masqué par les filtres actifs',t_file_dl:'Fichier téléchargé !',t_file_vuoto:'Fichier vide — aucun événement trouvé.',t_gps_no:'GPS non disponible sur cet appareil.',t_pos_no:'Impossible de détecter la position. Vérifiez les autorisations.',t_addr_o_pos:'Indiquez une adresse ou utilisez Localiser.',t_addr_no_prec:'Adresse introuvable — essayez une adresse plus précise.',t_addr_no:'Adresse introuvable.',t_nome_obb:'Saisissez votre nom — il est obligatoire pour les événements Off-Grid.',t_link_copy:'Lien copié !',t_no_offgrid_exp:'Aucun événement Off-Grid à exporter. Créez un événement et activez "Off-Grid".',t_no_condividere:'Aucun événement à partager.',t_no_stampare:'Aucun événement à imprimer.',t_pw_no:'Mot de passe non reconnu.',t_pos_ok:'Position trouvée !',t_ricerca_corso:'Recherche en cours...',t_ricerca_addr:'Recherche d\'adresse...',t_voice_no:'Reconnaissance vocale non prise en charge — utilisez Chrome.',t_rilevamento:'Détection de la position...',t_copy_manual:'Sélectionnez et copiez manuellement.',conf_elimina:'Supprimer ?',cal_vai_mappa:'📍 Aller à la carte',cal_th_ora:'Heure',cal_th_evento:'Événement',cal_empty1:'Aucun événement.<br>Appuyez sur <b>Ajouter au calendrier</b> sur un événement.',cal_empty2:'Votre calendrier est vide.<br>Appuyez sur <b>Ajouter au calendrier</b> sur un événement de la carte.',og_exp_label:'Mode Off-Grid',og_exp_title:'Vos événements, à votre façon',og_exp_body1:'Les événements que vous créez en mode User sont <b style="color:var(--accent-light);">Off-Grid</b> : ils existent uniquement dans la mémoire de cet appareil et ne passent par aucun serveur.<br><br>',og_exp_body2:'Vous pouvez <b style="color:var(--accent-light);">les partager par lien</b> (WhatsApp, DM) via <i>Exporter Off-Grid</i> dans le menu Recherche. Seul celui qui reçoit le lien voit vos événements sur sa carte.<br><br>',og_exp_body3:'<b style="color:#FFD599;">Attention :</b> si vous modifiez ou supprimez un événement après l\'avoir partagé, l\'autre personne ne sera pas mise à jour automatiquement — vous devrez envoyer un nouveau lien.',og_exp_ok:'Compris, commençons',share_title:'Partager le calendrier',share_sub:'Copiez le lien et envoyez-le à qui vous voulez :',copia_link:'Copier le lien',fr_pkg:'📡 Paquet Off-Grid',ev_sing:'événement',ev_plur:'événements',fr_manda:'Envoyez ce lien à qui vous voulez. Seul celui qui le reçoit verra vos événements sur Agorapp.',legal_docs_title:'Documents légaux',legal_tab_privacy:'Avis de confidentialité'},
   ar:{aspetto:'المظهر',chiaro:'فاتح',scuro:'داكن',simple:'الوضع البسيط',lingua:'اللغة',admin:'Admin',user:'User',ricerca:'بحث',salvati:'المحفوظة',nascosti:'المخفية',nav_mappa:'الخريطة',nav_calendario:'التقويم',nav_progetti:'المشاريع',nav_agora:'أغورا',strati:'الطبقات',ongrid:'On-Grid',offgrid:'📡 Off-Grid',strati_sub:'اختر ما تريد رؤيته على الخريطة',seleziona_tutti:'تحديد الكل',eventi_visibili:'فعاليات مرئية',legal_privacy:'إشعار الخصوصية',legal_storage:'بيانات محلية',legal_disclaimer:'ملاحظات قانونية',prog_title:'المشاريع',prog_subtitle:'ممارسات جماعية في النسيج الحضري',prog_intro:'الإنتاج الثقافي لا يحدث حيث يُعترف به. بل يحدث في الأفنية، وفي المراكز المحلية، وفي التجمعات غير الرسمية. هذه المشاريع موجودة بشكل مستقل عن Agorapp — المنصة تكتفي بإظهار ما كان جارياً بالفعل.',filtro_tutti:'الكل',prog_cosa_serve:'ما المطلوب:',prog_vuoto:'لا توجد مشاريع لهذه الطبقة.',carica_altri:'تحميل المزيد',visto_tutto:'لقد رأيت كل شيء —',progetto:'مشروع',progetti:'مشاريع',agora_title:'أغورا',agora_subtitle:'مقترحات مدنية من القاعدة',agora_intro:'المقترحات التي تراها هنا ليست عرائض. إنها فرضيات للتغيير وُلدت من القاعدة — من الفعاليات والتجمعات والمحادثات في الأفنية. كل مقترح يجمع توترات حقيقية ويترجمها إلى مقترحات عملية.',filtro_tutte:'الكل',agora_proponi:'اقترح مقترحاً جديداً',prog_proponi:'اقترح مشروعاً جديداً',in_sviluppo:'⏳ قيد التطوير',wip_title:'قيد الإنشاء',wip_body:'هذا القسم لا يزال قيد الإنشاء!',wip_body_agora:'قسم أغورا لا يزال قيد الإنشاء!',onb_title:'مرحباً بك في Agorapp!',onb_body:'اضغط <b>User</b> لإضافة فعالياتك على الخريطة.',onb_note:'تبقى الفعاليات على هذا الجهاز فقط.',m_edit:'تعديل الفعالية',m_user_offgrid:'فعاليتك Off-Grid',m_new:'فعالية جديدة',og_badge:'فعالية Off-Grid',og_note:'مرئية فقط لمن لديه رابطك. لا تُرسَل أي بيانات إلى أي خادم.',f_name:'اسمك',f_name_hint:'يظهر على شارة الفعالية',f_name_ph:'مثال: Vanessa Greco',f_title:'العنوان',f_title_hint:'يلزم اسم',f_title_ph:'اسم الفعالية',f_title_err:'أعطِ اسماً للفعالية',f_strato:'الطبقة',f_strato_hint:'الفئة',f_strato_err:'اختر طبقة',f_sub:'الطبقة الفرعية',f_sub_hint:'بعد الطبقة',f_sub_err:'اختر الطبقة الفرعية',f_desc:'الوصف',f_desc_hint:'30 حرفاً على الأقل',f_desc_ph:'صف الفعالية…',f_desc_err:'يلزم 30 حرفاً على الأقل',f_dt:'التاريخ والوقت',f_dt_hint:'متى تبدأ',f_dt_err:'يلزم تاريخ مستقبلي',f_dur:'المدة',f_dur_hint:'كم تستغرق',f_dur_ph:'مثال: ساعتان',f_dur_err:'حدد المدة',f_price:'السعر',f_price_hint:'أو مجاني',f_price_ph:'مجاني / 10€',f_price_err:'حدد السعر',f_link:'رابط خارجي',f_link_hint:'اختياري',f_img:'صورة',f_img_hint:'رابط صورة الغلاف، اختياري',f_addr:'العنوان',f_addr_hint:'مكان الإقامة — إلزامي إن لم تستخدم تحديد الموقع',f_addr_ph:'مثال: Via Po 12, تورينو',f_posiziona:'تحديد الموقع',f_hidden:'🔒 فعالية مخفية',f_hidden_hint:'مرئية فقط لمن لديه كلمة المرور',f_pw:'كلمة مرور الفتح',f_pw_hint:'اخترها بنفسك',f_pw_ph:'كلمة سرية',f_pw_err:'اختر كلمة مرور',annulla:'إلغاء',elimina:'حذف',salva_evento:'حفظ الفعالية',terminato:'منتهية',pop_modifica:'✏ تعديل',pop_elimina:'🗑 حذف',leggi_tutto:' اقرأ المزيد',chiudi:'إغلاق',sito_evento:'🔗 موقع الفعالية',ci_vado:'سأذهب',sono_qui:'أنا هنا',att_annulla:'اضغط مرة أخرى للإلغاء',att_segnala:'اضغط للإشارة إلى حضورك',nel_cal:'في التقويم',salva_cal:'حفظ في التقويم',rimosso_cal:'أُزيل من التقويم',ricerca_semplice:'بحث بسيط',ph_titolo_desc:'العنوان أو الوصف…',mostra_terminati:'إظهار الفعاليات المنتهية',ricerca_avanzata:'بحث متقدم',filtri_combinati:'مرشحات مدمجة',offgrid_export:'📡 Off-Grid — تصدير الرابط',link_condivisibile:'رابط قابل للمشاركة',esporta_json:'تصدير الفعاليات JSON',backup_h:'نسخة احتياطية',importa_json:'استيراد الفعاليات JSON',merge_h:'دمج',sblocca_nascosto:'فتح فعالية مخفية',ph_password_ev:'كلمة مرور الفعالية…',sblocca:'فتح',mostra_sbloccati:'إظهار الفعاليات المفتوحة',fab_analizza:'حلّل وأنشئ →',fab_text_hint:'سيقرأ Claude النص ويملأ النموذج',fab_voice_status:'جارٍ الاستماع… تحدّث الآن',adv_keywords:'كلمات مفتاحية',adv_kw_ph:'العنوان أو الوصف...',adv_da:'من',adv_a:'إلى',adv_free:'مجانية',adv_paid:'مدفوعة',adv_reset:'إعادة تعيين',adv_cerca:'بحث',t_admin_user:'ادخل وضع Admin أو User لإضافة فعاليات.',t_err_rete:'خطأ في الشبكة.',t_err_export:'خطأ في التصدير.',t_err_file:'خطأ في قراءة الملف — تحقق من الصيغة.',t_err:'خطأ.',t_ev_nascosto:'حُفظت الفعالية — مخفية حالياً بواسطة المرشحات النشطة',t_file_dl:'تم تنزيل الملف!',t_file_vuoto:'ملف فارغ — لم يُعثر على فعاليات.',t_gps_no:'نظام تحديد المواقع غير متاح على هذا الجهاز.',t_pos_no:'تعذّر تحديد الموقع. تحقق من الأذونات.',t_addr_o_pos:'أدخل عنواناً أو استخدم تحديد الموقع.',t_addr_no_prec:'العنوان غير موجود — جرّب عنواناً أدق.',t_addr_no:'العنوان غير موجود.',t_nome_obb:'أدخل اسمك — إلزامي لفعاليات Off-Grid.',t_link_copy:'تم نسخ الرابط!',t_no_offgrid_exp:'لا توجد فعاليات Off-Grid للتصدير. أنشئ فعالية وفعّل "Off-Grid".',t_no_condividere:'لا توجد فعاليات للمشاركة.',t_no_stampare:'لا توجد فعاليات للطباعة.',t_pw_no:'كلمة المرور غير معروفة.',t_pos_ok:'تم العثور على الموقع!',t_ricerca_corso:'جارٍ البحث...',t_ricerca_addr:'جارٍ البحث عن العنوان...',t_voice_no:'التعرّف على الصوت غير مدعوم — استخدم Chrome.',t_rilevamento:'جارٍ تحديد الموقع...',t_copy_manual:'حدّد وانسخ يدوياً.',conf_elimina:'هل تريد الحذف؟',cal_vai_mappa:'📍 اذهب إلى الخريطة',cal_th_ora:'الوقت',cal_th_evento:'الفعالية',cal_empty1:'لا توجد فعاليات.<br>اضغط <b>حفظ في التقويم</b> على فعالية.',cal_empty2:'تقويمك فارغ.<br>اضغط <b>حفظ في التقويم</b> على فعالية في الخريطة.',og_exp_label:'وضع Off-Grid',og_exp_title:'فعالياتك، على طريقتك',og_exp_body1:'الفعاليات التي تنشئها في وضع User هي <b style="color:var(--accent-light);">Off-Grid</b>: توجد فقط في ذاكرة هذا الجهاز ولا تمر عبر أي خادم.<br><br>',og_exp_body2:'يمكنك <b style="color:var(--accent-light);">مشاركتها عبر رابط</b> (WhatsApp، DM) باستخدام <i>تصدير Off-Grid</i> في قائمة البحث. فقط من يستلم الرابط يرى فعالياتك على خريطته.<br><br>',og_exp_body3:'<b style="color:#FFD599;">تنبيه:</b> إذا عدّلت أو حذفت فعالية بعد مشاركتها، فلن يتم تحديث الشخص الآخر تلقائياً — عليك إرسال رابط جديد.',og_exp_ok:'فهمت، لنبدأ',share_title:'مشاركة التقويم',share_sub:'انسخ الرابط وأرسله لمن تشاء:',copia_link:'نسخ الرابط',fr_pkg:'📡 حزمة Off-Grid',ev_sing:'فعالية',ev_plur:'فعاليات',fr_manda:'أرسل هذا الرابط لمن تشاء. فقط من يستلمه سيرى فعالياتك على Agorapp.',legal_docs_title:'مستندات قانونية',legal_tab_privacy:'إشعار الخصوصية'}
 };
-function dloc(){return {it:dloc(),en:'en-GB',es:'es-ES',fr:'fr-FR',ar:'ar'}[lang]||dloc();}
+function dloc(){return {it:'it-IT',en:'en-GB',es:'es-ES',fr:'fr-FR',ar:'ar'}[lang]||'it-IT';}
 function t(k){var v=T[lang]&&T[lang][k];if(v!=null)return v;v=T.it[k];return v!=null?v:k;}
 function applyTranslations(){
   document.querySelectorAll('[data-i18n]').forEach(function(el){el.textContent=t(el.getAttribute('data-i18n'));});
@@ -1341,7 +1282,7 @@ function updateCalBadge(){var n=Object.keys(calEvents).filter(function(id){retur
 function saveVotes(){try{sessionStorage.setItem('agorapp_votes',JSON.stringify(votes));}catch(e){}}
 var tlWinStart=0,tlWinEnd=0,tlFrom=0,tlTo=0;
 
-function getEnd(ev){if(!ev.datetime)return null;try{var s=new Date(ev.datetime).getTime();if(!ev.duration)return s;var dur2=ev.duration.replace(/un[ao]?\s+po'?\s+di/i,'1').replace(/paio/i,'2').replace(/quarto d'ora/i,'15 min').replace(/mez(?:z)?ora/i,'30 min');var m=dur2.match(/(\d+(?:\.\d+)?)\s*(h|ora|ore|min|minut)?/i);if(!m)return s;var n=parseFloat(m[1]);var u=(m[2]||'h').toLowerCase();return s+(u.startsWith('m')?n*60000:n*3600000);}catch(e){return null;}}
+function getEnd(ev){if(!ev.datetime)return null;try{if(ev.end){var _e=new Date(ev.end).getTime();if(!isNaN(_e))return _e;}var s=new Date(ev.datetime).getTime();if(!ev.duration)return s;var dur2=ev.duration.replace(/un[ao]?\s+po'?\s+di/i,'1').replace(/paio/i,'2').replace(/quarto d'ora/i,'15 min').replace(/mez(?:z)?ora/i,'30 min');var m=dur2.match(/(\d+(?:\.\d+)?)\s*(h|ora|ore|min|minut)?/i);if(!m)return s;var n=parseFloat(m[1]);var u=(m[2]||'h').toLowerCase();return s+(u.startsWith('m')?n*60000:n*3600000);}catch(e){return null;}}
 function isExpired(ev){if(ev.isDemo)return false;var e=getEnd(ev);return e!==null&&Date.now()>e;}
 function shouldDelete(ev){if(ev.isDemo)return false;var e=getEnd(ev);return e!==null&&Date.now()>e+EXPIRE_DELETE_MS;}
 function purgeExpired(){var b=events.length;events=events.filter(function(ev){return!shouldDelete(ev);});if(events.length!==b){saveEvents();return true;}return false;}
@@ -1356,7 +1297,7 @@ function isVisible(ev){
   if(futureOnly&&futureOnly.checked&&!ev.isDemo){
     if(!ev.datetime)return false;
     if(new Date(ev.datetime).getTime()<Date.now())return false;
-  }if(!layerState[ev.category]||!layerState[ev.category].on)return false;if(ev.hidden&&(!showHidden||!isUnlocked(ev)))return false;if(isExpired(ev)&&!showExpired)return false;if(!matchSearch(ev))return false;if(!matchTime(ev))return false;return true;}
+  }if(!ev.personal&&(!layerState[ev.category]||!layerState[ev.category].on))return false;if(ev.hidden&&(!showHidden||!isUnlocked(ev)))return false;if(isExpired(ev)&&!showExpired)return false;if(!matchSearch(ev))return false;if(!matchTime(ev))return false;return true;}
 
 function applyTheme(t){
   currentTheme=t;document.documentElement.setAttribute('data-theme',t);localStorage.setItem('agorapp_theme',t);
@@ -1461,6 +1402,7 @@ function renderUnlockedTags(){var list=document.getElementById('menu-unlocked-li
 
 var iconCache={};
 function makeIcon(cat,expired,hidden,offgrid){
+  if(cat==='__og_personal')return ogPersonalIcon(expired);
   var key=cat+'_'+expired+'_'+hidden+'_'+(offgrid?'og':'');
   if(iconCache[key])return iconCache[key];
   var l=LAYERS.find(function(x){return x.id===cat;})||{pin:'#888888'};
@@ -1480,7 +1422,8 @@ function makeIcon(cat,expired,hidden,offgrid){
 function hl(str,q){if(!q||!str)return str||'';var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return str.replace(re,'<span class="search-highlight">$1</span>');}
 
 function buildPopup(ev){
-  var l=LAYERS.find(function(x){return x.id===ev.category;})||{bg:'#eee',text:'#333',label:ev.category};
+  if(ev.personal&&window.ogBuildPopup)return window.ogBuildPopup(ev);
+  var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);
   var expired=isExpired(ev);
   // imgHtml moved to safeImg below
   var dateStr='';if(ev.datetime){try{var d=new Date(ev.datetime);dateStr=d.toLocaleDateString(dloc(),{day:'2-digit',month:'long',year:'numeric'})+' · '+d.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}catch(e){}}
@@ -1542,7 +1485,7 @@ document.addEventListener('click',function(e){
   if(action==='del'){if(!confirm(t('conf_elimina')))return;events=events.filter(function(x){return x.id!==id;});saveEvents();if(markers[id]){markers[id].remove();delete markers[id];}map.closePopup();updateCount();renderLayers();}
 });
 
-function addMarker(ev){if(markers[ev.id])markers[ev.id].remove();var m=L.marker([ev.lat,ev.lng],{icon:makeIcon(ev.category,isExpired(ev),ev.hidden,ev.offgrid)}).addTo(map);m.bindPopup(buildPopup(ev),{maxWidth:240,minWidth:220,autoPanPadding:[20,20]});markers[ev.id]=m;}
+function addMarker(ev){if(markers[ev.id])markers[ev.id].remove();var m=L.marker([ev.lat,ev.lng],{icon:makeIcon(ev.personal?'__og_personal':ev.category,isExpired(ev),ev.hidden,ev.offgrid)}).addTo(map);m.bindPopup(buildPopup(ev),ev.personal?{maxWidth:250,minWidth:230,autoPanPaddingTopLeft:[20,150],autoPanPaddingBottomRight:[20,90]}:{maxWidth:240,minWidth:220,autoPanPadding:[20,20]});markers[ev.id]=m;}
 function refreshMarkers(){Object.values(markers).forEach(function(m){m.remove();});markers={};events.filter(isVisible).forEach(addMarker);updateCount();}
 function updateCount(){
   var n=events.filter(isVisible).length;
@@ -1970,10 +1913,11 @@ function matchTime(ev){
   });
 })();
 
-var fabMain=document.getElementById('fab-main'),fabOptions=document.getElementById('fab-options'),fabOverlay=document.getElementById('fab-overlay'),fabOpen=false;
-function openFab(){fabOpen=true;fabMain.classList.add('open');fabOptions.classList.add('open');fabOverlay.classList.add('open');}
-function closeFab(){fabOpen=false;fabMain.classList.remove('open');fabOptions.classList.remove('open');fabOverlay.classList.remove('open');closeTextBar();closeVoiceBar();}
-fabMain.addEventListener('click',function(e){e.stopPropagation();if(!isAdmin&&!isUser){showToast(t('t_admin_user'));return;}fabOpen?closeFab():openFab();});
+var fabMain=document.getElementById('fab-main'),fabOverlay=document.getElementById('fab-overlay'),fabOpen=false;
+function openFab(){}
+function closeFab(){fabOpen=false;fabOverlay.classList.remove('open');}
+// OG 1.0 — il + apre direttamente il form Off-Grid personale (nessun login, nessun menù intermedio)
+fabMain.addEventListener('click',function(e){e.stopPropagation();if(window.ogOpenForm)window.ogOpenForm();});
 fabOverlay.addEventListener('click',closeFab);
 
 if(document.getElementById('fab-opt-map'))document.getElementById('fab-opt-map').addEventListener('click',function(){
@@ -1996,57 +1940,8 @@ map.on('click',function(e){
   pendingLatLng=e.latlng;editingId=null;showModal(null);
 });
 
-var fabTextBar=document.getElementById('fab-text-bar'),fabTextInput=document.getElementById('fab-text-input'),fabTextParse=document.getElementById('fab-text-parse');
-document.getElementById('fab-opt-text').addEventListener('click',function(){closeFab();openTextBar();});
-document.getElementById('fab-opt-compila').addEventListener('click',function(){
-  closeFab();
-  editingId=null;
-  showModal(null);
-});
-function openTextBar(){fabTextBar.classList.add('open');fabTextInput.focus();}
-function closeTextBar(){fabTextBar.classList.remove('open');fabTextInput.value='';}
-document.getElementById('fab-text-cancel-btn').addEventListener('click',closeTextBar);
-fabTextInput.addEventListener('keydown',function(e){if(e.key==='Enter')fabTextParse.click();});
-fabTextParse.addEventListener('click',async function(){
-  var text=fabTextInput.value.trim();if(!text)return;
-  fabTextParse.textContent='Analisi…';fabTextParse.disabled=true;
-  var parsed={};
-  try{parsed=await parseEventText(text);}catch(e){parsed={title:text.length<80?text:'',description:'',datetime:'',duration:'',price:''};}
-  closeTextBar();
-  if(!pendingLatLng)pendingLatLng={lat:45.0703,lng:7.6869};
-  showModal(null,parsed);
-  fabTextParse.textContent='Analizza e crea →';fabTextParse.disabled=false;
-});
+// OG 1.0 — rimossi Scrivi/Analizza (API Claude) e Voce: nessun dato inviato a servizi esterni di AI
 
-async function parseEventText(text){
-  var now=new Date();
-  var nowStr=now.toLocaleDateString(dloc(),{weekday:'long',day:'2-digit',month:'long',year:'numeric'})+' ore '+now.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});
-  var prompt='Oggi e\' '+nowStr+'. Analizza questa descrizione di un evento a Torino e restituisci SOLO un oggetto JSON valido senza markdown ne backtick con questi campi: {"title":"titolo evento","category":"uno tra: musica arte sport sociale cibo teatro cinema conferenze laboratori manifestazioni mercati benessere volontariato","description":"descrizione minimo 30 caratteri, lascia vuoto se non presente","datetime":"'+now.getFullYear()+'-MM-DDTHH:MM","duration":"es 2 ore, lascia vuoto se non presente","price":"es Gratuito o 10e, lascia vuoto se non presente","address":"indirizzo a Torino"} Se il testo dice stasera/domani calcola la data esatta. Se un campo manca lascia stringa vuota. Testo: '+JSON.stringify(text);
-  var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:prompt}]})});
-  var data=await res.json();
-  var raw=data.content.map(function(b){return b.text||'';}).join('');
-  var match=raw.match(/\{[\s\S]*\}/);
-  if(!match)throw new Error('no json');
-  var parsed=JSON.parse(match[0]);
-  if(parsed.address&&parsed.address.trim().length>3){
-    try{var geo=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(parsed.address+', '+(window.__agrCityGeo||'Torino'))+'&format=json&limit=1',{headers:{'Accept-Language':'it'}});var gd=await geo.json();if(gd.length>0){pendingLatLng={lat:parseFloat(gd[0].lat),lng:parseFloat(gd[0].lon)};map.setView([pendingLatLng.lat,pendingLatLng.lng],16);}}catch(e){}
-  }
-  return parsed;
-}
-
-var fabVoiceBar=document.getElementById('fab-voice-bar'),fabVoiceStatus=document.getElementById('fab-voice-status'),fabVoiceResult=document.getElementById('fab-voice-result'),recognition=null;
-document.getElementById('fab-opt-voice').addEventListener('click',function(){if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){showToast(t('t_voice_no'));return;}closeFab();openVoiceBar();});
-function openVoiceBar(){
-  fabVoiceBar.classList.add('open');fabVoiceStatus.textContent='In ascolto… sussurra adesso';fabVoiceResult.textContent='';
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  recognition=new SR();recognition.lang=dloc();recognition.continuous=false;recognition.interimResults=true;
-  recognition.onresult=function(e){var t=Array.from(e.results).map(function(r){return r[0].transcript;}).join('');fabVoiceResult.textContent='"'+t+'"';if(e.results[e.results.length-1].isFinal){fabVoiceStatus.textContent='Elaborazione…';closeVoiceBar();fabTextInput.value=t;openTextBar();setTimeout(function(){fabTextParse.click();},300);}};
-  recognition.onerror=function(){fabVoiceStatus.textContent='Errore. Riprova.';setTimeout(closeVoiceBar,1500);};
-  recognition.start();
-}
-function closeVoiceBar(){fabVoiceBar.classList.remove('open');if(recognition){try{recognition.stop();}catch(e){}recognition=null;}}
-document.getElementById('fab-voice-cancel').addEventListener('click',closeVoiceBar);
-document.getElementById('fab-voice-pulse').addEventListener('click',closeVoiceBar);
 
 tileLayer=makeBaseLayer(currentTheme).addTo(map);
 setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();renderLayers();}},60000);
@@ -2628,7 +2523,7 @@ function renderCalMonth(){
     var ds=new Date(y,m,d2,0,0,0).getTime(),de=new Date(y,m,d2,23,59,59).getTime();
     var dEvs=evs.filter(function(ev){if(!ev.datetime)return false;var t=new Date(ev.datetime).getTime();return t>=ds&&t<=de;});
     html+='<div class="cal-month-cell'+(isT?' today':'')+'"><div class="cal-day-num'+(isT?' today-num':'')+'">'+d2+'</div>';
-    dEvs.forEach(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||{bg:'#eee',text:'#333'};html+='<div class="cal-ev-pill" style="background:'+l.bg+';color:'+l.text+';" data-action="cal-expand" data-id="'+ev.id+'">'+esc(ev.title)+'</div>';});
+    dEvs.forEach(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);html+='<div class="cal-ev-pill" style="background:'+l.bg+';color:'+l.text+';" data-action="cal-expand" data-id="'+ev.id+'">'+esc(ev.title)+'</div>';});
     html+='</div>';
   }
   html+='</div>';body.innerHTML=html;
@@ -2651,7 +2546,7 @@ function renderCalAgenda(){
   if(!evs.length){body.innerHTML='<div class="cal-empty" style="padding:30px 0 10px;">'    +'<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:20px;">'+t('cal_empty2')+'</div>'    +'<div style="opacity:.4;pointer-events:none;">'+buildAgendaPlaceholder()+'</div>'    +'</div>';return;}
   var html='';
   evs.forEach(function(ev){
-    var l=LAYERS.find(function(x){return x.id===ev.category;})||{bg:'#eee',text:'#333',label:ev.category};
+    var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);
     var ds='';try{if(ev.datetime){var d=new Date(ev.datetime);ds=d.toLocaleDateString(dloc(),{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}}catch(ex){}
     html+='<div class="cal-agenda-item" data-action="cal-popup" data-id="'+ev.id+'">'
       +'<div class="cal-agenda-date">'+esc(ds)+'</div>'
@@ -2666,7 +2561,7 @@ function renderCalAgenda(){
   body.innerHTML=html;
 }
 function showCalDetailPopup(ev){
-  var l=LAYERS.find(function(x){return x.id===ev.category;})||{bg:'#eee',text:'#333',label:ev.category};
+  var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);
   var ds='';try{if(ev.datetime){var dt=new Date(ev.datetime);ds=dt.toLocaleDateString(dloc(),{weekday:'long',day:'2-digit',month:'long'})+' - '+dt.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}}catch(e){}
   var overlay=document.createElement('div');
   overlay.className='cal-detail-overlay';
@@ -2691,7 +2586,7 @@ function printCalendar(){
   var byDay={};evs.forEach(function(ev){if(!ev.datetime)return;var d=new Date(ev.datetime);var k=d.toLocaleDateString(dloc(),{weekday:'long',day:'2-digit',month:'long',year:'numeric'});if(!byDay[k])byDay[k]=[];byDay[k].push(ev);});
   var rows=Object.keys(byDay).map(function(day){
     return '<tr><td colspan="5" style="padding:10px;background:#f5f0e8;font-weight:600;font-size:0.8125rem;border:1px solid #ddd;">'+day+'</td></tr>'
-      +byDay[day].map(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||{label:ev.category};var t='';try{t=new Date(ev.datetime).toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}catch(e){}
+      +byDay[day].map(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);var t='';try{t=new Date(ev.datetime).toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}catch(e){}
         return '<tr><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.75rem;color:#666;">'+t+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.8125rem;font-weight:500;">'+esc(ev.title)+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.6875rem;color:#666;">'+l.label+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.6875rem;color:#666;">'+(ev.duration||'')+'</td><td style="padding:6px 10px;border:1px solid #ddd;font-size:0.6875rem;color:#666;">'+(ev.price||'')+'</td></tr>';}).join('');
   }).join('');
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+t('nav_calendario')+' Agorapp</title><style>body{font-family:Georgia,serif;max-width:700px;margin:24px auto;color:#1c1712;}h1{font-size:22px;}p{font-size:12px;color:#888;margin-bottom:20px;}table{width:100%;border-collapse:collapse;}th{text-align:left;padding:7px 10px;background:#2d5a3d;color:white;font-size:11px;text-transform:uppercase;}</style></head><body><h1>'+t('salvati')+'</h1><p>Agorapp Torino - '+new Date().toLocaleDateString(dloc(),{day:'2-digit',month:'long',year:'numeric'})+'</p><table><thead><tr><th>'+t('cal_th_ora')+'</th><th>'+t('cal_th_evento')+'</th><th>'+t('f_strato')+'</th><th>'+t('f_dur')+'</th><th>'+t('f_price')+'</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
@@ -2749,7 +2644,7 @@ document.getElementById('row-adv-search').addEventListener('click',function(){
     ov.remove();
     var rv=document.createElement('div');
     rv.style.cssText='position:fixed;inset:0;z-index:9998;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.4);';
-    var rrows=res.length?res.map(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||{bg:'#eee',text:'#333',label:ev.category};var ds='';try{if(ev.datetime){var d=new Date(ev.datetime);ds=d.toLocaleDateString(dloc(),{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}}catch(e){}
+    var rrows=res.length?res.map(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);var ds='';try{if(ev.datetime){var d=new Date(ev.datetime);ds=d.toLocaleDateString(dloc(),{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString(dloc(),{hour:'2-digit',minute:'2-digit'});}}catch(e){}
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;" data-action="adv-goto" data-id="'+ev.id+'">'
         +'<span style="background:'+l.bg+';color:'+l.text+';font-size:0.625rem;font-weight:600;padding:2px 7px;border-radius:12px;white-space:nowrap;">'+l.label+'</span>'
         +'<span style="flex:1;font-size:0.8125rem;color:var(--text);font-weight:500;">'+esc(ev.title)+'</span>'
@@ -3975,6 +3870,344 @@ window.addEventListener('load',function(){
     });
   }catch(err){ if(window.console)console.error('v104:',err); }
 });
+</script>
+
+<!-- ===================== OG 1.0 — EVENTI OFF-GRID PERSONALI ===================== -->
+<style>
+#og-form .og-head{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+#og-form .og-head .modal-title{margin:0;flex:1;display:flex;align-items:center;gap:8px;}
+.og-help-btn{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:700;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;}
+.og-help-btn[aria-expanded="true"]{background:var(--accent);color:white;}
+.og-x{background:none;border:none;color:var(--text-muted);font-size:1.4rem;line-height:1;cursor:pointer;padding:0 2px;}
+.og-sub{font-size:0.6875rem;color:var(--text-muted);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.og-pill{display:inline-flex;align-items:center;gap:4px;font-size:0.625rem;font-weight:600;padding:2px 9px;border-radius:20px;background:#E8F2EB;color:#2D5A3D;border:1px solid #2D5A3D;}
+[data-theme="dark"] .og-pill{background:rgba(93,184,122,0.12);color:#8FD3A5;border-color:#5DB87A;}
+.og-bubble{position:relative;display:none;background:var(--accent);color:white;border-radius:12px;padding:14px 16px;margin:6px 0 14px;font-size:0.78rem;line-height:1.6;box-shadow:0 6px 20px rgba(0,0,0,0.18);}
+.og-bubble.open{display:block;animation:ogPop .18s ease-out;}
+.og-bubble:before{content:'';position:absolute;top:-7px;left:var(--og-arrow-x,120px);width:14px;height:14px;background:var(--accent);transform:rotate(45deg);border-radius:2px;}
+.og-bubble b{color:#E8D5A3;}
+.og-bubble p{margin:0 0 8px;}
+.og-bubble p:last-child{margin:0;}
+@keyframes ogPop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+#og-form .og-req{color:var(--accent);}
+.og-addr-row{display:flex;gap:6px;}
+.og-addr-wrap{flex:1;position:relative;}
+.og-addr-wrap input{width:100%;}
+.og-icon-btn{flex-shrink:0;width:38px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface2);color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.og-icon-btn:hover{border-color:var(--accent);}
+.og-sug{display:none;position:absolute;top:100%;left:0;right:0;margin-top:3px;background:var(--menu-bg,var(--surface));border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);z-index:200;max-height:190px;overflow-y:auto;}
+.og-sug.open{display:block;}
+.og-sug button{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:0.5px solid var(--border);padding:8px 11px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;}
+.og-sug button:last-child{border-bottom:none;}
+.og-sug button:hover,.og-sug button.hl{background:var(--surface2);}
+.og-sug .m{font-size:0.8125rem;}
+.og-sug .s{font-size:0.6875rem;color:var(--text-muted);margin-top:1px;}
+.og-pos-ok{font-size:0.6875rem;color:var(--accent);margin-top:4px;display:none;}
+.og-pos-ok.show{display:block;}
+.og-time-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:6px;}
+.og-time-row input{width:100%;min-width:0;padding-left:8px;padding-right:4px;}
+.og-days{display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
+.og-day{font-family:'DM Sans',sans-serif;font-size:0.6875rem;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;}
+.og-day.on{background:var(--accent);border-color:var(--accent);color:white;}
+.og-links .og-link-row{display:flex;gap:6px;margin-bottom:6px;}
+.og-links .og-link-row input{flex:1;}
+.og-link-del{flex-shrink:0;width:30px;border-radius:8px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;font-size:1rem;}
+.og-add-link{font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 0;}
+.og-admin-link{display:block;margin-top:12px;text-align:center;font-size:0.6875rem;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;width:100%;font-family:'DM Sans',sans-serif;}
+#og-form textarea{min-height:64px;}
+/* scelta posizione sulla mappa */
+#og-pick-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);z-index:600;pointer-events:none;display:none;}
+#og-pick-bar{position:absolute;bottom:84px;left:50%;transform:translateX(-50%);z-index:601;display:none;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border-strong);border-radius:24px;padding:6px 6px 6px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.22);font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--text);white-space:nowrap;}
+#og-pick-bar button{border:none;border-radius:18px;padding:7px 14px;font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;cursor:pointer;}
+#og-pick-ok{background:var(--accent);color:white;}
+#og-pick-cancel{background:transparent;color:var(--text-muted);}
+/* popup */
+.og-pop-when{font-size:0.8125rem;font-weight:600;color:var(--text);margin:2px 0 4px;}
+.og-pop-addr{font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;}
+.og-pop-notes{font-size:0.75rem;color:var(--text);white-space:pre-wrap;background:var(--surface2);border-radius:8px;padding:7px 9px;margin:6px 0;max-height:120px;overflow-y:auto;}
+.og-pop-links a{display:block;font-size:0.75rem;color:var(--accent);margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.og-pop-actions{display:flex;gap:6px;margin-top:10px;}
+.og-pop-actions button,.og-pop-actions a{flex:1;text-align:center;font-family:'DM Sans',sans-serif;font-size:0.6875rem;font-weight:600;padding:6px 4px;border-radius:8px;border:1px solid var(--border-strong);background:transparent;color:var(--text);cursor:pointer;text-decoration:none;}
+.og-pop-actions .og-danger{color:#C62828;border-color:rgba(198,40,40,0.4);}
+</style>
+<script>
+(function(){
+  'use strict';
+  /* ---------- testi (IT + EN, le altre lingue ricadono sull'italiano) ---------- */
+  var S={
+    it:{
+      title_new:'Nuovo evento Off-Grid', title_edit:'Modifica evento Off-Grid',
+      sub:'Solo su questo dispositivo · lo vedi solo tu',
+      help_aria:'Che cos’è un evento Off-Grid?',
+      help:'<p><b>Che cos’è un evento Off-Grid?</b><br>È un tuo appuntamento: vive solo nella memoria di questo dispositivo, non passa da nessun server e nessuno oltre a te può vederlo. Ti serve per organizzare la giornata sulla mappa e nel calendario, accanto agli eventi della città.</p><p><b>Perché non posso ancora pubblicarlo per tutti?</b><br>Pubblicare un evento <i>on-grid</i> vuol dire affidarci i dati tuoi e di chi lo organizza. Oggi Agorapp è un progetto indipendente, senza ancora una società alle spalle in grado di custodirli con le garanzie che meritano: preferiamo non raccoglierli piuttosto che raccoglierli male.</p><p><b>Presto sarà possibile.</b> Ci stiamo lavorando: quando potrai pubblicare i tuoi eventi per tutta la città, sarai tra i primi a saperlo.</p>',
+      f_title:'Titolo', f_title_ph:'es. Caffè con Giulia', f_title_err:'Dai un nome al tuo appuntamento',
+      f_addr:'Indirizzo', f_addr_ph:'Via, piazza o luogo', f_addr_err:'Scegli un indirizzo dai suggerimenti o dalla mappa',
+      f_addr_map:'Scegli sulla mappa', f_addr_ok:'✓ Posizione fissata',
+      f_date:'Giorno', f_start:'Inizio', f_end:'Fine', f_time_err:'Indica almeno giorno e orario di inizio',
+      oggi:'Oggi', domani:'Domani',
+      f_notes:'Note', f_notes_ph:'Cosa portare, con chi, promemoria…',
+      f_links:'Link utili', f_add_link:'+ Aggiungi un link',
+      opt:'facoltativo', cancel:'Annulla', save:'Salva sulla mappa', save_edit:'Salva modifiche', del:'Elimina',
+      admin_ongrid:'Admin: crea invece un evento on-grid completo →',
+      pick_hint:'Sposta la mappa sul punto', pick_ok:'Conferma', pick_cancel:'Annulla',
+      searching:'Cerco l’indirizzo…', not_found:'Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.',
+      saved:'Appuntamento salvato sulla mappa e nel calendario', updated:'Appuntamento aggiornato', deleted:'Appuntamento eliminato',
+      conf_del:'Eliminare questo appuntamento?', only_you:'solo tuo',
+      directions:'Indicazioni', edit:'Modifica', in_cal:'✓ Nel calendario', to_cal:'+ Calendario',
+      next_day:'(giorno dopo)', here:'Posizione scelta sulla mappa', no_results:'Nessun risultato: prova solo via e città'
+    },
+    en:{
+      title_new:'New Off-Grid event', title_edit:'Edit Off-Grid event',
+      sub:'Only on this device · only you can see it',
+      help_aria:'What is an Off-Grid event?',
+      help:'<p><b>What is an Off-Grid event?</b><br>It’s your own appointment: it lives only in this device’s memory, never passes through any server and nobody but you can see it. Use it to plan your day on the map and in the calendar, next to the city’s events.</p><p><b>Why can’t I publish it for everyone yet?</b><br>Publishing an <i>on-grid</i> event means trusting us with your data and the organiser’s. Today Agorapp is an independent project, without a company behind it that can look after that data with the guarantees it deserves: we’d rather not collect it than collect it badly.</p><p><b>It’s coming soon.</b> We’re working on it, and you’ll be among the first to know.</p>',
+      f_title:'Title', f_title_ph:'e.g. Coffee with Giulia', f_title_err:'Give your appointment a name',
+      f_addr:'Address', f_addr_ph:'Street, square or place', f_addr_err:'Pick an address from the suggestions or the map',
+      f_addr_map:'Pick on the map', f_addr_ok:'✓ Location set',
+      f_date:'Day', f_start:'Start', f_end:'End', f_time_err:'Set at least a day and a start time',
+      oggi:'Today', domani:'Tomorrow',
+      f_notes:'Notes', f_notes_ph:'What to bring, who with, reminders…',
+      f_links:'Useful links', f_add_link:'+ Add a link',
+      opt:'optional', cancel:'Cancel', save:'Save to map', save_edit:'Save changes', del:'Delete',
+      admin_ongrid:'Admin: create a full on-grid event instead →',
+      pick_hint:'Move the map to the spot', pick_ok:'Confirm', pick_cancel:'Cancel',
+      searching:'Looking up the address…', not_found:'Address not found: pick a suggestion or use the map.',
+      saved:'Appointment saved to map and calendar', updated:'Appointment updated', deleted:'Appointment deleted',
+      conf_del:'Delete this appointment?', only_you:'only you',
+      directions:'Directions', edit:'Edit', in_cal:'✓ In calendar', to_cal:'+ Calendar',
+      next_day:'(next day)', here:'Location picked on the map', no_results:'No results: try just street and city'
+    }
+  };
+  function tt(k){var L=(typeof lang!=='undefined'&&S[lang])?S[lang]:S.it;return L[k]!=null?L[k]:S.it[k];}
+  function e(x){return typeof esc==='function'?esc(x):String(x||'');}
+  function pad(n){return (n<10?'0':'')+n;}
+  function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  function hm(d){return pad(d.getHours())+':'+pad(d.getMinutes());}
+  function addMin(t,m){var p=t.split(':');var x=(+p[0])*60+(+p[1])+m;x=((x%1440)+1440)%1440;return pad(Math.floor(x/60))+':'+pad(x%60);}
+  function toast(m){if(typeof showToast==='function')showToast(m);}
+  function normLink(u){u=(u||'').trim();if(!u)return '';if(!/^https?:\/\//i.test(u)&&/^[\w-]+(\.[\w-]+)+/.test(u))u='https://'+u;return safeUrl(u);}
+
+  var st=null; /* stato del form aperto */
+
+  /* ---------- FORM ---------- */
+  function openForm(ev,preset){
+    if(typeof map!=='undefined'&&map)map.closePopup();
+    preset=preset||{};
+    var isEdit=!!ev;
+    var now=new Date();now.setSeconds(0,0);
+    var m=now.getMinutes();now.setMinutes(m+(15-m%15)%15||15);  /* prossimo quarto d'ora */
+    var date=isEdit?(ev.datetime||'').slice(0,10):(preset.date||ymd(now));
+    var start=isEdit?(ev.datetime||'').slice(11,16):(preset.start||hm(now));
+    var end=isEdit?((ev.end||'').slice(11,16)):(preset.end||addMin(start,60));
+    st={ev:ev||null,pos:isEdit?{lat:ev.lat,lng:ev.lng}:(preset.pos||null),endTouched:isEdit,links:isEdit?(ev.links&&ev.links.length?ev.links.slice():(ev.link?[ev.link]:[])):[]};
+    if(!st.links.length)st.links=[''];
+    var h='<div class="modal-overlay" id="og-overlay"><div class="modal" id="og-form" role="dialog" aria-modal="true" aria-labelledby="og-t">';
+    h+='<div class="og-head"><div class="modal-title" id="og-t">'+tt(isEdit?'title_edit':'title_new')
+      +'<button type="button" class="og-help-btn" id="og-help-btn" aria-expanded="false" aria-controls="og-bubble" title="'+e(tt('help_aria'))+'" aria-label="'+e(tt('help_aria'))+'">?</button></div>'
+      +'<button type="button" class="og-x" id="og-x" aria-label="'+e(tt('cancel'))+'">&times;</button></div>';
+    h+='<div class="og-sub"><span class="og-pill">📡 Off-Grid</span>'+e(tt('sub'))+'</div>';
+    h+='<div class="og-bubble" id="og-bubble" role="note">'+tt('help')+'</div>';
+    h+='<div class="field"><label for="og-title">'+tt('f_title')+' <span class="og-req">*</span></label><input id="og-title" type="text" maxlength="100" autocomplete="off" placeholder="'+e(tt('f_title_ph'))+'" value="'+e(isEdit?ev.title:(preset.title||''))+'"><div class="err-msg" id="og-err-title">'+tt('f_title_err')+'</div></div>';
+    h+='<div class="field"><label for="og-addr">'+tt('f_addr')+' <span class="og-req">*</span></label><div class="og-addr-row"><div class="og-addr-wrap"><input id="og-addr" type="text" autocomplete="off" placeholder="'+e(tt('f_addr_ph'))+'" value="'+e(isEdit?(ev.address||''):(preset.address||''))+'"><div class="og-sug" id="og-sug" role="listbox"></div></div>'
+      +'<button type="button" class="og-icon-btn" id="og-map-btn" title="'+e(tt('f_addr_map'))+'" aria-label="'+e(tt('f_addr_map'))+'"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.24 1.5 3 3.6 3 6.3 3 9.8 8 14.5 8 14.5s5-4.7 5-8.2c0-2.7-2.24-4.8-5-4.8z" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="6.3" r="1.8" stroke="currentColor" stroke-width="1.3"/></svg></button></div>'
+      +'<div class="og-pos-ok'+(st.pos?' show':'')+'" id="og-pos-ok">'+tt('f_addr_ok')+'</div><div class="err-msg" id="og-err-addr">'+tt('f_addr_err')+'</div></div>';
+    h+='<div class="field"><label>'+tt('f_date')+' · '+tt('f_start')+' · '+tt('f_end')+' <span class="og-req">*</span></label>'
+      +'<div class="og-days"><button type="button" class="og-day" data-d="0">'+tt('oggi')+'</button><button type="button" class="og-day" data-d="1">'+tt('domani')+'</button></div>'
+      +'<div class="og-time-row"><input id="og-date" type="date" aria-label="'+e(tt('f_date'))+'" value="'+e(date)+'"><input id="og-start" type="time" step="300" aria-label="'+e(tt('f_start'))+'" value="'+e(start)+'"><input id="og-end" type="time" step="300" aria-label="'+e(tt('f_end'))+'" value="'+e(end)+'"></div>'
+      +'<div class="err-msg" id="og-err-time">'+tt('f_time_err')+'</div></div>';
+    h+='<div class="field"><label for="og-notes">'+tt('f_notes')+' <span class="field-hint">'+tt('opt')+'</span></label><textarea id="og-notes" maxlength="1000" placeholder="'+e(tt('f_notes_ph'))+'">'+e(isEdit?(ev.notes||''):(preset.notes||''))+'</textarea></div>';
+    h+='<div class="field og-links"><label>'+tt('f_links')+' <span class="field-hint">'+tt('opt')+'</span></label><div id="og-links"></div><button type="button" class="og-add-link" id="og-add-link">'+tt('f_add_link')+'</button></div>';
+    h+='<div class="modal-actions"><button class="btn-secondary" id="og-cancel">'+tt('cancel')+'</button>'+(isEdit?'<button class="btn-danger" id="og-del">'+tt('del')+'</button>':'')+'<button class="btn-primary" id="og-save">'+tt(isEdit?'save_edit':'save')+'</button></div>';
+    if(!isEdit&&typeof isAdmin!=='undefined'&&isAdmin)h+='<button type="button" class="og-admin-link" id="og-admin">'+tt('admin_ongrid')+'</button>';
+    h+='</div></div>';
+    document.getElementById('modal-root').innerHTML=h;
+    renderLinks();markDay();
+    wire(isEdit);
+    if(!isEdit&&!preset.title)setTimeout(function(){var t=document.getElementById('og-title');if(t)t.focus();},60);
+  }
+
+  function renderLinks(){
+    var box=document.getElementById('og-links');if(!box)return;
+    box.innerHTML=st.links.map(function(u,i){return '<div class="og-link-row"><input type="url" inputmode="url" data-li="'+i+'" placeholder="https://…" value="'+e(u)+'">'+(st.links.length>1?'<button type="button" class="og-link-del" data-ld="'+i+'" aria-label="×">&times;</button>':'')+'</div>';}).join('');
+    var add=document.getElementById('og-add-link');if(add)add.style.display=st.links.length>=5?'none':'';
+  }
+  function markDay(){
+    var d=document.getElementById('og-date');if(!d)return;var t=new Date();var tm=new Date();tm.setDate(tm.getDate()+1);
+    document.querySelectorAll('.og-day').forEach(function(b){var v=b.dataset.d==='0'?ymd(t):ymd(tm);b.classList.toggle('on',d.value===v);});
+  }
+  function closeForm(){document.getElementById('modal-root').innerHTML='';st=null;closeSug();}
+
+  function wire(isEdit){
+    var $=function(id){return document.getElementById(id);};
+    $('og-x').onclick=closeForm;$('og-cancel').onclick=closeForm;
+    $('og-overlay').addEventListener('mousedown',function(ev){if(ev.target===this&&!window.getSelection().toString())closeForm();});
+    var hb=$('og-help-btn'),bub=$('og-bubble');
+    hb.onclick=function(){var o=!bub.classList.contains('open');bub.classList.toggle('open',o);hb.setAttribute('aria-expanded',o);
+      try{var r1=hb.getBoundingClientRect(),r2=bub.parentNode.getBoundingClientRect();bub.style.setProperty('--og-arrow-x',Math.max(12,r1.left-r2.left+4)+'px');}catch(_){}};
+    $('og-date').addEventListener('change',markDay);
+    document.querySelectorAll('.og-day').forEach(function(b){b.onclick=function(){var d=new Date();d.setDate(d.getDate()+(+b.dataset.d));$('og-date').value=ymd(d);markDay();};});
+    $('og-start').addEventListener('change',function(){if(!st.endTouched&&this.value)$('og-end').value=addMin(this.value,60);});
+    $('og-end').addEventListener('input',function(){st.endTouched=true;});
+    $('og-add-link').onclick=function(){syncLinks();if(st.links.length<5){st.links.push('');renderLinks();var ins=document.querySelectorAll('#og-links input');ins[ins.length-1].focus();}};
+    $('og-links').addEventListener('click',function(ev){var d=ev.target.closest('[data-ld]');if(!d)return;syncLinks();st.links.splice(+d.dataset.ld,1);if(!st.links.length)st.links=[''];renderLinks();});
+    $('og-map-btn').onclick=startPick;
+    $('og-save').onclick=save;
+    if(isEdit)$('og-del').onclick=function(){if(confirm(tt('conf_del'))){removeEvent(st.ev.id);closeForm();toast(tt('deleted'));}};
+    var adm=$('og-admin');if(adm)adm.onclick=function(){closeForm();if(typeof editingId!=='undefined')editingId=null;showModal(null);};
+    var addr=$('og-addr');
+    addr.addEventListener('input',function(){st.pos=null;$('og-pos-ok').classList.remove('show');queueSug(this.value);});
+    addr.addEventListener('keydown',sugKeys);
+    $('og-form').addEventListener('keydown',function(ev){if(ev.key==='Escape'){if(sugOpen())closeSug();else closeForm();}
+      if(ev.key==='Enter'&&ev.target.tagName==='INPUT'&&ev.target.id!=='og-addr'){ev.preventDefault();save();}});
+  }
+  function syncLinks(){st.links=[].map.call(document.querySelectorAll('#og-links input'),function(i){return i.value.trim();});}
+
+  /* ---------- AUTOCOMPLETE INDIRIZZO (Photon → Nominatim) ---------- */
+  var sugT=null,sugCtrl=null,sugList=[],sugI=-1,cache={};
+  function sugOpen(){var b=document.getElementById('og-sug');return b&&b.classList.contains('open');}
+  function closeSug(){var b=document.getElementById('og-sug');if(b){b.classList.remove('open');b.innerHTML='';}sugList=[];sugI=-1;}
+  function getJ(u,sig){if(cache[u])return Promise.resolve(cache[u]);return fetch(u,{signal:sig,headers:{'Accept-Language':'it'}}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){cache[u]=j;return j;});}
+  function ctr(){try{var c=map.getCenter();return {lat:c.lat,lng:c.lng,z:Math.round(map.getZoom())};}catch(_){return {lat:45.07,lng:7.69,z:12};}}
+  function photon(q,sig){var c=ctr();
+    return getJ('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&limit=5&lat='+c.lat.toFixed(4)+'&lon='+c.lng.toFixed(4)+'&zoom='+c.z+'&bbox=6.6,36.6,18.6,47.1',sig).then(function(j){
+      return (j.features||[]).map(function(f){var p=f.properties||{},g=f.geometry&&f.geometry.coordinates;if(!g)return null;
+        var sn=p.street?(p.street+(p.housenumber?' '+p.housenumber:'')):'';var main=p.name||sn||p.city||'';
+        var sub=[p.name?sn:'',p.city||p.town||p.village||'',p.county||''].filter(function(x,i,a){return x&&x!==main&&a.indexOf(x)===i;}).join(', ');
+        return {lat:g[1],lng:g[0],main:main,sub:sub};}).filter(Boolean);});}
+  function nomi(q,sig){var vb='';try{var b=map.getBounds();vb='&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth());}catch(_){}
+    return getJ('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=5&countrycodes=it'+vb,sig).then(function(d){
+      return (d||[]).map(function(x){var p=(x.display_name||'').split(',');return {lat:+x.lat,lng:+x.lon,main:p.slice(0,2).join(',').trim(),sub:p.slice(2,4).join(',').trim()};});});}
+  function lookup(q,sig){return photon(q,sig).catch(function(){return [];}).then(function(r){return r.length?r:nomi(q,sig).catch(function(){return [];});});}
+  function queueSug(v){clearTimeout(sugT);v=(v||'').trim();if(v.length<3){closeSug();return;}
+    sugT=setTimeout(function(){if(sugCtrl)try{sugCtrl.abort();}catch(_){}sugCtrl=window.AbortController?new AbortController():null;
+      lookup(v,sugCtrl&&sugCtrl.signal).then(showSug).catch(function(){});},280);}
+  function showSug(list){var b=document.getElementById('og-sug');if(!b||!st)return;sugList=list;sugI=-1;
+    b.innerHTML=list.length?list.map(function(r,i){return '<button type="button" role="option" data-si="'+i+'"><div class="m">'+e(r.main)+'</div>'+(r.sub?'<div class="s">'+e(r.sub)+'</div>':'')+'</button>';}).join(''):'<div style="padding:8px 11px;font-size:0.72rem;color:var(--text-muted)">'+tt('no_results')+'</div>';
+    b.classList.add('open');
+    [].forEach.call(b.querySelectorAll('[data-si]'),function(x){x.addEventListener('mousedown',function(ev){ev.preventDefault();pickSug(+x.dataset.si);});});}
+  function pickSug(i){var r=sugList[i];if(!r)return;var a=document.getElementById('og-addr');a.value=r.main+(r.sub?', '+r.sub.split(',')[0]:'');setPos({lat:r.lat,lng:r.lng});closeSug();}
+  function sugKeys(ev){if(!sugOpen())return;var n=sugList.length;if(!n)return;
+    if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ev.preventDefault();sugI=(sugI+(ev.key==='ArrowDown'?1:-1)+n)%n;[].forEach.call(document.querySelectorAll('#og-sug [data-si]'),function(x,k){x.classList.toggle('hl',k===sugI);});}
+    else if(ev.key==='Enter'){ev.preventDefault();pickSug(sugI<0?0:sugI);}}
+  function setPos(p){st.pos=p;var ok=document.getElementById('og-pos-ok');if(ok)ok.classList.add('show');var er=document.getElementById('og-err-addr');if(er)er.classList.remove('show');
+    try{map.setView([p.lat,p.lng],Math.max(map.getZoom(),16));}catch(_){}}
+  function reverse(p){return getJ('https://nominatim.openstreetmap.org/reverse?lat='+p.lat.toFixed(6)+'&lon='+p.lng.toFixed(6)+'&format=json&zoom=18&addressdetails=1').then(function(d){
+      var a=d&&d.address||{};var road=a.road||a.pedestrian||a.square||a.footway||'';var line=[road+(a.house_number?' '+a.house_number:''),a.city||a.town||a.village||''].filter(Boolean).join(', ');
+      return line||(d&&d.display_name?d.display_name.split(',').slice(0,2).join(','):'');}).catch(function(){return '';});}
+
+  /* ---------- SCELTA SULLA MAPPA (mirino al centro) ---------- */
+  function snapshot(){syncLinks();return {title:val('og-title'),address:val('og-addr'),date:val('og-date'),start:val('og-start'),end:val('og-end'),notes:val('og-notes'),links:st.links.slice(),endTouched:st.endTouched,ev:st.ev,pos:st.pos};}
+  function val(id){var x=document.getElementById(id);return x?x.value:'';}
+  function startPick(){
+    var snap=snapshot();document.getElementById('modal-root').innerHTML='';
+    var wrap=document.getElementById('map-wrap');
+    var pin=document.getElementById('og-pick-pin');
+    if(!pin){pin=document.createElement('div');pin.id='og-pick-pin';pin.innerHTML='<svg width="34" height="44" viewBox="0 0 30 38"><path d="M15 36.5C15 36.5 2 23.5 2 14.2 2 7 7.8 1.5 15 1.5S28 7 28 14.2C28 23.5 15 36.5 15 36.5Z" fill="var(--accent)" stroke="white" stroke-width="2"/><circle cx="15" cy="14" r="5" fill="white"/></svg>';wrap.appendChild(pin);}
+    var bar=document.getElementById('og-pick-bar');
+    if(!bar){bar=document.createElement('div');bar.id='og-pick-bar';wrap.appendChild(bar);}
+    bar.innerHTML='<span>'+tt('pick_hint')+'</span><button id="og-pick-cancel">'+tt('pick_cancel')+'</button><button id="og-pick-ok">'+tt('pick_ok')+'</button>';
+    if(snap.pos)try{map.setView([snap.pos.lat,snap.pos.lng],Math.max(map.getZoom(),16));}catch(_){}
+    pin.style.display='block';bar.style.display='flex';
+    function done(){pin.style.display='none';bar.style.display='none';}
+    document.getElementById('og-pick-cancel').onclick=function(){done();reopen(snap);};
+    document.getElementById('og-pick-ok').onclick=function(){done();var c=map.getCenter();snap.pos={lat:c.lat,lng:c.lng};
+      var keep=snap.address;reopen(snap);
+      reverse(snap.pos).then(function(a){var el=document.getElementById('og-addr');if(el&&(!keep||el.value===keep))el.value=a||tt('here');});};
+  }
+  function reopen(snap){
+    openForm(snap.ev,{title:snap.title,address:snap.address,date:snap.date,start:snap.start,end:snap.end,notes:snap.notes,pos:snap.pos});
+    if(snap.ev){/* in modifica i campi vengono dall'evento: riapplica lo stato corrente */
+      ['title','date','start','end','notes'].forEach(function(k){var el=document.getElementById('og-'+k);if(el)el.value=snap[k];});
+      document.getElementById('og-addr').value=snap.address;st.pos=snap.pos;}
+    st.endTouched=snap.endTouched;st.links=snap.links.length?snap.links:[''];renderLinks();markDay();
+    if(snap.pos){st.pos=snap.pos;document.getElementById('og-pos-ok').classList.add('show');}
+  }
+
+  /* ---------- SALVATAGGIO ---------- */
+  function save(){
+    if(!st)return;syncLinks();
+    var title=val('og-title').trim(),addr=val('og-addr').trim(),date=val('og-date'),start=val('og-start'),end=val('og-end');
+    var ok=true;
+    function flag(id,bad,inp){var er=document.getElementById(id);if(er)er.classList.toggle('show',bad);if(inp){var i=document.getElementById(inp);if(i)i.classList.toggle('error',bad);}if(bad)ok=false;}
+    flag('og-err-title',!title,'og-title');
+    flag('og-err-time',!date||!start);
+    if(!ok)return;
+    if(!st.pos){
+      if(addr.length<3){flag('og-err-addr',true,'og-addr');return;}
+      toast(tt('searching'));
+      lookup(addr).then(function(r){if(!st)return;if(r&&r.length){st.pos={lat:r[0].lat,lng:r[0].lng};save();}else{flag('og-err-addr',true,'og-addr');toast(tt('not_found'));}});
+      return;
+    }
+    var sdt=date+'T'+start,edt='';
+    if(end){edt=date+'T'+end;if(end<=start){var d=new Date(date+'T00:00');d.setDate(d.getDate()+1);edt=ymd(d)+'T'+end;}}
+    var links=st.links.map(normLink).filter(Boolean);
+    var fields={title:title,address:addr,lat:st.pos.lat,lng:st.pos.lng,datetime:sdt,end:edt,duration:'',notes:val('og-notes').trim(),description:val('og-notes').trim(),
+      links:links,link:links[0]||'',offgrid:true,personal:true,category:'',sublayer:'',hidden:false,hiddenPassword:'',price:'',image:''};
+    var id,isEdit=!!st.ev;
+    if(isEdit){var ev=events.find(function(x){return x.id===st.ev.id;});if(ev){Object.assign(ev,fields);id=ev.id;}}
+    else{id='og'+Date.now().toString(36);events.push(Object.assign({id:id,going:0,here:0,createdAt:new Date().toISOString()},fields));
+      if(typeof addToCalendar==='function')addToCalendar(id);}
+    saveEvents();closeForm();
+    if(typeof showOffgrid!=='undefined'&&!showOffgrid){var b=document.getElementById('toggle-offgrid');if(b)b.click();}
+    if(typeof refreshMarkers==='function')refreshMarkers();
+    if(typeof renderLayers==='function')renderLayers();
+    toast(tt(isEdit?'updated':'saved'));
+    var e2=events.find(function(x){return x.id===id;});
+    try{map.setView([e2.lat,e2.lng],Math.max(map.getZoom(),16));}catch(_){}
+    setTimeout(function(){if(markers[id])markers[id].openPopup();},250);
+  }
+  function removeEvent(id){
+    events=events.filter(function(x){return x.id!==id;});saveEvents();
+    if(markers[id]){markers[id].remove();delete markers[id];}
+    if(typeof removeFromCalendar==='function'&&typeof isInCalendar==='function'&&isInCalendar(id))removeFromCalendar(id);
+    try{map.closePopup();}catch(_){}
+    if(typeof updateCount==='function')updateCount();
+  }
+
+  /* ---------- POPUP ---------- */
+  function whenStr(ev){
+    try{var s=new Date(ev.datetime);var day=s.toLocaleDateString(dloc(),{weekday:'short',day:'numeric',month:'long'});
+      var r=day+' · '+hm(s);if(ev.end){var en=new Date(ev.end);r+='–'+hm(en);if(ymd(en)!==ymd(s))r+=' '+tt('next_day');}return r;}catch(_){return '';}
+  }
+  window.ogBuildPopup=function(ev){
+    var exp=typeof isExpired==='function'&&isExpired(ev);
+    var links=(ev.links&&ev.links.length?ev.links:(ev.link?[ev.link]:[])).map(safeUrl).filter(Boolean);
+    var inCal=typeof isInCalendar==='function'&&isInCalendar(ev.id);
+    var dir='https://www.openstreetmap.org/directions?route=%3B'+(+ev.lat).toFixed(5)+'%2C'+(+ev.lng).toFixed(5);
+    return '<div style="position:relative;"><button class="popup-close-btn" data-action="close-popup" title="'+t('chiudi')+'">&times;</button><div class="popup-body">'
+      +'<div style="margin-bottom:6px;"><span class="og-pill">📡 Off-Grid · '+tt('only_you')+'</span>'+(exp?' <span class="popup-expired-badge">'+t('terminato')+'</span>':'')+'</div>'
+      +'<div class="popup-title">'+(typeof hl==='function'?hl(e(ev.title),e(searchQuery)):e(ev.title))+'</div>'
+      +'<div class="og-pop-when">🕒 '+e(whenStr(ev))+'</div>'
+      +(ev.address?'<div class="og-pop-addr">📍 '+e(ev.address)+'</div>':'')
+      +(ev.notes?'<div class="og-pop-notes">'+e(ev.notes)+'</div>':'')
+      +(links.length?'<div class="og-pop-links">'+links.map(function(u){var lbl=u.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,'');return '<a href="'+e(u)+'" target="_blank" rel="noopener">🔗 '+e(lbl)+'</a>';}).join('')+'</div>':'')
+      +'<div class="og-pop-actions"><a href="'+dir+'" target="_blank" rel="noopener">🧭 '+tt('directions')+'</a><button data-action="og-cal" data-id="'+ev.id+'">'+tt(inCal?'in_cal':'to_cal')+'</button></div>'
+      +'<div class="og-pop-actions"><button data-action="og-edit" data-id="'+ev.id+'">✎ '+tt('edit')+'</button><button class="og-danger" data-action="og-del" data-id="'+ev.id+'">'+tt('del')+'</button></div>'
+      +'</div></div>';
+  };
+  document.addEventListener('click',function(ev){
+    var b=ev.target.closest('[data-action^="og-"]');if(!b)return;
+    var id=b.dataset.id,a=b.dataset.action,item=events.find(function(x){return x.id===id;});if(!item)return;
+    if(a==='og-edit'){openForm(item);}
+    else if(a==='og-del'){if(confirm(tt('conf_del'))){removeEvent(id);toast(tt('deleted'));}}
+    else if(a==='og-cal'){if(isInCalendar(id)){removeFromCalendar(id);}else{addToCalendar(id);}if(markers[id])markers[id].setPopupContent(window.ogBuildPopup(item));}
+  });
+
+  /* ---------- PRESSIONE LUNGA / TASTO DESTRO SULLA MAPPA = nuovo evento lì ---------- */
+  function hookMap(){
+    if(typeof map==='undefined'||!map||!map.on){return setTimeout(hookMap,300);}
+    map.on('contextmenu',function(me){
+      if(document.getElementById('og-form'))return;
+      var p={lat:me.latlng.lat,lng:me.latlng.lng};
+      openForm(null,{pos:p});
+      reverse(p).then(function(a){var el=document.getElementById('og-addr');if(el&&!el.value)el.value=a||tt('here');});
+    });
+  }
+  hookMap();
+
+  window.ogOpenForm=function(){openForm(null);};
+  window.ogEdit=function(id){var ev=events.find(function(x){return x.id===id;});if(ev)openForm(ev);};
+})();
 </script>
 
 </body>
