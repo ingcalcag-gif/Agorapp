@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OG 1.5 — 30 settembre 2026 — Eventi Off-Grid ricorrenti (ogni giorno, dal lunedì al venerdì, ogni settimana, ogni 2 settimane, ogni mese; fino a una data); eliminazione: solo questo giorno o tutta la serie; modifica: solo questa data o tutta la serie; tolti "Condividi" dal calendario e "Parti da un tuo evento" dal form; coefficiente dei percorsi 1,4 -->
 <!-- OG 1.4 — 30 settembre 2026 — Calendario: viste nell'ordine Giornata · Mese · Agenda (Giornata all'apertura); oggi evidenziato nella vista Mese (griglia sempre visibile); Agenda divisa per giorni con intestazione e riga di separazione; PDF con anteprima: tutti gli eventi selezionati, si tolgono quelli da non condividere -->
 <!-- OG 1.3 — 30 settembre 2026 — "La mia giornata": terza vista del Calendario (Mese · Agenda · Giornata) con tappe numerate, tempi di spostamento stimati a piedi/in bici/con i mezzi, margini, avvisi di tempo stretto e sovrapposizioni, tempi liberi con "+ Aggiungi qui", e percorso numerato disegnato sulla mappa -->
 <!-- OG 1.2 — 30 settembre 2026 — Fine prima dell'inizio = evento che finisce il giorno dopo, segnalato in chiaro (form, popup, calendario); fine uguale all'inizio = errore; suggerimenti indirizzo mentre scrivi solo da Photon (policy Nominatim: niente autocompletamento), Nominatim usato una volta sola alla scelta per cercare il civico esatto -->
@@ -1297,6 +1298,8 @@ function matchSearch(ev){if(!searchQuery)return true;var q=searchQuery.toLowerCa
 function matchTime(ev){if(tlFrom<=tlWinStart&&tlTo>=tlWinEnd)return true;var s=ev.datetime?new Date(ev.datetime).getTime():0;var e=getEnd(ev)||s;return e>=tlFrom&&s<=tlTo;}
 function isVisible(ev){
   if(isGone(ev))return false;
+  /* OG 1.5 — di una serie ricorrente la mappa mostra solo la prossima data; le altre sono nel calendario */
+  if(ev.seriesId&&events.some(function(x){return x.seriesId===ev.seriesId&&x.id!==ev.id&&!isGone(x)&&(x.datetime||'')<(ev.datetime||'');}))return false;
   if(myCalFilter&&!isInCalendar(ev.id))return false;
   if(ev.offgrid&&!showOffgrid)return false;
   if(!ev.offgrid&&!showOngrid)return false;
@@ -1963,7 +1966,6 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
     +'<button id="cal-view-month" class="cal-view-btn cal-active">Mese</button>'
     +'<button id="cal-view-agenda" class="cal-view-btn">Agenda</button>'
     +'<button id="cal-print-btn" class="hdr-btn" style="font-size:0.6875rem;padding:4px 10px;">\u2b07 PDF</button>'
-    +'<button id="cal-share-btn" class="hdr-btn" style="font-size:0.6875rem;padding:4px 10px;">Condividi</button>'
     +'<button id="cal-close" class="hdr-btn" style="font-size:1.125rem;line-height:1;padding:2px 8px;">&times;</button>'
     +'</div></div>'
     +'<div id="cal-body" style="flex:1;overflow-y:auto;padding:16px;"></div>';
@@ -2059,7 +2061,7 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
     document.getElementById('cal-view-month').classList.remove('cal-active');renderCalOverlay();
   });
   document.getElementById('cal-print-btn').addEventListener('click',printCalendar);
-  document.getElementById('cal-share-btn').addEventListener('click',function(){
+  if(document.getElementById('cal-share-btn'))document.getElementById('cal-share-btn').addEventListener('click',function(){
     var evs=getCalEventsArr();if(!evs.length){showToast(t('t_no_condividere'));return;}
     try{
       var p=evs.map(function(ev){return{id:ev.id,title:ev.title,category:ev.category,sublayer:ev.sublayer||'',description:ev.description||'',datetime:ev.datetime,duration:ev.duration||'',price:ev.price||'',link:ev.link||'',lat:ev.lat,lng:ev.lng,hidden:false,hiddenPassword:''};});
@@ -3934,8 +3936,6 @@ window.addEventListener('load',function(){
 .og-bubble p:last-child{margin:0;}
 @keyframes ogPop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 #og-form .og-req{color:var(--accent);}
-.og-copy-from{margin-bottom:12px;}
-.og-copy-from select{width:100%;font-family:'DM Sans',sans-serif;font-size:0.75rem;padding:7px 9px;border-radius:9px;border:1px dashed var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;}
 .og-dup-banner{background:var(--surface2);border-left:3px solid var(--accent);border-radius:8px;padding:8px 11px;font-size:0.75rem;color:var(--text);margin-bottom:12px;}
 .og-addr-row{display:flex;gap:6px;}
 .og-addr-wrap{flex:1;position:relative;min-width:0;}
@@ -3965,6 +3965,28 @@ window.addEventListener('load',function(){
 .og-time-row input{width:100%;min-width:0;padding-left:8px;padding-right:4px;}
 .og-time-row input.error{border-color:#E53935!important;}
 .og-days{display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
+.og-rep-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.og-rep-row select{flex:1;min-width:150px;}
+.og-until-wrap{display:none;align-items:center;gap:6px;}
+.og-until-wrap.show{display:flex;}
+.og-until-lbl{font-size:0.72rem;color:var(--text-muted);white-space:nowrap;}
+.og-until-wrap input{width:150px;}
+.og-rep-sum{display:none;margin-top:6px;font-size:0.72rem;font-weight:600;color:var(--accent);}
+.og-rep-sum.show{display:block;}
+.og-ser-info{font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:6px;}
+.og-scope{display:flex;gap:14px;flex-wrap:wrap;font-size:0.8125rem;color:var(--text);}
+.og-scope label{display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;font-size:0.8125rem;color:var(--text);margin:0;}
+.og-scope input{accent-color:var(--accent);width:18px;height:18px;}
+.og-pop-rep{font-size:0.72rem;font-weight:600;color:var(--accent);margin:-2px 0 6px;}
+.og-ask-ov{position:fixed;inset:0;z-index:10060;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;}
+.og-ask{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:8px;font-family:'DM Sans',sans-serif;color:var(--text);box-shadow:0 12px 40px rgba(0,0,0,0.3);}
+.og-ask .q{font-family:'DM Serif Display',serif;font-size:1.1rem;line-height:1.25;}
+.og-ask .ev{font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;}
+.og-ask button{min-height:44px;border-radius:12px;font-family:inherit;font-size:0.875rem;font-weight:600;cursor:pointer;padding:8px 12px;text-align:center;}
+.og-ask button small{display:block;font-weight:400;font-size:0.72rem;opacity:.85;}
+.og-ask .b1{border:1px solid var(--border-strong);background:var(--surface2);color:var(--text);}
+.og-ask .b2{border:none;background:#C62828;color:white;}
+.og-ask .b3{border:none;background:none;color:var(--text-muted);}
 .og-nextday{display:none;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;border-radius:9px;background:#EEE6F7;border:1px solid #8B6BB8;color:#4A2F78;font-size:0.75rem;font-weight:600;}
 .og-nextday.show{display:flex;}
 [data-theme="dark"] .og-nextday{background:rgba(139,107,184,0.16);color:#CDB6F0;border-color:#8B6BB8;}
@@ -3999,7 +4021,6 @@ window.addEventListener('load',function(){
       sub:'Solo su questo dispositivo · lo vedi solo tu',
       help_aria:'Che cos’è un evento Off-Grid?',
       help:'<p><b>Che cos’è un evento Off-Grid?</b><br>È un tuo appuntamento: vive solo nella memoria di questo dispositivo, non passa da nessun server e nessuno oltre a te può vederlo. Ti serve per organizzare la giornata sulla mappa e nel calendario, accanto agli eventi della città.</p><p><b>Perché non posso ancora pubblicarlo per tutti?</b><br>Pubblicare un evento <i>on-grid</i> vuol dire affidarci i dati tuoi e di chi lo organizza. Oggi Agorapp è un progetto indipendente, senza ancora una società alle spalle in grado di custodirli con le garanzie che meritano: preferiamo non raccoglierli piuttosto che raccoglierli male.</p><p><b>Presto sarà possibile.</b> Ci stiamo lavorando: quando potrai pubblicare i tuoi eventi per tutta la città, sarai tra i primi a saperlo.</p>',
-      copy_from:'⧉ Parti da un tuo evento…',
       dup_banner:'Copia di «%s»: scegli il nuovo giorno e salva.',
       dup_btn:'⧉ Duplica questo evento',
       f_title:'Titolo', f_title_ph:'es. Caffè con Giulia', f_title_err:'Dai un nome al tuo appuntamento',
@@ -4017,6 +4038,10 @@ window.addEventListener('load',function(){
       f_end_err:'L’orario di fine coincide con l’inizio: cambialo',
       next_day_note:'Finisce il giorno dopo: %s', next_day_tag:'fino al giorno dopo',
       oggi:'Oggi', domani:'Domani',
+      f_rep:'Ripetizione', rep_none:'Non si ripete', rep_daily:'Ogni giorno', rep_weekdays:'Dal lunedì al venerdì', rep_weekly:'Ogni %s', rep_biweekly:'Ogni 2 settimane, di %s', rep_monthly:'Ogni mese, il giorno %s',
+      rep_until:'Fino al', rep_sum:'%s date in calendario', rep_err:'La data di fine ripetizione deve essere dopo il primo giorno', rep_max:'Al massimo un anno di ripetizioni',
+      ser_info:'Fa parte di una serie: %s', ser_scope_one:'Solo questa data', ser_scope_all:'Tutta la serie',
+      del_q:'Questo evento si ripete. Cosa vuoi eliminare?', del_one:'Solo questo giorno', del_all:'Tutta la serie (%s date)', saved_n:'%s appuntamenti salvati sulla mappa e nel calendario', deleted_all:'Serie eliminata',
       f_notes:'Note', f_notes_ph:'Cosa portare, con chi, promemoria…',
       f_links:'Link utili', f_add_link:'+ Aggiungi un link',
       opt:'facoltativo', cancel:'Annulla', save:'Salva sulla mappa', save_edit:'Salva modifiche', del:'Elimina',
@@ -4033,7 +4058,6 @@ window.addEventListener('load',function(){
       sub:'Only on this device · only you can see it',
       help_aria:'What is an Off-Grid event?',
       help:'<p><b>What is an Off-Grid event?</b><br>It’s your own appointment: it lives only in this device’s memory, never passes through any server and nobody but you can see it. Use it to plan your day on the map and in the calendar, next to the city’s events.</p><p><b>Why can’t I publish it for everyone yet?</b><br>Publishing an <i>on-grid</i> event means trusting us with your data and the organiser’s. Today Agorapp is an independent project, without a company behind it that can look after that data with the guarantees it deserves: we’d rather not collect it than collect it badly.</p><p><b>It’s coming soon.</b> We’re working on it, and you’ll be among the first to know.</p>',
-      copy_from:'⧉ Start from one of your events…',
       dup_banner:'Copy of «%s»: pick the new day and save.',
       dup_btn:'⧉ Duplicate this event',
       f_title:'Title', f_title_ph:'e.g. Coffee with Giulia', f_title_err:'Give your appointment a name',
@@ -4075,6 +4099,53 @@ window.addEventListener('load',function(){
 
   var st=null;
 
+  /* ================= RICORRENZA ================= */
+  function wdName(d){return d.toLocaleDateString(dloc(),{weekday:'long'});}
+  function repLabel(freq,dateStr){var d=new Date((dateStr||ymd(new Date()))+'T00:00');
+    if(freq==='daily')return tt('rep_daily');if(freq==='weekdays')return tt('rep_weekdays');
+    if(freq==='weekly')return tt('rep_weekly',wdName(d));if(freq==='biweekly')return tt('rep_biweekly',wdName(d));
+    if(freq==='monthly')return tt('rep_monthly',String(d.getDate()));return tt('rep_none');}
+  /* tutte le date (AAAA-MM-GG) della serie, dal primo giorno fino alla data finale compresa */
+  function repDates(first,freq,until){
+    var out=[],d=new Date(first+'T00:00'),end=new Date(until+'T00:00'),day0=d.getDate(),i=0;
+    if(!freq||freq==='none')return [first];
+    while(d<=end&&out.length<400&&i<2000){i++;
+      var dow=d.getDay();
+      if(freq==='daily')out.push(ymd(d));
+      else if(freq==='weekdays'){if(dow>=1&&dow<=5)out.push(ymd(d));}
+      else if(freq==='weekly'||freq==='biweekly'){out.push(ymd(d));d.setDate(d.getDate()+(freq==='weekly'?7:14));continue;}
+      else if(freq==='monthly'){var y=d.getFullYear(),mo=d.getMonth();var nd=new Date(y,mo,day0);if(nd.getMonth()===mo&&nd>=new Date(first+'T00:00')&&nd<=end)out.push(ymd(nd));d=new Date(y,mo+1,1);continue;}
+      d.setDate(d.getDate()+1);}
+    return out;}
+  function seriesOf(ev){if(!ev||!ev.seriesId)return ev?[ev]:[];return (events||[]).filter(function(x){return x.seriesId===ev.seriesId;}).sort(function(a,b){return (a.datetime||'').localeCompare(b.datetime||'');});}
+  function fillRep(){
+    var sel=document.getElementById('og-rep');if(!sel)return;var cur=sel.value||'none',d=val('og-date');
+    sel.innerHTML=['none','daily','weekdays','weekly','biweekly','monthly'].map(function(f){return '<option value="'+f+'"'+(f===cur?' selected':'')+'>'+e(repLabel(f,d))+'</option>';}).join('');
+    var on=sel.value!=='none',w=document.getElementById('og-until-wrap'),u=document.getElementById('og-until');
+    if(w)w.classList.toggle('show',on);
+    if(on&&u){var min=new Date(d+'T00:00');var max=new Date(min);max.setFullYear(max.getFullYear()+1);u.min=d;u.max=ymd(max);
+      if(!u.value||u.value<d){var def=new Date(min);def.setMonth(def.getMonth()+3);u.value=ymd(def);}}
+    var sum=document.getElementById('og-rep-sum'),er=document.getElementById('og-err-rep');if(er){er.classList.remove('show');}
+    if(sum){if(on&&u&&u.value){var n=repDates(d,sel.value,u.value).length;var last=repDates(d,sel.value,u.value).slice(-1)[0];
+        sum.textContent='↻ '+tt('rep_sum',String(n))+(last?' · ultima: '+new Date(last+'T00:00').toLocaleDateString(dloc(),{weekday:'short',day:'numeric',month:'short'}):'');sum.classList.add('show');}
+      else{sum.textContent='';sum.classList.remove('show');}}
+  }
+  /* finestra di scelta per eliminare: solo questo giorno o tutta la serie */
+  function askDelete(ev,after){
+    var sib=seriesOf(ev);
+    if(sib.length<2){if(confirm(tt('conf_del'))){removeEvent(ev.id);toast(tt('deleted'));if(after)after();}return;}
+    var ov=document.createElement('div');ov.className='og-ask-ov';
+    ov.innerHTML='<div class="og-ask" role="dialog" aria-modal="true" aria-labelledby="og-ask-t"><div id="og-ask-t" class="q">'+e(tt('del_q'))+'</div><div class="ev">'+e(ev.title)+' · '+e(repLabel(ev.rep&&ev.rep.freq,(ev.datetime||'').slice(0,10)))+'</div>'
+      +'<button type="button" class="b1" data-k="one">'+e(tt('del_one'))+'<small>'+e(new Date(ev.datetime).toLocaleDateString(dloc(),{weekday:'long',day:'numeric',month:'long'}))+'</small></button>'
+      +'<button type="button" class="b2" data-k="all">'+e(tt('del_all',String(sib.length)))+'</button>'
+      +'<button type="button" class="b3" data-k="no">'+e(tt('cancel'))+'</button></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(x){var b=x.target.closest('[data-k]');if(x.target===ov||(b&&b.dataset.k==='no')){ov.remove();return;}if(!b)return;
+      if(b.dataset.k==='one'){removeEvent(ev.id);toast(tt('deleted'));}else{sib.forEach(function(y){removeEvent(y.id);});toast(tt('deleted_all'));}
+      ov.remove();if(typeof refreshMarkers==='function')refreshMarkers();if(after)after();});
+    var f=ov.querySelector('.b1');if(f)f.focus();
+  }
+
   /* ================= FORM ================= */
   function openForm(ev,preset){
     if(typeof map!=='undefined'&&map)map.closePopup();
@@ -4101,11 +4172,6 @@ window.addEventListener('load',function(){
     h+='<div class="og-sub"><span class="og-pill">📡 Off-Grid</span>'+e(tt('sub'))+'</div>';
     h+='<div class="og-bubble" id="og-bubble" role="note">'+tt('help')+'</div>';
     if(preset.dupOf)h+='<div class="og-dup-banner">'+e(tt('dup_banner',preset.dupOf))+'</div>';
-    else if(!isEdit&&mine.length){
-      h+='<div class="og-copy-from"><select id="og-copy" aria-label="'+e(tt('copy_from'))+'"><option value="">'+e(tt('copy_from'))+'</option>'
-        +mine.slice(0,12).map(function(x){var d='';try{d=new Date(x.datetime).toLocaleDateString(dloc(),{day:'numeric',month:'short'})+' '+(x.datetime||'').slice(11,16);}catch(_){}return '<option value="'+e(x.id)+'">'+e(x.title)+(d?' · '+e(d):'')+'</option>';}).join('')
-        +'</select></div>';
-    }
     h+='<div class="field"><label for="og-title">'+tt('f_title')+' <span class="og-req">*</span></label><input id="og-title" type="text" maxlength="100" autocomplete="off" placeholder="'+e(tt('f_title_ph'))+'" value="'+e(isEdit?ev.title:(preset.title||''))+'"><div class="err-msg" id="og-err-title">'+tt('f_title_err')+'</div></div>';
     h+='<div class="field"><label for="og-addr">'+tt('f_addr')+' <span class="og-req">*</span></label><div class="og-addr-row"><div class="og-addr-wrap"><input id="og-addr" type="text" autocomplete="off" placeholder="'+e(tt('f_addr_ph'))+'" value="'+e(isEdit?(ev.address||''):(preset.address||''))+'"><div class="og-sug" id="og-sug" role="listbox"></div></div>'
       +'<button type="button" class="og-icon-btn" id="og-map-btn" title="'+e(tt('f_addr_map'))+'" aria-label="'+e(tt('f_addr_map'))+'"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.24 1.5 3 3.6 3 6.3 3 9.8 8 14.5 8 14.5s5-4.7 5-8.2c0-2.7-2.24-4.8-5-4.8z" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="6.3" r="1.8" stroke="currentColor" stroke-width="1.3"/></svg></button></div>'
@@ -4114,6 +4180,8 @@ window.addEventListener('load',function(){
       +'<div class="og-days"><button type="button" class="og-day" data-d="0">'+tt('oggi')+'</button><button type="button" class="og-day" data-d="1">'+tt('domani')+'</button></div>'
       +'<div class="og-time-row"><input id="og-date" type="date" aria-label="'+e(tt('f_date'))+'" value="'+e(date)+'"><input id="og-start" type="time" step="300" aria-label="'+e(tt('f_start'))+'" value="'+e(start)+'"><input id="og-end" type="time" step="300" aria-label="'+e(tt('f_end'))+'" value="'+e(end)+'"></div>'
       +'<div class="err-msg" id="og-err-time">'+tt('f_time_err')+'</div><div class="err-msg" id="og-err-end">'+tt('f_end_err')+'</div><div class="og-nextday" id="og-nextday" aria-live="polite"></div></div>';
+    if(!isEdit){h+='<div class="field og-rep"><label for="og-rep">'+tt('f_rep')+'</label><div class="og-rep-row"><select id="og-rep"></select><span class="og-until-wrap" id="og-until-wrap"><span class="og-until-lbl">'+tt('rep_until')+'</span><input id="og-until" type="date" aria-label="'+e(tt('rep_until'))+'"></span></div><div class="og-rep-sum" id="og-rep-sum"></div><div class="err-msg" id="og-err-rep"></div></div>';}
+    else if(ev.seriesId){var sib=seriesOf(ev);h+='<div class="field og-rep"><div class="og-ser-info">↻ '+e(tt('ser_info',repLabel(ev.rep&&ev.rep.freq,(ev.datetime||'').slice(0,10))+' · '+sib.length+' date'))+'</div>'+'<div class="og-scope" role="radiogroup" aria-label="Applica le modifiche a"><label><input type="radio" name="og-scope" value="one" checked> '+tt('ser_scope_one')+'</label><label><input type="radio" name="og-scope" value="all"> '+tt('ser_scope_all')+'</label></div></div>';}
     h+='<div class="field"><label for="og-notes">'+tt('f_notes')+' <span class="field-hint">'+tt('opt')+'</span></label><textarea id="og-notes" maxlength="1000" placeholder="'+e(tt('f_notes_ph'))+'">'+e(isEdit?(ev.notes||''):(preset.notes||''))+'</textarea></div>';
     h+='<div class="field og-links"><label>'+tt('f_links')+' <span class="field-hint">'+tt('opt')+'</span></label><div id="og-links"></div><button type="button" class="og-add-link" id="og-add-link">'+tt('f_add_link')+'</button></div>';
     h+='<div class="modal-actions"><button class="btn-secondary" id="og-cancel">'+tt('cancel')+'</button>'+(isEdit?'<button class="btn-danger" id="og-del">'+tt('del')+'</button>':'')+'<button class="btn-primary" id="og-save">'+tt(isEdit?'save_edit':'save')+'</button></div>';
@@ -4122,7 +4190,7 @@ window.addEventListener('load',function(){
     h+='</div></div>';
     document.getElementById('modal-root').innerHTML=h;
     renderLinks();markDay();renderConfirm();
-    wire(isEdit);checkTimes();
+    wire(isEdit);checkTimes();fillRep();
     if(preset.dupOf)setTimeout(function(){var d=document.getElementById('og-date');if(d)d.focus();},60);
     else if(!isEdit&&!preset.title)setTimeout(function(){var t=document.getElementById('og-title');if(t)t.focus();},60);
   }
@@ -4164,8 +4232,9 @@ window.addEventListener('load',function(){
     var hb=$('og-help-btn'),bub=$('og-bubble');
     hb.onclick=function(){var o=!bub.classList.contains('open');bub.classList.toggle('open',o);hb.setAttribute('aria-expanded',o);
       try{var r1=hb.getBoundingClientRect(),r2=bub.parentNode.getBoundingClientRect();bub.style.setProperty('--og-arrow-x',Math.max(12,r1.left-r2.left+4)+'px');}catch(_){}};
-    $('og-date').addEventListener('change',function(){markDay();checkTimes();});
-    document.querySelectorAll('.og-day').forEach(function(b){b.onclick=function(){var d=new Date();d.setDate(d.getDate()+(+b.dataset.d));$('og-date').value=ymd(d);markDay();checkTimes();};});
+    $('og-date').addEventListener('change',function(){markDay();checkTimes();fillRep();});
+    if($('og-rep')){$('og-rep').addEventListener('change',fillRep);$('og-until').addEventListener('change',fillRep);}
+    document.querySelectorAll('.og-day').forEach(function(b){b.onclick=function(){var d=new Date();d.setDate(d.getDate()+(+b.dataset.d));$('og-date').value=ymd(d);markDay();checkTimes();fillRep();};});
     $('og-start').addEventListener('change',function(){if(!st.endTouched&&this.value)$('og-end').value=autoEnd(this.value);checkTimes();});
     $('og-end').addEventListener('input',function(){st.endTouched=true;});
     $('og-end').addEventListener('change',function(){checkTimes();});
@@ -4174,14 +4243,10 @@ window.addEventListener('load',function(){
     $('og-map-btn').onclick=startPick;
     $('og-save').onclick=save;
     if(isEdit){
-      $('og-del').onclick=function(){if(confirm(tt('conf_del'))){removeEvent(st.ev.id);closeForm();toast(tt('deleted'));}};
+      $('og-del').onclick=function(){askDelete(st.ev,closeForm);};
       $('og-dup').onclick=function(){var sn=snapshot();var src=st.ev;
         openForm(null,{dupOf:src.title,title:sn.title,address:sn.address,addrFull:sn.addrFull,precision:sn.precision,hn:sn.hn,pos:sn.pos,date:sn.date,start:sn.start,end:sn.end,endTouched:true,notes:sn.notes,links:sn.links.filter(Boolean)});};
     }
-    var cp=$('og-copy');
-    if(cp)cp.addEventListener('change',function(){var x=events.find(function(y){return y.id===cp.value;});if(!x)return;
-      var keepDate=val('og-date');
-      openForm(null,{dupOf:x.title,title:x.title,address:x.address,addrFull:x.addressFull||x.address,precision:x.addrPrecision||'exact',hn:x.addrNum||'',pos:{lat:x.lat,lng:x.lng},date:keepDate,start:(x.datetime||'').slice(11,16),end:(x.end||'').slice(11,16),endTouched:true,notes:x.notes||'',links:(x.links||[]).slice()});});
     var adm=$('og-admin');if(adm)adm.onclick=function(){closeForm();if(typeof editingId!=='undefined')editingId=null;showModal(null);};
     var addr=$('og-addr');
     addr.addEventListener('input',function(){st.pos=null;st.addrFull='';st.precision='';renderConfirm();queueSug(this.value);});
@@ -4367,16 +4432,35 @@ window.addEventListener('load',function(){
     var links=st.links.map(normLink).filter(Boolean);
     var fields={title:title,address:addr,addressFull:st.addrFull||addr,addrPrecision:st.precision||'exact',addrNum:st.hn||'',lat:st.pos.lat,lng:st.pos.lng,datetime:sdt,end:edt,duration:'',notes:val('og-notes').trim(),description:val('og-notes').trim(),
       links:links,link:links[0]||'',offgrid:true,personal:true,category:'',sublayer:'',hidden:false,hiddenPassword:'',price:'',image:''};
-    var id,isEdit=!!st.ev;
-    if(isEdit){var ev=events.find(function(x){return x.id===st.ev.id;});if(ev){Object.assign(ev,fields);id=ev.id;}}
-    else{id='og'+Date.now().toString(36);events.push(Object.assign({id:id,going:0,here:0,createdAt:new Date().toISOString()},fields));
-      if(typeof addToCalendar==='function')addToCalendar(id);}
+    var id,isEdit=!!st.ev,count=1;
+    var endOff=edt?Math.round((new Date(edt.slice(0,10)+'T00:00')-new Date(date+'T00:00'))/86400000):0;
+    if(isEdit){var ev=events.find(function(x){return x.id===st.ev.id;});
+      var scopeAll=!!document.querySelector('input[name="og-scope"][value="all"]:checked');
+      if(ev&&scopeAll&&ev.seriesId){
+        /* tutta la serie: stessi dati e orari, ogni data resta la sua */
+        seriesOf(ev).forEach(function(x){var dd=x.id===ev.id?date:(x.datetime||'').slice(0,10);var f2=Object.assign({},fields);
+          f2.datetime=dd+'T'+start;if(end){var e0=new Date(dd+'T00:00');e0.setDate(e0.getDate()+endOff);f2.end=ymd(e0)+'T'+end;}else f2.end='';
+          Object.assign(x,f2);});id=ev.id;count=seriesOf(ev).length;}
+      else if(ev){Object.assign(ev,fields);id=ev.id;}}
+    else{
+      var freq=val('og-rep')||'none',until=val('og-until');
+      if(freq!=='none'){
+        var bad=!until||until<date;var mx=new Date(date+'T00:00');mx.setFullYear(mx.getFullYear()+1);var tooLong=until&&until>ymd(mx);
+        var er=document.getElementById('og-err-rep');if(bad||tooLong){if(er){er.textContent=tt(bad?'rep_err':'rep_max');er.classList.add('show');}return;}}
+      var dates=repDates(date,freq,until||date);var sid=freq!=='none'?'ser'+Date.now().toString(36):'';var base=Date.now().toString(36);
+      dates.forEach(function(dd,k){var f2=Object.assign({},fields);f2.datetime=dd+'T'+start;
+        if(end){var e0=new Date(dd+'T00:00');e0.setDate(e0.getDate()+endOff);f2.end=ymd(e0)+'T'+end;}
+        var nid='og'+base+(dates.length>1?'-'+k:'');if(k===0)id=nid;
+        var obj=Object.assign({id:nid,going:0,here:0,createdAt:new Date().toISOString()},f2);
+        if(sid){obj.seriesId=sid;obj.rep={freq:freq,until:until};}
+        events.push(obj);if(typeof addToCalendar==='function')addToCalendar(nid);});
+      count=dates.length;}
     saveEvents();closeForm();
     if(typeof updateCalBadge==='function')updateCalBadge();
     if(typeof showOffgrid!=='undefined'&&!showOffgrid){var b=document.getElementById('toggle-offgrid');if(b)b.click();}
     if(typeof refreshMarkers==='function')refreshMarkers();
     if(typeof renderLayers==='function')renderLayers();
-    toast(tt(isEdit?'updated':'saved'));
+    toast(count>1&&!isEdit?tt('saved_n',String(count)):tt(isEdit?'updated':'saved'));
     var e2=events.find(function(x){return x.id===id;});
     try{map.setView([e2.lat,e2.lng],Math.max(map.getZoom(),16));}catch(_){}
     setTimeout(function(){if(markers[id])markers[id].openPopup();},250);
@@ -4402,7 +4486,7 @@ window.addEventListener('load',function(){
     return '<div style="position:relative;"><button class="popup-close-btn" data-action="close-popup" title="'+t('chiudi')+'">&times;</button><div class="popup-body">'
       +'<div style="margin-bottom:6px;"><span class="og-pill">📡 Off-Grid · '+tt('only_you')+'</span>'+(exp?' <span class="popup-expired-badge">'+t('terminato')+'</span>':'')+'</div>'
       +'<div class="popup-title">'+(typeof hl==='function'?hl(e(ev.title),e(searchQuery)):e(ev.title))+'</div>'
-      +'<div class="og-pop-when">🕒 '+e(whenStr(ev))+'</div>'+(ev.end&&ev.end.slice(0,10)!==(ev.datetime||'').slice(0,10)?'<div class="og-nextday show" style="margin:0 0 6px;"><span>↪ '+e(tt('next_day_tag'))+'</span></div>':'')
+      +'<div class="og-pop-when">🕒 '+e(whenStr(ev))+'</div>'+(ev.seriesId?'<div class="og-pop-rep">↻ '+e(repLabel(ev.rep&&ev.rep.freq,(ev.datetime||'').slice(0,10)))+(ev.rep&&ev.rep.until?' · fino al '+e(new Date(ev.rep.until+'T00:00').toLocaleDateString(dloc(),{day:'numeric',month:'short'})):'')+'</div>':'')+(ev.end&&ev.end.slice(0,10)!==(ev.datetime||'').slice(0,10)?'<div class="og-nextday show" style="margin:0 0 6px;"><span>↪ '+e(tt('next_day_tag'))+'</span></div>':'')
       +((ev.addressFull||ev.address)?'<div class="og-pop-addr">📍 '+e(ev.addressFull||ev.address)+'</div>':'')
       +(ev.notes?'<div class="og-pop-notes">'+e(ev.notes)+'</div>':'')
       +(links.length?'<div class="og-pop-links">'+links.map(function(u){var lbl=u.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,'');return '<a href="'+e(u)+'" target="_blank" rel="noopener">🔗 '+e(lbl)+'</a>';}).join('')+'</div>':'')
@@ -4414,7 +4498,7 @@ window.addEventListener('load',function(){
     var b=ev.target.closest('[data-action^="og-"]');if(!b)return;
     var id=b.dataset.id,a=b.dataset.action,item=events.find(function(x){return x.id===id;});if(!item)return;
     if(a==='og-edit'){openForm(item);}
-    else if(a==='og-del'){if(confirm(tt('conf_del'))){removeEvent(id);toast(tt('deleted'));}}
+    else if(a==='og-del'){askDelete(item);}
     else if(a==='og-cal'){if(isInCalendar(id)){removeFromCalendar(id);}else{addToCalendar(id);}if(markers[id])markers[id].setPopupContent(window.ogBuildPopup(item));}
   });
 
@@ -4520,14 +4604,14 @@ window.addEventListener('load',function(){
   function durTxt(min){min=Math.round(min);if(min<60)return min+' min';var h=Math.floor(min/60),m=min%60;return h+' h'+(m?' '+pad(m):'');}
   function kmTxt(km){return (km<1?Math.round(km*1000)+' m':km.toFixed(1).replace('.',',')+' km');}
 
-  /* velocità di stima (distanza in linea d'aria × 1,3 per le curve delle strade) */
+  /* velocità di stima (distanza in linea d'aria × 1,4 per le curve delle strade) */
   var MODES={piedi:{label:'a piedi',speed:4.8,wait:0},bici:{label:'in bici',speed:14,wait:2},mezzi:{label:'con i mezzi',speed:16,wait:8}};
   var mode='piedi';try{var _m=localStorage.getItem('agorapp_day_mode');if(MODES[_m])mode=_m;}catch(_){}
   var day=new Date();day.setHours(0,0,0,0);
 
   function distKm(a,b){var R=6371,toR=Math.PI/180,dLat=(b.lat-a.lat)*toR,dLng=(b.lng-a.lng)*toR;
     var h=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLng/2)*Math.sin(dLng/2);
-    return 2*R*Math.asin(Math.sqrt(h))*1.3;}
+    return 2*R*Math.asin(Math.sqrt(h))*1.4;}
   function travelMin(km,m){var M=MODES[m];return km<0.05?0:Math.max(1,Math.round(M.wait+km/M.speed*60));}
 
   function colorOf(ev){
