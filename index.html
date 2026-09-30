@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OG 1.1 — 30 settembre 2026 — Indirizzo completo con numero civico (suggerimenti + riquadro "Registriamo questo punto", avviso se il civico non è in mappa); errore se la fine non è dopo l'inizio; Duplica nel pannello (copia di un evento e "Parti da un tuo evento"); scadenze: tutti gli eventi spariscono da mappa e Agenda 3 ore dopo la fine, gli Off-Grid restano nel calendario (vista Mese) per 3 mesi senza poter tornare sulla mappa -->
 <!-- OG 1.0 — 30 settembre 2026 — Nuovo ramo "offgrid-og1" (versione operativa, numerazione ripartita da v105). Tasto + diretto al form Off-Grid personale (titolo, indirizzo, data/inizio/fine, note, link utili), fumetto "?" che spiega l'Off-Grid; rimossi Scrivi/Analizza e Voce (nessuna chiamata a servizi AI); pressione lunga sulla mappa = nuovo evento in quel punto; popup dedicato con indicazioni, modifica ed elimina; eventi personali salvati in automatico nel calendario; corretto bug date (dloc ricorsivo) -->
 <!-- v105 — 26 settembre 2026 — Calendario traslucido sopra la mappa; indirizzi: suggerimenti mentre scrivi (Photon) + ricerca a cascata (pulizia CAP/sigla, fallback Nominatim, fallback senza civico); rimosso pulsante Cerca posizione nascosto -->
 <!-- v104 — 26 settembre 2026 — Logo = Home; menù città/zone (Torino, Venezia, Fi-Pi-Li, Bologna, Piazza Armerina); barra di ricerca Eventi/Indirizzi sulla mappa; Calendario a interruttore con "Salvati" grigio; barra in basso scura in modalità scura -->
@@ -1085,7 +1086,7 @@ button{min-height:24px;}
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
 <script>
-const ADMIN_PW='agorapp2024', USER_PW='agorapp', EXPIRE_DELETE_MS=3*60*60*1000, DESC_MIN=30, TITLE_MAX=100;
+const ADMIN_PW='agorapp2024', USER_PW='agorapp', EXPIRE_DELETE_MS=3*60*60*1000, OG_KEEP_MS=92*24*60*60*1000, DESC_MIN=30, TITLE_MAX=100;
 function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function ogLayerFor(ev){return ev&&ev.personal?{id:'__og_personal',label:'Off-Grid',bg:'#E8F2EB',text:'#2D5A3D',pin:'#2D5A3D'}:{bg:'#eee',text:'#333',label:ev?ev.category:''};}
 function ogPersonalIcon(expired){var k='__og_'+(expired?1:0);if(!window.__ogIcons)window.__ogIcons={};if(window.__ogIcons[k])return window.__ogIcons[k];var c=expired?'#AAAAAA':'#2D5A3D';var html='<div style="width:30px;height:38px;opacity:'+(expired?0.55:1)+'"><svg viewBox="0 0 30 38" width="30" height="38"><path d="M15 36.5C15 36.5 2 23.5 2 14.2 2 7 7.8 1.5 15 1.5S28 7 28 14.2C28 23.5 15 36.5 15 36.5Z" fill="'+c+'" stroke="white" stroke-width="2"/><circle cx="15" cy="14" r="5.2" fill="none" stroke="white" stroke-width="1.8"/><circle cx="15" cy="14" r="1.8" fill="white"/></svg></div>';var ic=L.divIcon({html:html,iconSize:[30,38],iconAnchor:[15,37],popupAnchor:[0,-34],className:''});window.__ogIcons[k]=ic;return ic;}
@@ -1278,18 +1279,21 @@ function setMyCalFilter(on){
 function isInCalendar(id){return!!calEvents[id];}
 function addToCalendar(id){var ev=events.find(function(x){return x.id===id;});if(!ev)return;calEvents[id]=true;saveCalEvents();updateCalBadge();}
 function removeFromCalendar(id){delete calEvents[id];saveCalEvents();updateCalBadge();}
-function updateCalBadge(){var n=Object.keys(calEvents).filter(function(id){return events.find(function(x){return x.id===id;});}).length;var b=document.getElementById('cal-badge');if(b){b.textContent=n>0?n:'';b.style.display=n>0?'flex':'none';}var c=document.getElementById('mycal-count');if(c){c.textContent=n>0?n:'';c.style.display=n>0?'inline':'none';}}
+function updateCalBadge(){var n=Object.keys(calEvents).filter(function(id){var e=events.find(function(x){return x.id===id;});return e&&!isGone(e);}).length;var b=document.getElementById('cal-badge');if(b){b.textContent=n>0?n:'';b.style.display=n>0?'flex':'none';}var c=document.getElementById('mycal-count');if(c){c.textContent=n>0?n:'';c.style.display=n>0?'inline':'none';}}
 function saveVotes(){try{sessionStorage.setItem('agorapp_votes',JSON.stringify(votes));}catch(e){}}
 var tlWinStart=0,tlWinEnd=0,tlFrom=0,tlTo=0;
 
 function getEnd(ev){if(!ev.datetime)return null;try{if(ev.end){var _e=new Date(ev.end).getTime();if(!isNaN(_e))return _e;}var s=new Date(ev.datetime).getTime();if(!ev.duration)return s;var dur2=ev.duration.replace(/un[ao]?\s+po'?\s+di/i,'1').replace(/paio/i,'2').replace(/quarto d'ora/i,'15 min').replace(/mez(?:z)?ora/i,'30 min');var m=dur2.match(/(\d+(?:\.\d+)?)\s*(h|ora|ore|min|minut)?/i);if(!m)return s;var n=parseFloat(m[1]);var u=(m[2]||'h').toLowerCase();return s+(u.startsWith('m')?n*60000:n*3600000);}catch(e){return null;}}
 function isExpired(ev){if(ev.isDemo)return false;var e=getEnd(ev);return e!==null&&Date.now()>e;}
-function shouldDelete(ev){if(ev.isDemo)return false;var e=getEnd(ev);return e!==null&&Date.now()>e+EXPIRE_DELETE_MS;}
+function shouldDelete(ev){if(ev.isDemo)return false;var e=getEnd(ev);if(e===null)return false;return Date.now()>e+(ev.personal?OG_KEEP_MS:EXPIRE_DELETE_MS);}
+/* OG 1.1 — 3 ore dopo la fine un evento esce da mappa e Agenda; gli Off-Grid personali restano nel calendario (Mese) per 3 mesi */
+function isGone(ev){if(ev.isDemo)return false;var e=getEnd(ev);return e!==null&&Date.now()>e+EXPIRE_DELETE_MS;}
 function purgeExpired(){var b=events.length;events=events.filter(function(ev){return!shouldDelete(ev);});if(events.length!==b){saveEvents();return true;}return false;}
 function isUnlocked(ev){return!ev.hidden||unlockedPasswords.has(ev.hiddenPassword);}
 function matchSearch(ev){if(!searchQuery)return true;var q=searchQuery.toLowerCase();return(ev.title||'').toLowerCase().includes(q)||(ev.description||'').toLowerCase().includes(q);}
 function matchTime(ev){if(tlFrom<=tlWinStart&&tlTo>=tlWinEnd)return true;var s=ev.datetime?new Date(ev.datetime).getTime():0;var e=getEnd(ev)||s;return e>=tlFrom&&s<=tlTo;}
 function isVisible(ev){
+  if(isGone(ev))return false;
   if(myCalFilter&&!isInCalendar(ev.id))return false;
   if(ev.offgrid&&!showOffgrid)return false;
   if(!ev.offgrid&&!showOngrid)return false;
@@ -1944,7 +1948,7 @@ map.on('click',function(e){
 
 
 tileLayer=makeBaseLayer(currentTheme).addTo(map);
-setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();renderLayers();}},60000);
+setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();renderLayers();return;}var g=Object.keys(markers).some(function(id){var e=events.find(function(x){return x.id===id;});return !e||isGone(e);});if(g)refreshMarkers();},60000);
 // ── CALENDARIO ────────────────────────────────────────────────────────────────
 (function(){
   var ov=document.createElement('div');
@@ -2157,7 +2161,7 @@ setInterval(function(){if(purgeExpired()){initTimeline();refreshMarkers();render
 
   document.addEventListener('click',function(e){
     var ob=e.target.closest('[data-action="cal-open"]');
-    if(ob){var id=ob.dataset.id;document.querySelectorAll('.cal-detail-overlay').forEach(function(el){el.remove();});closeCal();if(markers[id]){map.once('moveend',function(){markers[id].openPopup();});map.setView(markers[id].getLatLng(),16,{animate:true});}return;}
+    if(ob){var id=ob.dataset.id;var _oe=events.find(function(x){return x.id===id;});if(!_oe||isGone(_oe)){showToast('Evento concluso: non è più sulla mappa');return;}document.querySelectorAll('.cal-detail-overlay').forEach(function(el){el.remove();});closeCal();if(markers[id]){map.once('moveend',function(){markers[id].openPopup();});map.setView(markers[id].getLatLng(),16,{animate:true});}return;}
     var rb=e.target.closest('[data-action="cal-remove"]');
     if(rb){removeFromCalendar(rb.dataset.id);renderCalOverlay();return;}
     var xb=e.target.closest('[data-action="cal-expand"]');
@@ -2523,7 +2527,7 @@ function renderCalMonth(){
     var ds=new Date(y,m,d2,0,0,0).getTime(),de=new Date(y,m,d2,23,59,59).getTime();
     var dEvs=evs.filter(function(ev){if(!ev.datetime)return false;var t=new Date(ev.datetime).getTime();return t>=ds&&t<=de;});
     html+='<div class="cal-month-cell'+(isT?' today':'')+'"><div class="cal-day-num'+(isT?' today-num':'')+'">'+d2+'</div>';
-    dEvs.forEach(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);html+='<div class="cal-ev-pill" style="background:'+l.bg+';color:'+l.text+';" data-action="cal-expand" data-id="'+ev.id+'">'+esc(ev.title)+'</div>';});
+    dEvs.forEach(function(ev){var l=LAYERS.find(function(x){return x.id===ev.category;})||ogLayerFor(ev);var _g=isGone(ev);html+='<div class="cal-ev-pill'+(_g?' cal-ev-past':'')+'" style="background:'+l.bg+';color:'+l.text+';'+(_g?'opacity:.5;text-decoration:line-through;':'')+'" data-action="cal-expand" data-id="'+ev.id+'" title="'+(_g?'Concluso':'')+'">'+esc(ev.title)+'</div>';});
     html+='</div>';
   }
   html+='</div>';body.innerHTML=html;
@@ -2542,7 +2546,7 @@ function buildAgendaPlaceholder(){
   grid+='</div>';return nav+grid;
 }
 function renderCalAgenda(){
-  var body=document.getElementById('cal-body');var evs=getCalEventsArr();
+  var body=document.getElementById('cal-body');var evs=getCalEventsArr().filter(function(ev){return !isGone(ev);});
   if(!evs.length){body.innerHTML='<div class="cal-empty" style="padding:30px 0 10px;">'    +'<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:20px;">'+t('cal_empty2')+'</div>'    +'<div style="opacity:.4;pointer-events:none;">'+buildAgendaPlaceholder()+'</div>'    +'</div>';return;}
   var html='';
   evs.forEach(function(ev){
@@ -2571,11 +2575,12 @@ function showCalDetailPopup(ev){
     +'<div style="font-family:\'DM Serif Display\',serif;font-size:1.1875rem;margin:10px 0 6px;color:var(--text);">'+esc(ev.title)+'</div>'
     +(ev.description?'<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">'+esc(ev.description)+'</div>':'')
     +(ds?'<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">📅 '+esc(ds)+'</div>':'')
+    +((ev.addressFull||ev.address)&&ev.personal?'<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">📍 '+esc(ev.addressFull||ev.address)+'</div>':'')
     +(ev.duration?'<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">⏱ '+esc(ev.duration)+'</div>':'')
     +(ev.price?'<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">💶 '+formatPrice(esc(ev.price))+'</div>':'')
     +(safeUrl(ev.link)?'<a href="'+safeUrl(ev.link)+'" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent);display:block;margin-bottom:8px;">'+t('sito_evento')+'</a>':'')
     +'<div style="display:flex;gap:8px;margin-top:14px;">'
-    +'<button data-action="cal-open" data-id="'+ev.id+'" style="flex:1;padding:8px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:0.8125rem;cursor:pointer;">'+t('cal_vai_mappa')+'</button>'
+    +(isGone(ev)?'<div style="flex:1;font-size:0.6875rem;color:var(--text-muted);align-self:center;">Concluso · non è più sulla mappa'+(ev.personal?'<br>Resta nel calendario fino al '+new Date(getEnd(ev)+OG_KEEP_MS).toLocaleDateString(dloc(),{day:"numeric",month:"long"}):'')+'</div>':'<button data-action="cal-open" data-id="'+ev.id+'" style="flex:1;padding:8px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:0.8125rem;cursor:pointer;">'+t('cal_vai_mappa')+'</button>')
     +'<button class="cal-popup-close" style="padding:8px 14px;background:transparent;color:var(--text-muted);border:1px solid var(--border-strong);border-radius:10px;font-size:0.8125rem;cursor:pointer;">'+t('chiudi')+'</button>'
     +'</div></div>';
   document.body.appendChild(overlay);
@@ -3872,14 +3877,14 @@ window.addEventListener('load',function(){
 });
 </script>
 
-<!-- ===================== OG 1.0 — EVENTI OFF-GRID PERSONALI ===================== -->
+<!-- ===================== OG 1.1 — EVENTI OFF-GRID PERSONALI ===================== -->
 <style>
 #og-form .og-head{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
 #og-form .og-head .modal-title{margin:0;flex:1;display:flex;align-items:center;gap:8px;}
 .og-help-btn{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:700;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;}
 .og-help-btn[aria-expanded="true"]{background:var(--accent);color:white;}
 .og-x{background:none;border:none;color:var(--text-muted);font-size:1.4rem;line-height:1;cursor:pointer;padding:0 2px;}
-.og-sub{font-size:0.6875rem;color:var(--text-muted);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.og-sub{font-size:0.6875rem;color:var(--text-muted);margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .og-pill{display:inline-flex;align-items:center;gap:4px;font-size:0.625rem;font-weight:600;padding:2px 9px;border-radius:20px;background:#E8F2EB;color:#2D5A3D;border:1px solid #2D5A3D;}
 [data-theme="dark"] .og-pill{background:rgba(93,184,122,0.12);color:#8FD3A5;border-color:#5DB87A;}
 .og-bubble{position:relative;display:none;background:var(--accent);color:white;border-radius:12px;padding:14px 16px;margin:6px 0 14px;font-size:0.78rem;line-height:1.6;box-shadow:0 6px 20px rgba(0,0,0,0.18);}
@@ -3890,38 +3895,51 @@ window.addEventListener('load',function(){
 .og-bubble p:last-child{margin:0;}
 @keyframes ogPop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 #og-form .og-req{color:var(--accent);}
+.og-copy-from{margin-bottom:12px;}
+.og-copy-from select{width:100%;font-family:'DM Sans',sans-serif;font-size:0.75rem;padding:7px 9px;border-radius:9px;border:1px dashed var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;}
+.og-dup-banner{background:var(--surface2);border-left:3px solid var(--accent);border-radius:8px;padding:8px 11px;font-size:0.75rem;color:var(--text);margin-bottom:12px;}
 .og-addr-row{display:flex;gap:6px;}
-.og-addr-wrap{flex:1;position:relative;}
+.og-addr-wrap{flex:1;position:relative;min-width:0;}
 .og-addr-wrap input{width:100%;}
 .og-icon-btn{flex-shrink:0;width:38px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface2);color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .og-icon-btn:hover{border-color:var(--accent);}
-.og-sug{display:none;position:absolute;top:100%;left:0;right:0;margin-top:3px;background:var(--menu-bg,var(--surface));border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);z-index:200;max-height:190px;overflow-y:auto;}
+.og-sug{display:none;position:absolute;top:100%;left:0;right:0;margin-top:3px;background:var(--menu-bg,var(--surface));border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);z-index:200;max-height:240px;overflow-y:auto;}
 .og-sug.open{display:block;}
 .og-sug button{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:0.5px solid var(--border);padding:8px 11px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;}
-.og-sug button:last-child{border-bottom:none;}
+.og-sug button:last-of-type{border-bottom:none;}
 .og-sug button:hover,.og-sug button.hl{background:var(--surface2);}
-.og-sug .m{font-size:0.8125rem;}
+.og-sug .m{font-size:0.8125rem;font-weight:500;}
+.og-sug .f{font-size:0.75rem;color:var(--text);margin-top:1px;}
 .og-sug .s{font-size:0.6875rem;color:var(--text-muted);margin-top:1px;}
-.og-pos-ok{font-size:0.6875rem;color:var(--accent);margin-top:4px;display:none;}
-.og-pos-ok.show{display:block;}
+.og-sug .w{font-size:0.6875rem;color:#A8641C;margin-top:2px;}
+[data-theme="dark"] .og-sug .w{color:#E3A45C;}
+.og-sug .og-sug-foot{padding:6px 11px;font-size:0.6875rem;color:var(--text-muted);background:var(--surface2);border-top:0.5px solid var(--border);}
+.og-confirm{display:none;margin-top:6px;border-radius:9px;padding:8px 10px;font-size:0.75rem;line-height:1.45;border:1px solid var(--accent);background:rgba(45,90,61,0.07);color:var(--text);}
+.og-confirm.show{display:block;}
+.og-confirm .lbl{font-size:0.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:2px;}
+.og-confirm .addr{font-weight:600;}
+.og-confirm .note{font-size:0.6875rem;color:var(--text-muted);margin-top:3px;}
+.og-confirm.warn{border-color:#C98A3A;background:rgba(201,138,58,0.09);}
+.og-confirm.warn .lbl{color:#A8641C;}
+[data-theme="dark"] .og-confirm.warn .lbl{color:#E3A45C;}
 .og-time-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:6px;}
 .og-time-row input{width:100%;min-width:0;padding-left:8px;padding-right:4px;}
+.og-time-row input.error{border-color:#E53935!important;}
 .og-days{display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
 .og-day{font-family:'DM Sans',sans-serif;font-size:0.6875rem;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;}
 .og-day.on{background:var(--accent);border-color:var(--accent);color:white;}
 .og-links .og-link-row{display:flex;gap:6px;margin-bottom:6px;}
-.og-links .og-link-row input{flex:1;}
+.og-links .og-link-row input{flex:1;min-width:0;}
 .og-link-del{flex-shrink:0;width:30px;border-radius:8px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;font-size:1rem;}
 .og-add-link{font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 0;}
+.og-dup-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:14px;padding:8px;border-radius:10px;border:1px dashed var(--accent);background:transparent;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:0.8125rem;font-weight:500;cursor:pointer;}
 .og-admin-link{display:block;margin-top:12px;text-align:center;font-size:0.6875rem;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;width:100%;font-family:'DM Sans',sans-serif;}
 #og-form textarea{min-height:64px;}
-/* scelta posizione sulla mappa */
 #og-pick-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);z-index:600;pointer-events:none;display:none;}
 #og-pick-bar{position:absolute;bottom:84px;left:50%;transform:translateX(-50%);z-index:601;display:none;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border-strong);border-radius:24px;padding:6px 6px 6px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.22);font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--text);white-space:nowrap;}
 #og-pick-bar button{border:none;border-radius:18px;padding:7px 14px;font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;cursor:pointer;}
 #og-pick-ok{background:var(--accent);color:white;}
 #og-pick-cancel{background:transparent;color:var(--text-muted);}
-/* popup */
 .og-pop-when{font-size:0.8125rem;font-weight:600;color:var(--text);margin:2px 0 4px;}
 .og-pop-addr{font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;}
 .og-pop-notes{font-size:0.75rem;color:var(--text);white-space:pre-wrap;background:var(--surface2);border-radius:8px;padding:7px 9px;margin:6px 0;max-height:120px;overflow-y:auto;}
@@ -3933,17 +3951,28 @@ window.addEventListener('load',function(){
 <script>
 (function(){
   'use strict';
-  /* ---------- testi (IT + EN, le altre lingue ricadono sull'italiano) ---------- */
   var S={
     it:{
       title_new:'Nuovo evento Off-Grid', title_edit:'Modifica evento Off-Grid',
       sub:'Solo su questo dispositivo · lo vedi solo tu',
       help_aria:'Che cos’è un evento Off-Grid?',
       help:'<p><b>Che cos’è un evento Off-Grid?</b><br>È un tuo appuntamento: vive solo nella memoria di questo dispositivo, non passa da nessun server e nessuno oltre a te può vederlo. Ti serve per organizzare la giornata sulla mappa e nel calendario, accanto agli eventi della città.</p><p><b>Perché non posso ancora pubblicarlo per tutti?</b><br>Pubblicare un evento <i>on-grid</i> vuol dire affidarci i dati tuoi e di chi lo organizza. Oggi Agorapp è un progetto indipendente, senza ancora una società alle spalle in grado di custodirli con le garanzie che meritano: preferiamo non raccoglierli piuttosto che raccoglierli male.</p><p><b>Presto sarà possibile.</b> Ci stiamo lavorando: quando potrai pubblicare i tuoi eventi per tutta la città, sarai tra i primi a saperlo.</p>',
+      copy_from:'⧉ Parti da un tuo evento…',
+      dup_banner:'Copia di «%s»: scegli il nuovo giorno e salva.',
+      dup_btn:'⧉ Duplica questo evento',
       f_title:'Titolo', f_title_ph:'es. Caffè con Giulia', f_title_err:'Dai un nome al tuo appuntamento',
-      f_addr:'Indirizzo', f_addr_ph:'Via, piazza o luogo', f_addr_err:'Scegli un indirizzo dai suggerimenti o dalla mappa',
-      f_addr_map:'Scegli sulla mappa', f_addr_ok:'✓ Posizione fissata',
+      f_addr:'Indirizzo', f_addr_ph:'Via e numero civico, città', f_addr_err:'Scegli un indirizzo dai suggerimenti o dalla mappa',
+      f_addr_map:'Scegli sulla mappa',
+      conf_lbl:'Registriamo questo punto', conf_lbl_warn:'Registriamo questo punto · verifica',
+      conf_exact:'Numero civico trovato sulla mappa.',
+      conf_street:'Il civico %s non è presente sulla mappa: il punto è sulla via. Tocca 📍 per spostarlo sul portone giusto.',
+      conf_nonum:'Nessun numero civico: il punto è al centro della via o del luogo. Aggiungi il civico o tocca 📍 per essere precisi.',
+      conf_map:'Punto scelto da te sulla mappa.',
+      conf_check:'Controlla l’indirizzo qui sotto e premi di nuovo Salva.',
+      sug_street_w:'Civico non in mappa · punto sulla via',
+      sug_foot_num:'Aggiungi il numero civico per un punto preciso',
       f_date:'Giorno', f_start:'Inizio', f_end:'Fine', f_time_err:'Indica almeno giorno e orario di inizio',
+      f_end_err:'L’orario di fine deve essere dopo quello di inizio',
       oggi:'Oggi', domani:'Domani',
       f_notes:'Note', f_notes_ph:'Cosa portare, con chi, promemoria…',
       f_links:'Link utili', f_add_link:'+ Aggiungi un link',
@@ -3954,17 +3983,29 @@ window.addEventListener('load',function(){
       saved:'Appuntamento salvato sulla mappa e nel calendario', updated:'Appuntamento aggiornato', deleted:'Appuntamento eliminato',
       conf_del:'Eliminare questo appuntamento?', only_you:'solo tuo',
       directions:'Indicazioni', edit:'Modifica', in_cal:'✓ Nel calendario', to_cal:'+ Calendario',
-      next_day:'(giorno dopo)', here:'Posizione scelta sulla mappa', no_results:'Nessun risultato: prova solo via e città'
+      here:'Posizione scelta sulla mappa', no_results:'Nessun risultato: prova solo via e città'
     },
     en:{
       title_new:'New Off-Grid event', title_edit:'Edit Off-Grid event',
       sub:'Only on this device · only you can see it',
       help_aria:'What is an Off-Grid event?',
       help:'<p><b>What is an Off-Grid event?</b><br>It’s your own appointment: it lives only in this device’s memory, never passes through any server and nobody but you can see it. Use it to plan your day on the map and in the calendar, next to the city’s events.</p><p><b>Why can’t I publish it for everyone yet?</b><br>Publishing an <i>on-grid</i> event means trusting us with your data and the organiser’s. Today Agorapp is an independent project, without a company behind it that can look after that data with the guarantees it deserves: we’d rather not collect it than collect it badly.</p><p><b>It’s coming soon.</b> We’re working on it, and you’ll be among the first to know.</p>',
+      copy_from:'⧉ Start from one of your events…',
+      dup_banner:'Copy of «%s»: pick the new day and save.',
+      dup_btn:'⧉ Duplicate this event',
       f_title:'Title', f_title_ph:'e.g. Coffee with Giulia', f_title_err:'Give your appointment a name',
-      f_addr:'Address', f_addr_ph:'Street, square or place', f_addr_err:'Pick an address from the suggestions or the map',
-      f_addr_map:'Pick on the map', f_addr_ok:'✓ Location set',
+      f_addr:'Address', f_addr_ph:'Street and number, city', f_addr_err:'Pick an address from the suggestions or the map',
+      f_addr_map:'Pick on the map',
+      conf_lbl:'We’ll save this spot', conf_lbl_warn:'We’ll save this spot · please check',
+      conf_exact:'House number found on the map.',
+      conf_street:'Number %s isn’t on the map: the pin is on the street. Tap 📍 to move it to the right door.',
+      conf_nonum:'No house number: the pin is in the middle of the street or place. Add the number or tap 📍 to be precise.',
+      conf_map:'Spot you picked on the map.',
+      conf_check:'Check the address below and press Save again.',
+      sug_street_w:'Number not on the map · pin on the street',
+      sug_foot_num:'Add the house number for a precise spot',
       f_date:'Day', f_start:'Start', f_end:'End', f_time_err:'Set at least a day and a start time',
+      f_end_err:'The end time must be after the start time',
       oggi:'Today', domani:'Tomorrow',
       f_notes:'Notes', f_notes_ph:'What to bring, who with, reminders…',
       f_links:'Useful links', f_add_link:'+ Add a link',
@@ -3975,55 +4016,71 @@ window.addEventListener('load',function(){
       saved:'Appointment saved to map and calendar', updated:'Appointment updated', deleted:'Appointment deleted',
       conf_del:'Delete this appointment?', only_you:'only you',
       directions:'Directions', edit:'Edit', in_cal:'✓ In calendar', to_cal:'+ Calendar',
-      next_day:'(next day)', here:'Location picked on the map', no_results:'No results: try just street and city'
+      here:'Location picked on the map', no_results:'No results: try just street and city'
     }
   };
-  function tt(k){var L=(typeof lang!=='undefined'&&S[lang])?S[lang]:S.it;return L[k]!=null?L[k]:S.it[k];}
+  function tt(k,a){var L=(typeof lang!=='undefined'&&S[lang])?S[lang]:S.it;var v=L[k]!=null?L[k]:S.it[k];return a!=null?v.replace('%s',a):v;}
   function e(x){return typeof esc==='function'?esc(x):String(x||'');}
   function pad(n){return (n<10?'0':'')+n;}
   function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
   function hm(d){return pad(d.getHours())+':'+pad(d.getMinutes());}
-  function addMin(t,m){var p=t.split(':');var x=(+p[0])*60+(+p[1])+m;x=((x%1440)+1440)%1440;return pad(Math.floor(x/60))+':'+pad(x%60);}
+  function autoEnd(t){var p=t.split(':');var x=(+p[0])*60+(+p[1])+60;if(x>=1440)x=1439;return pad(Math.floor(x/60))+':'+pad(x%60);}
   function toast(m){if(typeof showToast==='function')showToast(m);}
   function normLink(u){u=(u||'').trim();if(!u)return '';if(!/^https?:\/\//i.test(u)&&/^[\w-]+(\.[\w-]+)+/.test(u))u='https://'+u;return safeUrl(u);}
+  function myEvents(){return (events||[]).filter(function(x){return x.personal;});}
 
-  var st=null; /* stato del form aperto */
+  var st=null;
 
-  /* ---------- FORM ---------- */
+  /* ================= FORM ================= */
   function openForm(ev,preset){
     if(typeof map!=='undefined'&&map)map.closePopup();
     preset=preset||{};
     var isEdit=!!ev;
     var now=new Date();now.setSeconds(0,0);
-    var m=now.getMinutes();now.setMinutes(m+(15-m%15)%15||15);  /* prossimo quarto d'ora */
+    var m=now.getMinutes();now.setMinutes(m+(15-m%15)%15||15);
     var date=isEdit?(ev.datetime||'').slice(0,10):(preset.date||ymd(now));
     var start=isEdit?(ev.datetime||'').slice(11,16):(preset.start||hm(now));
-    var end=isEdit?((ev.end||'').slice(11,16)):(preset.end||addMin(start,60));
-    st={ev:ev||null,pos:isEdit?{lat:ev.lat,lng:ev.lng}:(preset.pos||null),endTouched:isEdit,links:isEdit?(ev.links&&ev.links.length?ev.links.slice():(ev.link?[ev.link]:[])):[]};
+    var end=isEdit?((ev.end||'').slice(11,16)):(preset.end!=null?preset.end:autoEnd(start));
+    st={ev:ev||null,
+      pos:isEdit?{lat:ev.lat,lng:ev.lng}:(preset.pos||null),
+      addrFull:isEdit?(ev.addressFull||ev.address||''):(preset.addrFull||''),
+      precision:isEdit?(ev.addrPrecision||'exact'):(preset.precision||''),
+      hn:isEdit?(ev.addrNum||''):(preset.hn||''),
+      endTouched:isEdit||!!preset.endTouched,
+      links:isEdit?(ev.links&&ev.links.length?ev.links.slice():(ev.link?[ev.link]:[])):(preset.links||[])};
     if(!st.links.length)st.links=[''];
+    var mine=myEvents().filter(function(x){return !ev||x.id!==ev.id;}).sort(function(a,b){return (b.createdAt||b.datetime||'').localeCompare(a.createdAt||a.datetime||'');});
     var h='<div class="modal-overlay" id="og-overlay"><div class="modal" id="og-form" role="dialog" aria-modal="true" aria-labelledby="og-t">';
     h+='<div class="og-head"><div class="modal-title" id="og-t">'+tt(isEdit?'title_edit':'title_new')
       +'<button type="button" class="og-help-btn" id="og-help-btn" aria-expanded="false" aria-controls="og-bubble" title="'+e(tt('help_aria'))+'" aria-label="'+e(tt('help_aria'))+'">?</button></div>'
       +'<button type="button" class="og-x" id="og-x" aria-label="'+e(tt('cancel'))+'">&times;</button></div>';
     h+='<div class="og-sub"><span class="og-pill">📡 Off-Grid</span>'+e(tt('sub'))+'</div>';
     h+='<div class="og-bubble" id="og-bubble" role="note">'+tt('help')+'</div>';
+    if(preset.dupOf)h+='<div class="og-dup-banner">'+e(tt('dup_banner',preset.dupOf))+'</div>';
+    else if(!isEdit&&mine.length){
+      h+='<div class="og-copy-from"><select id="og-copy" aria-label="'+e(tt('copy_from'))+'"><option value="">'+e(tt('copy_from'))+'</option>'
+        +mine.slice(0,12).map(function(x){var d='';try{d=new Date(x.datetime).toLocaleDateString(dloc(),{day:'numeric',month:'short'})+' '+(x.datetime||'').slice(11,16);}catch(_){}return '<option value="'+e(x.id)+'">'+e(x.title)+(d?' · '+e(d):'')+'</option>';}).join('')
+        +'</select></div>';
+    }
     h+='<div class="field"><label for="og-title">'+tt('f_title')+' <span class="og-req">*</span></label><input id="og-title" type="text" maxlength="100" autocomplete="off" placeholder="'+e(tt('f_title_ph'))+'" value="'+e(isEdit?ev.title:(preset.title||''))+'"><div class="err-msg" id="og-err-title">'+tt('f_title_err')+'</div></div>';
     h+='<div class="field"><label for="og-addr">'+tt('f_addr')+' <span class="og-req">*</span></label><div class="og-addr-row"><div class="og-addr-wrap"><input id="og-addr" type="text" autocomplete="off" placeholder="'+e(tt('f_addr_ph'))+'" value="'+e(isEdit?(ev.address||''):(preset.address||''))+'"><div class="og-sug" id="og-sug" role="listbox"></div></div>'
       +'<button type="button" class="og-icon-btn" id="og-map-btn" title="'+e(tt('f_addr_map'))+'" aria-label="'+e(tt('f_addr_map'))+'"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.24 1.5 3 3.6 3 6.3 3 9.8 8 14.5 8 14.5s5-4.7 5-8.2c0-2.7-2.24-4.8-5-4.8z" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="6.3" r="1.8" stroke="currentColor" stroke-width="1.3"/></svg></button></div>'
-      +'<div class="og-pos-ok'+(st.pos?' show':'')+'" id="og-pos-ok">'+tt('f_addr_ok')+'</div><div class="err-msg" id="og-err-addr">'+tt('f_addr_err')+'</div></div>';
+      +'<div class="og-confirm" id="og-confirm" aria-live="polite"></div><div class="err-msg" id="og-err-addr">'+tt('f_addr_err')+'</div></div>';
     h+='<div class="field"><label>'+tt('f_date')+' · '+tt('f_start')+' · '+tt('f_end')+' <span class="og-req">*</span></label>'
       +'<div class="og-days"><button type="button" class="og-day" data-d="0">'+tt('oggi')+'</button><button type="button" class="og-day" data-d="1">'+tt('domani')+'</button></div>'
       +'<div class="og-time-row"><input id="og-date" type="date" aria-label="'+e(tt('f_date'))+'" value="'+e(date)+'"><input id="og-start" type="time" step="300" aria-label="'+e(tt('f_start'))+'" value="'+e(start)+'"><input id="og-end" type="time" step="300" aria-label="'+e(tt('f_end'))+'" value="'+e(end)+'"></div>'
-      +'<div class="err-msg" id="og-err-time">'+tt('f_time_err')+'</div></div>';
+      +'<div class="err-msg" id="og-err-time">'+tt('f_time_err')+'</div><div class="err-msg" id="og-err-end">'+tt('f_end_err')+'</div></div>';
     h+='<div class="field"><label for="og-notes">'+tt('f_notes')+' <span class="field-hint">'+tt('opt')+'</span></label><textarea id="og-notes" maxlength="1000" placeholder="'+e(tt('f_notes_ph'))+'">'+e(isEdit?(ev.notes||''):(preset.notes||''))+'</textarea></div>';
     h+='<div class="field og-links"><label>'+tt('f_links')+' <span class="field-hint">'+tt('opt')+'</span></label><div id="og-links"></div><button type="button" class="og-add-link" id="og-add-link">'+tt('f_add_link')+'</button></div>';
     h+='<div class="modal-actions"><button class="btn-secondary" id="og-cancel">'+tt('cancel')+'</button>'+(isEdit?'<button class="btn-danger" id="og-del">'+tt('del')+'</button>':'')+'<button class="btn-primary" id="og-save">'+tt(isEdit?'save_edit':'save')+'</button></div>';
+    if(isEdit)h+='<button type="button" class="og-dup-btn" id="og-dup">'+tt('dup_btn')+'</button>';
     if(!isEdit&&typeof isAdmin!=='undefined'&&isAdmin)h+='<button type="button" class="og-admin-link" id="og-admin">'+tt('admin_ongrid')+'</button>';
     h+='</div></div>';
     document.getElementById('modal-root').innerHTML=h;
-    renderLinks();markDay();
+    renderLinks();markDay();renderConfirm();
     wire(isEdit);
-    if(!isEdit&&!preset.title)setTimeout(function(){var t=document.getElementById('og-title');if(t)t.focus();},60);
+    if(preset.dupOf)setTimeout(function(){var d=document.getElementById('og-date');if(d)d.focus();},60);
+    else if(!isEdit&&!preset.title)setTimeout(function(){var t=document.getElementById('og-title');if(t)t.focus();},60);
   }
 
   function renderLinks(){
@@ -4035,7 +4092,21 @@ window.addEventListener('load',function(){
     var d=document.getElementById('og-date');if(!d)return;var t=new Date();var tm=new Date();tm.setDate(tm.getDate()+1);
     document.querySelectorAll('.og-day').forEach(function(b){var v=b.dataset.d==='0'?ymd(t):ymd(tm);b.classList.toggle('on',d.value===v);});
   }
+  function renderConfirm(){
+    var box=document.getElementById('og-confirm');if(!box||!st)return;
+    if(!st.pos){box.className='og-confirm';box.innerHTML='';return;}
+    var warn=st.precision==='street'||st.precision==='nonum';
+    var note=st.precision==='street'?tt('conf_street',st.hn):st.precision==='nonum'?tt('conf_nonum'):st.precision==='map'?tt('conf_map'):tt('conf_exact');
+    box.className='og-confirm show'+(warn?' warn':'');
+    box.innerHTML='<div class="lbl">📍 '+tt(warn?'conf_lbl_warn':'conf_lbl')+'</div><div class="addr">'+e(st.addrFull||val('og-addr'))+'</div><div class="note">'+e(note)+'</div>';
+  }
   function closeForm(){document.getElementById('modal-root').innerHTML='';st=null;closeSug();}
+
+  function checkTimes(show){
+    var s=val('og-start'),en=val('og-end');var bad=!!(s&&en&&en<=s);
+    if(show!==false){var er=document.getElementById('og-err-end');if(er)er.classList.toggle('show',bad);var ie=document.getElementById('og-end');if(ie)ie.classList.toggle('error',bad);}
+    return !bad;
+  }
 
   function wire(isEdit){
     var $=function(id){return document.getElementById(id);};
@@ -4046,58 +4117,151 @@ window.addEventListener('load',function(){
       try{var r1=hb.getBoundingClientRect(),r2=bub.parentNode.getBoundingClientRect();bub.style.setProperty('--og-arrow-x',Math.max(12,r1.left-r2.left+4)+'px');}catch(_){}};
     $('og-date').addEventListener('change',markDay);
     document.querySelectorAll('.og-day').forEach(function(b){b.onclick=function(){var d=new Date();d.setDate(d.getDate()+(+b.dataset.d));$('og-date').value=ymd(d);markDay();};});
-    $('og-start').addEventListener('change',function(){if(!st.endTouched&&this.value)$('og-end').value=addMin(this.value,60);});
+    $('og-start').addEventListener('change',function(){if(!st.endTouched&&this.value)$('og-end').value=autoEnd(this.value);checkTimes();});
     $('og-end').addEventListener('input',function(){st.endTouched=true;});
+    $('og-end').addEventListener('change',function(){checkTimes();});
     $('og-add-link').onclick=function(){syncLinks();if(st.links.length<5){st.links.push('');renderLinks();var ins=document.querySelectorAll('#og-links input');ins[ins.length-1].focus();}};
     $('og-links').addEventListener('click',function(ev){var d=ev.target.closest('[data-ld]');if(!d)return;syncLinks();st.links.splice(+d.dataset.ld,1);if(!st.links.length)st.links=[''];renderLinks();});
     $('og-map-btn').onclick=startPick;
     $('og-save').onclick=save;
-    if(isEdit)$('og-del').onclick=function(){if(confirm(tt('conf_del'))){removeEvent(st.ev.id);closeForm();toast(tt('deleted'));}};
+    if(isEdit){
+      $('og-del').onclick=function(){if(confirm(tt('conf_del'))){removeEvent(st.ev.id);closeForm();toast(tt('deleted'));}};
+      $('og-dup').onclick=function(){var sn=snapshot();var src=st.ev;
+        openForm(null,{dupOf:src.title,title:sn.title,address:sn.address,addrFull:sn.addrFull,precision:sn.precision,hn:sn.hn,pos:sn.pos,date:sn.date,start:sn.start,end:sn.end,endTouched:true,notes:sn.notes,links:sn.links.filter(Boolean)});};
+    }
+    var cp=$('og-copy');
+    if(cp)cp.addEventListener('change',function(){var x=events.find(function(y){return y.id===cp.value;});if(!x)return;
+      var keepDate=val('og-date');
+      openForm(null,{dupOf:x.title,title:x.title,address:x.address,addrFull:x.addressFull||x.address,precision:x.addrPrecision||'exact',hn:x.addrNum||'',pos:{lat:x.lat,lng:x.lng},date:keepDate,start:(x.datetime||'').slice(11,16),end:(x.end||'').slice(11,16),endTouched:true,notes:x.notes||'',links:(x.links||[]).slice()});});
     var adm=$('og-admin');if(adm)adm.onclick=function(){closeForm();if(typeof editingId!=='undefined')editingId=null;showModal(null);};
     var addr=$('og-addr');
-    addr.addEventListener('input',function(){st.pos=null;$('og-pos-ok').classList.remove('show');queueSug(this.value);});
+    addr.addEventListener('input',function(){st.pos=null;st.addrFull='';st.precision='';renderConfirm();queueSug(this.value);});
     addr.addEventListener('keydown',sugKeys);
+    addr.addEventListener('blur',function(){setTimeout(closeSug,150);});
     $('og-form').addEventListener('keydown',function(ev){if(ev.key==='Escape'){if(sugOpen())closeSug();else closeForm();}
       if(ev.key==='Enter'&&ev.target.tagName==='INPUT'&&ev.target.id!=='og-addr'){ev.preventDefault();save();}});
   }
   function syncLinks(){st.links=[].map.call(document.querySelectorAll('#og-links input'),function(i){return i.value.trim();});}
 
-  /* ---------- AUTOCOMPLETE INDIRIZZO (Photon → Nominatim) ---------- */
+  /* ================= INDIRIZZI con NUMERO CIVICO ================= */
   var sugT=null,sugCtrl=null,sugList=[],sugI=-1,cache={};
   function sugOpen(){var b=document.getElementById('og-sug');return b&&b.classList.contains('open');}
   function closeSug(){var b=document.getElementById('og-sug');if(b){b.classList.remove('open');b.innerHTML='';}sugList=[];sugI=-1;}
   function getJ(u,sig){if(cache[u])return Promise.resolve(cache[u]);return fetch(u,{signal:sig,headers:{'Accept-Language':'it'}}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){cache[u]=j;return j;});}
   function ctr(){try{var c=map.getCenter();return {lat:c.lat,lng:c.lng,z:Math.round(map.getZoom())};}catch(_){return {lat:45.07,lng:7.69,z:12};}}
+  function norm(x){return (x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+  /* "Piazza del Popolo 3, Castelfiorentino" → {street:'Piazza del Popolo', num:'3', city:'Castelfiorentino'} */
+  function parseAddr(q){
+    var parts=q.split(',').map(function(x){return x.trim();}).filter(Boolean);
+    var first=(parts[0]||'').replace(/\b(n\.?|n°|nr\.?|civico)\s*(?=\d)/ig,'');
+    var num='',street=first,m;
+    if((m=first.match(/^(.*?\D)\s+(\d+\s?[a-zA-Z]?(?:\/\s?[a-zA-Z0-9]+)?)$/))){street=m[1].trim();num=m[2].replace(/\s/g,'');}
+    else if((m=first.match(/^(\d+[a-zA-Z]?)\s+(.+)$/))){num=m[1];street=m[2];}
+    var rest=parts.slice(1);
+    if(!num&&rest.length&&/^\d+\s?[a-zA-Z]?(\/[a-zA-Z0-9]+)?$/.test(rest[0])){num=rest[0].replace(/\s/g,'');rest=rest.slice(1);}
+    var city=rest.join(', ').replace(/\b\d{5}\b/g,'').replace(/\(\s*[A-Z]{2}\s*\)|\b[A-Z]{2}\b$/g,'').replace(/\s{2,}/g,' ').replace(/^[\s,]+|[\s,]+$/g,'');
+    return {street:street,num:num,city:city};
+  }
+  function provOf(a){var iso=a&&(a['ISO3166-2-lvl6']||'');var m=iso.match(/^IT-([A-Z]{2})$/);return m?m[1]:'';}
+  function fullLine(r){
+    var l1=r.street?(r.street+(r.hn?' '+r.hn:'')):'';
+    var l2=((r.postcode?r.postcode+' ':'')+(r.city||'')).trim()+(r.prov?' ('+r.prov+')':'');
+    return [l1,l2].filter(Boolean).join(', ');
+  }
+  function fromPhoton(f){
+    var p=f.properties||{},g=f.geometry&&f.geometry.coordinates;if(!g)return null;
+    var type=p.type||'';var isStreet=type==='street'||p.osm_key==='highway'||(p.osm_key==='place'&&p.osm_value==='square');
+    var r={lat:g[1],lng:g[0],name:'',street:p.street||'',hn:p.housenumber||'',postcode:p.postcode||'',city:p.city||p.town||p.village||p.locality||'',prov:'',county:p.county||''};
+    if(isStreet){r.street=r.street||p.name||'';r.kind='street';}
+    else if(['city','town','village','locality','district','county','state'].indexOf(type)>=0){r.kind='place';r.name=p.name||'';}
+    else if(p.name){r.kind='poi';r.name=p.name;}
+    else{r.kind='house';}
+    return r;
+  }
+  function fromNomi(d){
+    var a=d.address||{};
+    var street=a.road||a.pedestrian||a.square||a.footway||a.path||'';
+    var r={lat:+d.lat,lng:+d.lon,name:'',street:street,hn:a.house_number||'',postcode:a.postcode||'',city:a.city||a.town||a.village||a.municipality||'',prov:provOf(a),county:a.county||''};
+    var cls=d.class||'',typ=d.type||'';
+    if(r.hn&&(cls==='place'&&typ==='house'||cls==='building'||!d.name))r.kind='house';
+    else if(cls==='highway'||typ==='square')r.kind='street';
+    else if(cls==='place'||cls==='boundary')r.kind='place';
+    else {r.kind='poi';r.name=d.name||(d.display_name||'').split(',')[0];}
+    return r;
+  }
   function photon(q,sig){var c=ctr();
-    return getJ('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&limit=5&lat='+c.lat.toFixed(4)+'&lon='+c.lng.toFixed(4)+'&zoom='+c.z+'&bbox=6.6,36.6,18.6,47.1',sig).then(function(j){
-      return (j.features||[]).map(function(f){var p=f.properties||{},g=f.geometry&&f.geometry.coordinates;if(!g)return null;
-        var sn=p.street?(p.street+(p.housenumber?' '+p.housenumber:'')):'';var main=p.name||sn||p.city||'';
-        var sub=[p.name?sn:'',p.city||p.town||p.village||'',p.county||''].filter(function(x,i,a){return x&&x!==main&&a.indexOf(x)===i;}).join(', ');
-        return {lat:g[1],lng:g[0],main:main,sub:sub};}).filter(Boolean);});}
-  function nomi(q,sig){var vb='';try{var b=map.getBounds();vb='&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth());}catch(_){}
-    return getJ('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=5&countrycodes=it'+vb,sig).then(function(d){
-      return (d||[]).map(function(x){var p=(x.display_name||'').split(',');return {lat:+x.lat,lng:+x.lon,main:p.slice(0,2).join(',').trim(),sub:p.slice(2,4).join(',').trim()};});});}
-  function lookup(q,sig){return photon(q,sig).catch(function(){return [];}).then(function(r){return r.length?r:nomi(q,sig).catch(function(){return [];});});}
+    return getJ('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&limit=8&lat='+c.lat.toFixed(4)+'&lon='+c.lng.toFixed(4)+'&zoom='+c.z+'&bbox=6.6,36.6,18.6,47.1',sig)
+      .then(function(j){return (j.features||[]).map(fromPhoton).filter(Boolean);}).catch(function(){return [];});}
+  function nomiStructured(pa,sig){
+    if(!pa.num||!pa.street)return Promise.resolve([]);
+    var u='https://nominatim.openstreetmap.org/search?street='+encodeURIComponent(pa.num+' '+pa.street)+(pa.city?'&city='+encodeURIComponent(pa.city):'')+'&countrycodes=it&format=json&addressdetails=1&limit=4';
+    if(!pa.city){try{var b=map.getBounds();u+='&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth());}catch(_){}}
+    return getJ(u,sig).then(function(d){return (d||[]).map(fromNomi);}).catch(function(){return [];});
+  }
+  function nomiFree(q,sig){var vb='';try{var b=map.getBounds();vb='&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth());}catch(_){}
+    return getJ('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&addressdetails=1&limit=5&countrycodes=it'+vb,sig).then(function(d){return (d||[]).map(fromNomi);}).catch(function(){return [];});}
+  function streetMatches(r,pa){var a=norm(pa.street),b=norm(r.street||r.name);return !!a&&!!b&&(a===b||b.indexOf(a)>=0||a.indexOf(b)>=0);}
+  function cityMatches(r,pa){if(!pa.city)return true;var a=norm(pa.city),b=norm(r.city);return !b||a===b||b.indexOf(a)>=0||a.indexOf(b)>=0;}
+  /* Costruisce la lista: prima i civici esatti, poi la via con il civico dichiarato (se in mappa manca), poi luoghi e vie */
+  function lookup(q,sig){
+    var pa=parseAddr(q);
+    return Promise.all([photon(q,sig),nomiStructured(pa,sig)]).then(function(res){
+      var all=res[1].concat(res[0]);
+      if(!all.length)return nomiFree(q,sig).then(function(r){return build(r,pa);});
+      return build(all,pa);
+    });
+  }
+  function build(all,pa){
+    var out=[],seen={};
+    function push(r){var k=(fullLine(r)+'|'+(r.name||'')).toLowerCase();if(seen[k])return;seen[k]=1;out.push(r);}
+    if(pa.num){
+      var want=norm(pa.num);
+      var exact=all.filter(function(r){return r.hn&&norm(r.hn)===want&&streetMatches(r,pa)&&cityMatches(r,pa);});
+      exact.forEach(function(r){r.precision='exact';push(r);});
+      if(!exact.length){
+        var st0=all.filter(function(r){return (r.kind==='street'||r.kind==='house'||r.street)&&streetMatches(r,pa)&&cityMatches(r,pa);})[0];
+        if(st0){var syn={lat:st0.lat,lng:st0.lng,name:'',street:st0.street||st0.name,hn:pa.num,postcode:st0.postcode,city:st0.city||pa.city,prov:st0.prov,kind:'street',precision:'street'};
+          /* se c'è un civico vicino sulla stessa via, usiamo la sua posizione come stima migliore */
+          var near=all.filter(function(r){return r.hn&&streetMatches(r,pa)&&cityMatches(r,pa);}).sort(function(a,b){return Math.abs(parseInt(a.hn)-parseInt(pa.num))-Math.abs(parseInt(b.hn)-parseInt(pa.num));})[0];
+          if(near){syn.lat=near.lat;syn.lng=near.lng;syn.postcode=syn.postcode||near.postcode;}
+          push(syn);}
+      }
+    }
+    all.forEach(function(r){if(!r.precision)r.precision=r.hn?'exact':(r.kind==='poi'?'exact':'nonum');push(r);});
+    return {list:out.slice(0,7),pa:pa};
+  }
   function queueSug(v){clearTimeout(sugT);v=(v||'').trim();if(v.length<3){closeSug();return;}
     sugT=setTimeout(function(){if(sugCtrl)try{sugCtrl.abort();}catch(_){}sugCtrl=window.AbortController?new AbortController():null;
-      lookup(v,sugCtrl&&sugCtrl.signal).then(showSug).catch(function(){});},280);}
-  function showSug(list){var b=document.getElementById('og-sug');if(!b||!st)return;sugList=list;sugI=-1;
-    b.innerHTML=list.length?list.map(function(r,i){return '<button type="button" role="option" data-si="'+i+'"><div class="m">'+e(r.main)+'</div>'+(r.sub?'<div class="s">'+e(r.sub)+'</div>':'')+'</button>';}).join(''):'<div style="padding:8px 11px;font-size:0.72rem;color:var(--text-muted)">'+tt('no_results')+'</div>';
+      lookup(v,sugCtrl&&sugCtrl.signal).then(showSug).catch(function(){});},300);}
+  function sugHtml(r){
+    var full=fullLine(r);
+    if(r.kind==='poi'&&r.name)return '<div class="m">'+e(r.name)+'</div>'+(full?'<div class="f">'+e(full)+'</div>':'');
+    if(r.kind==='place')return '<div class="m">'+e(r.name||r.city)+'</div><div class="s">'+e([r.county].filter(Boolean).join(', '))+'</div>';
+    return '<div class="m">'+e(full||r.name)+'</div>'+(r.precision==='street'?'<div class="w">⚠ '+tt('sug_street_w')+'</div>':'');
+  }
+  function showSug(res){var b=document.getElementById('og-sug');if(!b||!st)return;var list=res.list;sugList=list;sugI=-1;
+    var foot=(!res.pa.num&&list.some(function(r){return r.kind==='street';}))?'<div class="og-sug-foot">'+tt('sug_foot_num')+'</div>':'';
+    b.innerHTML=list.length?list.map(function(r,i){return '<button type="button" role="option" data-si="'+i+'">'+sugHtml(r)+'</button>';}).join('')+foot:'<div style="padding:8px 11px;font-size:0.72rem;color:var(--text-muted)">'+tt('no_results')+'</div>';
     b.classList.add('open');
     [].forEach.call(b.querySelectorAll('[data-si]'),function(x){x.addEventListener('mousedown',function(ev){ev.preventDefault();pickSug(+x.dataset.si);});});}
-  function pickSug(i){var r=sugList[i];if(!r)return;var a=document.getElementById('og-addr');a.value=r.main+(r.sub?', '+r.sub.split(',')[0]:'');setPos({lat:r.lat,lng:r.lng});closeSug();}
+  function applyResult(r){
+    var full=fullLine(r);var disp=(r.kind==='poi'&&r.name)?(r.name+(full?', '+full:'')):(full||r.name||'');
+    var a=document.getElementById('og-addr');if(a)a.value=disp;
+    st.addrFull=disp;st.precision=r.precision||'exact';st.hn=r.hn||'';
+    setPos({lat:r.lat,lng:r.lng});
+  }
+  function pickSug(i){var r=sugList[i];if(!r)return;applyResult(r);closeSug();}
   function sugKeys(ev){if(!sugOpen())return;var n=sugList.length;if(!n)return;
     if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ev.preventDefault();sugI=(sugI+(ev.key==='ArrowDown'?1:-1)+n)%n;[].forEach.call(document.querySelectorAll('#og-sug [data-si]'),function(x,k){x.classList.toggle('hl',k===sugI);});}
     else if(ev.key==='Enter'){ev.preventDefault();pickSug(sugI<0?0:sugI);}}
-  function setPos(p){st.pos=p;var ok=document.getElementById('og-pos-ok');if(ok)ok.classList.add('show');var er=document.getElementById('og-err-addr');if(er)er.classList.remove('show');
+  function setPos(p){st.pos=p;var er=document.getElementById('og-err-addr');if(er)er.classList.remove('show');var ia=document.getElementById('og-addr');if(ia)ia.classList.remove('error');renderConfirm();
     try{map.setView([p.lat,p.lng],Math.max(map.getZoom(),16));}catch(_){}}
-  function reverse(p){return getJ('https://nominatim.openstreetmap.org/reverse?lat='+p.lat.toFixed(6)+'&lon='+p.lng.toFixed(6)+'&format=json&zoom=18&addressdetails=1').then(function(d){
-      var a=d&&d.address||{};var road=a.road||a.pedestrian||a.square||a.footway||'';var line=[road+(a.house_number?' '+a.house_number:''),a.city||a.town||a.village||''].filter(Boolean).join(', ');
-      return line||(d&&d.display_name?d.display_name.split(',').slice(0,2).join(','):'');}).catch(function(){return '';});}
+  function reverse(p){return getJ('https://nominatim.openstreetmap.org/reverse?lat='+p.lat.toFixed(6)+'&lon='+p.lng.toFixed(6)+'&format=json&zoom=18&addressdetails=1')
+    .then(function(d){if(!d||!d.address)return '';return fullLine(fromNomi(d))||(d.display_name||'').split(',').slice(0,3).join(',');}).catch(function(){return '';});}
 
-  /* ---------- SCELTA SULLA MAPPA (mirino al centro) ---------- */
-  function snapshot(){syncLinks();return {title:val('og-title'),address:val('og-addr'),date:val('og-date'),start:val('og-start'),end:val('og-end'),notes:val('og-notes'),links:st.links.slice(),endTouched:st.endTouched,ev:st.ev,pos:st.pos};}
+  /* ================= SCELTA SULLA MAPPA ================= */
   function val(id){var x=document.getElementById(id);return x?x.value:'';}
+  function snapshot(){syncLinks();return {title:val('og-title'),address:val('og-addr'),addrFull:st.addrFull,precision:st.precision,hn:st.hn,date:val('og-date'),start:val('og-start'),end:val('og-end'),notes:val('og-notes'),links:st.links.slice(),endTouched:st.endTouched,ev:st.ev,pos:st.pos};}
   function startPick(){
     var snap=snapshot();document.getElementById('modal-root').innerHTML='';
     var wrap=document.getElementById('map-wrap');
@@ -4106,24 +4270,25 @@ window.addEventListener('load',function(){
     var bar=document.getElementById('og-pick-bar');
     if(!bar){bar=document.createElement('div');bar.id='og-pick-bar';wrap.appendChild(bar);}
     bar.innerHTML='<span>'+tt('pick_hint')+'</span><button id="og-pick-cancel">'+tt('pick_cancel')+'</button><button id="og-pick-ok">'+tt('pick_ok')+'</button>';
-    if(snap.pos)try{map.setView([snap.pos.lat,snap.pos.lng],Math.max(map.getZoom(),16));}catch(_){}
+    if(snap.pos)try{map.setView([snap.pos.lat,snap.pos.lng],Math.max(map.getZoom(),17));}catch(_){}
     pin.style.display='block';bar.style.display='flex';
     function done(){pin.style.display='none';bar.style.display='none';}
     document.getElementById('og-pick-cancel').onclick=function(){done();reopen(snap);};
-    document.getElementById('og-pick-ok').onclick=function(){done();var c=map.getCenter();snap.pos={lat:c.lat,lng:c.lng};
-      var keep=snap.address;reopen(snap);
-      reverse(snap.pos).then(function(a){var el=document.getElementById('og-addr');if(el&&(!keep||el.value===keep))el.value=a||tt('here');});};
+    document.getElementById('og-pick-ok').onclick=function(){done();var c=map.getCenter();snap.pos={lat:c.lat,lng:c.lng};snap.precision='map';
+      reopen(snap);
+      reverse(snap.pos).then(function(a){if(!st)return;var el=document.getElementById('og-addr');
+        /* se l'utente aveva scritto un civico, lo teniamo: il punto ora è esatto perché scelto da lui */
+        var v=a||tt('here');if(snap.address&&parseAddr(snap.address).num&&!parseAddr(v).num)v=snap.address;
+        if(el)el.value=v;st.addrFull=v;renderConfirm();});};
   }
   function reopen(snap){
-    openForm(snap.ev,{title:snap.title,address:snap.address,date:snap.date,start:snap.start,end:snap.end,notes:snap.notes,pos:snap.pos});
-    if(snap.ev){/* in modifica i campi vengono dall'evento: riapplica lo stato corrente */
-      ['title','date','start','end','notes'].forEach(function(k){var el=document.getElementById('og-'+k);if(el)el.value=snap[k];});
-      document.getElementById('og-addr').value=snap.address;st.pos=snap.pos;}
-    st.endTouched=snap.endTouched;st.links=snap.links.length?snap.links:[''];renderLinks();markDay();
-    if(snap.pos){st.pos=snap.pos;document.getElementById('og-pos-ok').classList.add('show');}
+    openForm(snap.ev,{title:snap.title,address:snap.address,addrFull:snap.addrFull,precision:snap.precision,hn:snap.hn,date:snap.date,start:snap.start,end:snap.end,endTouched:snap.endTouched,notes:snap.notes,pos:snap.pos,links:snap.links});
+    if(snap.ev){['title','date','start','end','notes'].forEach(function(k){var el=document.getElementById('og-'+k);if(el)el.value=snap[k];});
+      document.getElementById('og-addr').value=snap.address;st.links=snap.links.length?snap.links:[''];renderLinks();markDay();}
+    st.pos=snap.pos;st.addrFull=snap.addrFull;st.precision=snap.precision;st.hn=snap.hn;st.endTouched=snap.endTouched;renderConfirm();
   }
 
-  /* ---------- SALVATAGGIO ---------- */
+  /* ================= SALVATAGGIO ================= */
   function save(){
     if(!st)return;syncLinks();
     var title=val('og-title').trim(),addr=val('og-addr').trim(),date=val('og-date'),start=val('og-start'),end=val('og-end');
@@ -4131,23 +4296,27 @@ window.addEventListener('load',function(){
     function flag(id,bad,inp){var er=document.getElementById(id);if(er)er.classList.toggle('show',bad);if(inp){var i=document.getElementById(inp);if(i)i.classList.toggle('error',bad);}if(bad)ok=false;}
     flag('og-err-title',!title,'og-title');
     flag('og-err-time',!date||!start);
+    if(!checkTimes())ok=false;
     if(!ok)return;
     if(!st.pos){
       if(addr.length<3){flag('og-err-addr',true,'og-addr');return;}
       toast(tt('searching'));
-      lookup(addr).then(function(r){if(!st)return;if(r&&r.length){st.pos={lat:r[0].lat,lng:r[0].lng};save();}else{flag('og-err-addr',true,'og-addr');toast(tt('not_found'));}});
+      lookup(addr).then(function(res){if(!st)return;
+        if(res.list.length){applyResult(res.list[0]);closeSug();toast(tt('conf_check'));
+          var cb=document.getElementById('og-confirm');if(cb&&cb.scrollIntoView)cb.scrollIntoView({block:'center',behavior:'smooth'});}
+        else{flag('og-err-addr',true,'og-addr');toast(tt('not_found'));}});
       return;
     }
-    var sdt=date+'T'+start,edt='';
-    if(end){edt=date+'T'+end;if(end<=start){var d=new Date(date+'T00:00');d.setDate(d.getDate()+1);edt=ymd(d)+'T'+end;}}
+    var sdt=date+'T'+start,edt=end?date+'T'+end:'';
     var links=st.links.map(normLink).filter(Boolean);
-    var fields={title:title,address:addr,lat:st.pos.lat,lng:st.pos.lng,datetime:sdt,end:edt,duration:'',notes:val('og-notes').trim(),description:val('og-notes').trim(),
+    var fields={title:title,address:addr,addressFull:st.addrFull||addr,addrPrecision:st.precision||'exact',addrNum:st.hn||'',lat:st.pos.lat,lng:st.pos.lng,datetime:sdt,end:edt,duration:'',notes:val('og-notes').trim(),description:val('og-notes').trim(),
       links:links,link:links[0]||'',offgrid:true,personal:true,category:'',sublayer:'',hidden:false,hiddenPassword:'',price:'',image:''};
     var id,isEdit=!!st.ev;
     if(isEdit){var ev=events.find(function(x){return x.id===st.ev.id;});if(ev){Object.assign(ev,fields);id=ev.id;}}
     else{id='og'+Date.now().toString(36);events.push(Object.assign({id:id,going:0,here:0,createdAt:new Date().toISOString()},fields));
       if(typeof addToCalendar==='function')addToCalendar(id);}
     saveEvents();closeForm();
+    if(typeof updateCalBadge==='function')updateCalBadge();
     if(typeof showOffgrid!=='undefined'&&!showOffgrid){var b=document.getElementById('toggle-offgrid');if(b)b.click();}
     if(typeof refreshMarkers==='function')refreshMarkers();
     if(typeof renderLayers==='function')renderLayers();
@@ -4164,10 +4333,10 @@ window.addEventListener('load',function(){
     if(typeof updateCount==='function')updateCount();
   }
 
-  /* ---------- POPUP ---------- */
+  /* ================= POPUP ================= */
   function whenStr(ev){
     try{var s=new Date(ev.datetime);var day=s.toLocaleDateString(dloc(),{weekday:'short',day:'numeric',month:'long'});
-      var r=day+' · '+hm(s);if(ev.end){var en=new Date(ev.end);r+='–'+hm(en);if(ymd(en)!==ymd(s))r+=' '+tt('next_day');}return r;}catch(_){return '';}
+      var r=day+' · '+hm(s);if(ev.end){r+='–'+hm(new Date(ev.end));}return r;}catch(_){return '';}
   }
   window.ogBuildPopup=function(ev){
     var exp=typeof isExpired==='function'&&isExpired(ev);
@@ -4178,7 +4347,7 @@ window.addEventListener('load',function(){
       +'<div style="margin-bottom:6px;"><span class="og-pill">📡 Off-Grid · '+tt('only_you')+'</span>'+(exp?' <span class="popup-expired-badge">'+t('terminato')+'</span>':'')+'</div>'
       +'<div class="popup-title">'+(typeof hl==='function'?hl(e(ev.title),e(searchQuery)):e(ev.title))+'</div>'
       +'<div class="og-pop-when">🕒 '+e(whenStr(ev))+'</div>'
-      +(ev.address?'<div class="og-pop-addr">📍 '+e(ev.address)+'</div>':'')
+      +((ev.addressFull||ev.address)?'<div class="og-pop-addr">📍 '+e(ev.addressFull||ev.address)+'</div>':'')
       +(ev.notes?'<div class="og-pop-notes">'+e(ev.notes)+'</div>':'')
       +(links.length?'<div class="og-pop-links">'+links.map(function(u){var lbl=u.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,'');return '<a href="'+e(u)+'" target="_blank" rel="noopener">🔗 '+e(lbl)+'</a>';}).join('')+'</div>':'')
       +'<div class="og-pop-actions"><a href="'+dir+'" target="_blank" rel="noopener">🧭 '+tt('directions')+'</a><button data-action="og-cal" data-id="'+ev.id+'">'+tt(inCal?'in_cal':'to_cal')+'</button></div>'
@@ -4193,20 +4362,21 @@ window.addEventListener('load',function(){
     else if(a==='og-cal'){if(isInCalendar(id)){removeFromCalendar(id);}else{addToCalendar(id);}if(markers[id])markers[id].setPopupContent(window.ogBuildPopup(item));}
   });
 
-  /* ---------- PRESSIONE LUNGA / TASTO DESTRO SULLA MAPPA = nuovo evento lì ---------- */
+  /* ================= PRESSIONE LUNGA SULLA MAPPA ================= */
   function hookMap(){
     if(typeof map==='undefined'||!map||!map.on){return setTimeout(hookMap,300);}
     map.on('contextmenu',function(me){
       if(document.getElementById('og-form'))return;
       var p={lat:me.latlng.lat,lng:me.latlng.lng};
-      openForm(null,{pos:p});
-      reverse(p).then(function(a){var el=document.getElementById('og-addr');if(el&&!el.value)el.value=a||tt('here');});
+      openForm(null,{pos:p,precision:'map'});
+      reverse(p).then(function(a){if(!st)return;var el=document.getElementById('og-addr');if(el&&!el.value){el.value=a||tt('here');st.addrFull=el.value;renderConfirm();}});
     });
   }
   hookMap();
 
   window.ogOpenForm=function(){openForm(null);};
   window.ogEdit=function(id){var ev=events.find(function(x){return x.id===id;});if(ev)openForm(ev);};
+  window.__ogTest={parseAddr:parseAddr,build:build,fullLine:fullLine};
 })();
 </script>
 
