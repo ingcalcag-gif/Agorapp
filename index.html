@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OG 1.6 — 30 settembre 2026 — "Fino al" sempre visibile (grigio se non si ripete); modifica di un evento ricorrente con due tasti grandi finali "Salva solo questa data" / "Salva tutta la serie"; rimossa ovunque la funzione Duplica -->
 <!-- OG 1.5 — 30 settembre 2026 — Eventi Off-Grid ricorrenti (ogni giorno, dal lunedì al venerdì, ogni settimana, ogni 2 settimane, ogni mese; fino a una data); eliminazione: solo questo giorno o tutta la serie; modifica: solo questa data o tutta la serie; tolti "Condividi" dal calendario e "Parti da un tuo evento" dal form; coefficiente dei percorsi 1,4 -->
 <!-- OG 1.4 — 30 settembre 2026 — Calendario: viste nell'ordine Giornata · Mese · Agenda (Giornata all'apertura); oggi evidenziato nella vista Mese (griglia sempre visibile); Agenda divisa per giorni con intestazione e riga di separazione; PDF con anteprima: tutti gli eventi selezionati, si tolgono quelli da non condividere -->
 <!-- OG 1.3 — 30 settembre 2026 — "La mia giornata": terza vista del Calendario (Mese · Agenda · Giornata) con tappe numerate, tempi di spostamento stimati a piedi/in bici/con i mezzi, margini, avvisi di tempo stretto e sovrapposizioni, tempi liberi con "+ Aggiungi qui", e percorso numerato disegnato sulla mappa -->
@@ -3936,7 +3937,6 @@ window.addEventListener('load',function(){
 .og-bubble p:last-child{margin:0;}
 @keyframes ogPop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 #og-form .og-req{color:var(--accent);}
-.og-dup-banner{background:var(--surface2);border-left:3px solid var(--accent);border-radius:8px;padding:8px 11px;font-size:0.75rem;color:var(--text);margin-bottom:12px;}
 .og-addr-row{display:flex;gap:6px;}
 .og-addr-wrap{flex:1;position:relative;min-width:0;}
 .og-addr-wrap input{width:100%;}
@@ -3967,13 +3967,20 @@ window.addEventListener('load',function(){
 .og-days{display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
 .og-rep-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
 .og-rep-row select{flex:1;min-width:150px;}
-.og-until-wrap{display:none;align-items:center;gap:6px;}
-.og-until-wrap.show{display:flex;}
+.og-until-wrap{display:flex;align-items:center;gap:6px;transition:opacity .15s;}
+.og-until-wrap.off{opacity:.45;}
+.og-until-wrap.off input{background:var(--surface2);cursor:not-allowed;}
 .og-until-lbl{font-size:0.72rem;color:var(--text-muted);white-space:nowrap;}
 .og-until-wrap input{width:150px;}
 .og-rep-sum{display:none;margin-top:6px;font-size:0.72rem;font-weight:600;color:var(--accent);}
 .og-rep-sum.show{display:block;}
-.og-ser-info{font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:6px;}
+.og-ser-info{font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:4px;}
+.og-ser-hint{font-size:0.72rem;color:var(--text-muted);}
+.og-ser-save{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.og-ser-save button{min-height:56px;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.875rem;font-weight:600;cursor:pointer;padding:8px 10px;line-height:1.2;}
+.og-ser-save button small{display:block;font-size:0.6875rem;font-weight:400;margin-top:3px;opacity:.9;}
+.og-ser-save .one{border:1.5px solid var(--accent);background:var(--surface);color:var(--accent);}
+.og-ser-save .all{border:none;background:var(--accent);color:white;}
 .og-scope{display:flex;gap:14px;flex-wrap:wrap;font-size:0.8125rem;color:var(--text);}
 .og-scope label{display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;font-size:0.8125rem;color:var(--text);margin:0;}
 .og-scope input{accent-color:var(--accent);width:18px;height:18px;}
@@ -3996,7 +4003,6 @@ window.addEventListener('load',function(){
 .og-links .og-link-row input{flex:1;min-width:0;}
 .og-link-del{flex-shrink:0;width:30px;border-radius:8px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;font-size:1rem;}
 .og-add-link{font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 0;}
-.og-dup-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:14px;padding:8px;border-radius:10px;border:1px dashed var(--accent);background:transparent;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:0.8125rem;font-weight:500;cursor:pointer;}
 .og-admin-link{display:block;margin-top:12px;text-align:center;font-size:0.6875rem;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;width:100%;font-family:'DM Sans',sans-serif;}
 #og-form textarea{min-height:64px;}
 #og-pick-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);z-index:600;pointer-events:none;display:none;}
@@ -4021,8 +4027,6 @@ window.addEventListener('load',function(){
       sub:'Solo su questo dispositivo · lo vedi solo tu',
       help_aria:'Che cos’è un evento Off-Grid?',
       help:'<p><b>Che cos’è un evento Off-Grid?</b><br>È un tuo appuntamento: vive solo nella memoria di questo dispositivo, non passa da nessun server e nessuno oltre a te può vederlo. Ti serve per organizzare la giornata sulla mappa e nel calendario, accanto agli eventi della città.</p><p><b>Perché non posso ancora pubblicarlo per tutti?</b><br>Pubblicare un evento <i>on-grid</i> vuol dire affidarci i dati tuoi e di chi lo organizza. Oggi Agorapp è un progetto indipendente, senza ancora una società alle spalle in grado di custodirli con le garanzie che meritano: preferiamo non raccoglierli piuttosto che raccoglierli male.</p><p><b>Presto sarà possibile.</b> Ci stiamo lavorando: quando potrai pubblicare i tuoi eventi per tutta la città, sarai tra i primi a saperlo.</p>',
-      dup_banner:'Copia di «%s»: scegli il nuovo giorno e salva.',
-      dup_btn:'⧉ Duplica questo evento',
       f_title:'Titolo', f_title_ph:'es. Caffè con Giulia', f_title_err:'Dai un nome al tuo appuntamento',
       f_addr:'Indirizzo', f_addr_ph:'Via e numero civico, città', f_addr_err:'Scegli un indirizzo dai suggerimenti o dalla mappa',
       f_addr_map:'Scegli sulla mappa',
@@ -4040,7 +4044,8 @@ window.addEventListener('load',function(){
       oggi:'Oggi', domani:'Domani',
       f_rep:'Ripetizione', rep_none:'Non si ripete', rep_daily:'Ogni giorno', rep_weekdays:'Dal lunedì al venerdì', rep_weekly:'Ogni %s', rep_biweekly:'Ogni 2 settimane, di %s', rep_monthly:'Ogni mese, il giorno %s',
       rep_until:'Fino al', rep_sum:'%s date in calendario', rep_err:'La data di fine ripetizione deve essere dopo il primo giorno', rep_max:'Al massimo un anno di ripetizioni',
-      ser_info:'Fa parte di una serie: %s', ser_scope_one:'Solo questa data', ser_scope_all:'Tutta la serie',
+      ser_info:'Fa parte di una serie: %s', ser_hint:'Scegli in fondo se salvare le modifiche solo per questa data o per tutta la serie.',
+      ser_save_one:'Salva solo questa data', ser_save_all:'Salva tutta la serie', ser_n:'%s date, ognuna nel suo giorno', conf_check_ser:'Controlla l\u2019indirizzo qui sotto e scegli di nuovo come salvare.',
       del_q:'Questo evento si ripete. Cosa vuoi eliminare?', del_one:'Solo questo giorno', del_all:'Tutta la serie (%s date)', saved_n:'%s appuntamenti salvati sulla mappa e nel calendario', deleted_all:'Serie eliminata',
       f_notes:'Note', f_notes_ph:'Cosa portare, con chi, promemoria…',
       f_links:'Link utili', f_add_link:'+ Aggiungi un link',
@@ -4058,8 +4063,6 @@ window.addEventListener('load',function(){
       sub:'Only on this device · only you can see it',
       help_aria:'What is an Off-Grid event?',
       help:'<p><b>What is an Off-Grid event?</b><br>It’s your own appointment: it lives only in this device’s memory, never passes through any server and nobody but you can see it. Use it to plan your day on the map and in the calendar, next to the city’s events.</p><p><b>Why can’t I publish it for everyone yet?</b><br>Publishing an <i>on-grid</i> event means trusting us with your data and the organiser’s. Today Agorapp is an independent project, without a company behind it that can look after that data with the guarantees it deserves: we’d rather not collect it than collect it badly.</p><p><b>It’s coming soon.</b> We’re working on it, and you’ll be among the first to know.</p>',
-      dup_banner:'Copy of «%s»: pick the new day and save.',
-      dup_btn:'⧉ Duplicate this event',
       f_title:'Title', f_title_ph:'e.g. Coffee with Giulia', f_title_err:'Give your appointment a name',
       f_addr:'Address', f_addr_ph:'Street and number, city', f_addr_err:'Pick an address from the suggestions or the map',
       f_addr_map:'Pick on the map',
@@ -4122,8 +4125,8 @@ window.addEventListener('load',function(){
     var sel=document.getElementById('og-rep');if(!sel)return;var cur=sel.value||'none',d=val('og-date');
     sel.innerHTML=['none','daily','weekdays','weekly','biweekly','monthly'].map(function(f){return '<option value="'+f+'"'+(f===cur?' selected':'')+'>'+e(repLabel(f,d))+'</option>';}).join('');
     var on=sel.value!=='none',w=document.getElementById('og-until-wrap'),u=document.getElementById('og-until');
-    if(w)w.classList.toggle('show',on);
-    if(on&&u){var min=new Date(d+'T00:00');var max=new Date(min);max.setFullYear(max.getFullYear()+1);u.min=d;u.max=ymd(max);
+    if(w)w.classList.toggle('off',!on);if(u){u.disabled=!on;u.title=on?'':tt('rep_none');}
+    if(u){var min=new Date(d+'T00:00');var max=new Date(min);max.setFullYear(max.getFullYear()+1);u.min=d;u.max=ymd(max);
       if(!u.value||u.value<d){var def=new Date(min);def.setMonth(def.getMonth()+3);u.value=ymd(def);}}
     var sum=document.getElementById('og-rep-sum'),er=document.getElementById('og-err-rep');if(er){er.classList.remove('show');}
     if(sum){if(on&&u&&u.value){var n=repDates(d,sel.value,u.value).length;var last=repDates(d,sel.value,u.value).slice(-1)[0];
@@ -4171,7 +4174,6 @@ window.addEventListener('load',function(){
       +'<button type="button" class="og-x" id="og-x" aria-label="'+e(tt('cancel'))+'">&times;</button></div>';
     h+='<div class="og-sub"><span class="og-pill">📡 Off-Grid</span>'+e(tt('sub'))+'</div>';
     h+='<div class="og-bubble" id="og-bubble" role="note">'+tt('help')+'</div>';
-    if(preset.dupOf)h+='<div class="og-dup-banner">'+e(tt('dup_banner',preset.dupOf))+'</div>';
     h+='<div class="field"><label for="og-title">'+tt('f_title')+' <span class="og-req">*</span></label><input id="og-title" type="text" maxlength="100" autocomplete="off" placeholder="'+e(tt('f_title_ph'))+'" value="'+e(isEdit?ev.title:(preset.title||''))+'"><div class="err-msg" id="og-err-title">'+tt('f_title_err')+'</div></div>';
     h+='<div class="field"><label for="og-addr">'+tt('f_addr')+' <span class="og-req">*</span></label><div class="og-addr-row"><div class="og-addr-wrap"><input id="og-addr" type="text" autocomplete="off" placeholder="'+e(tt('f_addr_ph'))+'" value="'+e(isEdit?(ev.address||''):(preset.address||''))+'"><div class="og-sug" id="og-sug" role="listbox"></div></div>'
       +'<button type="button" class="og-icon-btn" id="og-map-btn" title="'+e(tt('f_addr_map'))+'" aria-label="'+e(tt('f_addr_map'))+'"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5C5.24 1.5 3 3.6 3 6.3 3 9.8 8 14.5 8 14.5s5-4.7 5-8.2c0-2.7-2.24-4.8-5-4.8z" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="6.3" r="1.8" stroke="currentColor" stroke-width="1.3"/></svg></button></div>'
@@ -4181,18 +4183,20 @@ window.addEventListener('load',function(){
       +'<div class="og-time-row"><input id="og-date" type="date" aria-label="'+e(tt('f_date'))+'" value="'+e(date)+'"><input id="og-start" type="time" step="300" aria-label="'+e(tt('f_start'))+'" value="'+e(start)+'"><input id="og-end" type="time" step="300" aria-label="'+e(tt('f_end'))+'" value="'+e(end)+'"></div>'
       +'<div class="err-msg" id="og-err-time">'+tt('f_time_err')+'</div><div class="err-msg" id="og-err-end">'+tt('f_end_err')+'</div><div class="og-nextday" id="og-nextday" aria-live="polite"></div></div>';
     if(!isEdit){h+='<div class="field og-rep"><label for="og-rep">'+tt('f_rep')+'</label><div class="og-rep-row"><select id="og-rep"></select><span class="og-until-wrap" id="og-until-wrap"><span class="og-until-lbl">'+tt('rep_until')+'</span><input id="og-until" type="date" aria-label="'+e(tt('rep_until'))+'"></span></div><div class="og-rep-sum" id="og-rep-sum"></div><div class="err-msg" id="og-err-rep"></div></div>';}
-    else if(ev.seriesId){var sib=seriesOf(ev);h+='<div class="field og-rep"><div class="og-ser-info">↻ '+e(tt('ser_info',repLabel(ev.rep&&ev.rep.freq,(ev.datetime||'').slice(0,10))+' · '+sib.length+' date'))+'</div>'+'<div class="og-scope" role="radiogroup" aria-label="Applica le modifiche a"><label><input type="radio" name="og-scope" value="one" checked> '+tt('ser_scope_one')+'</label><label><input type="radio" name="og-scope" value="all"> '+tt('ser_scope_all')+'</label></div></div>';}
+    else if(ev.seriesId){var sib=seriesOf(ev);h+='<div class="field og-rep"><div class="og-ser-info">↻ '+e(tt('ser_info',repLabel(ev.rep&&ev.rep.freq,(ev.datetime||'').slice(0,10))+' · '+sib.length+' date'))+'</div>'+'<div class="og-ser-hint">'+e(tt('ser_hint'))+'</div></div>';}
     h+='<div class="field"><label for="og-notes">'+tt('f_notes')+' <span class="field-hint">'+tt('opt')+'</span></label><textarea id="og-notes" maxlength="1000" placeholder="'+e(tt('f_notes_ph'))+'">'+e(isEdit?(ev.notes||''):(preset.notes||''))+'</textarea></div>';
     h+='<div class="field og-links"><label>'+tt('f_links')+' <span class="field-hint">'+tt('opt')+'</span></label><div id="og-links"></div><button type="button" class="og-add-link" id="og-add-link">'+tt('f_add_link')+'</button></div>';
-    h+='<div class="modal-actions"><button class="btn-secondary" id="og-cancel">'+tt('cancel')+'</button>'+(isEdit?'<button class="btn-danger" id="og-del">'+tt('del')+'</button>':'')+'<button class="btn-primary" id="og-save">'+tt(isEdit?'save_edit':'save')+'</button></div>';
-    if(isEdit)h+='<button type="button" class="og-dup-btn" id="og-dup">'+tt('dup_btn')+'</button>';
+    var isSer=isEdit&&ev.seriesId&&seriesOf(ev).length>1;
+    if(isSer){var dl=new Date(ev.datetime).toLocaleDateString(dloc(),{weekday:'short',day:'numeric',month:'short'});
+      h+='<div class="modal-actions"><button class="btn-secondary" id="og-cancel">'+tt('cancel')+'</button><button class="btn-danger" id="og-del">'+tt('del')+'</button></div>'
+        +'<div class="og-ser-save"><button type="button" class="one" id="og-save-one">'+tt('ser_save_one')+'<small>'+e(dl)+'</small></button><button type="button" class="all" id="og-save-all">'+tt('ser_save_all')+'<small>'+e(tt('ser_n',String(seriesOf(ev).length)))+'</small></button></div>';}
+    else h+='<div class="modal-actions"><button class="btn-secondary" id="og-cancel">'+tt('cancel')+'</button>'+(isEdit?'<button class="btn-danger" id="og-del">'+tt('del')+'</button>':'')+'<button class="btn-primary" id="og-save">'+tt(isEdit?'save_edit':'save')+'</button></div>';
     if(!isEdit&&typeof isAdmin!=='undefined'&&isAdmin)h+='<button type="button" class="og-admin-link" id="og-admin">'+tt('admin_ongrid')+'</button>';
     h+='</div></div>';
     document.getElementById('modal-root').innerHTML=h;
     renderLinks();markDay();renderConfirm();
     wire(isEdit);checkTimes();fillRep();
-    if(preset.dupOf)setTimeout(function(){var d=document.getElementById('og-date');if(d)d.focus();},60);
-    else if(!isEdit&&!preset.title)setTimeout(function(){var t=document.getElementById('og-title');if(t)t.focus();},60);
+    if(!isEdit&&!preset.title)setTimeout(function(){var t=document.getElementById('og-title');if(t)t.focus();},60);
   }
 
   function renderLinks(){
@@ -4241,11 +4245,11 @@ window.addEventListener('load',function(){
     $('og-add-link').onclick=function(){syncLinks();if(st.links.length<5){st.links.push('');renderLinks();var ins=document.querySelectorAll('#og-links input');ins[ins.length-1].focus();}};
     $('og-links').addEventListener('click',function(ev){var d=ev.target.closest('[data-ld]');if(!d)return;syncLinks();st.links.splice(+d.dataset.ld,1);if(!st.links.length)st.links=[''];renderLinks();});
     $('og-map-btn').onclick=startPick;
-    $('og-save').onclick=save;
+    if($('og-save'))$('og-save').onclick=function(){save();};
+    if($('og-save-one'))$('og-save-one').onclick=function(){save('one');};
+    if($('og-save-all'))$('og-save-all').onclick=function(){save('all');};
     if(isEdit){
       $('og-del').onclick=function(){askDelete(st.ev,closeForm);};
-      $('og-dup').onclick=function(){var sn=snapshot();var src=st.ev;
-        openForm(null,{dupOf:src.title,title:sn.title,address:sn.address,addrFull:sn.addrFull,precision:sn.precision,hn:sn.hn,pos:sn.pos,date:sn.date,start:sn.start,end:sn.end,endTouched:true,notes:sn.notes,links:sn.links.filter(Boolean)});};
     }
     var adm=$('og-admin');if(adm)adm.onclick=function(){closeForm();if(typeof editingId!=='undefined')editingId=null;showModal(null);};
     var addr=$('og-addr');
@@ -4253,7 +4257,7 @@ window.addEventListener('load',function(){
     addr.addEventListener('keydown',sugKeys);
     addr.addEventListener('blur',function(){setTimeout(closeSug,150);});
     $('og-form').addEventListener('keydown',function(ev){if(ev.key==='Escape'){if(sugOpen())closeSug();else closeForm();}
-      if(ev.key==='Enter'&&ev.target.tagName==='INPUT'&&ev.target.id!=='og-addr'){ev.preventDefault();save();}});
+      if(ev.key==='Enter'&&ev.target.tagName==='INPUT'&&ev.target.id!=='og-addr'){ev.preventDefault();if(!document.getElementById('og-save-all'))save();}});
   }
   function syncLinks(){st.links=[].map.call(document.querySelectorAll('#og-links input'),function(i){return i.value.trim();});}
 
@@ -4410,7 +4414,7 @@ window.addEventListener('load',function(){
   }
 
   /* ================= SALVATAGGIO ================= */
-  function save(){
+  function save(scope){
     if(!st)return;syncLinks();
     var title=val('og-title').trim(),addr=val('og-addr').trim(),date=val('og-date'),start=val('og-start'),end=val('og-end');
     var ok=true;
@@ -4423,7 +4427,7 @@ window.addEventListener('load',function(){
       if(addr.length<3){flag('og-err-addr',true,'og-addr');return;}
       toast(tt('searching'));
       lookup(addr,null,true).then(function(res){if(!st)return;
-        if(res.list.length){applyResult(res.list[0]);closeSug();toast(tt('conf_check'));
+        if(res.list.length){applyResult(res.list[0]);closeSug();toast(tt(document.getElementById('og-save-all')?'conf_check_ser':'conf_check'));
           var cb=document.getElementById('og-confirm');if(cb&&cb.scrollIntoView)cb.scrollIntoView({block:'center',behavior:'smooth'});}
         else{flag('og-err-addr',true,'og-addr');toast(tt('not_found'));}});
       return;
@@ -4435,7 +4439,7 @@ window.addEventListener('load',function(){
     var id,isEdit=!!st.ev,count=1;
     var endOff=edt?Math.round((new Date(edt.slice(0,10)+'T00:00')-new Date(date+'T00:00'))/86400000):0;
     if(isEdit){var ev=events.find(function(x){return x.id===st.ev.id;});
-      var scopeAll=!!document.querySelector('input[name="og-scope"][value="all"]:checked');
+      var scopeAll=scope==='all';
       if(ev&&scopeAll&&ev.seriesId){
         /* tutta la serie: stessi dati e orari, ogni data resta la sua */
         seriesOf(ev).forEach(function(x){var dd=x.id===ev.id?date:(x.datetime||'').slice(0,10);var f2=Object.assign({},fields);
