@@ -1,0 +1,79 @@
+
+/* ===== App vera: mappa CARTO (MapLibre) al posto della mappa disegnata ===== */
+html,body{overscroll-behavior:none}
+body{background:var(--fondo)}
+.app{padding-bottom:env(safe-area-inset-bottom,0px)}
+#map{position:absolute;inset:0;background:var(--mappa-terra)}
+#map .maplibregl-canvas{outline:none}
+#map .maplibregl-ctrl-bottom-right,#map .maplibregl-ctrl-bottom-left,#map .maplibregl-ctrl-top-right{display:none}
+.mk{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.mk.alto{z-index:3}
+.mk-tu{width:18px;height:18px}
+.mk-q{width:26px;height:26px}
+.mk-tappa{width:32px;height:32px}
+.mk-lbl{pointer-events:none}
+.pressione{position:absolute;z-index:5}
+.attrib a{color:inherit;text-decoration:none}
+.top .nome{white-space:nowrap}
+.scheda-img{width:100%;max-height:180px;object-fit:cover;border-radius:12px;display:block;background:var(--incassata)}
+.dato a{color:var(--verde);font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.riga-ev .meta,.tappa-r .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.campo input[type="date"],.campo input[type="time"],.campo input[type="datetime-local"]{min-width:0}
+.sugg .m{font-weight:600}
+.sugg .s{font-size:12px;line-height:16px;color:var(--testo-2)}
+.sugg .w{font-size:12px;line-height:16px;color:var(--clay-ink)}
+.sugg-foot{padding:8px 12px;font-size:12px;color:var(--testo-2);background:var(--incassata)}
+.caricamento{font-size:12px;color:var(--testo-2);padding:8px 2px}
+.err-box{font-size:12px;line-height:16px;color:var(--rosso);font-weight:600}
+.conta-car{font-size:12px;color:var(--testo-2);text-align:right}
+.conta-car.ok{color:var(--verde)}
+.pagina-vuota{padding:24px 16px;display:flex;flex-direction:column;gap:12px}
+.pagina-vuota h1{font-size:24px;line-height:28px}
+.toast{top:12px}
+.posa-testa{position:absolute;left:12px;right:12px;top:12px;z-index:7;border-radius:14px;padding:10px 14px}
+.cal button .oggi-n{color:var(--verde)}
+.cal button.passato{opacity:.55}
+.carta .pr .nt{display:block;font-size:12px;color:var(--carta-2);white-space:pre-wrap}
+.file-nascosto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+/* due tasti per le serie: grandi, con la riga piccola sotto */
+.tasto small{display:block;font-size:12px;font-weight:500;opacity:.85}
+.tasto.col{flex-direction:column;gap:0}
+/* Lingua araba: la pagina va da destra a sinistra */
+[dir="rtl"] .lato{right:auto;left:12px;align-items:flex-start}
+[dir="rtl"] .tipi-mappa{left:auto;right:10px;align-items:flex-end}
+[dir="rtl"] .attrib{right:auto;left:12px}
+[dir="rtl"] .chiudi{margin:-8px 0 -8px -10px}
+[dir="rtl"] .sub{padding:0 56px 12px 12px}
+[dir="rtl"] .tratto-r{border-left:0;border-right:2px dashed var(--linea-forte);margin-left:0;margin-right:25px;padding:6px 24px 6px 12px}
+[dir="rtl"] [aria-pressed="true"] .interr::after{transform:translateX(-16px)}
+[dir="rtl"] .interr::after{left:auto;right:3px}
+[dir="rtl"] .legale ul{padding-left:0;padding-right:20px}
+[dir="rtl"] .freccia-dir{transform:scaleX(-1)}
+[dir="rtl"] .riga-ev .ora{text-align:right}
+.c-abitativo{--ic:#B03A2E;--it:#FDECEA;--ib:#F2B8B0}
+.c-fuorisede{--ic:#2D5A3D;--it:#E8F0EB;--ib:#B9D3C1}
+.c-verde{--ic:#1E7A44;--it:#E6F5EC;--ib:#A9DCBC}
+.c-autogestiti{--ic:#7D3C98;--it:#F5EEF8;--ib:#D8BFE3}
+.c-gentrificazione{--ic:#A84F12;--it:#FEF3E4;--ib:#F3C99A}
+.c-uguaglianza{--ic:#1F618D;--it:#EBF5FB;--ib:#AED0E8}
+.c-agorapp{--ic:#2D5A3D;--it:#E8F2EB;--ib:#B9D3C1}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
+:root:not([data-theme="light"]) .c-fuorisede,:root:not([data-theme="light"]) .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root:not([data-theme="light"]) .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
+:root:not([data-theme="light"]) .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
+:root:not([data-theme="light"]) .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
+:root:not([data-theme="light"]) .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}}
+:root[data-theme="dark"] .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
+:root[data-theme="dark"] .c-fuorisede,:root[data-theme="dark"] .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root[data-theme="dark"] .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
+:root[data-theme="dark"] .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
+:root[data-theme="dark"] .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
+:root[data-theme="dark"] .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}
+a.tasto,a.link{text-decoration:none}
+a.tasto.sec{color:var(--testo)}
+.campo .chiudi{width:36px;height:36px}
+.avviso-strati{position:absolute;left:12px;right:12px;bottom:84px;z-index:7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;background:var(--vetro-forte)}
+.app.muove .avviso-strati{background:var(--superficie)}
+.vuoto-lbl{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px;border-radius:10px;background:var(--vetro-forte);border:1px solid var(--linea);font-size:12px;line-height:15px;color:var(--testo-2);white-space:nowrap;box-shadow:var(--ombra-card)}
+.vuoto-lbl b{color:var(--testo);font-weight:700}
+.mk-vuoto{width:auto;height:auto}
