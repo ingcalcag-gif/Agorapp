@@ -7,12 +7,57 @@ function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
 }
-/* il trattino: allarga e riduce il pannello (tocco, o trascinamento in su e in giù) */
-function espandiFoglio(v){
-  st.espanso = v==null ? !st.espanso : !!v;
-  const f = document.querySelector('#foglio-slot .foglio'); if(!f) return;
-  f.classList.toggle('espanso', st.espanso); f.style.animation = 'none';
-  const b = f.querySelector('.maniglia-btn'); if(b){ b.setAttribute('aria-expanded', st.espanso); b.setAttribute('aria-label', st.espanso ? tr('Riduci il pannello') : tr('Allarga il pannello')); }
+/* il trattino: il pannello scorre su e giù. Tocco = allarga o riduce con un'animazione; trascinando segue il dito e si ferma dove è più vicino.
+   Allargato perde la trasparenza; ridotto la riprende (regola del 4 ottobre). */
+const ANIMA_MS = 280, CURVA = 'cubic-bezier(.2,.8,.2,1)';
+const fAttuale = () => document.querySelector('#foglio-slot .foglio');
+function hMassima(f){ return (f.offsetParent ? f.offsetParent.clientHeight : window.innerHeight) - 8; }
+function hRidotta(f){
+  const css = f.style.cssText, e = f.classList.contains('espanso');
+  f.style.transition = 'none'; f.style.height = ''; f.style.maxHeight = ''; f.classList.remove('espanso');
+  const h = f.getBoundingClientRect().height;
+  if(e) f.classList.add('espanso'); f.style.cssText = css; return h;
+}
+function altezza(f, h){ f.style.height = h + 'px'; f.style.maxHeight = h + 'px'; }
+function animaFoglio(f, da, a){
+  f.style.animation = 'none'; f.style.transition = 'none'; altezza(f, da); void f.offsetHeight;
+  f.style.transition = `height ${ANIMA_MS}ms ${CURVA}, max-height ${ANIMA_MS}ms ${CURVA}, background-color .2s`;
+  altezza(f, a);
+  clearTimeout(f._fine); f._fine = setTimeout(() => { f.style.transition = ''; f.style.height = ''; f.style.maxHeight = ''; }, ANIMA_MS + 40);
+}
+function segnaManiglia(f){
+  const b = f.querySelector('.maniglia-btn'); if(!b) return;
+  b.setAttribute('aria-expanded', st.espanso); b.setAttribute('aria-label', st.espanso ? tr('Riduci il pannello') : tr('Allarga il pannello'));
+}
+function espandiFoglio(v, daAltezza){
+  const f = fAttuale(); if(!f) return;
+  const verso = v==null ? !st.espanso : !!v;
+  const da = daAltezza!=null ? daAltezza : f.getBoundingClientRect().height, rid = hRidotta(f), max = hMassima(f);
+  st.espanso = verso; f.classList.toggle('espanso', verso); segnaManiglia(f);
+  animaFoglio(f, da, verso ? max : rid);
+}
+/* trascinamento: il pannello segue il dito */
+const presa = {y:null, f:null, h0:0, min:0, max:0, mosso:false, quando:0};
+function presaGiu(ev){
+  const b = ev.target.closest && ev.target.closest('.maniglia-btn'); if(!b) return;
+  const f = b.closest('.foglio'); if(!f) return;
+  Object.assign(presa, {y:ev.clientY, f, h0:f.getBoundingClientRect().height, min:hRidotta(f), max:hMassima(f), mosso:false});
+}
+function presaMuovi(ev){
+  if(presa.y==null) return;
+  const dy = ev.clientY - presa.y; if(!presa.mosso && Math.abs(dy) < 6) return;
+  presa.mosso = true; const f = presa.f;
+  f.style.animation = 'none'; f.style.transition = 'none';
+  altezza(f, Math.max(presa.min, Math.min(presa.max, presa.h0 - dy)));
+}
+function presaSu(){
+  if(presa.y==null) return; presa.y = null;
+  if(!presa.mosso) return;
+  presa.quando = Date.now();
+  const f = presa.f, h = f.getBoundingClientRect().height, corsa = Math.max(1, presa.max - presa.min);
+  /* basta un quarto di corsa per cambiare stato */
+  const verso = st.espanso ? (presa.max - h) < corsa*0.25 : (h - presa.min) > corsa*0.25;
+  espandiFoglio(verso, h);
 }
 const chiudiBtn = az => `<button class="chiudi" data-az="${az||'chiudi'}" aria-label="${esc(tr('Chiudi'))}">${croce}</button>`;
 function disegnaFoglio(){
@@ -43,9 +88,11 @@ function fStrati(){
   const righe = LAYERS.map(s => {
     const n = per.filter(e => e.strato===s.id && e.tipo!=='og' && st.tipi[e.tipo]).length, on = st.strati.has(s.id), esp = st.aperto===s.id && !st.semplice;
     const subs = esp ? `<div class="sub" style="--pc:${s.pin};--pb:${s.bg};--pt:${s.text};--pp:${s.pin}">${s.sub.map(x => `<button data-sub="${s.id}|${esc(x.label)}" aria-pressed="${!st.subOff.has(s.id+'|'+x.label)}">${esc(tr(x.label))}</button>`).join('')}</div>` : '';
+    /* la freccina delle sottocategorie sta subito dopo il nome dello strato; l'interruttore resta a destra (tutta la riga accende e spegne) */
     return `<div class="strato-r"><div class="strato-riga">
-      <button class="strato-on" data-strato="${s.id}" aria-pressed="${on}" style="--pc:${s.pin}"><span class="ico">${ICO[s.id]}</span><div><span class="t">${esc(tr(s.label))}</span><span class="meta">${n ? (n===1 ? tr('1 in questo periodo') : tr('{n} in questo periodo',{n})) : tr('niente in questo periodo')}</span></div><span class="interr" aria-hidden="true"></span></button>
-      <button class="espandi avanzato" data-espandi="${s.id}" aria-expanded="${esp}" aria-label="${esc(tr('Sottocategorie di {s}',{s:tr(s.label)}))}">${giu}</button></div>${subs}</div>`;
+      <button class="strato-on" data-strato="${s.id}" aria-pressed="${on}" style="--pc:${s.pin}"><span class="ico">${ICO[s.id]}</span><div><span class="t">${esc(tr(s.label))}</span><span class="meta">${n ? (n===1 ? tr('1 in questo periodo') : tr('{n} in questo periodo',{n})) : tr('niente in questo periodo')}</span></div></button>
+      <button class="espandi avanzato" data-espandi="${s.id}" aria-expanded="${esp}" aria-label="${esc(tr('Sottocategorie di {s}',{s:tr(s.label)}))}">${giu}</button>
+      <button class="strato-int" data-strato="${s.id}" aria-pressed="${on}" style="--pc:${s.pin}" tabindex="-1" aria-hidden="true"><span class="interr"></span></button></div>${subs}</div>`;
   }).join('');
   const nFiniti = EV.filter(e => appenaFinito(e) && e.suMappa && st.tipi[e.tipo]).length;
   const testa = `<div class="riga-titolo"><div class="stack-s" style="gap:2px"><h2>${tr('Strati')}</h2><p class="meta">${tr('Cosa vedi sulla mappa')} · ${esc(etichettaTempo().t.toLowerCase())}</p></div>${chiudiBtn()}</div>`;
@@ -123,13 +170,13 @@ function fScheda(e){
   if(e.tipo==='evento'){
     const man = e.strato==='manifestazioni', link = safeUrl(x.link), img = safeUrl(x.image);
     testa = `<div class="riga-titolo"><div class="pill-row">${pillStrato(e)}${pillTema(e)}</div>${chiudiBtn()}</div>
-      <div class="scheda-testa"><span style="${finito(e)?'filter:grayscale(1);opacity:.6':''}">${forma('evento',e.strato,40)}</span><div><div class="eyebrow" style="color:var(--testo-2)">${e.nascosto ? icoLucchetto(12)+' '+tr('Evento nascosto, sbloccato con la password') : tr('Evento')}</div><h2>${esc(e.titolo)}</h2></div></div>`;
+      <div class="scheda-testa"><span style="${finito(e)?'filter:grayscale(1);opacity:.6':''}">${forma('evento',e.strato,40)}</span><div><div class="eyebrow" style="color:var(--testo-2)">${e.nascosto ? icoLucchetto(12)+' '+tr('Evento nascosto, sbloccato con la password') : tr('Evento')}</div><h2>${esc(e.titolo)}</h2></div></div>
+      ${finito(e)?'':`<div class="tasti tasti-testa">${tastoSalva(e)}${tastoIndicazioni(e)}</div>`}`;
     corpo = `${img?`<img class="scheda-img" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`:''}<div class="fatti">${quando(e)}
         ${e.luogo?`<div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span></div></div>`:''}
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
         ${link?`<div class="dato">${icoLink}<div><a href="${esc(link)}" target="_blank" rel="noopener">${tr('Sito di chi organizza')}</a><span class="meta">${esc(hostDi(link))}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      ${finito(e)?'':`<div class="tasti">${tastoIndicazioni(e)}${tastoSalva(e)}</div>`}
       <div class="fonte${man?' attenzione':''}">${x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
       <a class="link" href="mailto:info@agorapp.it?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>${boxAdmin(e)}`;
@@ -137,23 +184,23 @@ function fScheda(e){
     const b = DEMO && DEMO.progetti && DEMO.progetti.bacheche && DEMO.progetti.bacheche[x.parentId];
     const liberi = b ? b.mano.posti.filter(p => !p.coperto).length : 0;
     testa = `<div class="riga-titolo"><div class="pill-row">${x.etichetta?`<span class="pillola dot" style="--pp:var(--clay);--pb:var(--clay-tenue);--pt:var(--clay-ink)">${esc(tr(x.etichetta))}</span>`:''}${pillTema(e)}</div>${chiudiBtn()}</div>
-      <div class="scheda-testa">${forma('pratica',e.strato,40)}<div><div class="eyebrow" style="color:var(--clay-ink)">${tr('Evento Pratica · {p}',{p:esc(x.progetto||'')})}</div><h2>${esc(e.titolo)}</h2></div></div>`;
+      <div class="scheda-testa">${forma('pratica',e.strato,40)}<div><div class="eyebrow" style="color:var(--clay-ink)">${tr('Evento Pratica · {p}',{p:esc(x.progetto||'')})}</div><h2>${esc(e.titolo)}</h2></div></div>
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${b?`<button class="tasto sec" data-progetto="${esc(x.parentId)}">${tr('Bacheca')} ${freccia}</button>`:tastoIndicazioni(e)}</div>`;
     corpo = `<div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${x.addrNum?`<span class="meta">${esc(x.addrNum)}</span>`:''}</div></div>
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}</div>
       ${descrizione(e)}
       ${b?`<div class="pratica-box">${MANO(34)}<div><span style="font-weight:600">${tr('Vuoi dare una mano?')}</span><span class="meta">${liberi===1 ? tr('1 posto libero per {g}',{g:nomeSettimana(e.giorno)}) : tr('{n} posti liberi per {g}',{n:liberi, g:nomeSettimana(e.giorno)})}</span></div></div>`:''}
-      <div class="tasti">${b?`<button class="tasto sec" data-progetto="${esc(x.parentId)}">${tr('Bacheca')} ${freccia}</button>`:tastoIndicazioni(e)}${finito(e)?'':tastoSalva(e)}</div>
       <p class="meta">${tr('È un appuntamento di un progetto: lo cura chi porta avanti il progetto, non Agorapp.')}</p>${boxAdmin(e)}`;
   } else if(e.tipo==='istanza'){
     testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--ic);--pb:var(--it);--pt:var(--ic)">${tr('Istanza · {i}',{i:esc(x.istanza||'')})}</span>${pillTema(e)}</div>${chiudiBtn()}</div>
-      <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>`;
+      <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${DEMO?(x.restituzione?`<button class="tasto sec" data-apri-istanza="${esc(x.parentId)}">${tr('L’istanza')} ${freccia}</button>`:`<button class="tasto sec" data-apri-tavolo="${esc(x.parentId)}:${x.tavolo}">${tr('Il tavolo')} ${freccia}</button>`):tastoIndicazioni(e)}</div>`;
     corpo = `${x.obiettivo?`<div class="richiamo">${BERSAGLIO(18)}<div class="stack-s" style="gap:2px"><span class="meta">${x.restituzione?tr('Obiettivo raggiunto: la proposta è consegnata'):tr('Obiettivo dell’istanza')}</span><span style="font-weight:600">${esc(x.obiettivo)}</span></div></div>`:''}
       <div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${e.citta?`<span class="meta">${esc(e.citta)}</span>`:''}</div></div>
         ${x.soggetti?`<div class="dato">${icoPersone}<div><span class="t">${x.restituzione?tr('Chi la cura'):tr('Al tavolo')}</span><span class="meta">${esc(x.soggetti)}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      <div class="tasti">${DEMO?(x.restituzione?`<button class="tasto sec" data-apri-istanza="${esc(x.parentId)}">${tr('L’istanza')} ${freccia}</button>`:`<button class="tasto sec" data-apri-tavolo="${esc(x.parentId)}:${x.tavolo}">${tr('Il tavolo')} ${freccia}</button>`):tastoIndicazioni(e)}${finito(e)?'':tastoSalva(e)}</div>
       <div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Chi può venire')}:</strong> ${x.restituzione ? tr('tutte e tutti. È l’incontro in cui l’istanza racconta alla città la proposta consegnata.') : tr('[DA DECIDERE]. È un incontro di lavoro del tavolo; dopo, il tavolo pubblica il rendiconto nell’Agorà.')}</span></div>${boxAdmin(e)}`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(safeUrl).filter(Boolean);

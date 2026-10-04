@@ -767,7 +767,7 @@ function form(){
   const testa = prog
     ? `<div class="tipo">${T("Progetti · proposta")}</div><h3>${T("Proponi un nuovo progetto")}</h3><p>${T("Un progetto è qualcosa che esiste già o sta per partire: un cortile aperto, un coro, una sartoria. Agorapp lo rende visibile, non lo gestisce.")}</p>`
     : `<div class="tipo">${T("Agorà · proposta")}</div><h3>${T("Proponi una nuova istanza")}</h3><p>${T("Un’istanza è un’ipotesi di trasformazione con un obiettivo comune. Si apre con un primo tavolo: soggetti che si incontrano di persona e scrivono una parte della proposta.")}</p>`;
-  const avviso = `<div class="avviso-proposte" role="note"><span>${T("Stiamo lavorando alla ricezione delle proposte: è prevista per la prima metà del 2027. Per ora il modulo è un’anteprima: non invia e non salva niente.")}</span></div>`;
+  const avviso = `<div class="avviso-proposte verde" role="note"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4M8 4.8v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>${T("Stiamo lavorando alla ricezione delle proposte: è prevista per la prima metà del 2027. Per ora il modulo è un’anteprima: non invia e non salva niente.")}</span></div>`;
   const campi = prog ? [
     campo("titolo",T("Come si chiama"),"",input("titolo",T("es. Il Cortile Comune"))),
     campo("zona",T("Dove"),T("quartiere o zona"),input("zona",T("es. Crocetta, oppure Tutta la città"))),
@@ -789,7 +789,7 @@ function form(){
     campo("citta",T("In che città"),"",input("citta",T("es. Torino"))),
     campo("mail",T("Dove risponderti"),"",input("mail",T("nome@esempio.it"),'type="email" inputmode="email"'))
   ];
-  return `<div class="sez-proposta-in stack">${testa}${avviso}${campi.join("")}
+  return `<div class="sez-proposta-in stack">${avviso}${testa}${campi.join("")}
     <div class="p-privacy meta">${T("Agorapp non ha una chat: la redazione ti risponderà per email. L’indirizzo servirà solo per questa proposta.")} [INFORMATIVA PRIVACY DELLE PROPOSTE DA SCRIVERE]</div>
     <button class="tasto pri pieno" data-pz="invia">${T("Prova a inviare")}</button></div>`;
 }

@@ -88,7 +88,8 @@ $('app').addEventListener('click', ev => {
     case 'annulla-conferma': { const id = st.conferma.id; st.conferma = null; selezionaEv(id); break; }
     case 'calendario': apriCalendario(); break;
     case 'pdf': st.pdf = {giornata: st.cal.vista==='giornata' ? st.cal.giorno : null, tolti:new Set()}; apri('pdf'); preparaPdf().catch(() => {}); break;
-    case 'espandi-foglio': if(Date.now() - maniglia.trascinata > 400) espandiFoglio(); break;
+    case 'espandi-foglio': if(Date.now() - presa.quando > 400) espandiFoglio(); break;
+    case 'chips-avanti': { const c = $('chips'), dir = lang==='ar' ? -1 : 1; c.scrollBy({left:dir*c.clientWidth*0.7, behavior:'smooth'}); break; }
     case 'indietro-cal': st.pdf = null; apriCalendario(); break;
     case 'scarica-pdf': condividiPdf(); break;
     case 'stampa-pdf': stampaPdf(); break;
@@ -121,12 +122,24 @@ $('app').addEventListener('click', ev => {
     case 'ripristina': if(st.eliminati.length){ st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
   }
 });
-/* il trattino si può anche trascinare: in su allarga, in giù riduce */
-const maniglia = {y:null, trascinata:0};
-$('app').addEventListener('pointerdown', ev => { const b = ev.target.closest && ev.target.closest('.maniglia-btn'); if(!b) return; maniglia.y = ev.clientY; });
-window.addEventListener('pointerup', ev => { if(maniglia.y==null) return; const dy = ev.clientY - maniglia.y; maniglia.y = null;
-  if(Math.abs(dy) > 24){ maniglia.trascinata = Date.now(); espandiFoglio(dy < 0); } });
-window.addEventListener('pointercancel', () => { maniglia.y = null; });
+/* il trattino si trascina: il pannello segue il dito */
+$('app').addEventListener('pointerdown', presaGiu);
+window.addEventListener('pointermove', presaMuovi, {passive:true});
+window.addEventListener('pointerup', presaSu);
+window.addEventListener('pointercancel', presaSu);
+/* tempi: un ovale o si vede tutto o non si vede (Lorenzo, 4 ottobre). Si aggancia all'inizio e sfuma quello tagliato */
+let chipsRaf = 0;
+function bordiChips(){
+  chipsRaf = 0; const c = $('chips'), av = $('chipsAvanti'); if(!c) return;
+  const rtl = lang==='ar', resto = c.scrollWidth - Math.abs(c.scrollLeft) - c.clientWidth > 2;
+  if(av) av.hidden = !resto;
+  const r = c.getBoundingClientRect(); let sx = r.left, dx = r.right;
+  /* la freccina occupa il suo posto: un ovale sotto di lei conta come tagliato */
+  if(resto && av){ const a = av.getBoundingClientRect(); if(rtl) sx = a.right + 4; else dx = a.left - 4; }
+  [...c.children].forEach(x => { const q = x.getBoundingClientRect(); x.classList.toggle('fuori', q.left < sx - 1 || q.right > dx + 1); });
+}
+$('chips').addEventListener('scroll', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); }, {passive:true});
+window.addEventListener('resize', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); });
 $('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
 /* campi: aggiornano lo stato senza ridisegnare il foglio (il cursore resta dov'è) */
 $('foglio-slot').addEventListener('input', ev => {

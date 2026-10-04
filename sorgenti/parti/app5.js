@@ -419,7 +419,7 @@ function testiFissi(){
   $('btnGps').setAttribute('aria-label', tr('Mostra dove sono'));
   $('btnNuovo').setAttribute('aria-label', tr('Nuovo evento Off-Grid'));
   $('zPiu').setAttribute('aria-label', tr('Avvicina')); $('zMeno').setAttribute('aria-label', tr('Allontana'));
-  $('chips').setAttribute('aria-label', tr('Quando')); $('tipiMappa').setAttribute('aria-label', tr('Che cosa vedi sulla mappa'));
+  $('chips').setAttribute('aria-label', tr('Quando')); $('chipsAvanti').setAttribute('aria-label', tr('Altri tempi')); $('tipiMappa').setAttribute('aria-label', tr('Che cosa vedi sulla mappa'));
   $('navBassa').setAttribute('aria-label', tr('Navigazione principale'));
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }

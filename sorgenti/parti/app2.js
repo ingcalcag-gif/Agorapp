@@ -292,7 +292,8 @@ function disegnaChips(){
     + c('tutto', tr('Tutto')) + c('adesso', tr('Adesso')) + c('oggi', tr('Oggi')) + c('domani', tr('Domani')) + c('weekend', tr('Weekend'))
     + `<button class="chipt vetro" data-az="date" aria-pressed="${st.tempo==='date'}">${icoGiorni()}${st.tempo==='date'&&st.da ? esc(intervallo()) : tr('Scegli i giorni')}</button>`;
   $('btnElenco').innerHTML = `${icoElenco}${tr('Elenco')}<span class="conta">${visibili().length}</span>`;
-  $('btnCal').innerHTML = `${icoCal(24)}<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
+  $('btnCal').innerHTML = `<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
+  requestAnimationFrame(() => { if(typeof bordiChips==='function') bordiChips(); });
   $('btnCal').setAttribute('aria-label', tr('Il mio Calendario'));
   $('badgeAdmin').hidden = !st.admin;
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
