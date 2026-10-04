@@ -126,8 +126,8 @@ function fCerca(){
     <div class="fonte avanzato"><span class="meta"><strong style="color:var(--testo)">${tr('Ricerca avanzata')}</strong>: ${tr('periodo, prezzo e strati sono i filtri sopra la mappa, e valgono anche qui.')}</span>
       <div class="tasti"><button class="tasto sec" data-az="date">${icoGiorni()}${tr('Periodo')}</button><button class="tasto sec" data-az="strati">${icoStrati}${tr('Prezzo e strati')}</button></div></div>
     <div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Ti hanno dato la password di un evento nascosto?')}</strong> ${tr('Inseriscila qui: l’evento compare sulla mappa solo per te.')}</span>
-      <div style="display:flex;gap:8px"><label class="campo" style="flex:1"><input id="pw" type="password" placeholder="${esc(tr('Password dell’evento'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="sblocca">${icoLucchetto(14)}${tr('Sblocca')}</button></div>
-      <span class="err" id="pw-err" hidden>${tr('Nessun evento nascosto con questa password.')}</span>
+      <div style="display:flex;gap:8px"><label class="campo" style="flex:1"><input id="pw" type="text" autocapitalize="none" spellcheck="false" placeholder="${esc(tr('Password dell’evento'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="sblocca">${icoLucchetto(14)}${tr('Sblocca')}</button></div>
+      <span class="err" id="pw-err" hidden>${tr('Nessun evento nascosto con questa password.')}</span>${msgFateCerca()}
       ${sbl.length?`<div class="lista">${sbl.map(rigaEv).join('')}</div>`:''}</div>`;
   return foglio('forte alto', testa, corpo);
 }
@@ -293,6 +293,7 @@ function salvaForm(modo){
 /* --- Conferma eliminazione (Off-Grid: solo questo giorno o tutta la serie) --- */
 function fConferma(){
   const raw = rawById(st.conferma.id); if(!raw) return '';
+  if(raw.fata) return fConfermaFata(raw);
   const serie = raw.seriesId ? serieDi(raw) : null;
   const testa = `<div class="riga-titolo"><h2>${serie&&serie.length>1 ? tr('Questo evento si ripete. Cosa vuoi eliminare?') : tr('Eliminare «{t}»?',{t:esc(raw.title)})}</h2>${chiudiBtn('annulla-conferma')}</div>`;
   const corpo = serie && serie.length>1
@@ -302,7 +303,7 @@ function fConferma(){
 }
 function elimina(id, modo){
   const raw = rawById(id); if(!raw) return;
-  const via = modo==='serie' && raw.seriesId ? serieDi(raw) : [raw], ids = new Set(via.map(x => x.id));
+  const via = modo==='persona' && raw.fata ? events.filter(x => x.fata && x.fataDa===raw.fataDa) : modo==='serie' && raw.seriesId ? serieDi(raw) : [raw], ids = new Set(via.map(x => x.id));
   events = events.filter(x => !ids.has(x.id)); ids.forEach(i => delete calEvents[i]);
   saveEvents(); saveCal(); ricostruisci();
   st.conferma = null; st.foglio = null; st.sel = null; st.form = null; disegnaFoglio(); tutto();

@@ -98,7 +98,7 @@ function togliDemo(silenzio){
   if(!silenzio){ st.demoMsg = tr('Demo tolta: {n} eventi d’esempio cancellati.',{n:ids.size}); tutto(); disegnaFoglio(); ridisegnaSezioni(); }
 }
 function esporta(){
-  const dati = events.filter(e => !e.demo);
+  const dati = events.filter(e => !e.demo && !e.fata);   /* gli eventi ricevuti con un pacchetto non escono dal telefono */
   const blob = new Blob([JSON.stringify({events:dati, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = 'agorapp_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
   st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
@@ -264,7 +264,7 @@ function scaricaModello(){
     .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 function esportaExcel(){
-  const dati = events.filter(e => !e.demo && !e.personal && !e.offgrid);
+  const dati = events.filter(e => !e.demo && !e.personal && !e.offgrid && !e.fata);
   const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
     return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.image||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'']; };
   fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], 'agorapp_'+oggi()+'.xlsx')
@@ -366,7 +366,7 @@ function selezionaEv(id){
   if(!e.suMappa){ if(e.tipo==='istanza' && window.AGR.agora && DEMO) window.AGR.agora.apriTavolo(e.raw.parentId, e.raw.tavolo); else apriCalendario('giornata', e.giorno); return; }
   if(!visibile(e) && !modoGiornata()){
     if(!finito(e)) st.tempo = 'tutto'; else st.finiti = true; st.salvatiSolo = false; st.tipi[e.tipo] = true;
-    if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); st.preset = -1; st.prezzo = 'tutti'; st.lente = null;
+    if(e.strato==='fate'){ FS.on = true; FS.off = FS.off.filter(x => x!==e.raw.fataDa); salvaFS(); } else { if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); } st.preset = -1; st.prezzo = 'tutti'; st.lente = null;
     if(e.nascosto) st.nascostiOn = true;
   }
   st.sel = id; st.foglio = 'scheda'; st.cercaQui = null; st.descAperta = false;

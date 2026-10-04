@@ -155,3 +155,7 @@ a.tasto.sec{color:var(--testo)}
 /* modulo Proponi: l'avviso in verde, in cima */
 .avviso-proposte.verde{background:var(--verde);color:var(--su-verde);border:0;font-weight:600}
 .avviso-proposte.verde svg{color:var(--su-verde)}
+
+/* campo della barra dei nascosti: il tasto Sblocca non esce più dal riquadro sui telefoni stretti */
+#pw{min-width:0;width:100%}
+label.campo:has(#pw){min-width:0}

@@ -72,6 +72,7 @@ function disegnaFoglio(){
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
     scheda:() => fScheda(byId(st.sel)), cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, aform:fAdminForm, conferma:fConferma,
+    condividi:fCondividi, pacchetto:fPacchetto, formula:fFormula, fate:fFateArrivo,
     impostazioni:fImpostazioni, legale:fLegale, citta:fCitta, admin:fAdmin, importa:fImporta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
   };
@@ -106,6 +107,7 @@ function fStrati(){
       <button class="riga-int" data-az="finiti" aria-pressed="${st.finiti}"><span class="forma" style="filter:grayscale(1);opacity:.55">${forma('evento','arte',30)}</span><div><span class="t">${tr('Appena finiti')} · ${nFiniti}</span><span class="meta">${tr('Grigi, fino a tre ore dopo la fine. Poi spariscono dalla mappa.')}</span></div><span class="interr" aria-hidden="true"></span></button>
       ${st.sbloccati.size ? `<button class="riga-int" data-az="nascosti-on" aria-pressed="${st.nascostiOn}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Nascosti che hai sbloccato')} · ${st.sbloccati.size}</span><span class="meta">${tr('Li vedi perché hai la password.')}</span></div><span class="interr" aria-hidden="true"></span></button>` : ''}
     </section>
+    ${bloccoFate()}
     ${citta==='torino'?`<section class="sezione avanzato"><div class="sez-testa"><div class="tipo">${tr('Leggere la città')}</div></div>
       <button class="riga-int" data-az="vuoti" aria-pressed="${st.vuoti}" style="--pc:var(--testo-2)"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><defs><pattern id="tratteggio-l" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="var(--testo-2)" stroke-width="2" opacity=".45"/></pattern></defs><rect x="2" y="2" width="30" height="30" rx="8" fill="url(#tratteggio-l)" stroke="var(--testo-2)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
         <div><span class="t">${tr('Mostra i vuoti')}</span><span class="meta">${tr('I quartieri dove, nel periodo scelto, non succede niente. Anche un vuoto è un dato.')}</span></div><span class="interr" aria-hidden="true"></span></button></section>`:''}
@@ -120,7 +122,7 @@ function fStrati(){
 function sottotitoloEv(e){
   return e.tipo==='og' ? (e.serie ? tr('Off-Grid · si ripete') : tr('Off-Grid · tuo'))
     : e.tipo==='pratica' ? tr('Pratica · {p}',{p:e.raw.progetto||''})
-    : e.tipo==='istanza' ? tr('Istanza · {i}',{i:e.raw.istanza||''}) : nomeStrato(e.strato);
+    : e.tipo==='istanza' ? tr('Istanza · {i}',{i:e.raw.istanza||''}) : e.strato==='fate' ? nomeStrato(e.strato)+' · '+e.sub : nomeStrato(e.strato);
 }
 const luogoBreve = e => (e.citta && e.citta!=='Torino' && e.tipo==='istanza') ? e.citta : (e.luogo||'').split(/[·,]/)[0].trim();
 function rigaEv(e){
@@ -166,6 +168,7 @@ const boxAdmin = e => st.admin && e.tipo!=='og' ? `<div class="admin-box"><span 
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
 function fScheda(e){
   if(!e) return '';
+  if(e.raw.fata) return fSchedaFata(e);
   let testa, corpo; const x = e.raw;
   if(e.tipo==='evento'){
     const man = e.strato==='manifestazioni', link = safeUrl(x.link), img = safeUrl(x.image);
@@ -295,7 +298,7 @@ function vAgenda(){
 function fCalendario(){
   const v = st.cal.vista;
   const testa = `<div class="riga-titolo"><div><h2>${tr('Il mio Calendario')}</h2><p class="meta">${tr('Eventi salvati dalla città e tuoi Off-Grid · solo su questo telefono')}</p></div>${chiudiBtn()}</div>
-    <div style="display:flex;gap:8px"><div class="seg" style="flex:1" role="group">${[['giornata',tr('Giornata')],['mese',tr('Mese')],['agenda',tr('Agenda')]].map(([k,l]) => `<button data-vista="${k}" aria-pressed="${v===k}">${l}</button>`).join('')}</div><button class="tasto sec tasto-pdf" style="flex:none;min-height:44px" data-az="pdf" aria-label="${esc(tr('PDF: scarica o condividi'))}">PDF ${icoCondividi()}</button></div>`;
+    <div style="display:flex;gap:8px"><div class="seg" style="flex:1" role="group">${[['giornata',tr('Giornata')],['mese',tr('Mese')],['agenda',tr('Agenda')]].map(([k,l]) => `<button data-vista="${k}" aria-pressed="${v===k}">${l}</button>`).join('')}</div>${tastoCondividiCal()}</div>`;
   return foglio('forte medio', testa, v==='giornata' ? vGiornata() : v==='mese' ? vMese() : vAgenda());
 }
 function basePdf(){ return st.pdf.giornata ? giornata(st.pdf.giornata).vive : miei().filter(e => !sparito(e)).sort((a,b) => a.a-b.a); }

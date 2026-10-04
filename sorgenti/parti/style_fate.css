@@ -1,0 +1,64 @@
+/* ======================= Ordine delle Fate (funzione nascosta) =======================
+   Oro solo qui. Lo scintillio anima soltanto transform e opacity (niente sfocature, niente filtri animati):
+   leggero sul telefono, fermo se il telefono chiede meno animazioni. */
+:root{
+  --oro-1:#7A520A; --oro-2:#C8901E; --oro-luce:#D9A21F; --oro-ink:#7A5810; --oro-bordo:#C99A3A;
+  --oro-fondo:linear-gradient(140deg,#FFF3CC 0%,#EFCB6A 50%,#F8E09A 100%);
+  --oro-lampo:rgba(255,253,240,.9); --oro-tenue:#FBF3DC;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --oro-1:#F8DE8C; --oro-2:#E0AE45; --oro-luce:#FFE39A; --oro-ink:#EBC870; --oro-bordo:#8C6B26;
+  --oro-fondo:linear-gradient(140deg,#3D3016 0%,#2B2110 55%,#3B2E13 100%);
+  --oro-lampo:rgba(255,232,170,.42); --oro-tenue:#2E2715}}
+:root[data-theme="dark"]{
+  --oro-1:#F8DE8C; --oro-2:#E0AE45; --oro-luce:#FFE39A; --oro-ink:#EBC870; --oro-bordo:#8C6B26;
+  --oro-fondo:linear-gradient(140deg,#3D3016 0%,#2B2110 55%,#3B2E13 100%);
+  --oro-lampo:rgba(255,232,170,.42); --oro-tenue:#2E2715}
+
+/* il tasto condividi d'oro, nel Calendario */
+.tasto-oro{position:relative;overflow:hidden;isolation:isolate;flex:none;min-height:44px;min-width:56px;padding:0 16px;border-radius:12px;
+  background:var(--oro-fondo);border:1px solid var(--oro-bordo);color:var(--oro-1);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--oro-2) 14%,transparent),0 4px 14px -6px color-mix(in srgb,var(--oro-2) 80%,transparent),inset 0 1px 0 rgba(255,255,255,.55);
+  transition:transform .12s}
+.tasto-oro:active{transform:scale(.96)}
+.tasto-oro svg.oro{position:relative;z-index:1;filter:drop-shadow(0 0 1.5px color-mix(in srgb,var(--oro-luce) 70%,transparent))}
+/* il lampo: una striscia di luce che attraversa il tasto ogni pochi secondi */
+.tasto-oro::after{content:"";position:absolute;z-index:2;top:-30%;bottom:-30%;left:-70%;width:46%;pointer-events:none;
+  background:linear-gradient(100deg,transparent 0%,transparent 22%,var(--oro-lampo) 50%,transparent 78%,transparent 100%);
+  transform:translateX(0) skewX(-18deg);animation:oro-lampo 4.2s cubic-bezier(.45,.05,.35,1) infinite}
+@keyframes oro-lampo{0%,58%{transform:translateX(0) skewX(-18deg)}86%,100%{transform:translateX(420%) skewX(-18deg)}}
+/* le stelline: si accendono e si spengono a turno */
+.scintilla{position:absolute;z-index:3;width:8px;height:8px;color:var(--oro-luce);pointer-events:none;opacity:0;transform:scale(.3);animation:oro-stella 2.6s ease-in-out infinite}
+.scintilla svg{display:block;width:100%;height:100%}
+.scintilla.s1{top:4px;right:5px;animation-delay:.3s}
+.scintilla.s2{bottom:4px;left:6px;width:6px;height:6px;animation-delay:1.2s}
+.scintilla.s3{top:6px;left:10px;width:5px;height:5px;animation-delay:2s}
+@keyframes oro-stella{0%,100%{opacity:0;transform:scale(.3) rotate(0deg)}40%{opacity:1;transform:scale(1) rotate(45deg)}65%{opacity:0;transform:scale(.4) rotate(90deg)}}
+@media (prefers-reduced-motion: reduce){
+  .tasto-oro::after{animation:none;opacity:0}
+  .scintilla{animation:none;opacity:.75;transform:none}}
+
+/* testi e scatole */
+.fate-ink{color:var(--oro-ink)}
+.eyebrow.fate-ink{display:flex;align-items:center;gap:5px}
+.stella-in{display:inline-flex;width:11px;height:11px;color:var(--oro-luce);flex-shrink:0}
+.stella-in svg{width:100%;height:100%}
+.fate-msg{margin:0;border-radius:12px;padding:10px 12px;background:var(--oro-tenue);border:1px solid color-mix(in srgb,var(--oro-bordo) 70%,transparent);color:var(--testo);font-size:13px;line-height:19px}
+.fate-box{border-radius:12px;padding:10px 12px;background:var(--oro-tenue);display:flex;gap:10px;align-items:flex-start}
+.fate-box .stella-in{width:14px;height:14px;margin-top:3px}
+.fate-link{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:16px;color:var(--testo-2);word-break:break-all;
+  background:var(--incassata);border:1px dashed var(--oro-bordo);border-radius:12px;padding:10px 12px;max-height:68px;overflow:hidden;
+  -webkit-user-select:all;user-select:all;position:relative}
+.fate-link::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22px;background:linear-gradient(transparent,var(--incassata))}
+
+/* scelta PDF o pacchetto */
+.scelta-cond{min-height:72px;text-align:left}
+.scelta-cond .cond-ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--incassata);color:var(--testo)}
+.scelta-cond .cond-ico.oro{background:var(--oro-fondo);border:1px solid var(--oro-bordo);color:var(--oro-luce)}
+.scelta-cond .cond-ico.oro svg{width:18px;height:18px}
+.scelta-cond.oro{border-color:color-mix(in srgb,var(--oro-bordo) 75%,transparent)}
+.scelta-cond .freccia-dir{flex-shrink:0;color:var(--testo-2)}
+
+/* strato: le persone come sottocategorie */
+.sub.fate-sub{padding:0 2px 4px}
+[dir="rtl"] .sub.fate-sub{padding:0 2px 4px}
