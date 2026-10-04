@@ -2,15 +2,24 @@
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
-  return `<section class="foglio vetro ${cls}" role="dialog" aria-modal="false"><div class="testa-f"><span class="maniglia" aria-hidden="true"></span>${testa}</div><div class="corpo">${corpo}</div></section>`;
+  const esp = st.espanso;
+  return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
+}
+/* il trattino: allarga e riduce il pannello (tocco, o trascinamento in su e in giù) */
+function espandiFoglio(v){
+  st.espanso = v==null ? !st.espanso : !!v;
+  const f = document.querySelector('#foglio-slot .foglio'); if(!f) return;
+  f.classList.toggle('espanso', st.espanso); f.style.animation = 'none';
+  const b = f.querySelector('.maniglia-btn'); if(b){ b.setAttribute('aria-expanded', st.espanso); b.setAttribute('aria-label', st.espanso ? tr('Riduci il pannello') : tr('Allarga il pannello')); }
 }
 const chiudiBtn = az => `<button class="chiudi" data-az="${az||'chiudi'}" aria-label="${esc(tr('Chiudi'))}">${croce}</button>`;
 function disegnaFoglio(){
   const slot = $('foglio-slot');
-  if(!st.foglio){ slot.innerHTML = ''; ultimoFoglio = null; return; }
-  const chiave = st.foglio + (st.sel||'') + (st.gruppo ? st.gruppo.join() : '') + (st.foglio==='calendario' ? st.cal.vista : '');
+  if(!st.foglio){ slot.innerHTML = ''; ultimoFoglio = null; st.espanso = false; return; }
+  const chiave = st.foglio + '|' + (st.sel||'') + (st.gruppo ? st.gruppo.join() : '') + (st.foglio==='calendario' ? st.cal.vista : '');
+  if(ultimoFoglio && ultimoFoglio.split('|')[0]!==st.foglio) st.espanso = false;
   const stesso = chiave===ultimoFoglio, vecchio = slot.querySelector('.corpo'), scroll = stesso && vecchio ? vecchio.scrollTop : 0;
   ultimoFoglio = chiave;
   const F = {
@@ -239,7 +248,7 @@ function vAgenda(){
 function fCalendario(){
   const v = st.cal.vista;
   const testa = `<div class="riga-titolo"><div><h2>${tr('Il mio Calendario')}</h2><p class="meta">${tr('Eventi salvati dalla città e tuoi Off-Grid · solo su questo telefono')}</p></div>${chiudiBtn()}</div>
-    <div style="display:flex;gap:8px"><div class="seg" style="flex:1" role="group">${[['giornata',tr('Giornata')],['mese',tr('Mese')],['agenda',tr('Agenda')]].map(([k,l]) => `<button data-vista="${k}" aria-pressed="${v===k}">${l}</button>`).join('')}</div><button class="tasto sec" style="flex:none;min-height:44px" data-az="pdf">PDF</button></div>`;
+    <div style="display:flex;gap:8px"><div class="seg" style="flex:1" role="group">${[['giornata',tr('Giornata')],['mese',tr('Mese')],['agenda',tr('Agenda')]].map(([k,l]) => `<button data-vista="${k}" aria-pressed="${v===k}">${l}</button>`).join('')}</div><button class="tasto sec tasto-pdf" style="flex:none;min-height:44px" data-az="pdf" aria-label="${esc(tr('PDF: scarica o condividi'))}">PDF ${icoCondividi()}</button></div>`;
   return foglio('forte medio', testa, v==='giornata' ? vGiornata() : v==='mese' ? vMese() : vAgenda());
 }
 function basePdf(){ return st.pdf.giornata ? giornata(st.pdf.giornata).vive : miei().filter(e => !sparito(e)).sort((a,b) => a.a-b.a); }
@@ -253,10 +262,61 @@ function fPdf(){
     <div class="carta"><div class="cm">Agorapp · ${esc(cittaObj().n)}</div><div class="ct">${titolo}</div><div class="cm" style="text-transform:none;letter-spacing:0;font-weight:500">${esc(sotto)}</div>
       ${giorni.map(g => `${st.pdf.giornata?'':`<div class="cm" style="margin-top:4px">${esc(titoloGiorno(g))}</div>`}${scelti.filter(e => e.giorno===g).map(e => `<div class="pr"><b>${e.inizio}</b><span><strong>${esc(e.titolo)}</strong>${e.luogo?'<br>'+esc(e.luogo):''}${e.tipo==='og'&&e.desc?`<span class="nt">${esc(e.desc)}</span>`:''}</span></div>`).join('')}`).join('')}
       <div class="cp">${tr('Stampato da Agorapp. Verifica orari e luoghi con chi organizza.')}</div></div>
-    <button class="tasto pri pieno" data-az="scarica-pdf" ${scelti.length?'':'disabled'}>${tr('Scarica il PDF · {n}',{n:scelti.length})}</button>
-    <p class="meta">${tr('Niente link da condividere: il PDF si scarica e lo dai tu a chi vuoi.')}</p>`
+    <button class="tasto pri pieno tasto-pdf" style="justify-content:center" data-az="scarica-pdf" ${scelti.length?'':'disabled'}>${icoCondividi()}${tr('Condividi o scarica il PDF · {n}',{n:scelti.length})}</button>
+    <button class="link" data-az="stampa-pdf" ${scelti.length?'':'disabled'}>${tr('Oppure stampalo')}</button>
+    <p class="meta">${tr('Niente link: il PDF è un file, lo mandi tu a chi vuoi con le app del telefono.')}</p>`
     : `<p class="meta">${tr('Niente da stampare.')}</p>`;
   return foglio('forte alto', testa, corpo);
+}
+/* librerie caricate solo quando servono (il telefono non le scarica all'apertura) */
+const SCRIPT = {};
+function caricaScript(url){ return SCRIPT[url] || (SCRIPT[url] = new Promise((ok, no) => { const x = document.createElement('script'); x.src = url; x.async = true; x.onload = () => ok(); x.onerror = () => { delete SCRIPT[url]; no(new Error('script')); }; document.head.appendChild(x); })); }
+const URL_JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+const URL_XLSX = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+function preparaPdf(){ return lang==='ar' ? Promise.resolve() : caricaScript(URL_JSPDF); }
+function scaricaBlob(blob, nome){ const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+/* i caratteri dei font standard del PDF (latino): il resto si toglie */
+const WINANSI = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+const pulisci = t => String(t==null?'':t).replace(/[\u2009\u202F\u00A0]/g,' ').replace(/[\u2010-\u2012]/g,'-').split('').filter(c => c.charCodeAt(0) < 256 || WINANSI.includes(c)).join('');
+function creaPdf(scelti){
+  const {jsPDF} = window.jspdf; const doc = new jsPDF({unit:'mm', format:'a4'});
+  const titolo = st.pdf.giornata ? tr('La mia giornata') : tr('Il mio calendario');
+  const sotto = st.pdf.giornata ? maiusc(titoloGiorno(st.pdf.giornata)) : tr('Dal {d}',{d:dIso(oggi()).toLocaleDateString(dloc(),{day:'numeric',month:'long'})});
+  const X = 16, W = 178, COL = 34; let y = 18;
+  const riga = (t, font, stile, size, col, x, w) => { doc.setFont(font, stile); doc.setFontSize(size); doc.setTextColor(col); const l = doc.splitTextToSize(pulisci(t), w); doc.text(l, x, y); return l.length * size * 0.42; };
+  const spazio = h => { if(y + h > 282){ doc.addPage(); y = 18; } };
+  riga('AGORAPP · ' + cittaObj().n.toUpperCase(), 'helvetica', 'bold', 8, '#5C5246', X, W); y += 8;
+  y += riga(titolo, 'times', 'bold', 22, '#1C1712', X, W) + 1;
+  y += riga(sotto, 'helvetica', 'normal', 11, '#5C5246', X, W) + 4;
+  const giorni = [...new Set(scelti.map(e => e.giorno))];
+  giorni.forEach(g => {
+    if(!st.pdf.giornata){ spazio(16); y += 3; doc.setDrawColor('#D8CFC2'); doc.line(X, y - 4, X + W, y - 4); y += riga(maiusc(titoloGiorno(g)).toUpperCase(), 'helvetica', 'bold', 8.5, '#5C5246', X, W) + 2; }
+    scelti.filter(e => e.giorno===g).forEach(e => {
+      const extra = [e.luogo, sottotitoloEv(e) + (e.prezzo ? ' · ' + formatPrice(e.prezzo) : '')].filter(Boolean).join('\n');
+      doc.setFontSize(9.5); const hExtra = doc.splitTextToSize(pulisci(extra), W - COL).length * 4 + (e.tipo==='og' && e.desc ? doc.splitTextToSize(pulisci(e.desc), W - COL).length * 4 : 0);
+      spazio(8 + hExtra);
+      const y0 = y; riga(e.inizio + (e.fine ? '–' + e.fine : ''), 'helvetica', 'bold', 11, '#2F5D46', X, COL - 2);
+      y += riga(e.titolo, 'helvetica', 'bold', 11, '#1C1712', X + COL, W - COL) + 0.5;
+      if(extra) y += riga(extra, 'helvetica', 'normal', 9.5, '#5C5246', X + COL, W - COL);
+      if(e.tipo==='og' && e.desc) y += riga(e.desc, 'helvetica', 'italic', 9.5, '#5C5246', X + COL, W - COL);
+      y = Math.max(y, y0 + 6) + 4;
+    });
+  });
+  spazio(12); doc.setDrawColor('#D8CFC2'); doc.line(X, y, X + W, y); y += 5;
+  riga(tr('Stampato da Agorapp. Verifica orari e luoghi con chi organizza.'), 'helvetica', 'normal', 8.5, '#5C5246', X, W);
+  return doc.output('blob');
+}
+/* «Condividi o scarica»: sul telefono si apre il foglio delle app (WhatsApp, posta…); altrimenti il file si scarica */
+async function condividiPdf(){
+  const scelti = basePdf().filter(e => !st.pdf.tolti.has(e.id)); if(!scelti.length) return;
+  if(lang==='ar') return stampaPdf();   /* i font standard del PDF non hanno l'arabo: si stampa dal browser */
+  try{ await preparaPdf(); }catch(e){ return stampaPdf(); }
+  let blob; try{ blob = creaPdf(scelti); }catch(e){ return stampaPdf(); }
+  const nome = (st.pdf.giornata ? 'agorapp-giornata-' + st.pdf.giornata : 'agorapp-calendario-' + oggi()) + '.pdf';
+  const file = typeof File==='function' ? new File([blob], nome, {type:'application/pdf'}) : null;
+  if(file && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:nome}); }catch(e){ if(e && e.name!=='AbortError') scaricaBlob(blob, nome); }
+  } else scaricaBlob(blob, nome);
 }
 function stampaPdf(){
   const scelti = basePdf().filter(e => !st.pdf.tolti.has(e.id)); if(!scelti.length) return;

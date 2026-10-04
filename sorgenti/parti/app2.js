@@ -15,6 +15,9 @@ const spunta = (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fi
 const icoStrati = '<svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m9 2 7 4-7 4-7-4 7-4ZM2 9.5l7 4 7-4M2 12.5l7 4 7-4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 const icoCal = (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 const icoElenco = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="4" cy="5" r="2.4" fill="#E91E8C"/><circle cx="4" cy="10" r="2.4" fill="var(--clay)"/><circle cx="4" cy="15" r="2.4" fill="#3A8FD8"/><path d="M9 5h8M9 10h6M9 15h7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+/* «Scegli i giorni»: un intervallo fra due tacche, diverso dal Calendario */
+const icoGiorni = (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 3.5v9M14 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5 8h6M6.6 6.2 4.8 8l1.8 1.8M9.4 6.2 11.2 8l-1.8 1.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const icoCondividi = (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="12" cy="3.5" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="4" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12.5" r="2" stroke="currentColor" stroke-width="1.5"/><path d="m5.8 7 4.4-2.5M5.8 9l4.4 2.5" stroke="currentColor" stroke-width="1.5"/></svg>`;
 const icoCalPieno = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3" width="13" height="11.5" rx="2" fill="currentColor"/><path d="M5 1v3.5M11 1v3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.5 7.5h9" stroke="var(--verde)" stroke-width="1.4"/></svg>';
 const icoPieno = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2.5 6.5v-4h4M15.5 6.5v-4h-4M2.5 11.5v4h4M15.5 11.5v4h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoRiduci = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M6.5 2.5v4h-4M11.5 2.5v4h4M6.5 15.5v-4h-4M11.5 15.5v-4h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -283,12 +286,13 @@ function contaMiei(){ return miei().filter(e => !finito(e) && serieOk(e)).length
 function disegnaChips(){
   const c = (id, lab) => `<button class="chipt vetro" data-tempo="${id}" aria-pressed="${st.tempo===id}">${lab}</button>`;
   const n = contaMiei();
+  /* «Il tuo calendario» sta fermo; scorrono solo i tempi */
+  $('chipCal').innerHTML = `<button class="chipt vetro chip-cal" data-az="salvati" aria-pressed="${st.salvatiSolo}">${icoCal()}${tr('Il tuo calendario')} <span class="n">${n}</span></button>`;
   $('chips').innerHTML = (st.lente ? `<button class="chipt vetro" data-az="togli-lente" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>${esc(st.lente.nome)} ${croce}</button>` : '')
-    + `<button class="chipt vetro" data-az="salvati" aria-pressed="${st.salvatiSolo}">${icoCal()}${tr('dal Calendario')} <span class="n">${n}</span></button><span class="sep" aria-hidden="true"></span>`
     + c('tutto', tr('Tutto')) + c('adesso', tr('Adesso')) + c('oggi', tr('Oggi')) + c('domani', tr('Domani')) + c('weekend', tr('Weekend'))
-    + `<button class="chipt vetro" data-az="date" aria-pressed="${st.tempo==='date'}">${icoCal()}${st.tempo==='date'&&st.da ? esc(intervallo()) : tr('Scegli i giorni')}</button>`;
+    + `<button class="chipt vetro" data-az="date" aria-pressed="${st.tempo==='date'}">${icoGiorni()}${st.tempo==='date'&&st.da ? esc(intervallo()) : tr('Scegli i giorni')}</button>`;
   $('btnElenco').innerHTML = `${icoElenco}${tr('Elenco')}<span class="conta">${visibili().length}</span>`;
-  $('btnCal').innerHTML = `${icoCal(20)}${n?`<span class="num">${n}</span>`:''}`;
+  $('btnCal').innerHTML = `${icoCal(24)}<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
   $('btnCal').setAttribute('aria-label', tr('Il mio Calendario'));
   $('badgeAdmin').hidden = !st.admin;
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
@@ -315,6 +319,7 @@ function disegnaAvvisoStrati(){
   const el = $('avvisoStrati'); if(!el) return;
   const mostra = st.sezione==='mappa' && st.strati.size===0 && !st.foglio && !st.posa && !st.pieno && st.guida==null && !modoGiornata();
   el.hidden = !mostra; if(!mostra) return;
+  el.style.top = ($('sopra').offsetHeight + 10) + 'px';   /* sotto i tempi: in basso restano liberi Calendario e Off-Grid */
   el.innerHTML = `<div class="stack-s" style="gap:2px"><strong>${tr('Accendi gli strati per vedere gli eventi')}</strong><span class="meta">${tr('Gli strati sono i tipi di evento: musica, sport, assemblee… Sono tutti spenti, per questo la mappa è vuota. Accendi quelli che ti interessano: restano scelti su questo telefono.')}</span></div>
     <div class="tasti"><button class="tasto sec" data-az="strati">${icoStrati}${tr('Scegli gli strati')}</button><button class="tasto pri" data-az="tutti-strati">${tr('Accendili tutti')}</button></div>`;
 }

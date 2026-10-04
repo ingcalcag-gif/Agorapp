@@ -10,3 +10,5 @@
 - `parti/traduzioni.js`: testi in EN ES FR AR (chiave = testo italiano)
 
 Si può anche modificare direttamente `index.html`: in quel caso questi pezzi non sono più allineati.
+
+Librerie caricate solo quando servono (non all'apertura): SheetJS 0.18.5 (Excel, solo admin) e jsPDF 2.5.1 (PDF del calendario), da cdnjs.

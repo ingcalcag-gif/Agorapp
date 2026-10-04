@@ -20,7 +20,7 @@ js=js.replace('/*@@LAYERS@@*/',layers).replace('/*@@LEGALI@@*/',legali);
 const tr=fs.existsSync(P+'traduzioni.js')?fs.readFileSync(P+'traduzioni.js','utf8'):'window.AGR_TR={};';
 const css=fs.readFileSync(P+'style.css','utf8')+'\n'+fs.readFileSync(P+'style2.css','utf8')+'\n'+fs.readFileSync(P+'style_temi.css','utf8')+'\n'+fs.readFileSync(P+'style_sezioni.css','utf8');
 const html=`<!DOCTYPE html>
-<!-- Restyling 1 — ${new Date().toISOString().slice(0,10)} — ramo restyling-app. Nuovo involucro dal mockup unico approvato (Mappa, Calendario, schede, Off-Grid, Strati, Elenco) sulle funzioni vere di OG 1.7: mappa CARTO vettoriale (MapLibre) tinta con i colori carta, indirizzi Photon/Nominatim, GPS, Off-Grid con ripetizioni, Giornata/Mese/Agenda con percorso, PDF con anteprima, nascosti, admin con Carica Demo, città, 5 lingue, testi legali v1.2. L'app parte vuota; tolti «Ci vado / Sono qui». OG 1.7 archiviata in versioni/og17 -->
+<!-- Restyling 4 — ${new Date().toISOString().slice(0,10)} — ramo restyling-app. Mappa, Calendario, Off-Grid, Strati, Temi; Progetti e Agorà in anteprima (5 lingue). 4 ottobre: «Il tuo calendario» fermo, tasto Calendario grande, trattino che allarga i pannelli, Strati trasparenti, PDF da condividere, demo per tutti, import/export Excel per l'admin, primo accesso chiaro. OG 1.7 archiviata in versioni/og17 -->
 <html lang="it" data-theme="light">
 <head>
 <meta charset="UTF-8">

@@ -72,8 +72,51 @@ body{background:var(--fondo)}
 a.tasto,a.link{text-decoration:none}
 a.tasto.sec{color:var(--testo)}
 .campo .chiudi{width:36px;height:36px}
-.avviso-strati{position:absolute;left:12px;right:12px;bottom:84px;z-index:7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;background:var(--vetro-forte)}
+.avviso-strati{position:absolute;left:12px;right:12px;top:150px;z-index:7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;background:var(--vetro-forte)}
 .app.muove .avviso-strati{background:var(--superficie)}
 .vuoto-lbl{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px;border-radius:10px;background:var(--vetro-forte);border:1px solid var(--linea);font-size:12px;line-height:15px;color:var(--testo-2);white-space:nowrap;box-shadow:var(--ombra-card)}
 .vuoto-lbl b{color:var(--testo);font-weight:700}
 .mk-vuoto{width:auto;height:auto}
+
+/* ===== 4 ottobre: «Il tuo calendario» fermo, i tempi scorrono ===== */
+.riga-chips{display:flex;align-items:flex-start;gap:6px;margin-right:-12px}
+.riga-chips #chipCal{flex-shrink:0}
+.riga-chips .chips{flex:1;min-width:0;margin:0;padding:0 12px 4px 0}
+[dir="rtl"] .riga-chips{margin-right:0;margin-left:-12px}
+[dir="rtl"] .riga-chips .chips{padding:0 0 4px 12px}
+.chip-cal:not([aria-pressed="true"]){color:var(--verde);border-color:color-mix(in srgb,var(--verde) 55%,transparent)}
+.chip-cal{box-shadow:var(--ombra-vetro)}
+
+/* ===== Calendario: un tasto più grande e diverso dagli strumenti della mappa ===== */
+#app #btnCal{width:62px;height:62px;border-radius:20px;flex-direction:column;gap:1px;color:var(--verde);border:1.5px solid var(--verde);background:color-mix(in srgb,var(--verde) 13%,var(--superficie));box-shadow:0 6px 18px -8px rgba(30,60,40,.55)}
+#app #btnCal .cal-lbl{font-size:10px;line-height:12px;font-weight:700;letter-spacing:.01em;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#app #btnCal .num{right:-5px;top:-5px}
+
+/* ===== Il trattino dei pannelli: tocca per allargare a tutto lo spazio, ritocca per tornare giù ===== */
+.maniglia-btn{align-self:center;width:72px;height:22px;margin:-6px 0 -4px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none}
+.maniglia-btn .maniglia{transition:width .15s,background .15s}
+.maniglia-btn:hover .maniglia,.maniglia-btn:focus-visible .maniglia{background:var(--testo-2);width:48px}
+.foglio.espanso,.foglio.leggero.espanso,.foglio.medio.espanso{max-height:calc(100% - 8px);height:calc(100% - 8px)}
+
+/* ===== Strati in trasparenza: si vede la mappa che cambia mentre accendi e spegni ===== */
+.foglio.leggero,#app.muove .foglio.leggero{background:color-mix(in srgb,var(--superficie) 36%,transparent);-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.foglio.leggero .strati-lista,.foglio.leggero .riga-int,.foglio.leggero .seg{background:color-mix(in srgb,var(--superficie) 34%,transparent)}
+.foglio.leggero .strato-r{border-color:color-mix(in srgb,var(--linea) 70%,transparent)}
+.foglio.leggero h2,.foglio.leggero .t,.foglio.leggero .meta,.foglio.leggero .tipo,.foglio.leggero .seg button:not([aria-pressed="true"]),.foglio.leggero .link{text-shadow:0 0 2px var(--superficie),0 0 6px var(--superficie),0 0 10px var(--superficie)}
+#app.muove .peek,.peek.vetro{-webkit-backdrop-filter:none;backdrop-filter:none;background:color-mix(in srgb,var(--superficie) 72%,transparent)}
+
+/* ===== PDF del calendario: con il segno del condividi ===== */
+.tasto-pdf{display:flex;align-items:center;gap:6px}
+
+/* ===== Progetti e Agorà: avviso sulle proposte, invito alla demo ===== */
+.avviso-proposte{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--linea-forte);border-radius:14px;padding:10px 12px;font-size:13px;line-height:19px;color:var(--testo-2);background:color-mix(in srgb,var(--superficie) 60%,transparent)}
+.avviso-proposte svg{flex-shrink:0;margin-top:2px;color:var(--testo-2)}
+.avviso-proposte+.proponi{margin-top:-4px}
+.invito-demo{display:flex;flex-direction:column;gap:10px;border:1px solid var(--linea);border-radius:16px;padding:14px;background:var(--superficie)}
+.invito-demo .tasto{align-self:flex-start}
+
+/* ===== Import da Excel ===== */
+.imp-righe{display:flex;flex-direction:column;gap:4px;font-size:13px;line-height:18px;max-height:220px;overflow:auto;border:1px solid var(--linea);border-radius:12px;padding:8px 10px}
+.imp-righe .no{color:var(--rosso)}
+.colonne{font-size:12px;line-height:18px;color:var(--testo-2)}
+.colonne b{color:var(--testo)}

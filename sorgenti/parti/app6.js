@@ -87,13 +87,15 @@ $('app').addEventListener('click', ev => {
     case 'aggiungi-link': if(st.form.links.length<5){ st.form.links.push(''); disegnaFoglio(); const ins = document.querySelectorAll('[data-link]'); if(ins.length) ins[ins.length-1].focus(); } break;
     case 'annulla-conferma': { const id = st.conferma.id; st.conferma = null; selezionaEv(id); break; }
     case 'calendario': apriCalendario(); break;
-    case 'pdf': st.pdf = {giornata: st.cal.vista==='giornata' ? st.cal.giorno : null, tolti:new Set()}; apri('pdf'); break;
+    case 'pdf': st.pdf = {giornata: st.cal.vista==='giornata' ? st.cal.giorno : null, tolti:new Set()}; apri('pdf'); preparaPdf().catch(() => {}); break;
+    case 'espandi-foglio': if(Date.now() - maniglia.trascinata > 400) espandiFoglio(); break;
     case 'indietro-cal': st.pdf = null; apriCalendario(); break;
-    case 'scarica-pdf': stampaPdf(); break;
+    case 'scarica-pdf': condividiPdf(); break;
+    case 'stampa-pdf': stampaPdf(); break;
     case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
       if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
     case 'citta': apri('citta'); break;
-    case 'impostazioni': st.sel = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
+    case 'impostazioni': st.sel = null; st.demoMsg = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
     case 'semplice': st.semplice = !st.semplice; LS.set('agorapp_simple', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
@@ -105,16 +107,26 @@ $('app').addEventListener('click', ev => {
     case 'admin': st.importa = null; st.aform = null; apri('admin'); break;
     case 'esci-admin': st.admin = false; st.demoMsg = null; chiudi(); tutto(); break;
     case 'carica-demo': caricaDemo(); break;
+    case 'demo': if(DEMO || events.some(e => e.demo)) togliDemo(); else caricaDemo(); break;
+    case 'admin-modello': scaricaModello(); break;
+    case 'admin-esporta-json': esporta(); break;
     case 'togli-demo': togliDemo(); break;
     case 'admin-ongrid': apriAdminForm(null); break;
     case 'admin-importa': $('fileImporta').click(); break;
-    case 'importa-ok': { const n = st.importa.ok.length; events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.demoMsg = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); break; }
-    case 'admin-esporta': esporta(); break;
+    case 'importa-annulla': st.importa = null; apri('admin'); break;
+    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.demoMsg = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); break; }
+    case 'admin-esporta': esportaExcel(); break;
     case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
     case 'a-salva': salvaAdmin(); break;
     case 'ripristina': if(st.eliminati.length){ st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
   }
 });
+/* il trattino si può anche trascinare: in su allarga, in giù riduce */
+const maniglia = {y:null, trascinata:0};
+$('app').addEventListener('pointerdown', ev => { const b = ev.target.closest && ev.target.closest('.maniglia-btn'); if(!b) return; maniglia.y = ev.clientY; });
+window.addEventListener('pointerup', ev => { if(maniglia.y==null) return; const dy = ev.clientY - maniglia.y; maniglia.y = null;
+  if(Math.abs(dy) > 24){ maniglia.trascinata = Date.now(); espandiFoglio(dy < 0); } });
+window.addEventListener('pointercancel', () => { maniglia.y = null; });
 $('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
 /* campi: aggiornano lo stato senza ridisegnare il foglio (il cursore resta dov'è) */
 $('foglio-slot').addEventListener('input', ev => {
@@ -161,7 +173,7 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
 
 /* ======================= Avvio ======================= */
 (function avvio(){
-  const tema = LS.s('agorapp_theme', null) || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+  const tema = LS.s('agorapp_theme', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
   document.documentElement.setAttribute('data-theme', tema);
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', tema==='dark' ? '#211D18' : '#FFFDF8');
   if(st.semplice) $('app').classList.add('semplice');
@@ -172,6 +184,8 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     demo:() => DEMO,
+    tr, dloc, lingua:() => lang,
+    caricaDemo(){ return caricaDemo(); },
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },
     chiudi(){ chiudi(); },

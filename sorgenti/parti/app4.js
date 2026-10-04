@@ -124,7 +124,7 @@ function fCerca(){
   const sbl = EV.filter(e => e.nascosto && st.sbloccati.has(e.raw.hiddenPassword));
   const corpo = `<div id="risultati" class="stack">${risultatiEventi()}</div><div id="risultati-luoghi" class="stack"></div>
     <div class="fonte avanzato"><span class="meta"><strong style="color:var(--testo)">${tr('Ricerca avanzata')}</strong>: ${tr('periodo, prezzo e strati sono i filtri sopra la mappa, e valgono anche qui.')}</span>
-      <div class="tasti"><button class="tasto sec" data-az="date">${icoCal()}${tr('Periodo')}</button><button class="tasto sec" data-az="strati">${icoStrati}${tr('Prezzo e strati')}</button></div></div>
+      <div class="tasti"><button class="tasto sec" data-az="date">${icoGiorni()}${tr('Periodo')}</button><button class="tasto sec" data-az="strati">${icoStrati}${tr('Prezzo e strati')}</button></div></div>
     <div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Ti hanno dato la password di un evento nascosto?')}</strong> ${tr('Inseriscila qui: l’evento compare sulla mappa solo per te.')}</span>
       <div style="display:flex;gap:8px"><label class="campo" style="flex:1"><input id="pw" type="password" placeholder="${esc(tr('Password dell’evento'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="sblocca">${icoLucchetto(14)}${tr('Sblocca')}</button></div>
       <span class="err" id="pw-err" hidden>${tr('Nessun evento nascosto con questa password.')}</span>
