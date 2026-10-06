@@ -179,4 +179,3 @@ button.mz-fonte{cursor:pointer;min-height:24px}
 .interesse-riga .campo{flex:1;min-width:0}
 .interesse-riga .tasto{flex:none;padding:4px 14px}
 .interesse-err{color:var(--rosso)}
-.nota-lingua{border-radius:12px;background:var(--incassata);padding:8px 12px;font-size:12px;line-height:18px;color:var(--testo-2);margin:0 0 12px}

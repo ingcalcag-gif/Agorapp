@@ -11,7 +11,7 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
     <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I tre passi che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
-      <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Conforme GDPR · v1.3 · ottobre 2026')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Conforme GDPR · v1.2 · marzo 2026')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button></div>
       <p class="meta">${tr('Scrivici')}: <a class="mail" href="mailto:info@agorapp.it">info@agorapp.it</a></p></section>
@@ -23,12 +23,11 @@ function fImpostazioni(){
 }
 function fLegale(){
   const T = {privacy:tr('Informativa privacy'), storage:tr('Dati locali'), disclaimer:tr('Note legali')};
-  /* v1.3 (6 ottobre 2026): il testo aggiornato è in italiano; le traduzioni della v1.2 non sono più esatte e non si mostrano */
-  const testo = (lang!=='it' ? `<p class="nota-lingua">${tr('Il testo aggiornato (v1.3, ottobre 2026) per ora è disponibile solo in italiano.')}</p>` : '') + ($('leg-'+st.legale) ? $('leg-'+st.legale).innerHTML : '');
+  const testo = (lang!=='it' && LEGALI[lang] && LEGALI[lang][st.legale]) || ($('leg-'+st.legale) ? $('leg-'+st.legale).innerHTML : '');
   const testa = `<div class="riga-titolo"><div><h2>${tr('Documenti legali')}</h2><p class="meta">Agorapp · Torino · Lorenzo Calcagno · <a class="mail" href="mailto:info@agorapp.it">info@agorapp.it</a></p></div>${chiudiBtn('indietro-impostazioni')}</div>
     <div class="seg" role="tablist">${Object.entries(T).map(([k,l]) => `<button data-legale="${k}" aria-pressed="${st.legale===k}" role="tab">${l}</button>`).join('')}</div>`;
   const corpo = `<div class="legale">${testo}</div>
-    <p class="meta">Ai sensi degli artt. 12–13 Reg. UE 2016/679 (GDPR) · D.Lgs. 196/2003 mod. D.Lgs. 101/2018 · Provvedimento Garante 10 giugno 2021 · Linee guida EDPB 2/2023 · v1.3 · Ottobre 2026</p>`;
+    <p class="meta">Ai sensi degli artt. 12–13 Reg. UE 2016/679 (GDPR) · D.Lgs. 196/2003 mod. D.Lgs. 101/2018 · Provvedimento Garante 10 giugno 2021 · v1.2 · Marzo 2026</p>`;
   return foglio('forte alto', testa, corpo);
 }
 function fCitta(){

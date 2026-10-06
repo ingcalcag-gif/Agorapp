@@ -20,7 +20,7 @@ js=js.replace('/*@@LAYERS@@*/',layers).replace('/*@@LEGALI@@*/',legali);
 const tr=fs.existsSync(P+'traduzioni.js')?fs.readFileSync(P+'traduzioni.js','utf8'):'window.AGR_TR={};';
 const css=fs.readFileSync(P+'style.css','utf8')+'\n'+fs.readFileSync(P+'style2.css','utf8')+'\n'+fs.readFileSync(P+'style_temi.css','utf8')+'\n'+fs.readFileSync(P+'style_sezioni.css','utf8')+'\n'+fs.readFileSync(P+'style_fate.css','utf8')+'\n'+fs.readFileSync(P+'style_misure.css','utf8');
 const html=`<!DOCTYPE html>
-<!-- Restyling 4 — ${new Date().toISOString().slice(0,10)} — ramo restyling-app. Mappa, Calendario, Off-Grid, Strati, Temi; Progetti e Agorà in anteprima (5 lingue). 4 ottobre: «Il tuo calendario» fermo, tasto Calendario grande, trattino che allarga i pannelli, Strati trasparenti, PDF da condividere, demo per tutti, import/export Excel per l'admin, primo accesso chiaro. 4 ottobre sera: Ordine delle Fate (funzione nascosta). 6 ottobre: Misure nell'admin (tranche 1) e pulsanti volontari «Mi interessa» (tranche 2), informativa v1.3. OG 1.7 archiviata in versioni/og17 -->
+<!-- Restyling 4 — ${new Date().toISOString().slice(0,10)} — ramo restyling-app. Mappa, Calendario, Off-Grid, Strati, Temi; Progetti e Agorà in anteprima (5 lingue). 4 ottobre: «Il tuo calendario» fermo, tasto Calendario grande, trattino che allarga i pannelli, Strati trasparenti, PDF da condividere, demo per tutti, import/export Excel per l'admin, primo accesso chiaro. 4 ottobre sera: Ordine delle Fate (funzione nascosta). 6 ottobre: Misure nell'admin (tranche 1) e pulsanti volontari «Mi interessa» (tranche 2). OG 1.7 archiviata in versioni/og17 -->
 <html lang="it" data-theme="light">
 <head>
 <meta charset="UTF-8">
