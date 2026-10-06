@@ -5,7 +5,8 @@ $('app').addEventListener('click', ev => {
   if(!t || t.disabled) return;
   if(t.tagName==='A') return;
   if(t.closest('.sez-temi') && clickTemi(t)) return;
-  if(t.closest('.sez-agora,.sez-progetti,.sez-proposta')) return;   /* Progetti, Agorà e proposte gestiscono i propri tasti */
+  if(t.closest('.sez-agora,.sez-progetti,.sez-proposta')) return;
+  if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */   /* Progetti, Agorà e proposte gestiscono i propri tasti */
   const d = t.dataset;
   if(clickFate(t, d)) return;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
@@ -45,7 +46,7 @@ $('app').addEventListener('click', ev => {
   if(d.elimina){ st.conferma = {id:d.elimina}; st.foglio = 'conferma'; disegnaFoglio(); return; }
   if(d.eliminaOk){ elimina(st.conferma.id, d.eliminaOk); return; }
   if(d.modificaAdmin){ const r = rawById(d.modificaAdmin); if(r) apriAdminForm(r); return; }
-  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return; }
+  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return; }
   if(d.salvaForm){ salvaForm(d.salvaForm); return; }
   if(d.fgiorno){ st.form.giorno = d.fgiorno; if(st.form.fino < d.fgiorno) st.form.fino = piuMesi(d.fgiorno,3); disegnaFoglio(); return; }
   if(d.togliLink!=null){ st.form.links.splice(+d.togliLink,1); if(!st.form.links.length) st.form.links = ['']; disegnaFoglio(); return; }
@@ -105,9 +106,10 @@ $('app').addEventListener('click', ev => {
     case 'guida-salta': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
-    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ st.admin = true; st.adminPw = false; st.adminErr = false; st.demoMsg = null; disegnaChips(); apri('admin'); tutto(); } else { st.adminErr = true; disegnaFoglio(); } break; }
+    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ st.admin = true; st.adminPw = false; st.adminErr = false; st.demoMsg = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
     case 'admin': st.importa = null; st.aform = null; apri('admin'); break;
-    case 'esci-admin': st.admin = false; st.demoMsg = null; chiudi(); tutto(); break;
+    case 'admin-misure': apriMisure(); break;
+    case 'esci-admin': st.admin = false; st.demoMsg = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
     case 'carica-demo': caricaDemo(); break;
     case 'demo': if(DEMO || events.some(e => e.demo)) togliDemo(); else caricaDemo(); break;
     case 'admin-modello': scaricaModello(); break;
@@ -116,7 +118,7 @@ $('app').addEventListener('click', ev => {
     case 'admin-ongrid': apriAdminForm(null); break;
     case 'admin-importa': $('fileImporta').click(); break;
     case 'importa-annulla': st.importa = null; apri('admin'); break;
-    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.demoMsg = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); break; }
+    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.demoMsg = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
     case 'admin-esporta': esportaExcel(); break;
     case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
     case 'a-salva': salvaAdmin(); break;

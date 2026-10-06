@@ -7,6 +7,7 @@
 - `parti/body.html`: struttura della pagina
 - `parti/app1.js`…`app7.js`: Mappa, schede, Calendario, Off-Grid, Cerca, admin, Temi (un solo modulo)
 - `parti/fate.js` e `parti/style_fate.css`: Ordine delle Fate, funzione nascosta (formula, condividi d'oro, pacchetto cifrato nel link, strato degli eventi ricevuti)
+- `parti/misure.js`, `parti/misure_kpi.js`, `parti/style_misure.css`: Misure nell'admin (tranche 1): totali del giorno dagli eventi, numeri inseriti a mano, decisioni con soglie, catalogo delle 50 domande. Tutto nella chiave agorapp_misure del telefono dell'admin, esportabile in Excel.
 - `parti/sezioni.js`: Progetti, Agorà e Proposte in anteprima (dal mockup, dati dalla demo)
 - `parti/traduzioni.js`: testi in EN ES FR AR (chiave = testo italiano)
 
