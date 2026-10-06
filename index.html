@@ -1237,6 +1237,18 @@ button.mz-fonte{cursor:pointer;min-height:24px}
 .interesse-esito:last-child{border-bottom:0}
 .interesse-esito:hover,.interesse-esito:focus-visible{background:var(--verde-tenue);outline:none}
 .interesse-cerca #int-citta-n:empty{display:none}
+/* storico delle operazioni */
+.sh .sh-indietro{align-self:flex-start;min-height:32px;padding:0}
+.sh-giorno{font-family:var(--sans,inherit)!important;font-size:12px!important;line-height:16px!important;font-weight:600;color:var(--testo-2);text-transform:uppercase;letter-spacing:.04em;margin:8px 0 0}
+.sh-voce{display:flex;gap:12px;align-items:flex-start;padding:8px 0 8px 10px;border-left:3px solid var(--linea)}
+.sh-voce b{font-weight:600;display:block}
+.sh-voce .meta{display:block;margin-top:2px}
+.sh-ora{font-variant-numeric:tabular-nums;font-size:13px;color:var(--testo-2);min-width:40px;padding-top:1px}
+.sh-eventi{border-left-color:var(--verde)}.sh-file{border-left-color:var(--mz-c2)}.sh-misure{border-left-color:var(--mz-c3)}.sh-accessi{border-left-color:var(--linea-forte)}
+.sh-svuota{align-self:center;color:var(--mz-crit)}
+.sh-conferma{border:1px solid var(--clay-bordo);background:var(--clay-tenue);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.sh-conferma p{margin:0}
+.sh-via{font-style:italic}
 
 </style>
 </head>
@@ -2710,6 +2722,7 @@ function fAdmin(){
       <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono, senza la demo')}</span></div>${freccia}</button></div>
+    <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo telefono') : tr('{n} operazioni registrate su questo telefono',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo telefono'))(storico().length)}</span></div>${freccia}</button>
     <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
     <p class="meta">${tr('La demo ora è per tutti: Impostazioni → Prova Agorapp.')}</p>
     ${st.demoMsg?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.demoMsg)}</p>`:''}
@@ -2930,7 +2943,7 @@ function esportaExcel(){
   const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
     return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.image||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
   fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], 'agorapp_'+oggi()+'.xlsx')
-    .then(() => { st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
+    .then(() => { registra('esporta-excel', {n:dati.length}); st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
     .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 /* form on-grid dell'admin (stessi campi e controlli dell'app online) */
@@ -2988,8 +3001,8 @@ function salvaAdmin(){
   const campi = {title:t, category:f.strato, sublayer, description:f.desc.trim(), datetime:f.dt, duration:f.durata.trim(), end:'', price:f.prezzo.trim(), link:f.link.trim(), image:f.img.trim(),
     hidden:f.nascosto, hiddenPassword:f.nascosto ? f.pw.trim() : '', offgrid:false, address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng, provenienza:f.prov||''};
   let id = f.id;
-  if(f.id){ const ev = rawById(f.id); if(ev) Object.assign(ev, campi); misureConta('corretti'); }
-  else { id = Date.now().toString(); events.push(Object.assign({id, creato:new Date().toISOString()}, campi)); }
+  if(f.id){ const ev = rawById(f.id); if(ev) Object.assign(ev, campi); misureConta('corretti'); registra('modifica', {id:f.id, s:campi.category}); }
+  else { id = Date.now().toString(); events.push(Object.assign({id, creato:new Date().toISOString()}, campi)); registra('crea', {id, s:campi.category}); }
   if(campi.hidden) st.sbloccati.add(campi.hiddenPassword);
   saveEvents(); ricostruisci(); st.aform = null; mzFotografa();
   const e = byId(id); if(e && !visibile(e)){ st.tempo = 'tutto'; st.salvatiSolo = false; if(e.strato) st.strati.add(e.strato); st.tipi.evento = true; }
@@ -4165,7 +4178,7 @@ function esportaMisure(){
   const IN = [[tr('Giorno'), tr('Agorà'), tr('Progetti'), tr('Città')]].concat(Ig.map(g => { const x = TI.giorni[g]||{}; return [dIso(g), x.agora||0, x.progetti||0, Object.keys(x).filter(k => k.startsWith('citta:')).map(k => k.slice(6)+' '+x[k]).join(' · ')]; }));
   const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico], [tr('«Mi interessa» per l’on-grid'), m.soglie.interesse]];
   fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Interesse'), IN, [12,10,10,50]], [tr('Soglie'), Sg, [44,10]]], 'agorapp_misure_'+oggi()+'.xlsx')
-    .then(() => avviso(tr('Misure esportate: agorapp_misure_{d}.xlsx',{d:oggi()}), null, true))
+    .then(() => { registra('esporta-misure'); avviso(tr('Misure esportate: agorapp_misure_{d}.xlsx',{d:oggi()}), null, true); })
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 
@@ -4186,12 +4199,13 @@ function clickMisure(t){
     case 'vista': MS.vista[d.v] = MS.vista[d.v]==='tab' ? 'g' : 'tab'; disegnaMisure(); break;
     case 'kpi': foglioKpiMz(d.n); break;
     case 'kpiset': foglioSetMz(d.k.split(','), d.l); break;
-    case 'lib-vis': { const n = +d.n; salvaAppuntiMz(n); libSet(n, {visibile:!libVisibile(n)}); if($('mz-app-'+n)) foglioKpiMz(n); disegnaMisure(); break; }
+    case 'lib-vis': { const n = +d.n; salvaAppuntiMz(n); libSet(n, {visibile:!libVisibile(n)}); registra('misura', {r:n, x:libVisibile(n) ? tr('mostrata nella sezione') : tr('nascosta dalla sezione')}); if($('mz-app-'+n)) foglioKpiMz(n); disegnaMisure(); break; }
     case 'lib-stato': { const n = +d.n, x = (m.lib||{})[n]||{};
       if(!d.v){ delete x.stato; m.lib[n] = x; mzSalva(); } else libSet(n, {stato:d.v, visibile:true});
+      registra('misura', {r:n, x:tr('stato: {s}',{s:tr(STATI_LIB[libStato(n)])})+(d.v?'':' · '+tr('come nel file'))});
       salvaAppuntiMz(n);
       avviso(tr('Riga {n}: {s}',{n, s:tr(STATI_LIB[libStato(n)])}), null, true); foglioKpiMz(n); disegnaMisure(); break; }
-    case 'lib-appunti': { const ta = $('mz-app-'+d.n); if(!ta) break; libSet(+d.n, {appunti:ta.value.trim(), appuntiD:oggi()}); avviso(tr('Appunti salvati'), null, true); foglioKpiMz(d.n); disegnaMisure(); break; }
+    case 'lib-appunti': { const ta = $('mz-app-'+d.n); if(!ta) break; libSet(+d.n, {appunti:ta.value.trim(), appuntiD:oggi()}); registra('misura', {r:+d.n, x:tr('appunti salvati')}); avviso(tr('Appunti salvati'), null, true); foglioKpiMz(d.n); disegnaMisure(); break; }
     case 'lib-sez': MS.sezLib = d.v||''; disegnaMisure(); break;
     case 'filtro': MS.filtroCat = d.v; disegnaMisure(); break;
     case 'dec': m.stati[d.id] = 'fatto'; mzSalva(); disegnaMisure(); break;
@@ -4355,6 +4369,87 @@ function serieInteresse(giorni, voce){
   let acc = prima; return giorni.map(g => { acc += (I.giorni[g]||{})[voce]||0; return acc; });
 }
 
+/* ======================= Storico delle operazioni dell'admin (6 ottobre 2026) =======================
+   Dove sta: in questo telefono, nella memoria del browser (localStorage, chiave agorapp_storico), come gli eventi
+   e le Misure. L'app lo legge da lì: non va su nessun server e un altro telefono non lo vede.
+   Cosa tiene: il tipo di operazione, giorno e ora, quanti eventi e il codice dell'evento. Il titolo NON viene salvato:
+   lo storico lo legge dall'evento finché l'evento è sulla mappa. Quando l'evento sparisce (3 ore dopo la fine),
+   nello storico resta solo «evento non più sulla mappa», così lo storico non diventa un archivio degli eventi.
+   Si tengono le ultime 1.000 operazioni e al massimo 12 mesi. */
+const STORICO_MAX = 1000, STORICO_GIORNI = 365;
+const OP_STORICO = {
+  entra:['accessi','Entrata in modalità admin'], esci:['accessi','Uscita dalla modalità admin'],
+  crea:['eventi','Evento creato'], modifica:['eventi','Evento modificato'], elimina:['eventi','Evento eliminato'], ripristina:['eventi','Eventi ripristinati'],
+  importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
+  'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
+  misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']
+};
+const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Accessi']];
+const SH = {filtro:'tutte', mostrati:60, conferma:false};
+function storico(){
+  const l = LS.get('agorapp_storico', []); if(!Array.isArray(l)) return [];
+  const limite = Date.now() - STORICO_GIORNI*864e5;
+  return l.filter(x => x && OP_STORICO[x.op] && Date.parse(x.t) >= limite);
+}
+function registra(op, extra){
+  if(!OP_STORICO[op]) return;
+  const voce = Object.assign({t:new Date().toISOString(), op}, extra||{});
+  Object.keys(voce).forEach(k => { if(voce[k]==null || voce[k]==='') delete voce[k]; });
+  const l = storico(); l.push(voce);
+  LS.set('agorapp_storico', l.slice(-STORICO_MAX));
+}
+function descriviVoce(x){
+  const ev = x.id ? rawById(x.id) : null, strato = x.s && S[x.s] ? tr(S[x.s].label) : '';
+  const parti = [];
+  if(x.id) parti.push(ev ? `«${esc(ev.title||'')}»` : `<span class="sh-via">${tr('evento non più sulla mappa')}</span>`);
+  if(strato) parti.push(esc(strato));
+  if(x.n!=null) parti.push(x.n===1 ? tr('1 evento') : tr('{n} eventi',{n:nf(x.n)}));
+  if(x.r!=null) parti.push(tr('riga {n}',{n:x.r}));
+  if(x.x) parti.push(esc(x.x));
+  return parti.join(' · ');
+}
+function foglioStorico(){
+  const tutte = storico().reverse(), f = SH.filtro;
+  const lista = tutte.filter(x => f==='tutte' || OP_STORICO[x.op][0]===f), vis = lista.slice(0, SH.mostrati);
+  let giorno = '', righe = '';
+  vis.forEach(x => { const d = new Date(x.t), g = x.t.slice(0,10);
+    if(g!==giorno){ giorno = g; righe += `<h3 class="sh-giorno">${esc(lungD(oggiDi(d)))}</h3>`; }
+    righe += `<div class="sh-voce sh-${OP_STORICO[x.op][0]}"><span class="sh-ora">${hm(d)}</span><div><b>${tr(OP_STORICO[x.op][1])}</b>${descriviVoce(x)?`<span class="meta">${descriviVoce(x)}</span>`:''}</div></div>`; });
+  window.AGR.foglio(`<div class="mz-foglio sh">
+    <button class="link sh-indietro" data-az="admin">${tr('‹ Modalità admin')}</button>
+    <h2>${tr('Storico delle operazioni')}</h2>
+    <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave agorapp_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
+    <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra lo storico'))}">${GRUPPI_STORICO.map(([k,t]) => `<button data-sh="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(t)} · ${tutte.filter(x => k==='tutte' || OP_STORICO[x.op][0]===k).length}</span></button>`).join('')}</nav>
+    ${righe || `<p class="mz-nota">${tr('Nessuna operazione registrata. Lo storico parte da oggi: le operazioni fatte prima non ci sono.')}</p>`}
+    ${lista.length > vis.length ? `<button class="tasto sec pieno" data-sh="altre">${tr('Mostra le precedenti ({n})',{n:lista.length - vis.length})}</button>` : ''}
+    <p class="meta">${tr('Il titolo degli eventi non si salva: si legge dall’evento finché è sulla mappa. Si tengono le ultime 1.000 operazioni, per al massimo 12 mesi.')}</p>
+    ${tutte.length ? `<button class="tasto sec pieno" data-sh="esporta">${tr('Esporta lo storico in Excel')}</button>
+    ${SH.conferma ? `<div class="sh-conferma" role="alert"><p>${tr('Cancello tutte le {n} operazioni da questo telefono? Non si possono recuperare.',{n:tutte.length})}</p><div class="tasti"><button class="tasto sec" data-sh="annulla">${tr('Annulla')}</button><button class="tasto pri" data-sh="svuota-ok">${tr('Sì, svuota')}</button></div></div>`
+      : `<button class="link sh-svuota" data-sh="svuota">${tr('Svuota lo storico')}</button>`}` : ''}
+  </div>`, 'sez-misure');
+}
+const oggiDi = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function esportaStorico(){
+  const R = [[tr('Giorno'), tr('Ora'), tr('Tipo'), tr('Operazione'), tr('Evento (se ancora sulla mappa)'), tr('Strato'), tr('Quanti'), tr('Riga delle Misure'), tr('Dettaglio')]]
+    .concat(storico().map(x => { const d = new Date(x.t), ev = x.id ? rawById(x.id) : null;
+      return [dIso(oggiDi(d)), hm(d), tr(GRUPPI_STORICO.find(g => g[0]===OP_STORICO[x.op][0])[1]), tr(OP_STORICO[x.op][1]), x.id ? (ev ? ev.title : tr('non più sulla mappa')) : '', x.s && S[x.s] ? tr(S[x.s].label) : '', x.n==null ? '' : x.n, x.r==null ? '' : x.r, x.x||'']; }));
+  fileExcel([[tr('Storico'), R, [12,8,16,32,40,18,8,10,30]]], 'agorapp_storico_'+oggi()+'.xlsx')
+    .then(() => { registra('esporta-storico'); avviso(tr('Storico esportato: agorapp_storico_{d}.xlsx',{d:oggi()}), null, true); foglioStorico(); })
+    .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-sh]'); if(!b) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const a = b.dataset.sh;
+  if(a==='filtro'){ SH.filtro = b.dataset.v; SH.mostrati = 60; }
+  else if(a==='altre') SH.mostrati += 100;
+  else if(a==='esporta'){ esportaStorico(); return; }
+  else if(a==='svuota') SH.conferma = true;
+  else if(a==='annulla') SH.conferma = false;
+  else if(a==='svuota-ok'){ const n = storico().length; LS.set('agorapp_storico', []); SH.conferma = false; registra('svuota', {x:tr('{n} operazioni cancellate',{n})}); avviso(tr('Storico svuotato'), null, true); }
+  foglioStorico();
+}, true);
+
 
 /* ======================= Interazioni ======================= */
 $('app').addEventListener('click', ev => {
@@ -4404,7 +4499,7 @@ $('app').addEventListener('click', ev => {
   if(d.elimina){ st.conferma = {id:d.elimina}; st.foglio = 'conferma'; disegnaFoglio(); return; }
   if(d.eliminaOk){ elimina(st.conferma.id, d.eliminaOk); return; }
   if(d.modificaAdmin){ const r = rawById(d.modificaAdmin); if(r) apriAdminForm(r); return; }
-  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return; }
+  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); registra('elimina', {id:r.id, s:r.category}); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return; }
   if(d.salvaForm){ salvaForm(d.salvaForm); return; }
   if(d.fgiorno){ st.form.giorno = d.fgiorno; if(st.form.fino < d.fgiorno) st.form.fino = piuMesi(d.fgiorno,3); disegnaFoglio(); return; }
   if(d.togliLink!=null){ st.form.links.splice(+d.togliLink,1); if(!st.form.links.length) st.form.links = ['']; disegnaFoglio(); return; }
@@ -4464,23 +4559,24 @@ $('app').addEventListener('click', ev => {
     case 'guida-salta': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
-    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ st.admin = true; st.adminPw = false; st.adminErr = false; st.demoMsg = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
+    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.demoMsg = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
     case 'admin': st.importa = null; st.aform = null; apri('admin'); break;
     case 'admin-misure': apriMisure(); break;
-    case 'esci-admin': st.admin = false; st.demoMsg = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
+    case 'esci-admin': registra('esci'); st.admin = false; st.demoMsg = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
     case 'carica-demo': caricaDemo(); break;
     case 'demo': if(DEMO || events.some(e => e.demo)) togliDemo(); else caricaDemo(); break;
     case 'admin-modello': scaricaModello(); break;
-    case 'admin-esporta-json': esporta(); break;
+    case 'admin-esporta-json': esporta(); registra('esporta-json'); break;
+    case 'admin-storico': SH.filtro = 'tutte'; SH.mostrati = 60; SH.conferma = false; foglioStorico(); break;
     case 'togli-demo': togliDemo(); break;
     case 'admin-ongrid': apriAdminForm(null); break;
     case 'admin-importa': $('fileImporta').click(); break;
     case 'importa-annulla': st.importa = null; apri('admin'); break;
-    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.demoMsg = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
+    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; registra('importa', {n}); events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.demoMsg = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
     case 'admin-esporta': esportaExcel(); break;
     case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
     case 'a-salva': salvaAdmin(); break;
-    case 'ripristina': if(st.eliminati.length){ st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
+    case 'ripristina': if(st.eliminati.length){ registra('ripristina', {n:st.eliminati.length}); st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
   }
 });
 /* il trattino si trascina: il pannello segue il dito */

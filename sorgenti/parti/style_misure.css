@@ -213,3 +213,15 @@ button.mz-fonte{cursor:pointer;min-height:24px}
 .interesse-esito:last-child{border-bottom:0}
 .interesse-esito:hover,.interesse-esito:focus-visible{background:var(--verde-tenue);outline:none}
 .interesse-cerca #int-citta-n:empty{display:none}
+/* storico delle operazioni */
+.sh .sh-indietro{align-self:flex-start;min-height:32px;padding:0}
+.sh-giorno{font-family:var(--sans,inherit)!important;font-size:12px!important;line-height:16px!important;font-weight:600;color:var(--testo-2);text-transform:uppercase;letter-spacing:.04em;margin:8px 0 0}
+.sh-voce{display:flex;gap:12px;align-items:flex-start;padding:8px 0 8px 10px;border-left:3px solid var(--linea)}
+.sh-voce b{font-weight:600;display:block}
+.sh-voce .meta{display:block;margin-top:2px}
+.sh-ora{font-variant-numeric:tabular-nums;font-size:13px;color:var(--testo-2);min-width:40px;padding-top:1px}
+.sh-eventi{border-left-color:var(--verde)}.sh-file{border-left-color:var(--mz-c2)}.sh-misure{border-left-color:var(--mz-c3)}.sh-accessi{border-left-color:var(--linea-forte)}
+.sh-svuota{align-self:center;color:var(--mz-crit)}
+.sh-conferma{border:1px solid var(--clay-bordo);background:var(--clay-tenue);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.sh-conferma p{margin:0}
+.sh-via{font-style:italic}

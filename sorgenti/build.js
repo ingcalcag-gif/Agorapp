@@ -15,7 +15,7 @@ const legali='const LEGALI = '+JSON.stringify(LEG)+';';
 const lA=mock.findIndex(l=>l.startsWith('<template id="leg-privacy">'));
 let lB=mock.findIndex(l=>l.startsWith('<template id="leg-disclaimer">')); while(!mock[lB].includes('</template>')) lB++;
 const tmpl=mock.slice(lA,lB+1).join('\n');
-let js=['app1.js','app2.js','app3.js','app4.js','app5.js','app7.js','fate.js','misure_kpi.js','misure.js','interesse.js','app6.js'].map(f=>fs.readFileSync(P+f,'utf8')).join('\n');
+let js=['app1.js','app2.js','app3.js','app4.js','app5.js','app7.js','fate.js','misure_kpi.js','misure.js','interesse.js','storico.js','app6.js'].map(f=>fs.readFileSync(P+f,'utf8')).join('\n');
 js=js.replace('/*@@LAYERS@@*/',layers).replace('/*@@LEGALI@@*/',legali);
 const tr=fs.existsSync(P+'traduzioni.js')?fs.readFileSync(P+'traduzioni.js','utf8'):'window.AGR_TR={};';
 const css=fs.readFileSync(P+'style.css','utf8')+'\n'+fs.readFileSync(P+'style2.css','utf8')+'\n'+fs.readFileSync(P+'style_temi.css','utf8')+'\n'+fs.readFileSync(P+'style_sezioni.css','utf8')+'\n'+fs.readFileSync(P+'style_fate.css','utf8')+'\n'+fs.readFileSync(P+'style_misure.css','utf8');
