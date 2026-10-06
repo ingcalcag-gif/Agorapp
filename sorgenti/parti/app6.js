@@ -6,7 +6,8 @@ $('app').addEventListener('click', ev => {
   if(t.tagName==='A') return;
   if(t.closest('.sez-temi') && clickTemi(t)) return;
   if(t.closest('.sez-agora,.sez-progetti,.sez-proposta')) return;
-  if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */   /* Progetti, Agorà e proposte gestiscono i propri tasti */
+  if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */
+  if(t.dataset.interesse!=null) return;   /* pulsanti volontari: li gestisce interesse.js */   /* Progetti, Agorà e proposte gestiscono i propri tasti */
   const d = t.dataset;
   if(clickFate(t, d)) return;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
@@ -200,7 +201,7 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   const pacco = controllaLinkFate();   /* aperto da un link dell'Ordine delle Fate */
   if(!pacco && LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
-  window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
+  window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events, bloccoInteresse,
     demo:() => DEMO,
     tr, dloc, lingua:() => lang,
     caricaDemo(){ return caricaDemo(); },

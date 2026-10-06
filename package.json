@@ -1,0 +1,8 @@
+{
+  "name": "agorapp",
+  "private": true,
+  "description": "Agorapp: sito statico (index.html) più una funzione Netlify per i pulsanti volontari «Mi interessa».",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.3"
+  }
+}

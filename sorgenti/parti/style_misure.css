@@ -168,3 +168,15 @@ button.mz-fonte{cursor:pointer;min-height:24px}
 .mz-form .campo,.mz-riga-f .campo{width:100%;min-width:0}
 .mz-form input,.mz-form select,.mz-riga-f input{width:100%;min-width:0}
 .mz-card .riga-int .mz-stato{align-self:center}
+.mz-legenda i.mz-l-linea{width:14px;height:2px;border-radius:2px}
+/* pulsanti volontari (pubblici) */
+.interesse{border:1px solid var(--linea);border-radius:14px;background:color-mix(in srgb,var(--superficie) 80%,transparent);padding:12px;display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.interesse p{margin:0}
+.interesse-t{font-family:var(--serif);font-size:18px;line-height:22px}
+.interesse .tasto{flex:none;align-self:flex-start;padding:4px 20px}
+.interesse-ok{display:flex;gap:8px;align-items:center;color:var(--verde);font-weight:600;margin:0}
+.interesse-riga{display:flex;gap:8px}
+.interesse-riga .campo{flex:1;min-width:0}
+.interesse-riga .tasto{flex:none;padding:4px 14px}
+.interesse-err{color:var(--rosso)}
+.nota-lingua{border-radius:12px;background:var(--incassata);padding:8px 12px;font-size:12px;line-height:18px;color:var(--testo-2);margin:0 0 12px}

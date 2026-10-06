@@ -1,0 +1,8 @@
+# Agorapp: il sito è index.html così com'è (nessuna build). Le funzioni stanno in netlify/functions.
+[build]
+  publish = "."
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

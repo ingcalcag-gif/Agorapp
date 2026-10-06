@@ -281,7 +281,7 @@ function vTutte(){
     ${tastoProponi()}`;
 }
 function tastoProponi(){
-  return `${avvisoProposte()}<button class="proponi" data-az="proponi"><span class="piu">+</span><span><b>${T("Proponi una nuova istanza")}</b><span class="meta">${T("Un obiettivo comune e un primo tavolo da apparecchiare")}</span></span></button>`;
+  return `${window.AGR.bloccoInteresse ? window.AGR.bloccoInteresse("agora") : ""}${avvisoProposte()}<button class="proponi" data-az="proponi"><span class="piu">+</span><span><b>${T("Proponi una nuova istanza")}</b><span class="meta">${T("Un obiettivo comune e un primo tavolo da apparecchiare")}</span></span></button>`;
 }
 
 /* ---- fogli ---- */
@@ -585,7 +585,7 @@ function vTutti(){
   ${temaBtn()}`;
 }
 function tastoProponi(){
-  return `${avvisoProposte()}<button class="proponi" data-az="proponi"><span class="piu">+</span><span><b>${T("Proponi un nuovo progetto")}</b><span class="meta">${T("Qualcosa che esiste già o sta per partire, nel tuo quartiere")}</span></span></button>`;
+  return `${window.AGR.bloccoInteresse ? window.AGR.bloccoInteresse("progetti") : ""}${avvisoProposte()}<button class="proponi" data-az="proponi"><span class="piu">+</span><span><b>${T("Proponi un nuovo progetto")}</b><span class="meta">${T("Qualcosa che esiste già o sta per partire, nel tuo quartiere")}</span></span></button>`;
 }
 
 function pillsMappa(ids){ return `<div class="pill-row">${ids.map(id=>{ const s = STRATI[id]; return `<button class="pill dot" data-strato-mappa="${id}" style="--pp:${s.pp};--pb:${s.pb};--pt:${s.pt};cursor:pointer"><span>${esc(T(s.label))}</span></button>`; }).join("")}</div>`; }

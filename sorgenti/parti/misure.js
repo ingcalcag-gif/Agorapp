@@ -118,6 +118,9 @@ function decisioniMz(S){
   if(az){ const e = effettoAzione(az); out.push({id:firma('az', az.d+az.t), liv: e>=10 ? 'ok' : 'neu', st: e>=10 ? tr('Funziona') : tr('Effetto debole'),
     tit: tr('«{t}» del {d}: richieste {e} %',{t:az.t, d:brevD(az.d), e:(e>=0?'+':'')+e}), perche: tr('Confronto per data: tre giorni prima e tre giorni dopo. Nessun link tracciato, nessun parametro nell’indirizzo.'),
     azione: e>=10 ? tr('Ripeti il canale e confronta di nuovo.') : tr('Prova un canale diverso.'), kpi:[20]}); }
+  const I = totInteresse();
+  if(I && I.agora+I.progetti >= m.soglie.interesse) out.push({id:firma('ongrid', m.soglie.interesse), liv:'warn', st:tr('Soglia superata'), tit: tr('{n} «Mi interessa» per Agorà e Progetti (soglia {s})',{n:I.agora+I.progetti, s:m.soglie.interesse}),
+    perche: tr('Agorà {a} · Progetti {p}. L’apertura dell’on-grid resta legata alla costituzione della società, che deve gestire i dati degli utenti.',{a:I.agora, p:I.progetti}), azione: tr('Metti in calendario la costituzione della società e l’informativa per gli utenti.'), kpi:[27,28]});
   return out.filter(d => mz().stati[d.id]!=='fatto');
 }
 
@@ -223,7 +226,7 @@ function vPanoramicaMz(){
       ${mzTile(tr('Copertura delle zone'), `${zOk}<small> ${tr('su {n}',{n:zTot})}</small>`, tr('zone di Torino con almeno {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}), 'ev', zOk/zTot, zOk<zTot, [5,3])}
       ${mzTile(tr('Ritmo di raccolta'), `${nf(S.nuovi7)}<small> / ${tr('sett.')}</small>`, tr('eventi nuovi · obiettivo {o}',{o:m.soglie.nuovi}), 'ev', S.nuovi7/m.soglie.nuovi, S.nuovi7<m.soglie.nuovi, [2,10,12])}
       ${mzTile(tr('Solidità delle fonti'), quotaCons==null?'–':`${quotaCons}<small> %</small>`, tr('eventi con consenso diretto')+(rimP.length?' · '+tr('rimozioni entro 48 h: {a} su {b}',{a:rimOk, b:rimP.length}):''), 'ev', quotaCons==null?null:quotaCons/100, false, [6,15,13])}
-      <button class="mz-tile mz-tile-attesa" data-mz="kpiset" data-k="27,28" data-l="${esc(tr('Interesse per l’on-grid'))}"><span class="mz-lab">${tr('Interesse per l’on-grid')}</span><span class="mz-val">${mzIco.lucchetto}</span><span class="mz-det">${tr('Pulsanti «Mi interessa»: arrivano con la seconda tranche')}</span>${fonteMz('vol')}</button>
+      ${tileInteresseMz()}
       ${mzTile(tr('Richieste al sito'), S.mediaRic==null?'–':`${nf(S.mediaRic)}<small> / ${tr('giorno')}</small>`, S.mediaRic==null?tr('copia i numeri da Netlify in «Accessi»'):tr('media del periodo · un indice, non persone'), 'man', null, false, [18,20])}
       ${mzTile(tr('Qualità dei dati'), S.qualita==null?'–':`${n1(S.qualita)}<small> %</small>`, tr('eventi corretti o rimossi sui nuovi · {n} segnalazioni',{n:S.segn}), 'ev', null, false, [11,16])}
     </div>
@@ -235,6 +238,12 @@ function vPanoramicaMz(){
     <h2 class="mz-h2">${tr('Cosa non vedrai mai qui')}</h2>
     <p class="mz-nota">${tr('Quanto tempo le persone restano nell’app, quante volte tornano, dove toccano la mappa, cosa cercano, chi sono. Sono misure escluse per principio o per legge: le trovi nel Catalogo, con il motivo.')}</p>
     <button class="tasto sec pieno" data-mz="scheda" data-v="catalogo" data-f="escluso">${tr('Vedi le misure escluse')}</button>`;
+}
+function tileInteresseMz(){
+  const I = totInteresse(), m = mz();
+  if(!I) return `<button class="mz-tile mz-tile-attesa" data-mz="kpiset" data-k="27,28" data-l="${esc(tr('Interesse per l’on-grid'))}"><span class="mz-lab">${tr('Interesse per l’on-grid')}</span><span class="mz-val">–</span><span class="mz-det">${MS.int && MS.int.stato==='carico' ? tr('Leggo i totali…') : tr('Totali non raggiungibili: il contatore è attivo solo sul sito pubblicato.')}</span>${fonteMz('vol')}</button>`;
+  const tot = I.agora + I.progetti;
+  return mzTile(tr('Interesse per l’on-grid'), nf(tot), tr('«Mi interessa» · Agorà {a} · Progetti {p} · soglia {s}',{a:I.agora, p:I.progetti, s:m.soglie.interesse}), 'vol', tot/m.soglie.interesse, false, [27,28]);
 }
 function sparkMz(v){ const W = 150, H = 48, mn = Math.min(...v), mx = Math.max(...v); const x = i => i/(v.length-1)*(W-8)+4, y = a => H-5-(a-mn)/((mx-mn)||1)*(H-12);
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-hidden="true"><path d="${v.map((a,i) => `${i?'L':'M'}${x(i).toFixed(1)},${y(a).toFixed(1)}`).join('')}" fill="none" class="mz-spark-l" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(v.length-1)}" cy="${y(v[v.length-1])}" r="4" class="mz-spark-p"/></svg>`; }
@@ -309,14 +318,23 @@ function vAccessiMz(){
       ${elenco.length?`<div class="mz-elenco">${elenco.map(a => { const e = effettoAzione(a); return `<div><span>${esc(brevD(a.d))} · ${esc(a.t)}</span><span class="meta">${e==null?tr('effetto: servono i numeri di 3 giorni prima e dopo'):tr('effetto: {e} %',{e:(e>=0?'+':'')+e})}</span><button class="mz-icona piccola" data-mz="az-togli" data-i="${m.azioni.indexOf(a)}" aria-label="${esc(tr('Togli'))}">${mzIco.x}</button></div>`; }).join('')}</div>`:''}
       <p class="meta">${tr('Niente link tracciati o parametri nell’indirizzo: per l’EDPB anche il tracciamento via URL rientra nell’art. 5(3) ePrivacy. Basta il confronto per data.')}</p></div>
     <h2 class="mz-h2">${tr('Interesse, solo se le persone lo dicono')}</h2>
-    ${bloccataMz(27, tr('«Mi interessa» nelle anteprime di Agorà e Progetti'), tr('Seconda tranche: un tocco volontario invia solo +1. Serve un piccolo punto di raccolta su Netlify e una riga nell’informativa.'))}
-    ${bloccataMz(32, tr('«Vorrei Agorapp nella mia città»'), tr('Seconda tranche: la persona sceglie la città da un elenco, nessuna geolocalizzazione dell’IP.'))}
+    <p class="meta">${tr('Pulsanti «Mi interessa» nelle anteprime di Agorà e Progetti e «Vorrei Agorapp qui» nella scelta della città: un tocco invia solo +1. Niente nomi, niente email, niente IP salvati.')}</p>
+    ${interesseMz(g)}
     <h2 class="mz-h2">${tr('In attesa')}</h2><p class="meta">${tr('Misure utili che oggi superano la tua soglia: a livello UE chiederebbero il consenso.')}</p>
     ${bloccataMz(26, tr('Aperture di Agorà, Progetti, calendario'), tr('Contatore automatico via script: per l’EDPB (Linee guida 2/2023) è «accesso» al dispositivo.'))}
     ${bloccataMz(36, tr('Eventi Off-Grid creati'), tr('Il contenuto non lascerebbe mai il telefono; resta comunque un segnale automatico.'))}
     ${bloccataMz(33, tr('Lingue e modalità semplice'), tr('Stesso motivo. Ora: chiedilo nei test sul campo.'))}`;
 }
 
+function interesseMz(g){
+  const I = totInteresse();
+  if(!I) return vuotoMz(MS.int && MS.int.stato==='carico' ? tr('Leggo i totali…') : tr('Totali non raggiungibili. Il contatore funziona solo quando la funzione è pubblicata sul sito (main) e il telefono è in rete.'));
+  const a = serieInteresse(g, 'agora'), p = serieInteresse(g, 'progetti');
+  return mzBox('inter', tr('«Mi interessa» accumulati'), lineaMz('inter', [{nome:tr('Agorà'), v:a, col:'var(--mz-c1)'}, {nome:tr('Progetti'), v:p, col:'var(--mz-c2)'}], g, {})+`<div class="mz-legenda"><span><i class="mz-l-linea" style="background:var(--mz-c1)"></i>${tr('Agorà')} · ${I.agora}</span><span><i class="mz-l-linea" style="background:var(--mz-c2)"></i>${tr('Progetti')} · ${I.progetti}</span><span>${tr('soglia: {s} in totale',{s:mz().soglie.interesse})}</span></div>`,
+      tabLineaMz([{nome:tr('Agorà'), v:a}, {nome:tr('Progetti'), v:p}], g), 'vol', [27,28])
+    + mzBox('voglio', tr('«Vorrei Agorapp qui»'), I.citta.length ? hbarMz(I.citta, 'var(--mz-c2)')+`<p class="meta">${tr('La persona sceglie la città da un elenco: nessuna geolocalizzazione dell’IP.')}</p>` : vuotoMz(tr('Ancora nessuna città segnalata.')), null, 'vol', [32])
+    + `<p class="meta">${tr('I numeri sono indicativi: senza identificare nessuno non si possono escludere i tocchi ripetuti da telefoni diversi.')}</p>`;
+}
 function vQualitaMz(){
   const m = mz(), V = m.versioni.slice(-6), soglia = m.soglie.carico;
   const W = 360, H = 170, pl = 28, pb = 26, pt = 16, mx = Math.max(soglia+1, ...V.map(v => v.s))+.5, n = Math.max(1,V.length);
@@ -401,7 +419,7 @@ function foglioFontiMz(){
     <div><dt>${fonteMz('mail')} ${fonteMz('reg')}</dt><dd>${tr('Contati da te: segnalazioni arrivate per email e richieste di rimozione, con solo date e ore.')}</dd></div>
     <div><dt>${fonteMz('test')}</dt><dd>${tr('Misure fatte da te sui tuoi telefoni: velocità, mappa, rete lenta.')}</dd></div>
     <div><dt>${fonteMz('int')}</dt><dd>${tr('Interviste e test sul campo, con il consenso dei partecipanti.')}</dd></div>
-    <div><dt>${fonteMz('vol')}</dt><dd>${tr('Seconda tranche: un tocco della persona invia +1, niente altro.')}</dd></div>
+    <div><dt>${fonteMz('vol')}</dt><dd>${tr('Un tocco della persona invia +1, niente altro. La funzione sul sito somma i tocchi e non salva l’indirizzo IP; i totali stanno in un archivio Netlify nell’Unione europea (Francoforte).')}</dd></div>
     <div><dt>${tr('Dove restano')}</dt><dd>${tr('Su questo telefono, nella chiave agorapp_misure, come il resto dell’admin. Si esportano in Excel. Cancellando i dati di Chrome si perdono: esporta ogni tanto.')}</dd></div>
     <div><dt>${tr('Cosa non c’è')}</dt><dd>${tr('Nessun dato sulle persone che usano l’app: niente identificativi, cookie, IP, posizione, cronologia.')}</dd></div></dl>`);
 }
@@ -409,7 +427,7 @@ function foglioSoglieMz(){
   const s = mz().soglie;
   const sl = (k, t, mn, mx, st0, suf) => `<div class="mz-slider"><div class="mz-sr"><label for="mzs-${k}">${t}</label><output id="mzo-${k}">${k==='carico'?n1(s[k]):s[k]}${suf}</output></div><input id="mzs-${k}" data-mzs="${k}" type="range" min="${mn}" max="${mx}" step="${st0}" value="${s[k]}"></div>`;
   foglioMz(`<h2>${tr('Le tue soglie')}</h2><p class="meta">${tr('Decidono quando una misura diventa «da fare».')}</p>
-    ${sl('zona', tr('Eventi per zona nei prossimi 7 giorni'), 1, 15, 1, '')}${sl('nuovi', tr('Obiettivo di eventi nuovi a settimana'), 5, 200, 5, '')}${sl('carico', tr('Tempo massimo di caricamento'), 1.5, 6, .1, ' s')}${sl('interesse', tr('«Mi interessa» per pensare all’on-grid (seconda tranche)'), 20, 500, 10, '')}`);
+    ${sl('zona', tr('Eventi per zona nei prossimi 7 giorni'), 1, 15, 1, '')}${sl('nuovi', tr('Obiettivo di eventi nuovi a settimana'), 5, 200, 5, '')}${sl('carico', tr('Tempo massimo di caricamento'), 1.5, 6, .1, ' s')}${sl('interesse', tr('«Mi interessa» per pensare all’on-grid'), 20, 500, 10, '')}`);
 }
 
 /* ---------- export Excel ---------- */
@@ -424,14 +442,16 @@ function esportaMisure(){
   const P = [[tr('Data'), tr('Rete e telefono'), tr('Esito'), tr('Nota')]].concat(m.prove.map(p => [dIso(p.d), p.rete, p.ok?tr('Caricata'):tr('Non caricata'), p.nota||'']));
   const I = [[tr('Data'), tr('Giro'), tr('Persone'), tr('Scoperto eventi nuovi'), tr('Andati a un evento'), tr('Guida senza aiuto'), tr('Off-Grid al primo tentativo'), tr('Mediana consiglio')]].concat(m.giri.map(x => [dIso(x.d), x.titolo||'', x.n, x.scoperto, x.andato, x.guida, x.og, x.cons==null?'':x.cons]));
   const C = [['N.', tr('Domanda'), tr('Parere di Claude'), tr('UE'), tr('IT'), tr('La tua decisione')]].concat(MZ_KPI.map(k => [k.n, k.q, k.par, k.eu, k.it, m.mie[k.n]||'']));
+  const TI = totInteresse(), Ig = TI ? Object.keys(TI.giorni).sort() : [];
+  const IN = [[tr('Giorno'), tr('Agorà'), tr('Progetti'), tr('Città')]].concat(Ig.map(g => { const x = TI.giorni[g]||{}; return [dIso(g), x.agora||0, x.progetti||0, Object.keys(x).filter(k => k.startsWith('citta:')).map(k => k.slice(6)+' '+x[k]).join(' · ')]; }));
   const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico], [tr('«Mi interessa» per l’on-grid'), m.soglie.interesse]];
-  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Catalogo'), C, [6,70,16,10,10,18]], [tr('Soglie'), Sg, [44,10]]], 'agorapp_misure_'+oggi()+'.xlsx')
+  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Catalogo'), C, [6,70,16,10,10,18]], [tr('Interesse'), IN, [12,10,10,50]], [tr('Soglie'), Sg, [44,10]]], 'agorapp_misure_'+oggi()+'.xlsx')
     .then(() => avviso(tr('Misure esportate: agorapp_misure_{d}.xlsx',{d:oggi()}), null, true))
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 
 /* ---------- apertura e interazioni ---------- */
-function apriMisure(){ mzFotografa(); MS.demo = false; vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
+function apriMisure(){ mzFotografa(); MS.demo = false; caricaInteresse(); vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
 function clickMisure(t){
   const d = t.dataset, m = mz(), a = d.mz; if(!a) return false;
   nascondiTipMz();
