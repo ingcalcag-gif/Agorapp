@@ -3,9 +3,12 @@
    l'indirizzo IP, il browser o altro della richiesta: tiene solo totali (per voce e per giorno), senza dati personali.
    I contatori stanno in Netlify Blobs, regione UE (Francoforte). */
 import { getStore } from "@netlify/blobs";
+import ELENCO_COMUNI from "../../dati/comuni.json";
 
 const VOCI = new Set(["agora", "progetti"]);
-const CITTA = new Set(["Roma","Milano","Napoli","Genova","Bari","Palermo","Catania","Messina","Verona","Padova","Venezia","Trieste","Trento","Bolzano","Brescia","Bergamo","Parma","Modena","Reggio Emilia","Firenze","Pisa","Livorno","Perugia","Ancona","Pescara","L'Aquila","Cagliari","Sassari","Lecce","Salerno","Potenza","Campobasso","Catanzaro","Reggio Calabria","Aosta","Altra"]);
+/* Accetta solo un comune dell'elenco Istat (lo stesso file che usa l'app, unito alla funzione da esbuild):
+   tutto il resto finisce in «Altra», così nel contatore non entra mai testo libero. */
+const CITTA = new Set(ELENCO_COMUNI);
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type", "cache-control": "no-store" };
 const risposta = (corpo, stato) => new Response(corpo == null ? null : JSON.stringify(corpo), { status: stato || 200, headers: { ...CORS, "content-type": "application/json" } });
 

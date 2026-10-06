@@ -15,7 +15,28 @@ function mz(){
   return MZ;
 }
 function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
-const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', demo:false, filtroCat:'tutti', vista:{}};
+const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', demo:false, filtroCat:'operativo', sezLib:'', vista:{}};
+
+/* ---------- Libreria delle misure: ogni domanda del catalogo ha uno stato e, se operativa, si accende e spegne ----------
+   stati: operativo (si vede nella sua sezione se è accesa) · studio · sospeso · eliminato */
+const HA_PANNELLO = new Set([1,2,3,4,5,6,7,8,9,10,11,13,15,16,17,18,20,27,28,32,35,37,40,42,43,44,45,47]);
+const SEZ_DI_AREA = {A:'offerta', B:'rete', C:'accessi', D:'accessi', E:'accessi', F:'qualita', G:'impatto', H:'panoramica'};
+const SEZ_KPI = {35:'impatto', 37:'impatto'};   /* misure dei test sul campo: il loro pannello sta in Impatto */
+const sezioneKpi = k => SEZ_KPI[k.n] || SEZ_DI_AREA[(k.area||'').trim().charAt(0)] || 'panoramica';
+const STATI_LIB = {operativo:'Operativa', segnaposto:'Spazio pronto', studio:'In studio', rimandato:'Fase 2', sospeso:'Sospesa', eliminato:'Eliminata'};
+const STATO_CLS = {operativo:'ok', segnaposto:'warn', studio:'neu', rimandato:'neu', sospeso:'crit', eliminato:'crit'};
+const statoDaDecisione = d => d==='Misurare ora' ? 'operativo' : d==='Più avanti' ? 'studio' : d==='Non misurare' ? 'eliminato' : d==='Da discutere' ? 'sospeso' : null;
+function libStato(n){
+  const m = mz(), x = (m.lib||{})[n]; if(x && x.stato) return x.stato;
+  const k = MZ_KPI.find(y => y.n==n); if(!k) return 'studio';
+  return k.lor || statoDaDecisione(k.par) || 'studio';   /* decisione di Lorenzo nel file del 6 ottobre */
+}
+const libVisibile = n => { const x = (mz().lib||{})[n]; return !x || x.visibile!==false; };
+const on = n => libStato(n)==='operativo' && libVisibile(n) && HA_PANNELLO.has(n);
+const pronto = n => libStato(n)==='segnaposto' && libVisibile(n);
+const kpiDi = n => MZ_KPI.find(k => k.n==n);
+function perchePronto(n){ const k = kpiDi(n); return k && k.risposta ? k.risposta.replace(/^Spazio pronto e vuoto, come hai chiesto\. /,'') : tr('In studio: si accende quando sarà chiaro come farlo restando conformi.'); }
+function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.assign({}, m.lib[n]||{}, campi, {agg:oggi()}); mzSalva(); }
 
 /* ---------- quale evento conta ---------- */
 const mzReale = e => e && typeof e==='object' && !e.personal && !e.offgrid && !e.fata && e.datetime && isFinite(+e.lat) && isFinite(+e.lng);
@@ -139,13 +160,23 @@ const FONTI_MZ = {ev:'Dagli eventi', man:'Da Netlify, a mano', vol:'Pulsante vol
 const fonteMz = k => `<span class="mz-fonte mz-f-${k}">${tr(FONTI_MZ[k])}</span>`;
 const righeBtn = (k, l) => `<button class="mz-fonte" data-mz="kpiset" data-k="${k.join(',')}" data-l="${esc(l)}">${k.length>1?tr('righe'):tr('riga')} ${k.join(', ')}</button>`;
 function mzTile(lab, val, det, fonte, metro, warn, kpi){
+  if(pronto(kpi[0])) return `<button class="mz-tile mz-tile-attesa" data-mz="kpi" data-n="${kpi[0]}"><span class="mz-lab">${lab}</span><span class="mz-val">–</span><span class="mz-det">${tr('Spazio pronto, in studio. Tocca per sapere perché.')}</span><span class="mz-stato warn">${tr('Spazio pronto')}</span></button>`;
+  if(!on(kpi[0])) return '';
   return `<button class="mz-tile" data-mz="kpiset" data-k="${kpi.join(',')}" data-l="${esc(lab)}"><span class="mz-lab">${lab}</span><span class="mz-val">${val}</span>${metro!=null?`<span class="mz-metro${warn?' warn':''}" aria-hidden="true"><i style="width:${metro>0?Math.max(2,Math.round(Math.min(1,metro)*100)):0}%"></i></span>`:''}<span class="mz-det">${det}</span>${fonteMz(fonte)}</button>`;
 }
 function mzBox(id, tit, corpo, tab, fonte, kpi){
+  if(pronto(kpi[0])) return `<section class="mz-box mz-pronto"><div class="mz-btesta"><div><div class="mz-btit">${tit}</div><div class="mz-etich"><span class="mz-stato warn">${tr('Spazio pronto · in studio')}</span>${righeBtn(kpi.slice(0,1), tit)}</div></div></div><p class="mz-perche">${esc(perchePronto(kpi[0]))}</p></section>`;
+  if(!on(kpi[0])) return '';
   const t = MS.vista[id]==='tab' && tab;
   return `<section class="mz-box" aria-labelledby="mzg-${id}"><div class="mz-btesta"><div><div class="mz-btit" id="mzg-${id}">${tit}</div><div class="mz-etich">${fonteMz(fonte)}${righeBtn(kpi, tit)}</div></div>${tab?`<button class="mz-vista" data-mz="vista" data-v="${id}">${t?tr('Grafico'):tr('Tabella')}</button>`:''}</div>${t?tab:corpo}</section>`;
 }
-const bloccataMz = (n, t, why) => `<button class="mz-bloccata" data-mz="kpi" data-n="${n}"><span class="mz-tondo">${mzIco.lucchetto}</span><span><b>${t}</b><span class="meta">${why}</span><span class="meta mz-sottolineato">${tr('Riga {n} del catalogo',{n})}</span></span></button>`;
+const bloccataMzVecchia = (n, t, why) => `<button class="mz-bloccata" data-mz="kpi" data-n="${n}"><span class="mz-tondo">${mzIco.lucchetto}</span><span><b>${t}</b><span class="meta">${why}</span><span class="meta mz-sottolineato">${tr('Riga {n} del catalogo',{n})}</span></span></button>`;
+const bloccataMz = () => '';
+function studioSezioneMz(sez){
+  const L = MZ_KPI.filter(k => sezioneKpi(k)===sez), st0 = L.filter(k => ['studio','sospeso','rimandato'].includes(libStato(k.n))).length, spente = L.filter(k => libStato(k.n)==='operativo' && HA_PANNELLO.has(k.n) && !libVisibile(k.n)).length;
+  if(!st0 && !spente) return '';
+  return `<button class="mz-bloccata" data-mz="scheda" data-v="libreria" data-f="${st0?'studio':'operativo'}" data-sez="${sez}"><span class="mz-tondo">${mzIco.lucchetto}</span><span><b>${[st0?(st0===1?tr('1 misura di questa sezione è in studio, sospesa o in Fase 2'):tr('{n} misure di questa sezione sono in studio, sospese o in Fase 2',{n:st0})):'', spente?(spente===1?tr('1 operativa nascosta da te'):tr('{n} operative nascoste da te',{n:spente})):''].filter(Boolean).join(' · ')}</b><span class="meta mz-sottolineato">${tr('Apri la libreria')}</span></span></button>`;
+}
 const vuotoMz = t => `<p class="mz-nota">${t}</p>`;
 function hbarMz(items, col){
   const max = Math.max(1, ...items.map(x => x[1]));
@@ -183,12 +214,12 @@ function tabLineaMz(serie, giorni){
 const decCls = l => ({crit:'crit', warn:'warn', ok:'ok', neu:'neu'})[l]||'neu';
 
 /* ---------- schede ---------- */
-const SCHEDE_MZ = [['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi e interesse'],['qualita','Qualità'],['impatto','Impatto'],['catalogo','Catalogo · 50']];
+const SCHEDE_MZ = [['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi e interesse'],['qualita','Qualità'],['impatto','Impatto'],['libreria','Libreria · 50']];
 const PER_MZ = {7:'7 giorni', 30:'30 giorni', 90:'3 mesi'};
 function disegnaMisure(){
   const el = $('pagina-misure'); if(!el) return;
   const y = el.scrollTop;
-  const conFiltri = MS.scheda!=='catalogo';
+  const conFiltri = MS.scheda!=='libreria';
   const ambito = MS.ambito==='tutte' ? tr('Tutte le città') : nomeCitta(citta);
   const soloDemo = !events.some(e => mzReale(e) && !e.demo) && events.some(e => mzReale(e) && e.demo);
   el.innerHTML = `<div class="mz-testa">
@@ -200,7 +231,7 @@ function disegnaMisure(){
     </div>
     <div class="mz-corpo">
       ${soloDemo || MS.demo ? `<div class="mz-avviso">${mzIco.avviso}<p>${MS.demo ? tr('Stai guardando anche gli eventi della demo: i numeri di oggi li includono, gli andamenti nel tempo no.') : tr('Su questo telefono ci sono solo eventi della demo, e le misure contano solo gli eventi veri.')} <button class="link" data-mz="demo">${MS.demo?tr('Togli la demo dalle misure'):tr('Guarda la demo nelle misure')}</button></p></div>` : ''}
-      ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, catalogo:vCatalogoMz})[MS.scheda]()}
+      ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, libreria:vLibreriaMz})[MS.scheda]()}
       <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave agorapp_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
       <button class="tasto sec pieno" data-mz="esporta">${tr('Esporta le misure in Excel')}</button>
     </div>`;
@@ -214,17 +245,17 @@ function vPanoramicaMz(){
   const zTot = QUARTIERI.length, zOk = zTot - S.sotto.length;
   const totP = S.prov.consenso+S.prov.pubblica+S.prov.nd, quotaCons = totP ? Math.round(S.prov.consenso/totP*100) : null;
   const rimP = m.rimozioni.filter(r => (r.ric||'').slice(0,10) >= g[0]), rimOk = rimP.filter(r => { const h = oreTra(r.ric, r.eva); return h!=null && h<=48; }).length;
-  const decs = decisioniMz(S);
+  const decs = decisioniMz(S).filter(d => on(d.kpi[0]));
   const sp = att.filter(v => v!=null);
   return `<h2 class="mz-h1">${tr('Il polso della città')}</h2>
     <p class="meta">${tr('Si misura la città, non le persone.')} ${esc(MS.ambito==='tutte'?tr('Tutte le città'):nomeCitta(citta))} · ${tr('ultimi {p}',{p:tr(PER_MZ[MS.periodo])})} · ${tr('aggiornato adesso')}</p>
-    <div class="mz-card mz-hero"><div><div class="mz-lab">${tr('Eventi attivi oggi')}</div><div class="mz-num">${nf(oggiN)}</div>
+    ${on(1)?`<div class="mz-card mz-hero"><div><div class="mz-lab">${tr('Eventi attivi oggi')}</div><div class="mz-num">${nf(oggiN)}</div>
       ${prima!=null?`<span class="mz-delta ${oggiN>=prima?'su':'giu'}">${oggiN>=prima?mzIco.su:mzIco.giu} ${oggiN>=prima?'+':'−'}${Math.abs(oggiN-prima)} ${tr('rispetto a 7 giorni fa')}</span>`:`<span class="meta">${tr('Il confronto arriva dopo qualche giorno di misure.')}</span>`}</div>
-      ${sp.length>1?`<div class="mz-spark">${sparkMz(sp)}</div>`:''}<div>${fonteMz('ev')}</div></div>
-    <h2 class="mz-h2">${tr('Sei indicatori')}</h2><p class="meta">${tr('Ognuno riassume più domande del catalogo. Toccali per vedere quali.')}</p>
+      ${sp.length>1?`<div class="mz-spark">${sparkMz(sp)}</div>`:''}<div>${fonteMz('ev')}</div></div>`:''}
+    <h2 class="mz-h2">${tr('Indicatori')}</h2><p class="meta">${tr('Ognuno riassume più domande della libreria. Toccali per vedere quali; accendi e spegni le misure dalla libreria.')}</p>
     <div class="mz-griglia2">
       ${mzTile(tr('Copertura delle zone'), `${zOk}<small> ${tr('su {n}',{n:zTot})}</small>`, tr('zone di Torino con almeno {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}), 'ev', zOk/zTot, zOk<zTot, [5,3])}
-      ${mzTile(tr('Ritmo di raccolta'), `${nf(S.nuovi7)}<small> / ${tr('sett.')}</small>`, tr('eventi nuovi · obiettivo {o}',{o:m.soglie.nuovi}), 'ev', S.nuovi7/m.soglie.nuovi, S.nuovi7<m.soglie.nuovi, [2,10,12])}
+      ${mzTile(tr('Ritmo di raccolta'), `${nf(S.nuovi7)}<small> / ${tr('sett.')}</small>`, tr('eventi nuovi inseriti da te (Agorapp), non nuovi utenti · obiettivo {o}',{o:m.soglie.nuovi}), 'ev', S.nuovi7/m.soglie.nuovi, S.nuovi7<m.soglie.nuovi, [2,10,12])}
       ${mzTile(tr('Solidità delle fonti'), quotaCons==null?'–':`${quotaCons}<small> %</small>`, tr('eventi con consenso diretto')+(rimP.length?' · '+tr('rimozioni entro 48 h: {a} su {b}',{a:rimOk, b:rimP.length}):''), 'ev', quotaCons==null?null:quotaCons/100, false, [6,15,13])}
       ${tileInteresseMz()}
       ${mzTile(tr('Richieste al sito'), S.mediaRic==null?'–':`${nf(S.mediaRic)}<small> / ${tr('giorno')}</small>`, S.mediaRic==null?tr('copia i numeri da Netlify in «Accessi»'):tr('media del periodo · un indice, non persone'), 'man', null, false, [18,20])}
@@ -237,9 +268,11 @@ function vPanoramicaMz(){
     <button class="tasto sec pieno" data-mz="soglie">${tr('Cambia le soglie')}</button>
     <h2 class="mz-h2">${tr('Cosa non vedrai mai qui')}</h2>
     <p class="mz-nota">${tr('Quanto tempo le persone restano nell’app, quante volte tornano, dove toccano la mappa, cosa cercano, chi sono. Sono misure escluse per principio o per legge: le trovi nel Catalogo, con il motivo.')}</p>
-    <button class="tasto sec pieno" data-mz="scheda" data-v="catalogo" data-f="escluso">${tr('Vedi le misure escluse')}</button>`;
+    <button class="tasto sec pieno" data-mz="scheda" data-v="libreria" data-f="eliminato">${tr('Vedi le misure eliminate')}</button>
+    ${studioSezioneMz('panoramica')}`;
 }
 function tileInteresseMz(){
+  if(!on(27) && !on(28)) return '';
   const I = totInteresse(), m = mz();
   if(!I) return `<button class="mz-tile mz-tile-attesa" data-mz="kpiset" data-k="27,28" data-l="${esc(tr('Interesse per l’on-grid'))}"><span class="mz-lab">${tr('Interesse per l’on-grid')}</span><span class="mz-val">–</span><span class="mz-det">${MS.int && MS.int.stato==='carico' ? tr('Leggo i totali…') : tr('Totali non raggiungibili: il contatore è attivo solo sul sito pubblicato.')}</span>${fonteMz('vol')}</button>`;
   const tot = I.agora + I.progetti;
@@ -258,7 +291,7 @@ function vOffertaMz(){
   return `<h2 class="mz-h1">${tr('Offerta di eventi')}</h2><p class="meta">${tr('Calcolato dagli eventi che pubblichi: nessun utente coinvolto. Si conservano solo i totali del giorno, non gli eventi.')}</p>
     ${mzBox('attivi', tr('Eventi attivi ogni giorno'), lineaMz('attivi', [{nome:tr('Eventi attivi'), v:att, col:'var(--verde)'}], g, {vuoto:tr('Il grafico si riempie un giorno alla volta: ogni volta che apri le Misure si salva il totale del giorno.')})+`<p class="meta">${tr('Un giorno in cui l’admin non apre le Misure resta un buco.')}</p>`, tabLineaMz([{nome:tr('Eventi attivi'), v:att}], g), 'ev', [1])}
     <div class="mz-griglia2">
-      ${mzTile(tr('Nuovi nel periodo'), nf(S.nuoviP), tr('negli ultimi 7 giorni: {n}',{n:S.nuovi7}), 'ev', null, false, [2])}
+      ${mzTile(tr('Nuovi nel periodo'), nf(S.nuoviP), tr('inseriti da te (Agorapp), non nuovi utenti · ultimi 7 giorni: {n}',{n:S.nuovi7}), 'ev', null, false, [2])}
       ${mzTile(tr('Anticipo medio'), S.anticipo==null?'–':`${n1(S.anticipo)}<small> ${tr('giorni')}</small>`, tr('tra pubblicazione e inizio'), 'ev', null, false, [9])}
       ${mzTile(tr('Gratuiti'), S.grat==null?'–':`${S.grat}<small> %</small>`, tr('eventi con ingresso libero'), 'ev', null, false, [7])}
       ${mzTile(tr('Da import Excel'), nf(S.imp), tr('eventi attivi arrivati da un file'), 'ev', null, false, [10])}
@@ -272,7 +305,8 @@ function vOffertaMz(){
     ${mzBox('heat', tr('Quando ci sono eventi'), `<div class="mz-heat"><span></span>${ordine.map(d => `<span class="mz-h c">${esc(GG[(d+6)%7])}</span>`).join('')}${FASCE_MZ.map((f,r) => `<span class="mz-h">${tr(f[1])}</span>${ordine.map(d => { const c = (d+6)%7, v = heat[r][c], lv = v ? Math.min(5, Math.ceil(v/hmax*5)) : 0; return `<button style="background:var(--mz-s${lv});color:${lv>=4?'var(--su-verde)':'var(--testo)'}" data-mztip="<b>${esc(GG[c])} · ${tr(f[1])}</b><br>${v} ${tr('eventi')}" aria-label="${esc(GG[c]+' '+tr(f[1])+': '+v)}">${v||''}</button>`; }).join('')}`).join('')}</div>
       <div class="mz-scala"><span>0</span><span class="mz-rampa">${[0,1,2,3,4,5].map(i => `<i style="background:var(--mz-s${i})"></i>`).join('')}</span><span>${hmax}</span></div>`,
       `<div class="mz-scorri"><table class="mz-tab"><tr><th></th>${ordine.map(d => `<th class="n">${esc(GG[(d+6)%7])}</th>`).join('')}</tr>${FASCE_MZ.map((f,r) => `<tr><td>${tr(f[1])}</td>${ordine.map(d => `<td class="n">${heat[r][(d+6)%7]}</td>`).join('')}</tr>`).join('')}</table></div>`, 'ev', [8])}
-    ${bloccataMz(12, tr('Le fonti che rendono di più'), tr('Servirebbe un campo «fonte» per ogni evento: da decidere insieme, è una domanda «più avanti».'))}`;
+    ${bloccataMz(12, tr('Le fonti che rendono di più'), tr('Servirebbe un campo «fonte» per ogni evento: da decidere insieme, è una domanda «più avanti».'))}
+    ${studioSezioneMz('offerta')}`;
 }
 function zoneMz(S){
   const max = Math.max(1, ...Object.values(S.zone)), s = mz().soglie.zona;
@@ -294,13 +328,14 @@ function vReteMz(){
       ${mzTile(tr('Segnalazioni ricevute'), nf(segnP), tr('eventi non validi, nel periodo'), 'mail', null, false, [16])}
       ${mzTile(tr('Richieste di rimozione'), nf(m.rimozioni.length), tr('registrate in tutto'), 'reg', null, false, [15])}
     </div>
-    <div class="mz-card"><h3>${tr('Una segnalazione arrivata')}</h3><p class="meta">${tr('Un evento non valido segnalato su info@agorapp.it. Si conta solo il numero, non chi scrive.')}</p>
-      <div class="tasti"><button class="tasto sec" data-mz="segn-meno" ${m.segnalazioni[oggi()]?'':'disabled'}>${tr('Togli l’ultima')}</button><button class="tasto pri" data-mz="segn-piu">${tr('+1 oggi')}${m.segnalazioni[oggi()]?' · '+m.segnalazioni[oggi()]:''}</button></div></div>
+    ${on(16)?`<div class="mz-card"><h3>${tr('Una segnalazione arrivata')}</h3><p class="meta">${tr('Un evento non valido segnalato su info@agorapp.it. Si conta solo il numero, non chi scrive.')}</p>
+      <div class="tasti"><button class="tasto sec" data-mz="segn-meno" ${m.segnalazioni[oggi()]?'':'disabled'}>${tr('Togli l’ultima')}</button><button class="tasto pri" data-mz="segn-piu">${tr('+1 oggi')}${m.segnalazioni[oggi()]?' · '+m.segnalazioni[oggi()]:''}</button></div></div>`:''}
     ${mzBox('rimoz', tr('Registro delle richieste di rimozione'), `<form class="mz-form" data-mzform="rimozione"><div class="due"><label class="mz-etich">${tr('Ricevuta')}<span class="campo"><input type="datetime-local" name="ric" required></span></label><label class="mz-etich">${tr('Evasa')}<span class="campo"><input type="datetime-local" name="eva"></span></label></div><button class="tasto sec pieno" type="submit">${tr('Aggiungi al registro')}</button></form>
       ${rim.length ? `<div class="mz-scorri"><table class="mz-tab"><tr><th>${tr('Ricevuta')}</th><th>${tr('Evasa')}</th><th class="n">${tr('Ore')}</th><th>${tr('Entro 48 h')}</th><th></th></tr>${rim.map(r => { const h = oreTra(r.ric, r.eva), i = m.rimozioni.indexOf(r);
         return `<tr><td>${esc(fmtDt(r.ric))}</td><td>${r.eva?esc(fmtDt(r.eva)):`<button class="link" data-mz="rim-evasa" data-i="${i}">${tr('Evasa ora')}</button>`}</td><td class="n">${h==null?'–':h}</td><td>${h==null?(oreTra(r.ric,new Date().toISOString())>48?`<span class="mz-stato crit">${tr('Scaduta')}</span>`:`<span class="mz-stato neu">${tr('Aperta')}</span>`):h<=48?`<span class="mz-stato ok">${tr('Sì')}</span>`:`<span class="mz-stato crit">${tr('No')}</span>`}</td><td><button class="mz-icona piccola" data-mz="rim-togli" data-i="${i}" aria-label="${esc(tr('Togli dal registro'))}">${mzIco.x}</button></td></tr>`; }).join('')}</table></div>` : vuotoMz(tr('Nessuna richiesta registrata.'))}
       <p class="meta">${tr('Solo date e ore, niente nomi. Serve a dimostrare che rispetti i diritti (artt. 5(2) e 12 GDPR).')}</p>`, null, 'reg', [15])}
-    ${bloccataMz(14, tr('Organizzatori che tornano a pubblicare'), tr('Prima va aggiunta la finalità statistica all’informativa per gli organizzatori (art. 6(4) GDPR).'))}`;
+    ${bloccataMz(14, tr('Organizzatori che tornano a pubblicare'), tr('Prima va aggiunta la finalità statistica all’informativa per gli organizzatori (art. 6(4) GDPR).'))}
+    ${studioSezioneMz('rete')}`;
 }
 const fmtDt = s => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString(dloc(), {day:'numeric', month:'short'}).replace('.','')+' '+hm(d); };
 
@@ -309,18 +344,20 @@ function vAccessiMz(){
   const az = m.azioni.map(a => ({i:g.indexOf(a.d), t:a.t})).filter(a => a.i>=0);
   const mancanti = r.filter(v => v==null).length;
   const elenco = m.azioni.slice().sort((a,b) => b.d.localeCompare(a.d)).slice(0,8);
-  return `<h2 class="mz-h1">${tr('Accessi e interesse')}</h2><p class="meta">${tr('I totali di Netlify, che copi a mano ogni giorno, e le azioni di comunicazione segnate per data.')}</p>
+  return `<h2 class="mz-h1">${tr('Accessi e interesse')}</h2><p class="meta">${on(18)?tr('I totali di Netlify, che copi a mano ogni giorno, e le azioni di comunicazione segnate per data.'):tr('Il traffico del sito è in studio: gli spazi sono pronti e vuoti. Qui sotto, l’interesse che le persone dichiarano da sole.')}</p>
     ${mzBox('rich', tr('Richieste al sito ogni giorno'), lineaMz('rich', [{nome:tr('Richieste'), v:r, col:'var(--verde)'}], g, {azioni:az, vuoto:tr('Copia qui sotto il numero di oggi da Netlify: il grafico parte da lì.')})+`<div class="mz-legenda"><span><i class="mz-l-az"></i>${tr('azione di comunicazione')}</span><span>${tr('giorni senza dato: {n}',{n:mancanti})}</span></div>`, tabLineaMz([{nome:tr('Richieste'), v:r}], g), 'man', [18,20])}
-    <div class="mz-avviso">${mzIco.avviso}<p><strong>${tr('Richieste, non persone.')}</strong> ${tr('Una visita fa molte richieste. Netlify non sa da che città arrivano: il filtro città qui non vale. Sul piano gratuito i numeri restano solo 24 ore: vanno copiati ogni giorno.')}</p></div>
-    <div class="mz-card"><h3>${tr('Il numero di oggi')}</h3><p class="meta">${tr('Da Netlify → il progetto → riquadro delle richieste delle ultime 24 ore.')}</p>
+    ${mzBox('banda', tr('Banda consumata e picchi'), '', null, 'man', [19])}
+    ${on(18)?`<div class="mz-avviso">${mzIco.avviso}<p><strong>${tr('Richieste, non persone.')}</strong> ${tr('Una visita fa molte richieste. Netlify non sa da che città arrivano: il filtro città qui non vale. Sul piano gratuito i numeri restano solo 24 ore: vanno copiati ogni giorno.')}</p></div>`:''}
+    ${mzBox('azioni', tr('Effetto delle azioni di comunicazione'), '', null, 'man', [20])}
+    ${on(18)||on(20)?`<div class="mz-card"><h3>${tr('Il numero di oggi')}</h3><p class="meta">${tr('Da Netlify → il progetto → riquadro delle richieste delle ultime 24 ore.')}</p>
       <form class="mz-riga-f" data-mzform="richieste"><label class="sr-only" for="mz-ric">${tr('Richieste di oggi')}</label><span class="campo"><input id="mz-ric" name="n" type="number" inputmode="numeric" min="0" placeholder="${esc(tr('es. 640'))}" value="${m.richieste[oggi()]!=null?m.richieste[oggi()]:''}"></span><button class="tasto pri" type="submit">${tr('Salva')}</button></form>
       <form class="mz-riga-f" data-mzform="azione"><label class="sr-only" for="mz-az">${tr('Azione di comunicazione di oggi')}</label><span class="campo"><input id="mz-az" name="t" type="text" maxlength="60" placeholder="${esc(tr('Azione di oggi, es. un volantino'))}"></span><button class="tasto sec" type="submit">${tr('Segna')}</button></form>
       ${elenco.length?`<div class="mz-elenco">${elenco.map(a => { const e = effettoAzione(a); return `<div><span>${esc(brevD(a.d))} · ${esc(a.t)}</span><span class="meta">${e==null?tr('effetto: servono i numeri di 3 giorni prima e dopo'):tr('effetto: {e} %',{e:(e>=0?'+':'')+e})}</span><button class="mz-icona piccola" data-mz="az-togli" data-i="${m.azioni.indexOf(a)}" aria-label="${esc(tr('Togli'))}">${mzIco.x}</button></div>`; }).join('')}</div>`:''}
-      <p class="meta">${tr('Niente link tracciati o parametri nell’indirizzo: per l’EDPB anche il tracciamento via URL rientra nell’art. 5(3) ePrivacy. Basta il confronto per data.')}</p></div>
-    <h2 class="mz-h2">${tr('Interesse, solo se le persone lo dicono')}</h2>
+      <p class="meta">${tr('Niente link tracciati o parametri nell’indirizzo: per l’EDPB anche il tracciamento via URL rientra nell’art. 5(3) ePrivacy. Basta il confronto per data.')}</p></div>`:''}
+    ${on(27)||on(28)||on(32)?`<h2 class="mz-h2">${tr('Interesse, solo se le persone lo dicono')}</h2>
     <p class="meta">${tr('Pulsanti «Mi interessa» nelle anteprime di Agorà e Progetti e «Vorrei Agorapp qui» nella scelta della città: un tocco invia solo +1. Niente nomi, niente email, niente IP salvati.')}</p>
-    ${interesseMz(g)}
-    <h2 class="mz-h2">${tr('In attesa')}</h2><p class="meta">${tr('Misure utili che oggi superano la tua soglia: a livello UE chiederebbero il consenso.')}</p>
+    ${interesseMz(g)}`:''}
+    ${studioSezioneMz('accessi')}
     ${bloccataMz(26, tr('Aperture di Agorà, Progetti, calendario'), tr('Contatore automatico via script: per l’EDPB (Linee guida 2/2023) è «accesso» al dispositivo.'))}
     ${bloccataMz(36, tr('Eventi Off-Grid creati'), tr('Il contenuto non lascerebbe mai il telefono; resta comunque un segnale automatico.'))}
     ${bloccataMz(33, tr('Lingue e modalità semplice'), tr('Stesso motivo. Ora: chiedilo nei test sul campo.'))}`;
@@ -330,9 +367,9 @@ function interesseMz(g){
   const I = totInteresse();
   if(!I) return vuotoMz(MS.int && MS.int.stato==='carico' ? tr('Leggo i totali…') : tr('Totali non raggiungibili. Il contatore funziona solo quando la funzione è pubblicata sul sito (main) e il telefono è in rete.'));
   const a = serieInteresse(g, 'agora'), p = serieInteresse(g, 'progetti');
-  return mzBox('inter', tr('«Mi interessa» accumulati'), lineaMz('inter', [{nome:tr('Agorà'), v:a, col:'var(--mz-c1)'}, {nome:tr('Progetti'), v:p, col:'var(--mz-c2)'}], g, {})+`<div class="mz-legenda"><span><i class="mz-l-linea" style="background:var(--mz-c1)"></i>${tr('Agorà')} · ${I.agora}</span><span><i class="mz-l-linea" style="background:var(--mz-c2)"></i>${tr('Progetti')} · ${I.progetti}</span><span>${tr('soglia: {s} in totale',{s:mz().soglie.interesse})}</span></div>`,
-      tabLineaMz([{nome:tr('Agorà'), v:a}, {nome:tr('Progetti'), v:p}], g), 'vol', [27,28])
-    + mzBox('voglio', tr('«Vorrei Agorapp qui»'), I.citta.length ? hbarMz(I.citta, 'var(--mz-c2)')+`<p class="meta">${tr('La persona sceglie la città da un elenco: nessuna geolocalizzazione dell’IP.')}</p>` : vuotoMz(tr('Ancora nessuna città segnalata.')), null, 'vol', [32])
+  return (on(27)||on(28) ? mzBox('inter', tr('«Mi interessa» accumulati'), lineaMz('inter', [{nome:tr('Agorà'), v:a, col:'var(--mz-c1)'}, {nome:tr('Progetti'), v:p, col:'var(--mz-c2)'}], g, {})+`<div class="mz-legenda"><span><i class="mz-l-linea" style="background:var(--mz-c1)"></i>${tr('Agorà')} · ${I.agora}</span><span><i class="mz-l-linea" style="background:var(--mz-c2)"></i>${tr('Progetti')} · ${I.progetti}</span><span>${tr('soglia: {s} in totale',{s:mz().soglie.interesse})}</span></div>`,
+      tabLineaMz([{nome:tr('Agorà'), v:a}, {nome:tr('Progetti'), v:p}], g), 'vol', [on(27)?27:28]) : '')
+    + mzBox('voglio', tr('«Vorrei Agorapp qui»'), I.citta.length ? hbarMz(I.citta.slice(0,15), 'var(--mz-c2)')+`<p class="meta">${I.citta.length>15?tr('I primi 15 comuni su {n}; l’elenco completo è nell’export Excel.',{n:I.citta.length})+' ':''}${tr('La persona sceglie il comune dall’elenco Istat: nessuna geolocalizzazione dell’IP.')}</p>` : vuotoMz(tr('Ancora nessuna città segnalata.')), null, 'vol', [on(27)?27:28])
     + `<p class="meta">${tr('I numeri sono indicativi: senza identificare nessuno non si possono escludere i tocchi ripetuti da telefoni diversi.')}</p>`;
 }
 function vQualitaMz(){
@@ -345,6 +382,7 @@ function vQualitaMz(){
     <div class="mz-legenda"><span><i class="mz-l-soglia"></i>${tr('obiettivo {s} s',{s:n1(soglia)})}</span><span><i style="background:var(--verde)"></i>${tr('entro l’obiettivo')}</span><span><i style="background:var(--mz-c3)"></i>${tr('oltre')}</span></div>` : vuotoMz(tr('Nessuna misura ancora.'));
   const RL = [['mappa3g', tr('Mappa con rete 3G')], ['cal', tr('Calendario senza rete')], ['pdf', tr('PDF senza rete')]];
   const ES = {'':tr('da provare'), ok:tr('funziona'), no:tr('non funziona')};
+  if(![40,42,43].some(on)) return `<h2 class="mz-h1">${tr('Qualità tecnica')}</h2><p class="meta">${tr('Misurata sui tuoi telefoni, non su quelli degli utenti.')}</p>${studioSezioneMz('qualita')}`;
   return `<h2 class="mz-h1">${tr('Qualità tecnica')}</h2><p class="meta">${tr('Misurata sui tuoi telefoni, non su quelli degli utenti.')}</p>
     ${mzBox('vers', tr('Primo contenuto visibile, per versione'), col+`<form class="mz-form" data-mzform="versione"><div class="due"><label class="mz-etich">${tr('Versione')}<span class="campo"><input name="v" maxlength="24" required placeholder="${esc(tr('es. Restyling 4.3'))}"></span></label><label class="mz-etich">${tr('Secondi')}<span class="campo"><input name="s" type="number" step="0.1" min="0" required placeholder="3,2"></span></label></div><button class="tasto sec pieno" type="submit">${tr('Aggiungi la misura')}</button></form>
       <p class="meta">${tr('Lighthouse o WebPageTest, telefono simulato, rete 4G lenta. Una misura a ogni rilascio.')}</p>${V.length?`<button class="link" data-mz="vers-togli">${tr('Togli l’ultima misura')}</button>`:''}`,
@@ -352,48 +390,74 @@ function vQualitaMz(){
     ${mzBox('prove', tr('Prove della mappa'), `<form class="mz-form" data-mzform="prova"><div class="due"><label class="mz-etich">${tr('Rete e telefono')}<span class="campo"><input name="rete" maxlength="40" required placeholder="${esc(tr('es. 4G, Realme'))}"></span></label><label class="mz-etich">${tr('Esito')}<span class="campo"><select name="ok"><option value="1">${tr('Caricata')}</option><option value="0">${tr('Non caricata')}</option></select></span></label></div><label class="mz-etich">${tr('Nota')}<span class="campo"><input name="nota" maxlength="80" placeholder="${esc(tr('es. caricata in 2,1 s'))}"></span></label><button class="tasto sec pieno" type="submit">${tr('Aggiungi la prova')}</button></form>
       ${m.prove.length?`<div class="mz-scorri"><table class="mz-tab"><tr><th>${tr('Data')}</th><th>${tr('Rete')}</th><th>${tr('Esito')}</th><th></th></tr>${m.prove.slice().reverse().map(p => `<tr><td>${esc(brevD(p.d))}</td><td>${esc(p.rete)}</td><td>${p.ok?`<span class="mz-stato ok">${tr('Ok')}</span>`:`<span class="mz-stato crit">${tr('No')}</span>`} <span class="meta">${esc(p.nota||'')}</span></td><td><button class="mz-icona piccola" data-mz="prova-togli" data-i="${m.prove.indexOf(p)}" aria-label="${esc(tr('Togli'))}">${mzIco.x}</button></td></tr>`).join('')}</table></div>`:''}`, null, 'test', [42])}
     <div class="mz-avviso">${mzIco.avviso}<p><strong>${tr('Font e librerie vengono da fuori.')}</strong> ${tr('Google Fonts, unpkg e cdnjs: ospitandoli nel sito l’app si carica anche su reti che li bloccano, e nessun IP va a terzi non dichiarati.')}</p></div>
-    <div class="mz-card"><h3>${tr('Rete lenta o assente')}</h3><p class="meta">${tr('Tocca per cambiare lo stato.')}</p><div class="mz-pila">${RL.map(([k,l]) => `<button class="riga-int" data-mz="rete" data-k="${k}"><div><span class="t">${l}</span></div><span class="mz-stato ${m.rete[k]==='ok'?'ok':m.rete[k]==='no'?'crit':'neu'}">${ES[m.rete[k]||'']}</span></button>`).join('')}</div></div>
-    ${bloccataMz(41, tr('Errori JavaScript sui telefoni degli utenti'), tr('Servirebbe un servizio esterno (tipo Sentry): nuovo fornitore, IP e dati del browser.'))}`;
+    ${on(43)?`<div class="mz-card"><h3>${tr('Rete lenta o assente')}</h3><p class="meta">${tr('Tocca per cambiare lo stato.')}</p><div class="mz-pila">${RL.map(([k,l]) => `<button class="riga-int" data-mz="rete" data-k="${k}"><div><span class="t">${l}</span></div><span class="mz-stato ${m.rete[k]==='ok'?'ok':m.rete[k]==='no'?'crit':'neu'}">${ES[m.rete[k]||'']}</span></button>`).join('')}</div></div>`:''}
+    ${bloccataMz(41, tr('Errori JavaScript sui telefoni degli utenti'), tr('Servirebbe un servizio esterno (tipo Sentry): nuovo fornitore, IP e dati del browser.'))}
+    ${studioSezioneMz('qualita')}`;
 }
 
 function vImpattoMz(){
   const m = mz(), G = m.giri.slice().reverse(), u = G[0];
-  const fr = (t, v, tot, k) => `<button class="mz-tile" data-mz="kpiset" data-k="${k}" data-l="${esc(t)}"><span class="mz-fr"><span>${t}</span><b>${v} ${tr('su')} ${tot}</b></span><span class="mz-barre" aria-hidden="true">${Array.from({length:Math.min(tot,30)}, (_,i) => `<i class="${i<Math.round(v/tot*Math.min(tot,30))?'on':''}"></i>`).join('')}</span></button>`;
+  const fr = (t, v, tot, k) => !on(k) ? '' : `<button class="mz-tile" data-mz="kpiset" data-k="${k}" data-l="${esc(t)}"><span class="mz-fr"><span>${t}</span><b>${v} ${tr('su')} ${tot}</b></span><span class="mz-barre" aria-hidden="true">${Array.from({length:Math.min(tot,30)}, (_,i) => `<i class="${i<Math.round(v/tot*Math.min(tot,30))?'on':''}"></i>`).join('')}</span></button>`;
+  if(![35,37,44,45,47].some(on)) return `<h2 class="mz-h1">${tr('Impatto')}</h2>${studioSezioneMz('impatto')}`;
   return `<h2 class="mz-h1">${tr('Impatto')}</h2><p class="meta">${tr('Si chiede alle persone, con il loro consenso. Con pochi partecipanti si mostrano i conteggi, non le percentuali.')}</p>
     ${u ? `<div class="mz-card"><div class="mz-lab">${esc(brevD(u.d))}</div><h3>${esc(u.titolo||tr('Giro di interviste'))} · ${tr('{n} persone',{n:u.n})}</h3><div class="mz-pila">
       ${fr(tr('Hanno scoperto eventi che non conoscevano'), u.scoperto, u.n, 44)}${fr(tr('Sono andate davvero a un evento trovato qui'), u.andato, u.n, 45)}${fr(tr('Hanno completato la guida iniziale senza aiuto'), u.guida, u.n, 35)}${fr(tr('Hanno creato un Off-Grid al primo tentativo'), u.og, u.n, 37)}</div>
-      ${u.cons!=null&&u.cons!==''?`<p class="meta">${tr('Lo consiglierebbero: mediana {c} su 10.',{c:u.cons})}</p>`:''}${fonteMz('int')}</div>` : vuotoMz(tr('Nessun giro di interviste registrato. Dopo il lancio: 8–10 persone, stessa traccia di domande, così i giri si confrontano.'))}
-    <div class="mz-card"><h3>${tr('Registra un giro')}</h3><form class="mz-form" data-mzform="giro">
+      ${on(47)&&u.cons!=null&&u.cons!==''?`<p class="meta">${tr('Lo consiglierebbero: mediana {c} su 10.',{c:u.cons})}</p>`:''}${fonteMz('int')}</div>` : vuotoMz(tr('Nessun giro di interviste registrato. Dopo il lancio: 8–10 persone, stessa traccia di domande, così i giri si confrontano.'))}
+    <div class="mz-card"><h3>${tr('Registra un giro di prova sul campo')}</h3><form class="mz-form" data-mzform="giro">
       <label class="mz-etich">${tr('Nome del giro')}<span class="campo"><input name="titolo" maxlength="40" placeholder="${esc(tr('es. Dopo il lancio'))}"></span></label>
-      <div class="due"><label class="mz-etich">${tr('Persone')}<span class="campo"><input name="n" type="number" min="1" max="200" required></span></label><label class="mz-etich">${tr('Hanno scoperto eventi nuovi')}<span class="campo"><input name="scoperto" type="number" min="0" required></span></label></div>
-      <div class="due"><label class="mz-etich">${tr('Sono andate a un evento')}<span class="campo"><input name="andato" type="number" min="0" required></span></label><label class="mz-etich">${tr('Guida senza aiuto')}<span class="campo"><input name="guida" type="number" min="0" required></span></label></div>
-      <div class="due"><label class="mz-etich">${tr('Off-Grid al primo tentativo')}<span class="campo"><input name="og" type="number" min="0" required></span></label><label class="mz-etich">${tr('Lo consiglierebbero (mediana 0–10)')}<span class="campo"><input name="cons" type="number" min="0" max="10" step="0.5"></span></label></div>
+      <div class="due">${[['n',tr('Persone'),0,'min="1" max="200" required'],['scoperto',tr('Hanno scoperto eventi nuovi'),44,'min="0"'],['andato',tr('Sono andate a un evento'),45,'min="0"'],['guida',tr('Guida completata senza aiuto'),35,'min="0"'],['og',tr('Off-Grid al primo tentativo'),37,'min="0"'],['cons',tr('Lo consiglierebbero (mediana 0–10)'),47,'min="0" max="10" step="0.5"']].filter(x => !x[2] || on(x[2])).map(x => `<label class="mz-etich">${x[1]}<span class="campo"><input name="${x[0]}" type="number" ${x[3]}></span></label>`).join('')}</div>
       <button class="tasto sec pieno" type="submit">${tr('Salva il giro')}</button></form>${G.length>1?`<p class="meta">${tr('Giri precedenti: {g}',{g:G.slice(1).map(x => (x.titolo||brevD(x.d))+' ('+x.n+')').join(' · ')})}</p>`:''}${u?`<button class="link" data-mz="giro-togli">${tr('Togli l’ultimo giro')}</button>`:''}</div>
-    ${bloccataMz(46, tr('Agorapp riduce la solitudine?'), tr('Domande sul benessere possono essere dati sulla salute (art. 9 GDPR): solo con un partner universitario e il suo comitato etico.'))}`;
+    ${bloccataMz(46, tr('Agorapp riduce la solitudine?'), tr('Domande sul benessere possono essere dati sulla salute (art. 9 GDPR): solo con un partner universitario e il suo comitato etico.'))}
+    ${studioSezioneMz('impatto')}`;
 }
 
-const statoKpiMz = k => k.par==='Misurare ora' ? 'attivo' : k.par==='Più avanti' ? 'attesa' : 'escluso';
-const STATO_L = {attivo:'Attiva', attesa:'In attesa', escluso:'Esclusa'};
-function vCatalogoMz(){
-  const m = mz(), f = MS.filtroCat;
-  const passa = (k, x) => x==='tutti' || (x==='oltre' ? k.soglia==='Sì' : x==='mie' ? !!m.mie[k.n] : statoKpiMz(k)===x);
-  const F = [['tutti','Tutte'],['attivo','Attive'],['attesa','In attesa'],['escluso','Escluse'],['oltre','Oltre soglia'],['mie','Decise da te']];
+const NOMI_SEZ = Object.fromEntries([['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi e interesse'],['qualita','Qualità'],['impatto','Impatto']]);
+const ORDINE_LIB = ['operativo','segnaposto','studio','rimandato','sospeso','eliminato'];
+const statoChip = n => { const s = libStato(n); return `<span class="mz-stato ${STATO_CLS[s]}">${tr(STATI_LIB[s])}</span>`; };
+const interruttoreMz = n => { const v = libVisibile(n); return `<button class="mz-switch" role="switch" aria-checked="${v}" data-mz="lib-vis" data-n="${n}" aria-label="${esc(tr('Mostra la riga {n} nella sua sezione',{n}))}"><i aria-hidden="true"></i><span>${v?tr('Visibile'):tr('Nascosta')}</span></button>`; };
+const perInformativa = () => MZ_KPI.filter(k => /informativa/i.test(k.lorNota||''));
+function vLibreriaMz(){
+  const m = mz(), f = MS.filtroCat, sz = MS.sezLib||'';
+  const passa = (k, x) => (x==='tutti' || libStato(k.n)===x) && (!sz || sezioneKpi(k)===sz);
   const lista = MZ_KPI.filter(k => passa(k, f));
-  return `<h2 class="mz-h1">${tr('Catalogo delle misure')}</h2><p class="meta">${tr('Le 50 domande della tabella, con stato e conformità. Toccane una per i dettagli e per segnare la tua decisione.')}</p>
-    <div class="mz-legenda"><span><span class="mz-pall g-Verde"></span>${tr('Verde')}</span><span><span class="mz-pall g-Giallo"></span>${tr('Giallo')}</span><span><span class="mz-pall g-Arancio"></span>${tr('Arancio')}</span><span><span class="mz-pall g-Rosso"></span>${tr('Rosso')}</span><span>UE · IT</span></div>
-    <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra'))}">${F.map(([k,t]) => `<button data-mz="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(t)} · ${MZ_KPI.filter(x => passa(x,k)).length}</span></button>`).join('')}</nav>
-    <div class="mz-pila">${lista.map(k => { const s = statoKpiMz(k), mia = m.mie[k.n];
-      return `<button class="mz-kpi" data-mz="kpi" data-n="${k.n}"><span class="mz-nn">${k.n}</span><span class="mz-q"><b>${esc(k.q)}</b><span class="mz-chips"><span class="mz-stato ${s==='attivo'?'ok':s==='attesa'?'neu':'crit'}">${tr(STATO_L[s])}</span><span class="mz-comp"><span class="mz-pall g-${k.eu}"></span>UE ${tr(k.eu)}</span><span class="mz-comp"><span class="mz-pall g-${k.it}"></span>IT ${tr(k.it)}</span>${mia?`<span class="mz-stato warn">${tr('Tu: {d}',{d:tr(mia)})}</span>`:''}</span></span>${mzIco.avanti}</button>`; }).join('') || vuotoMz(tr('Nessuna domanda con questo filtro.'))}</div>`;
+  const conAppunti = MZ_KPI.filter(k => ((m.lib||{})[k.n]||{}).appunti).length;
+  return `<h2 class="mz-h1">${tr('Libreria delle misure')}</h2>
+    <p class="meta">${tr('Le 50 domande, con la tua decisione. Le operative compaiono nella loro sezione: spegnile qui se non ti servono. Le altre restano qui con il loro studio, finché non le rendi operative o le elimini.')}</p>
+    <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra per stato'))}">${ORDINE_LIB.concat('tutti').map(k => `<button data-mz="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(k==='tutti'?'Tutte':STATI_LIB[k])} · ${MZ_KPI.filter(x => passa(x,k)).length}</span></button>`).join('')}</nav>
+    ${sz?`<p class="meta">${tr('Solo la sezione «{s}».',{s:tr(NOMI_SEZ[sz])})} <button class="link" data-mz="lib-sez" data-v="">${tr('Mostra tutte le sezioni')}</button></p>`:''}
+    <p class="meta">${f==='operativo'?tr('L’interruttore mostra o nasconde la misura nella sua sezione. Non cambia la decisione.'):f==='segnaposto'?tr('Lo spazio c’è già nella sezione, vuoto: si riempie quando lo studio è chiuso.'):f==='studio'?tr('Toccane una per leggere la tua nota, la mia risposta e scrivere gli appunti di studio.'):f==='rimandato'?tr('Rimandate alla Fase 2 del progetto.'):f==='sospeso'?tr('Ferme: non servono adesso. Puoi riprenderle in studio quando vuoi.'):f==='eliminato'?tr('Escluse. Restano qui solo per ricordare perché.'):''}${conAppunti?' '+tr('Misure con appunti: {n}.',{n:conAppunti}):''}</p>
+    <div class="mz-pila">${lista.map(k => { const s = libStato(k.n), x = (m.lib||{})[k.n]||{};
+      const nota = s==='operativo' && !HA_PANNELLO.has(k.n) ? `<span class="mz-stato warn">${tr('Pannello da costruire')}</span>` : '';
+      return `<div class="mz-librow${s==='operativo'&&!libVisibile(k.n)?' spenta':''}"><button class="mz-kpi" data-mz="kpi" data-n="${k.n}"><span class="mz-nn">${k.n}</span><span class="mz-q"><b>${esc(k.q)}</b><span class="mz-chips">${statoChip(k.n)}<span class="mz-comp">${tr(NOMI_SEZ[sezioneKpi(k)])}</span><span class="mz-comp" title="${esc(tr('Unione europea {e} · Italia {i}',{e:tr(k.eu), i:tr(k.it)}))}"><span class="mz-pall g-${k.eu}"></span><span class="mz-pall g-${k.it}"></span>UE · IT</span>${x.appunti?`<span class="mz-comp">${tr('Appunti')}</span>`:''}${nota}</span></span>${mzIco.avanti}</button>${s==='operativo'&&HA_PANNELLO.has(k.n)?interruttoreMz(k.n):''}</div>`; }).join('') || vuotoMz(tr('Nessuna misura con questo filtro.'))}</div>
+    <section class="mz-card mz-info-prossima"><h3>${tr('Per la prossima informativa')}</h3><p class="meta">${tr('Da scrivere dopo l’MVP, quando lo deciderai tu. Qui ci sono solo i promemoria: l’informativa sull’app non è stata toccata.')}</p>
+      <ul class="mz-lista">${perInformativa().map(k => `<li><button class="link" data-mz="kpi" data-n="${k.n}">${tr('Riga {n}',{n:k.n})}</button> · ${esc(k.lorNota)}</li>`).join('')}
+        <li>${tr('I pulsanti volontari «Mi interessa» e «Vorrei Agorapp qui» (righe 27 e 28): il +1 passa da una funzione Netlify. Vanno descritti prima di metterli sul sito pubblico.')}</li></ul></section>`;
 }
 
 /* ---------- fogli sopra le Misure (usano il foglio dell'app) ---------- */
 function foglioMz(html){ window.AGR.foglio(`<div class="mz-foglio">${html}</div>`, 'sez-misure'); }
 function foglioKpiMz(n){
-  const k = MZ_KPI.find(x => x.n==n); if(!k) return; const s = statoKpiMz(k), mia = mz().mie[k.n];
-  foglioMz(`<div class="meta" style="font-weight:600">${tr('Riga {n}',{n:k.n})} · ${esc(k.area)}</div><h2>${esc(k.q)}</h2>
-    <div class="mz-chips"><span class="mz-stato ${s==='attivo'?'ok':s==='attesa'?'neu':'crit'}">${tr('Parere: {p}',{p:tr(k.par)})}</span><span class="mz-comp">${tr('Utilità {u}',{u:tr(k.ut)})}</span><span class="mz-comp">${esc(k.fase)}</span>${k.soglia==='Sì'?`<span class="mz-stato crit">${tr('Oltre la tua soglia')}</span>`:''}</div>
+  const k = MZ_KPI.find(x => x.n==n); if(!k) return;
+  const s = libStato(k.n), x = (mz().lib||{})[k.n]||{}, pan = HA_PANNELLO.has(k.n), cambiato = !!x.stato && x.stato!==k.lor;
+  const AZ = [['operativo','Rendi operativa'],['segnaposto','Spazio pronto'],['studio','In studio'],['rimandato','Fase 2'],['sospeso','Sospendi'],['eliminato','Elimina']];
+  foglioMz(`<div class="meta" style="font-weight:600">${tr('Riga {n}',{n:k.n})} · ${esc(k.area)} · ${tr('sezione {s}',{s:tr(NOMI_SEZ[sezioneKpi(k)])})}</div><h2>${esc(k.q)}</h2>
+    <div class="mz-chips">${statoChip(k.n)}<span class="mz-comp"><span class="mz-pall g-${k.eu}"></span>UE ${tr(k.eu)}</span><span class="mz-comp"><span class="mz-pall g-${k.it}"></span>IT ${tr(k.it)}</span><span class="mz-comp">${tr('Utilità {u}',{u:tr(k.ut)})}</span></div>
+    ${s==='operativo'?(pan?`<div class="mz-riga-sw"><span>${tr('Mostrala nella sezione «{s}»',{s:tr(NOMI_SEZ[sezioneKpi(k)])})}</span>${interruttoreMz(k.n)}</div>`:`<p class="mz-avviso-p">${tr('Operativa, ma il suo pannello non esiste ancora: va costruito nel codice. Chiedimelo quando vuoi.')}</p>`):''}
+    ${s==='segnaposto'&&!pan?`<p class="mz-avviso-p">${tr('Questa misura non ha ancora uno spazio nelle sezioni: va costruito nel codice.')}</p>`:''}
     <dl class="mz-dl">
+      <div><dt>${tr('La tua decisione')}</dt><dd>${esc(k.lorD||tr('Nessuna'))}${cambiato?` · ${tr('poi cambiata in «{s}» il {d}',{s:tr(STATI_LIB[x.stato]), d:brevD(x.agg)})}`:''}</dd></div>
+      ${k.lorNota?`<div><dt>${tr('La tua nota')}</dt><dd>${esc(k.lorNota)}</dd></div>`:''}
+      ${k.risposta?`<div><dt>${tr('La risposta di Claude')}</dt><dd>${esc(k.risposta)}</dd></div>`:''}
+      ${s!=='operativo'?`<div><dt>${tr('Cosa servirebbe per renderla operativa')}</dt><dd>${esc(k.obl)}${k.um==='Sì'?' '+tr('Serve anche un parere umano (avvocato o DPO).'):''}</dd></div>`:''}
       <div><dt>${tr('Decisione che ne dipende')}</dt><dd>${esc(k.dec)}</dd></div>
+    </dl>
+    <h3>${tr('Appunti di studio')}</h3>
+    <label class="campo mz-appunti"><span class="sr-only">${tr('Appunti di studio')}</span><textarea id="mz-app-${k.n}" rows="4" maxlength="2000" placeholder="${esc(tr('Cosa hai scoperto, cosa manca, chi sentire…'))}">${esc(x.appunti||'')}</textarea></label>
+    <div class="mz-riga-sw"><span class="meta">${x.appuntiD?tr('Ultimo salvataggio: {d}',{d:lungD(x.appuntiD)}):tr('Restano su questo telefono e finiscono nell’export Excel.')}</span><button class="tasto sec" data-mz="lib-appunti" data-n="${k.n}">${tr('Salva gli appunti')}</button></div>
+    <h3>${tr('Cambia lo stato')}</h3>
+    <div class="seg mz-seg3" role="group" aria-label="${esc(tr('Stato della misura'))}">${AZ.map(([v,t]) => `<button data-mz="lib-stato" data-n="${k.n}" data-v="${v}" aria-pressed="${s===v}">${tr(t)}</button>`).join('')}</div>
+    ${cambiato?`<button class="link" data-mz="lib-stato" data-n="${k.n}" data-v="">${tr('Torna alla decisione del file ({s})',{s:tr(STATI_LIB[k.lor])})}</button>`:''}
+    <details class="mz-dett"><summary>${tr('Scheda completa: calcolo, metodo, conformità')}</summary><dl class="mz-dl">
       <div><dt>${tr('Come si calcola')}</dt><dd>${esc(k.calc)}</dd></div>
       <div><dt>${tr('Metodo')}</dt><dd>${esc(k.met)}</dd></div>
       <div><dt>${tr('Dati personali')}</dt><dd>${esc(k.dati)}</dd></div>
@@ -401,12 +465,8 @@ function foglioKpiMz(n){
       <div><dt><span class="mz-pall g-${k.it}"></span> ${tr('Italia')} · ${tr(k.it)}</dt><dd>${esc(k.itM)}</dd></div>
       <div><dt>${tr('Obblighi nuovi')}</dt><dd>${esc(k.obl)}</dd></div>
       <div><dt>${tr('Principi Agorapp')}</dt><dd>${esc(k.coer)}</dd></div>
-      ${k.note?`<div><dt>${tr('Note')}</dt><dd>${esc(k.note)}</dd></div>`:''}
-      <div><dt>${tr('Serve un parere umano?')}</dt><dd>${tr(k.um)}</dd></div>
-    </dl>
-    <h3>${tr('La tua decisione')}</h3>
-    <div class="seg mz-seg2">${['Misurare ora','Più avanti','Non misurare','Da discutere'].map(x => `<button data-mz="mia" data-n="${k.n}" data-v="${x}" aria-pressed="${mia===x}">${tr(x)}</button>`).join('')}</div>
-    <p class="meta">${tr('Resta su questo telefono e finisce nell’export Excel delle misure.')}</p>`);
+      <div><dt>${tr('Parere iniziale di Claude')}</dt><dd>${tr(k.par)} · ${esc(k.fase)}${k.note?' · '+esc(k.note):''}</dd></div>
+    </dl></details>`);
 }
 function foglioSetMz(ks, l){
   const lista = ks.map(n => MZ_KPI.find(k => k.n==n)).filter(Boolean);
@@ -441,23 +501,25 @@ function esportaMisure(){
   const V = [[tr('Versione'), tr('Data'), tr('Secondi')]].concat(m.versioni.map(v => [v.v, dIso(v.d), v.s]));
   const P = [[tr('Data'), tr('Rete e telefono'), tr('Esito'), tr('Nota')]].concat(m.prove.map(p => [dIso(p.d), p.rete, p.ok?tr('Caricata'):tr('Non caricata'), p.nota||'']));
   const I = [[tr('Data'), tr('Giro'), tr('Persone'), tr('Scoperto eventi nuovi'), tr('Andati a un evento'), tr('Guida senza aiuto'), tr('Off-Grid al primo tentativo'), tr('Mediana consiglio')]].concat(m.giri.map(x => [dIso(x.d), x.titolo||'', x.n, x.scoperto, x.andato, x.guida, x.og, x.cons==null?'':x.cons]));
-  const C = [['N.', tr('Domanda'), tr('Parere di Claude'), tr('UE'), tr('IT'), tr('La tua decisione')]].concat(MZ_KPI.map(k => [k.n, k.q, k.par, k.eu, k.it, m.mie[k.n]||'']));
+  const C = [['N.', tr('Domanda'), tr('Sezione'), tr('Stato'), tr('Nella sezione'), tr('Decisione di Lorenzo'), tr('Note di Lorenzo'), tr('Risposta di Claude'), tr('Appunti di studio'), tr('Data appunti'), tr('Ultimo cambio di stato'), tr('UE'), tr('IT')]]
+    .concat(MZ_KPI.map(k => { const x = (m.lib||{})[k.n]||{}, s = libStato(k.n); return [k.n, k.q, tr(NOMI_SEZ[sezioneKpi(k)]), tr(STATI_LIB[s]), s==='operativo' ? (HA_PANNELLO.has(k.n) ? (libVisibile(k.n)?tr('Visibile'):tr('Nascosta')) : tr('Pannello da costruire')) : '', k.lorD||'', k.lorNota||'', k.risposta||'', x.appunti||'', x.appuntiD?dIso(x.appuntiD):'', x.stato?dIso(x.agg):'', k.eu, k.it]; }));
   const TI = totInteresse(), Ig = TI ? Object.keys(TI.giorni).sort() : [];
   const IN = [[tr('Giorno'), tr('Agorà'), tr('Progetti'), tr('Città')]].concat(Ig.map(g => { const x = TI.giorni[g]||{}; return [dIso(g), x.agora||0, x.progetti||0, Object.keys(x).filter(k => k.startsWith('citta:')).map(k => k.slice(6)+' '+x[k]).join(' · ')]; }));
   const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico], [tr('«Mi interessa» per l’on-grid'), m.soglie.interesse]];
-  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Catalogo'), C, [6,70,16,10,10,18]], [tr('Interesse'), IN, [12,10,10,50]], [tr('Soglie'), Sg, [44,10]]], 'agorapp_misure_'+oggi()+'.xlsx')
+  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Interesse'), IN, [12,10,10,50]], [tr('Soglie'), Sg, [44,10]]], 'agorapp_misure_'+oggi()+'.xlsx')
     .then(() => avviso(tr('Misure esportate: agorapp_misure_{d}.xlsx',{d:oggi()}), null, true))
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 
 /* ---------- apertura e interazioni ---------- */
 function apriMisure(){ mzFotografa(); MS.demo = false; caricaInteresse(); vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
+function salvaAppuntiMz(n){ const ta = $('mz-app-'+n), x = (mz().lib||{})[n]||{}; if(ta && ta.value.trim()!==(x.appunti||'')) libSet(n, {appunti:ta.value.trim(), appuntiD:oggi()}); }
 function clickMisure(t){
   const d = t.dataset, m = mz(), a = d.mz; if(!a) return false;
   nascondiTipMz();
   switch(a){
     case 'esci': vaiSezione('mappa'); apri('admin'); break;
-    case 'scheda': MS.scheda = d.v; if(d.f) MS.filtroCat = d.f; chiudi(); disegnaMisure(); $('pagina-misure').scrollTop = 0; break;
+    case 'scheda': MS.scheda = d.v; if(d.f) MS.filtroCat = d.f; MS.sezLib = d.sez||''; chiudi(); disegnaMisure(); $('pagina-misure').scrollTop = 0; break;
     case 'periodo': MS.periodo = +d.v; disegnaMisure(); break;
     case 'ambito': MS.ambito = MS.ambito==='tutte' ? 'citta' : 'tutte'; disegnaMisure(); break;
     case 'demo': MS.demo = !MS.demo; disegnaMisure(); break;
@@ -466,7 +528,13 @@ function clickMisure(t){
     case 'vista': MS.vista[d.v] = MS.vista[d.v]==='tab' ? 'g' : 'tab'; disegnaMisure(); break;
     case 'kpi': foglioKpiMz(d.n); break;
     case 'kpiset': foglioSetMz(d.k.split(','), d.l); break;
-    case 'mia': m.mie[d.n] = m.mie[d.n]===d.v ? undefined : d.v; if(!m.mie[d.n]) delete m.mie[d.n]; mzSalva(); foglioKpiMz(d.n); disegnaMisure(); break;
+    case 'lib-vis': { const n = +d.n; salvaAppuntiMz(n); libSet(n, {visibile:!libVisibile(n)}); if($('mz-app-'+n)) foglioKpiMz(n); disegnaMisure(); break; }
+    case 'lib-stato': { const n = +d.n, x = (m.lib||{})[n]||{};
+      if(!d.v){ delete x.stato; m.lib[n] = x; mzSalva(); } else libSet(n, {stato:d.v, visibile:true});
+      salvaAppuntiMz(n);
+      avviso(tr('Riga {n}: {s}',{n, s:tr(STATI_LIB[libStato(n)])}), null, true); foglioKpiMz(n); disegnaMisure(); break; }
+    case 'lib-appunti': { const ta = $('mz-app-'+d.n); if(!ta) break; libSet(+d.n, {appunti:ta.value.trim(), appuntiD:oggi()}); avviso(tr('Appunti salvati'), null, true); foglioKpiMz(d.n); disegnaMisure(); break; }
+    case 'lib-sez': MS.sezLib = d.v||''; disegnaMisure(); break;
     case 'filtro': MS.filtroCat = d.v; disegnaMisure(); break;
     case 'dec': m.stati[d.id] = 'fatto'; mzSalva(); disegnaMisure(); break;
     case 'rimetti': m.stati = {}; mzSalva(); disegnaMisure(); break;
