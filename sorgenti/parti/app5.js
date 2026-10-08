@@ -9,7 +9,7 @@ function fImpostazioni(){
       <button class="riga-int" data-az="semplice" aria-pressed="${st.semplice}"><div><span class="t">${tr('Modalità semplice')}</span><span class="meta">${tr('Testi più grandi e meno comandi: niente sottocategorie e combinazioni.')}</span></div><span class="interr" aria-hidden="true"></span></button></section>
     <section class="sezione" id="sez-demo"><div class="tipo">${tr('Prova Agorapp')}</div>${bloccoDemo()}</section>
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
-    <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I tre passi che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
+    <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
       <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Conforme GDPR · v1.2 · marzo 2026')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
@@ -343,16 +343,34 @@ function salvaAdmin(){
 const GUIDA = () => [
   {t:tr('Benvenuto su Agorapp'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
-  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid», o tenendo premuto un punto della mappa, aggiungi un tuo evento. Resta solo su questo telefono.'), el:'btnNuovo'}
+  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid», o tenendo premuto un punto della mappa, aggiungi un tuo evento. Resta solo su questo telefono.'), el:'btnNuovo'},
+  {t:tr('Prova la demo'), d:tr('La demo riempie Agorapp di eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: serve a vedere come funziona. Gli eventi della demo sono tutti a Torino. Restano solo su questo telefono e i tuoi eventi non si toccano.')+' '+tr('Si accende e si spegne quando vuoi da Impostazioni → Prova Agorapp.'), el:'btnImpo', demo:true}
 ];
+/* ultimo cartellino: la demo, con la scelta subito */
+function tastiGuidaDemo(){
+  const on = !!(DEMO || events.some(e => e.demo));
+  return on
+    ? `<button class="tasto sec" data-az="guida-demo-togli">${tr('Spegni la demo')}</button><button class="tasto pri" data-az="guida-salta">${tr('Tienila accesa')}</button>`
+    : `<button class="tasto sec" data-az="guida-salta">${tr('No, grazie')}</button><button class="tasto pri" data-az="guida-demo">${tr('Accendi la demo')}</button>`;
+}
+/* ombra su tutto tranne la parte di cui parla il cartellino: un buco con un'ombra enorme intorno */
+function ombraGuida(){
+  const o = $('guidaOmbra'); if(!o) return;
+  const g = st.guida!=null && GUIDA()[st.guida], el = g && g.el && $(g.el);
+  if(!el || el.hidden || !el.offsetParent){ Object.assign(o.style,{left:'50%',top:'50%',width:'0px',height:'0px'}); return; }
+  const r = el.getBoundingClientRect(), m = 6, rad = parseFloat(getComputedStyle(el).borderTopLeftRadius)||12;
+  Object.assign(o.style,{left:(r.left-m)+'px', top:(r.top-m)+'px', width:(r.width+2*m)+'px', height:(r.height+2*m)+'px', borderRadius:(rad+m)+'px'});
+}
+window.addEventListener('resize', () => { if(st.guida!=null) ombraGuida(); });
 function disegnaGuida(){
   document.querySelectorAll('.evidenzia').forEach(x => x.classList.remove('evidenzia'));
   const slot = $('guida-slot');
   if(st.guida==null){ slot.innerHTML = ''; return; }
   const G = GUIDA(), g = G[st.guida];
   if(g.el && $(g.el)) $(g.el).classList.add('evidenzia');
-  slot.innerHTML = `<div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
-    <div class="tasti"><button class="tasto sec" data-az="guida-salta">${st.guida===G.length-1?tr('Chiudi'):tr('Salta')}</button>${st.guida<G.length-1?`<button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`:`<button class="tasto pri" data-az="guida-salta">${tr('Inizia')}</button>`}</div></div>`;
+  slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
+    <div class="tasti">${g.demo ? tastiGuidaDemo() : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
+  ombraGuida();
 }
 
 /* ======================= Avvisi: solo «Annulla» dopo un'eliminazione admin e gli errori veri ======================= */

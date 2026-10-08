@@ -105,6 +105,8 @@ $('app').addEventListener('click', ev => {
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;
     case 'guida-salta': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); break;
+    case 'guida-demo': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); caricaDemo(); break;
+    case 'guida-demo-togli': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); togliDemo(); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
     case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.demoMsg = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
