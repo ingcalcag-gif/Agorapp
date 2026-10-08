@@ -404,3 +404,7 @@ button.dato:last-child{border-bottom:0}
 .lato>*,.tipi-mappa>*{pointer-events:auto}
 .lato,.tipi-mappa{touch-action:manipulation}
 html,body{overscroll-behavior:none}
+/* guida: ombra su tutto il resto, il pezzo descritto resta in luce */
+.guida-ombra{position:fixed;z-index:60;pointer-events:none;box-shadow:0 0 0 200vmax rgba(10,14,12,.55);transition:left .25s ease,top .25s ease,width .25s ease,height .25s ease}
+#guida-slot .guida{z-index:61}
+@media (prefers-reduced-motion:reduce){.guida-ombra{transition:none}}

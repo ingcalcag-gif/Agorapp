@@ -353,14 +353,24 @@ function tastiGuidaDemo(){
     ? `<button class="tasto sec" data-az="guida-demo-togli">${tr('Spegni la demo')}</button><button class="tasto pri" data-az="guida-salta">${tr('Tienila accesa')}</button>`
     : `<button class="tasto sec" data-az="guida-salta">${tr('No, grazie')}</button><button class="tasto pri" data-az="guida-demo">${tr('Accendi la demo')}</button>`;
 }
+/* ombra su tutto tranne la parte di cui parla il cartellino: un buco con un'ombra enorme intorno */
+function ombraGuida(){
+  const o = $('guidaOmbra'); if(!o) return;
+  const g = st.guida!=null && GUIDA()[st.guida], el = g && g.el && $(g.el);
+  if(!el || el.hidden || !el.offsetParent){ Object.assign(o.style,{left:'50%',top:'50%',width:'0px',height:'0px'}); return; }
+  const r = el.getBoundingClientRect(), m = 6, rad = parseFloat(getComputedStyle(el).borderTopLeftRadius)||12;
+  Object.assign(o.style,{left:(r.left-m)+'px', top:(r.top-m)+'px', width:(r.width+2*m)+'px', height:(r.height+2*m)+'px', borderRadius:(rad+m)+'px'});
+}
+window.addEventListener('resize', () => { if(st.guida!=null) ombraGuida(); });
 function disegnaGuida(){
   document.querySelectorAll('.evidenzia').forEach(x => x.classList.remove('evidenzia'));
   const slot = $('guida-slot');
   if(st.guida==null){ slot.innerHTML = ''; return; }
   const G = GUIDA(), g = G[st.guida];
   if(g.el && $(g.el)) $(g.el).classList.add('evidenzia');
-  slot.innerHTML = `<div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
+  slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
     <div class="tasti">${g.demo ? tastiGuidaDemo() : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
+  ombraGuida();
 }
 
 /* ======================= Avvisi: solo «Annulla» dopo un'eliminazione admin e gli errori veri ======================= */
