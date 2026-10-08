@@ -1,0 +1,161 @@
+
+/* ===== App vera: mappa CARTO (MapLibre) al posto della mappa disegnata ===== */
+html,body{overscroll-behavior:none}
+body{background:var(--fondo)}
+.app{padding-bottom:env(safe-area-inset-bottom,0px)}
+#map{position:absolute;inset:0;background:var(--mappa-terra)}
+#map .maplibregl-canvas{outline:none}
+#map .maplibregl-ctrl-bottom-right,#map .maplibregl-ctrl-bottom-left,#map .maplibregl-ctrl-top-right{display:none}
+.mk{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.mk.alto{z-index:3}
+.mk-tu{width:18px;height:18px}
+.mk-q{width:26px;height:26px}
+.mk-tappa{width:32px;height:32px}
+.mk-lbl{pointer-events:none}
+.pressione{position:absolute;z-index:5}
+.attrib a{color:inherit;text-decoration:none}
+.top .nome{white-space:nowrap}
+.scheda-img{width:100%;max-height:180px;object-fit:cover;border-radius:12px;display:block;background:var(--incassata)}
+.dato a{color:var(--verde);font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.riga-ev .meta,.tappa-r .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.campo input[type="date"],.campo input[type="time"],.campo input[type="datetime-local"]{min-width:0}
+.sugg .m{font-weight:600}
+.sugg .s{font-size:12px;line-height:16px;color:var(--testo-2)}
+.sugg .w{font-size:12px;line-height:16px;color:var(--clay-ink)}
+.sugg-foot{padding:8px 12px;font-size:12px;color:var(--testo-2);background:var(--incassata)}
+.caricamento{font-size:12px;color:var(--testo-2);padding:8px 2px}
+.err-box{font-size:12px;line-height:16px;color:var(--rosso);font-weight:600}
+.conta-car{font-size:12px;color:var(--testo-2);text-align:right}
+.conta-car.ok{color:var(--verde)}
+.pagina-vuota{padding:24px 16px;display:flex;flex-direction:column;gap:12px}
+.pagina-vuota h1{font-size:24px;line-height:28px}
+.toast{top:12px}
+.posa-testa{position:absolute;left:12px;right:12px;top:12px;z-index:7;border-radius:14px;padding:10px 14px}
+.cal button .oggi-n{color:var(--verde)}
+.cal button.passato{opacity:.55}
+.carta .pr .nt{display:block;font-size:12px;color:var(--carta-2);white-space:pre-wrap}
+.file-nascosto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+/* due tasti per le serie: grandi, con la riga piccola sotto */
+.tasto small{display:block;font-size:12px;font-weight:500;opacity:.85}
+.tasto.col{flex-direction:column;gap:0}
+/* Lingua araba: la pagina va da destra a sinistra */
+[dir="rtl"] .lato{right:auto;left:12px;align-items:flex-start}
+[dir="rtl"] .tipi-mappa{left:auto;right:10px;align-items:flex-end}
+[dir="rtl"] .attrib{right:auto;left:12px}
+[dir="rtl"] .chiudi{margin:-8px 0 -8px -10px}
+[dir="rtl"] .sub{padding:0 56px 12px 12px}
+[dir="rtl"] .tratto-r{border-left:0;border-right:2px dashed var(--linea-forte);margin-left:0;margin-right:25px;padding:6px 24px 6px 12px}
+[dir="rtl"] [aria-pressed="true"] .interr::after{transform:translateX(-16px)}
+[dir="rtl"] .interr::after{left:auto;right:3px}
+[dir="rtl"] .legale ul{padding-left:0;padding-right:20px}
+[dir="rtl"] .freccia-dir{transform:scaleX(-1)}
+[dir="rtl"] .riga-ev .ora{text-align:right}
+.c-abitativo{--ic:#B03A2E;--it:#FDECEA;--ib:#F2B8B0}
+.c-fuorisede{--ic:#2D5A3D;--it:#E8F0EB;--ib:#B9D3C1}
+.c-verde{--ic:#1E7A44;--it:#E6F5EC;--ib:#A9DCBC}
+.c-autogestiti{--ic:#7D3C98;--it:#F5EEF8;--ib:#D8BFE3}
+.c-gentrificazione{--ic:#A84F12;--it:#FEF3E4;--ib:#F3C99A}
+.c-uguaglianza{--ic:#1F618D;--it:#EBF5FB;--ib:#AED0E8}
+.c-agorapp{--ic:#2D5A3D;--it:#E8F2EB;--ib:#B9D3C1}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
+:root:not([data-theme="light"]) .c-fuorisede,:root:not([data-theme="light"]) .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root:not([data-theme="light"]) .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
+:root:not([data-theme="light"]) .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
+:root:not([data-theme="light"]) .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
+:root:not([data-theme="light"]) .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}}
+:root[data-theme="dark"] .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
+:root[data-theme="dark"] .c-fuorisede,:root[data-theme="dark"] .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root[data-theme="dark"] .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
+:root[data-theme="dark"] .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
+:root[data-theme="dark"] .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
+:root[data-theme="dark"] .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}
+a.tasto,a.link{text-decoration:none}
+a.tasto.sec{color:var(--testo)}
+.campo .chiudi{width:36px;height:36px}
+.avviso-strati{position:absolute;left:12px;right:12px;top:150px;z-index:7;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;background:var(--vetro-forte)}
+.app.muove .avviso-strati{background:var(--superficie)}
+.vuoto-lbl{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px;border-radius:10px;background:var(--vetro-forte);border:1px solid var(--linea);font-size:12px;line-height:15px;color:var(--testo-2);white-space:nowrap;box-shadow:var(--ombra-card)}
+.vuoto-lbl b{color:var(--testo);font-weight:700}
+.mk-vuoto{width:auto;height:auto}
+
+/* ===== 4 ottobre: «Il tuo calendario» fermo, i tempi scorrono ===== */
+.riga-chips{display:flex;align-items:flex-start;gap:6px;margin-right:-12px}
+.riga-chips #chipCal{flex-shrink:0}
+.riga-chips .chips{flex:1;min-width:0;margin:0;padding:0 12px 4px 0}
+[dir="rtl"] .riga-chips{margin-right:0;margin-left:-12px}
+[dir="rtl"] .riga-chips .chips{padding:0 0 4px 12px}
+.chip-cal:not([aria-pressed="true"]){color:var(--verde);border-color:color-mix(in srgb,var(--verde) 55%,transparent)}
+.chip-cal{box-shadow:var(--ombra-vetro)}
+
+/* ===== Il trattino dei pannelli: tocca per allargare a tutto lo spazio, ritocca per tornare giù ===== */
+.maniglia-btn{align-self:center;width:72px;height:22px;margin:-6px 0 -4px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none}
+.maniglia-btn .maniglia{transition:width .15s,background .15s}
+.maniglia-btn:hover .maniglia,.maniglia-btn:focus-visible .maniglia{background:var(--testo-2);width:48px}
+
+
+/* ===== PDF del calendario: con il segno del condividi ===== */
+.tasto-pdf{display:flex;align-items:center;gap:6px}
+
+/* ===== Progetti e Agorà: avviso sulle proposte, invito alla demo ===== */
+.avviso-proposte{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--linea-forte);border-radius:14px;padding:10px 12px;font-size:13px;line-height:19px;color:var(--testo-2);background:color-mix(in srgb,var(--superficie) 60%,transparent)}
+.avviso-proposte svg{flex-shrink:0;margin-top:2px;color:var(--testo-2)}
+.avviso-proposte+.proponi{margin-top:-4px}
+.invito-demo{display:flex;flex-direction:column;gap:10px;border:1px solid var(--linea);border-radius:16px;padding:14px;background:var(--superficie)}
+.invito-demo .tasto{align-self:flex-start}
+
+/* ===== Import da Excel ===== */
+.imp-righe{display:flex;flex-direction:column;gap:4px;font-size:13px;line-height:18px;max-height:220px;overflow:auto;border:1px solid var(--linea);border-radius:12px;padding:8px 10px}
+.imp-righe .no{color:var(--rosso)}
+.colonne{font-size:12px;line-height:18px;color:var(--testo-2)}
+.colonne b{color:var(--testo)}
+
+/* ===== 4 ottobre, sera ===== */
+/* Calendario: solo la scritta, fondo come gli altri controlli; largo quanto Off-Grid, sopra di lui */
+#app #btnCal{align-self:stretch;width:auto;height:48px;border-radius:16px;padding:0 14px;color:var(--verde);font-size:15px;font-weight:700;letter-spacing:.01em}
+#app #btnCal .cal-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#app #btnCal .num{right:-6px;top:-6px}
+[dir="rtl"] #app #btnCal .num{right:auto;left:-6px}
+
+/* strumenti di navigazione della mappa (zoom, schermo intero, posizione): in trasparenza */
+#app .lato .zoom,#app .lato #btnPieno:not([aria-pressed="true"]),#app .lato #btnGps{background:color-mix(in srgb,var(--superficie) 55%,transparent);border-color:color-mix(in srgb,var(--linea-forte) 45%,transparent);box-shadow:0 2px 8px -4px rgba(40,30,20,.25)}
+
+/* tempi: si agganciano all'inizio; quello tagliato sfuma via */
+.chips{scroll-snap-type:x mandatory;scroll-padding-inline-start:0}
+.chips>*{scroll-snap-align:start;transition:opacity .18s ease}
+.chips>.fuori{opacity:0;pointer-events:none}
+.riga-chips{position:relative}
+.chips-avanti{position:absolute;right:12px;top:4px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--testo-2);cursor:pointer;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:color-mix(in srgb,var(--superficie) 80%,transparent)!important}
+[dir="rtl"] .chips-avanti{right:auto;left:12px}
+[dir="rtl"] .chips-avanti svg{transform:scaleX(-1)}
+
+/* trattino: zona di presa larga, il pannello scorre */
+.maniglia-btn{width:100%;max-width:160px;height:26px}
+.foglio{transition:background-color .2s}
+.foglio.espanso{max-height:calc(100% - 8px);height:calc(100% - 8px)}
+/* regola generale: allargato perde la trasparenza, ridotto la riprende */
+.foglio.espanso,#app.muove .foglio.espanso{background:var(--superficie)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.foglio.espanso *{text-shadow:none!important}
+
+/* Strati: trasparenti ma leggibili (la mappa si intravede, le sue scritte no) */
+.foglio.leggero{background:color-mix(in srgb,var(--superficie) 68%,transparent);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#app.muove .foglio.leggero{background:color-mix(in srgb,var(--superficie) 86%,transparent);-webkit-backdrop-filter:none;backdrop-filter:none}
+.foglio.leggero .strati-lista,.foglio.leggero .riga-int,.foglio.leggero .seg{background:color-mix(in srgb,var(--superficie) 45%,transparent)}
+#app.muove .peek,.peek.vetro{-webkit-backdrop-filter:none;backdrop-filter:none;background:color-mix(in srgb,var(--superficie) 80%,transparent)}
+
+/* la freccina delle sottocategorie subito dopo il nome dello strato */
+.strato-riga .strato-on{flex:0 1 auto;padding-right:2px}
+.strato-riga .espandi{width:34px;flex-shrink:0}
+.strato-int{flex:1;min-height:56px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px 0 8px;background:none;border:0;cursor:pointer}
+[dir="rtl"] .strato-int{justify-content:flex-start;padding:0 8px 0 12px}
+.app.semplice .strato-riga .strato-on{flex:0 1 auto}
+
+/* schede: Salva in calendario in alto, sotto il titolo */
+.tasti-testa{margin-top:2px}
+
+/* modulo Proponi: l'avviso in verde, in cima */
+.avviso-proposte.verde{background:var(--verde);color:var(--su-verde);border:0;font-weight:600}
+.avviso-proposte.verde svg{color:var(--su-verde)}
+
+/* campo della barra dei nascosti: il tasto Sblocca non esce più dal riquadro sui telefoni stretti */
+#pw{min-width:0;width:100%}
+label.campo:has(#pw){min-width:0}
