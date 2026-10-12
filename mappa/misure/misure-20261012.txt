@@ -1,0 +1,99 @@
+Fonte: https://build.protomaps.com/20261012.pmtiles
+
+pmtiles spec version: 3
+tile type: mvt
+bounds: (long: -180.000000, lat: -85.051129) (long: 180.000000, lat: 85.051129)
+min zoom: 0
+max zoom: 15
+center: (long: 0.000000, lat: 0.000000)
+center zoom: 0
+addressed tiles count: 1431655765
+tile entries count: 178204798
+tile contents count: 136317102
+clustered: true
+internal compression: gzip
+tile compression: gzip
+vector_layers <object, use --metadata to view full JSON metadata>
+pgf:devanagari:version 1
+planetiler:buildtime 2026-03-28T14:41:39.524Z
+planetiler:githash 0e5588c4a6e8c29a270a33afe8df62027d889604
+planetiler:osm:osmosisreplicationtime 2026-10-12T04:00:00Z
+version 4.15.2
+attribution <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a>
+description Basemap layers derived from OpenStreetMap and Natural Earth
+name Protomaps Basemap
+pgf:devanagari:name NotoSansDevanagari-Regular
+planetiler:osm:osmosisreplicationseq 123429
+planetiler:osm:osmosisreplicationurl https://planet.osm.org/replication/hour/
+planetiler:version 0.10.2
+type baselayer
+web viewer: https://pmtiles.io/#url=https%3A%2F%2Fbuild.protomaps.com%2F20261012.pmtiles
+
+===== italia (z0-15) =====
+2026/10/12 16:33:46 extract.go:401: fetching 33 dirs, 33 chunks, 14 requests
+2026/10/12 16:33:50 extract.go:441: Region tiles 537123, result tile entries 528485
+2026/10/12 16:33:50 extract.go:450: fetching 528485 tiles, 2503 chunks, 149 requests
+2026/10/12 16:33:50 extract.go:606: Completed in 4.515710845s with 4 download threads (117032.51276852372 tiles/s).
+2026/10/12 16:33:50 extract.go:611: Extract required 166 total requests.
+2026/10/12 16:33:50 extract.go:612: Extract transferred 2.8 GB (overfetch 0.05) for an archive size of 2.7 GB
+
+===== nord (z0-15) =====
+2026/10/12 16:33:51 extract.go:401: fetching 18 dirs, 18 chunks, 10 requests
+2026/10/12 16:33:53 extract.go:441: Region tiles 230780, result tile entries 229793
+2026/10/12 16:33:53 extract.go:450: fetching 229793 tiles, 1514 chunks, 183 requests
+2026/10/12 16:33:53 extract.go:606: Completed in 2.577864775s with 4 download threads (89140.82468787595 tiles/s).
+2026/10/12 16:33:53 extract.go:611: Extract required 196 total requests.
+2026/10/12 16:33:53 extract.go:612: Extract transferred 1.5 GB (overfetch 0.05) for an archive size of 1.4 GB
+
+===== tre-regioni (z0-15) =====
+2026/10/12 16:33:53 extract.go:401: fetching 17 dirs, 17 chunks, 10 requests
+2026/10/12 16:33:55 extract.go:441: Region tiles 131654, result tile entries 131137
+2026/10/12 16:33:55 extract.go:450: fetching 131137 tiles, 1666 chunks, 333 requests
+2026/10/12 16:33:56 extract.go:606: Completed in 2.520762722s with 4 download threads (52022.744200791996 tiles/s).
+2026/10/12 16:33:56 extract.go:611: Extract required 346 total requests.
+2026/10/12 16:33:56 extract.go:612: Extract transferred 866 MB (overfetch 0.05) for an archive size of 824 MB
+
+===== piemonte (z0-15) =====
+2026/10/12 16:33:56 extract.go:401: fetching 12 dirs, 12 chunks, 9 requests
+2026/10/12 16:33:58 extract.go:441: Region tiles 50526, result tile entries 50525
+2026/10/12 16:33:58 extract.go:450: fetching 50525 tiles, 748 chunks, 186 requests
+2026/10/12 16:33:58 extract.go:606: Completed in 2.277981891s with 4 download threads (22179.71890094595 tiles/s).
+2026/10/12 16:33:58 extract.go:611: Extract required 198 total requests.
+2026/10/12 16:33:58 extract.go:612: Extract transferred 309 MB (overfetch 0.05) for an archive size of 294 MB
+2026/10/12 16:33:58 extract.go:401: fetching 11 dirs, 11 chunks, 9 requests
+2026/10/12 16:34:00 extract.go:441: Region tiles 1513, result tile entries 1513
+2026/10/12 16:34:00 extract.go:450: fetching 1513 tiles, 87 chunks, 48 requests
+fetching chunks   0% |                                   | ( 0 B/22 MB) [0s:0s]                                                                               fetching chunks   0% |                    | (2.2 kB/22 MB, 14 kB/s) [0s:27m40s]                                                                               fetching chunks  27% |███████                    | (6.0/22 MB, 26 MB/s) [0s:0s]                                                                               fetching chunks  38% |██████████                 | (8.5/22 MB, 29 MB/s) [0s:0s]                                                                               fetching chunks  44% |███████████                | (9.8/22 MB, 26 MB/s) [0s:0s]                                                                               fetching chunks  49% |█████████████               | (11/22 MB, 23 MB/s) [0s:0s]                                                                               fetching chunks  54% |███████████████             | (12/22 MB, 23 MB/s) [0s:0s]                                                                               fetching chunks  59% |████████████████            | (13/22 MB, 23 MB/s) [0s:0s]                                                                               fetching chunks  63% |█████████████████           | (14/22 MB, 23 MB/s) [0s:0s]                                                                               fetching chunks  67% |██████████████████          | (15/22 MB, 23 MB/s) [0s:0s]                                                                               fetching chunks  72% |████████████████████        | (16/22 MB, 23 MB/s) [0s:0s]                                                                               fetching chunks  74% |████████████████████        | (16/22 MB, 16 MB/s) [1s:0s]                                                                               fetching chunks  76% |█████████████████████       | (17/22 MB, 16 MB/s) [1s:0s]                                                                               fetching chunks  80% |██████████████████████      | (18/22 MB, 16 MB/s) [1s:0s]                                                                               fetching chunks  84% |███████████████████████     | (18/22 MB, 16 MB/s) [1s:0s]                                                                               fetching chunks  84% |███████████████████████     | (19/22 MB, 16 MB/s) [1s:0s]                                                                               fetching chunks  86% |████████████████████████    | (19/22 MB, 16 MB/s) [1s:0s]                                                                               fetching chunks  88% |████████████████████████    | (19/22 MB, 13 MB/s) [1s:0s]                                                                               fetching chunks  89% |████████████████████████    | (20/22 MB, 13 MB/s) [1s:0s]                                                                               fetching chunks  90% |█████████████████████████   | (20/22 MB, 13 MB/s) [1s:0s]                                                                               fetching chunks  92% |█████████████████████████   | (20/22 MB, 13 MB/s) [1s:0s]                                                                               fetching chunks  93% |██████████████████████████  | (21/22 MB, 13 MB/s) [1s:0s]                                                                               fetching chunks  94% |██████████████████████████  | (21/22 MB, 10 MB/s) [2s:0s]                                                                               fetching chunks  95% |██████████████████████████  | (21/22 MB, 10 MB/s) [2s:0s]                                                                               fetching chunks  96% |██████████████████████████  | (21/22 MB, 10 MB/s) [2s:0s]                                                                               fetching chunks  98% |███████████████████████████ | (22/22 MB, 10 MB/s) [2s:0s]                                                                               fetching chunks  98% |███████████████████████████ | (22/22 MB, 10 MB/s) [2s:0s]                                                                               fetching chunks 100% |███████████████████████████| (22/22 MB, 8.8 MB/s)
+2026/10/12 16:34:03 extract.go:606: Completed in 4.87208316s with 4 download threads (310.54477696186643 tiles/s).
+2026/10/12 16:34:03 extract.go:611: Extract required 60 total requests.
+2026/10/12 16:34:03 extract.go:612: Extract transferred 23 MB (overfetch 0.05) for an archive size of 22 MB
+
+===== torino (file estratto) =====
+-rw-r--r-- 1 runner runner 21992856 Oct 12 16:34 mappa/torino.pmtiles
+pmtiles spec version: 3
+tile type: mvt
+bounds: (long: 7.500000, lat: 44.950000) (long: 7.850000, lat: 45.200000)
+min zoom: 0
+max zoom: 15
+center: (long: 7.675000, lat: 45.075000)
+center zoom: 0
+addressed tiles count: 1513
+tile entries count: 1513
+tile contents count: 1513
+clustered: true
+internal compression: gzip
+tile compression: gzip
+planetiler:version 0.10.2
+version 4.15.2
+attribution <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a>
+description Basemap layers derived from OpenStreetMap and Natural Earth
+name Protomaps Basemap
+pgf:devanagari:name NotoSansDevanagari-Regular
+pgf:devanagari:version 1
+planetiler:githash 0e5588c4a6e8c29a270a33afe8df62027d889604
+planetiler:osm:osmosisreplicationurl https://planet.osm.org/replication/hour/
+type baselayer
+vector_layers <object, use --metadata to view full JSON metadata>
+planetiler:buildtime 2026-03-28T14:41:39.524Z
+planetiler:osm:osmosisreplicationseq 123429
+planetiler:osm:osmosisreplicationtime 2026-10-12T04:00:00Z
