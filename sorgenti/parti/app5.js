@@ -431,7 +431,7 @@ function vaiSezione(s, daNav){
 function applicaTema(t){
   document.documentElement.setAttribute('data-theme', t); LS.set('agorapp_theme', t);
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', t==='dark' ? '#211D18' : '#FFFDF8');
-  tingi(); if(map && mappaOk){ try{ map.updateImage('agr-tratteggio', immagineTratteggio()); map.setPaintProperty('agr-vuoti-bordo','line-color', t==='dark'?'#B5A998':'#5C5246'); }catch(e){} }
+  aggiornaStileMappa(); if(map && mappaOk){ try{ map.updateImage('agr-tratteggio', immagineTratteggio()); map.setPaintProperty('agr-vuoti-bordo','line-color', t==='dark'?'#B5A998':'#5C5246'); }catch(e){} }
   if(modoGiornata()) disegnaPins();
 }
 function testiFissi(){
