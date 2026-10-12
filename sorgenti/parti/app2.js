@@ -84,14 +84,29 @@ function fonteMappa(){
   return {type:'vector', tiles:[MAPPA_BASE+'torino/{z}/{x}/{y}.pbf'], minzoom:0, maxzoom:15, bounds:MAPPA_BBOX};
 }
 function stileVuoto(t){ return {version:8, sources:{}, layers:[{id:'sfondo', type:'background', paint:{'background-color': t==='dark' ? '#211D18' : '#FFFDF8'}}]}; }
-function segnaFonte(){ const a = $('attrib-prova'); if(a) a.textContent = mappaFonte==='file' ? ' · prova: file unico' : ' · prova: tasselli'; }
+/* Oggetti della mappa (punti di interesse) che si vedono: SOLO quelli in questo elenco, decisi da Lorenzo.
+   Tutto ciò che non è qui (negozi, bar, ristoranti, e qualunque classe nuova nei dati) resta nascosto. */
+const OGGETTI_VISIBILI = ['park','garden','forest','beach','marina','peak','zoo','animal','station','bus_stop','ferry_terminal','aerodrome',
+  'stadium','university','library','school','townhall','post_office','museum','theatre','attraction','artwork','building',
+  'toilets','drinking_water','bench'];
+/* Stile della mappa: «carta» (predefinito, segue il tema). Per il confronto, solo su questo ramo: ?mappa=standard|white|grayscale|black */
+const STILE_SCELTO = (() => { try{ const v = new URLSearchParams(location.search).get('mappa'); return ['standard','white','grayscale','black'].includes(v) ? v : 'carta'; }catch(e){ return 'carta'; } })();
+function nomeStile(t){
+  if(STILE_SCELTO==='carta') return t==='dark' ? 'carta-scuro' : 'carta-chiaro';
+  if(STILE_SCELTO==='standard') return t==='dark' ? 'dark' : 'light';
+  return STILE_SCELTO;
+}
+function soloOggettiScelti(livelli){
+  return livelli.map(l => l.id==='pois' ? Object.assign({}, l, {filter:['all', ['in', ['get','kind'], ['literal', OGGETTI_VISIBILI]], ['>=', ['zoom'], ['get','min_zoom']]]}) : l);
+}
+function segnaFonte(){ const a = $('attrib-prova'); if(a) a.textContent = ' · prova: '+(mappaFonte==='file' ? 'file unico' : 'tasselli')+' · '+STILE_SCELTO; }
 async function aggiornaStileMappa(forza){
-  if(!map) return; const t = temaAttuale(); if(!forza && temaMappa===t) return; temaMappa = t;
+  if(!map) return; const t = temaAttuale(), n = nomeStile(t); if(!forza && temaMappa===n) return; temaMappa = n;
   try{
-    if(!stiliMappa[t]){ const r = await fetch(MAPPA_BASE+'stile-'+(t==='dark'?'scuro':'chiaro')+'.json'); if(!r.ok) throw new Error('stile '+r.status); stiliMappa[t] = await r.json(); }
-    if(temaMappa!==t) return;
-    map.setStyle({version:8, glyphs:MAPPA_BASE+'caratteri/{fontstack}/{range}.pbf', sprite:MAPPA_BASE+'icone/'+(t==='dark'?'dark':'light'),
-      sources:{protomaps:fonteMappa()}, layers:stiliMappa[t]}, {diff:false});
+    if(!stiliMappa[n]){ const r = await fetch(MAPPA_BASE+'stile-'+n+'.json'); if(!r.ok) throw new Error('stile '+r.status); stiliMappa[n] = soloOggettiScelti(await r.json()); }
+    if(temaMappa!==n) return;
+    map.setStyle({version:8, glyphs:MAPPA_BASE+'caratteri/{fontstack}/{range}.pbf', sprite:MAPPA_BASE+'icone/'+(/dark|scuro|black/.test(n)?'dark':'light'),
+      sources:{protomaps:fonteMappa()}, layers:stiliMappa[n]}, {diff:false});
     segnaFonte();
   }catch(e){ temaMappa = null; }
 }
