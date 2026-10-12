@@ -1,0 +1,55 @@
+# Prova mappa Protomaps (solo ramo mappa-protomaps, non va su main).
+# Misura il peso del file mappa per Italia, Nord, 3 regioni e Piemonte (senza scaricarli)
+# e mette nel ramo l'area di Torino, per la prova sul telefono.
+name: Mappa Protomaps - misura ed estrazione
+on:
+  push:
+    branches: [mappa-protomaps]
+    paths: ['.github/workflows/mappa-protomaps.yml', 'mappa/aree/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: mappa-protomaps
+jobs:
+  mappa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Strumento pmtiles
+        run: |
+          go install github.com/protomaps/go-pmtiles@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Ultima mappa del mondo di Protomaps
+        run: |
+          for i in $(seq 0 30); do
+            D=$(date -u -d "-$i day" +%Y%m%d)
+            if curl -sfI "https://build.protomaps.com/$D.pmtiles" >/dev/null; then echo "BUILD=$D" >> "$GITHUB_ENV"; echo "trovata $D"; break; fi
+          done
+      - name: Misure e area di Torino
+        run: |
+          set -e
+          U="https://build.protomaps.com/$BUILD.pmtiles"
+          mkdir -p mappa/misure
+          M="mappa/misure/misure-$BUILD.txt"
+          { echo "Fonte: $U"; echo; go-pmtiles show "$U"; } > "$M" 2>&1
+          for a in italia nord tre-regioni piemonte; do
+            { echo; echo "===== $a (z0-15) ====="; go-pmtiles extract "$U" /tmp/x.pmtiles --region="mappa/aree/$a.geojson" --dry-run; } >> "$M" 2>&1
+          done
+          go-pmtiles extract "$U" mappa/torino.pmtiles --bbox=7.50,44.95,7.85,45.20 >> "$M" 2>&1
+          { echo; echo "===== torino (file estratto) ====="; ls -l mappa/torino.pmtiles; go-pmtiles show mappa/torino.pmtiles; } >> "$M" 2>&1
+          cat "$M"
+          S=$(stat -c %s mappa/torino.pmtiles)
+          if [ "$S" -gt 95000000 ]; then echo "torino.pmtiles troppo grande per GitHub ($S byte): non lo salvo" >> "$M"; rm mappa/torino.pmtiles; fi
+      - name: Salva nel ramo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git add mappa
+          git commit -m "Mappa Protomaps: misure e area di Torino ($BUILD)" || exit 0
+          git pull --rebase origin mappa-protomaps
+          git push origin HEAD:mappa-protomaps
