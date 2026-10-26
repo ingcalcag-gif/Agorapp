@@ -57,13 +57,14 @@ function forma(tipo, strato, s, ist){
 
 /* ---------- Città e zone (v104) ---------- */
 const CITTA = [
+  {id:'milano', n:'Milano', h:'Prova del 26 ottobre', center:[45.4700,9.1830], zoom:12.2},
   {id:'torino', n:'Torino', center:[45.0703,7.6869], zoom:13.3},
   {id:'venezia', n:'Venezia', center:[45.4380,12.3358], zoom:13.3},
   {id:'fipili', n:'Fi-Pi-Li', h:'Firenze · Pisa · Livorno', bounds:[[10.28,43.52],[11.30,43.83]]},
   {id:'bologna', n:'Bologna', center:[44.4939,11.3428], zoom:13.3},
   {id:'parmerina', n:'Piazza Armerina', center:[37.3847,14.3686], zoom:14.3}
 ];
-let citta = (function(){ const c = LS.s('agorapp_city','torino'); return CITTA.find(x=>x.id===c) ? c : 'torino'; })();
+let citta = 'milano'; /* ramo di prova: si apre sempre su Milano */
 const cittaObj = () => CITTA.find(x => x.id===citta) || CITTA[0];
 
 /* ---------- Mappa vera: CARTO vettoriale con MapLibre, tinta con i colori carta ---------- */
