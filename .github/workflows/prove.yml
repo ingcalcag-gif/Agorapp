@@ -1,0 +1,22 @@
+# Prove automatiche (voce T-005 del piano di adeguamento): a ogni invio su qualunque ramo.
+# Usano soltanto il codice del repository e dati inventati; nessuna prova contatta servizi esterni.
+name: Prove
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Strumenti delle prove (Playwright e axe-core, solo per le prove)
+        working-directory: prove
+        run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
+      - name: Prove
+        run: node prove/esegui.js --tutte --dettagli

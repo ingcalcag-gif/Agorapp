@@ -44,6 +44,15 @@ Non sono componenti distribuiti con l'app: il telefono li contatta direttamente.
 | --- | --- | --- | --- | --- |
 | Elenco dei comuni italiani (Istat, elenco Situas di giugno 2025), `dati/comuni.json` | Funzione Netlify dei pulsanti volontari; dal 17/11/2026 (T-003) il sito non lo pubblica più | Creative Commons Attribuzione 4.0 | Indicare la fonte («Elenco dei comuni: Istat, licenza CC BY 4.0», oggi nel testo dell'app) | Esce con T-010 |
 
+## Strumenti usati solo nelle prove
+
+Stanno in `prove/package.json`, servono alle prove automatiche (T-005) e non vanno mai nell'app.
+
+| Strumento | Versione | Licenza | Uso |
+| --- | --- | --- | --- |
+| Playwright | 1.63.0 | Apache 2.0 | Apre l'app in un Chromium senza finestra, con le misure di un telefono |
+| axe-core | 4.14.1 | Mozilla Public License 2.0 | Controllo automatico dell'accessibilità (WCAG 2.1 A e AA) |
+
 ## Note del controllo del 17/11/2026
 
 - I testi delle licenze di MapLibre GL JS, jsPDF e SheetJS vengono dai pacchetti npm delle versioni indicate; quelli di DM Sans e DM Serif Display dal file `OFL.txt` del repository di Google Fonts; quelli di PMTiles e Protomaps basemaps dal repository di Protomaps; il testo dell'ODbL 1.0 dall'elenco SPDX. Gli avvisi contenuti nel file di jsPDF sono estratti dal file `jspdf.umd.min.js` della versione 2.5.1.

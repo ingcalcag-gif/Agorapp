@@ -16,6 +16,10 @@ window.AGR_CONFIG = {
   "archivio": "",
   "ricerca_indirizzi": "https://photon.komoot.io"
  },
+ "collegamenti": [
+  "https://www.openstreetmap.org/copyright",
+  "https://www.garanteprivacy.it"
+ ],
  "testi": {
   "legali_in_app": {
    "versione": "1.2",

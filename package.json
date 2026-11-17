@@ -3,8 +3,10 @@
   "private": true,
   "description": "Web-app della mappa degli eventi: sorgenti in sorgenti/, uscite montate in dist/ (pubblica e redazione).",
   "scripts": {
-    "build": "node sorgenti/build.js",
-    "build:prova-nome": "node sorgenti/build.js --nome=Nomeprova --uscita=dist/prova-nome --solo=pubblica"
+    "build": "node sorgenti/build.js && node sorgenti/build.js --nome=Nomeprova --uscita=dist/prova-nome --solo=pubblica && node prove/esegui.js --statiche",
+    "build:prova-nome": "node sorgenti/build.js --nome=Nomeprova --uscita=dist/prova-nome --solo=pubblica",
+    "test": "node prove/esegui.js",
+    "prove:installa": "cd prove && npm ci && npx playwright install chromium"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.3"

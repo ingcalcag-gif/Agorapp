@@ -1,0 +1,42 @@
+/* Prova: le uscite in dist/ sono quelle che i sorgenti producono, e il sito pubblica soltanto dist/pubblica/
+   (voci T-001 e T-003). Le uscite stanno nel repository perché githack e il sito le leggono così come sono:
+   se qualcuno cambia un sorgente senza rimontare, o tocca un'uscita a mano, la prova se ne accorge. */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { RADICE, leggiUscita, esito, eseguiDaSola } = require('./comune.js');
+const { monta, configurazione } = require('../sorgenti/build.js');
+const { fileLicenze } = require('../sorgenti/licenze.js');
+
+function confrontaUscita(e, nome, atteso) {
+  const reale = leggiUscita(nome);
+  if (!Object.keys(reale).length) { e.errori.push(`dist/${nome}/ manca: lancia npm run build`); return; }
+  for (const f of Object.keys(atteso)) {
+    if (!(f in reale)) e.errori.push(`dist/${nome}/${f} manca: rimonta con npm run build`);
+    else if (reale[f] !== atteso[f]) e.errori.push(`dist/${nome}/${f} è diverso da ciò che producono i sorgenti: rimonta con npm run build (le uscite non si modificano a mano)`);
+  }
+  for (const f of Object.keys(reale)) if (!(f in atteso)) e.errori.push(`dist/${nome}/${f}: file che il montaggio non produce; toglilo`);
+}
+
+function prova() {
+  const e = esito('Uscite e pubblicazione');
+  const cfg = configurazione();
+  const file = { ...monta(cfg), ...fileLicenze(cfg) };
+  confrontaUscita(e, 'pubblica', file);
+  confrontaUscita(e, 'redazione', file);
+  if (fs.existsSync(path.join(RADICE, 'dist', 'prova-nome'))) {
+    const c2 = { ...cfg, nome: 'Nomeprova' };
+    confrontaUscita(e, 'prova-nome/pubblica', { ...monta(c2), ...fileLicenze(c2) });
+  }
+
+  // Il sito pubblica soltanto dist/pubblica/ (T-003).
+  const toml = fs.readFileSync(path.join(RADICE, 'netlify.toml'), 'utf8');
+  const pub = (toml.match(/^\s*publish\s*=\s*"([^"]*)"/m) || [])[1];
+  if (pub !== 'dist/pubblica') e.errori.push(`netlify.toml pubblica «${pub}» invece di «dist/pubblica»`);
+  for (const f of Object.keys(leggiUscita('pubblica')))
+    if (/^(versioni|demo|dati|sorgenti|prove|netlify|licenze\/.*\.md)\b/.test(f) || /\.(md|xlsx?|csv|geojson)$/.test(f)) e.errori.push(`dist/pubblica/${f}: non deve andare sul sito`);
+  return e;
+}
+
+module.exports = { prova };
+eseguiDaSola(module, prova);

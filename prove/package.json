@@ -1,0 +1,9 @@
+{
+  "name": "prove-app",
+  "private": true,
+  "description": "Strumenti usati soltanto dalle prove automatiche nel browser: non vanno nell'app.",
+  "devDependencies": {
+    "axe-core": "4.14.1",
+    "playwright": "1.63.0"
+  }
+}

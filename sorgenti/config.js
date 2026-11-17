@@ -38,6 +38,13 @@ module.exports = {
     ricerca_indirizzi: 'https://photon.komoot.io', // Photon (komoot, Germania), § 2.4
   },
 
+  // Pagine esterne che l'app apre soltanto al tocco della persona: il telefono non le contatta da sé.
+  // La prova degli indirizzi (prove/indirizzi.js) ammette nell'app solo questi e gli indirizzi qui sopra.
+  collegamenti: [
+    'https://www.openstreetmap.org/copyright', // avviso di provenienza della mappa (§ 6.6; § 31.1)
+    'https://www.garanteprivacy.it',           // autorità di controllo, nei testi legali
+  ],
+
   // Versioni dei testi pubblicati. data = anno e mese (AAAA-MM).
   testi: {
     // Informativa, «Dati locali» e avvertenze oggi dentro l'app (modelli di parti/legali_it.html).

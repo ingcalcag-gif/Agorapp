@@ -15,7 +15,7 @@ Il sito pubblica soltanto `dist/pubblica/` (lo dice `netlify.toml`). Versioni ar
 
 In ogni uscita la pagina `index.html` richiama file propri: `config.js`, `app.css`, `traduzioni.js`, `app.js`, `sezioni.js`. Nessun codice JavaScript e nessun foglio di stile stanno dentro la pagina, così le intestazioni di sicurezza potranno accettare soltanto file dello stesso indirizzo. Ogni collegamento porta un numero di versione ricavato dal contenuto (`app.js?v=…`), perché il telefono non tenga copie vecchie.
 
-Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`node --check`): se un file ha un errore, il comando si ferma e lo dice.
+Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`node --check`): se un file ha un errore, il comando si ferma e lo dice. `npm run build` monta anche la copia «Nomeprova» e lancia le prove statiche (`prove/`, vedi `prove/LEGGIMI.md`): se una prova non è superata, il comando finisce con un errore.
 
 **Le uscite non si modificano a mano**: si cambiano i sorgenti e si rimonta. Le uscite stanno nel repository perché il collegamento di prova (githack) e il sito le leggono così come sono.
 
@@ -33,7 +33,9 @@ Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`
 - I valori tra parentesi quadre (per esempio `[casella di contatto]`) sono segnaposto: l'app li mostra come testo, senza collegamento.
 - Le chiavi interne della memoria del telefono (`agorapp_…`) non sono visibili e restano come sono.
 
-Copia di prova con un altro nome: `npm run build:prova-nome` scrive `dist/prova-nome/pubblica/` con il nome «Nomeprova». Serve solo a provare che il nome cambia ovunque; il sito non la pubblica.
+Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prova-nome`) scrive `dist/prova-nome/pubblica/` con il nome «Nomeprova». Serve solo a provare che il nome cambia ovunque; il sito non la pubblica. La prova `prove/nome.js` fallisce se il nome compare scritto fuori da `config.js`.
+
+`config.js` contiene anche gli indirizzi che l'app può nominare: `indirizzi` (servizi che il telefono contatta) e `collegamenti` (pagine che apre solo al tocco). La prova `prove/indirizzi.js` fallisce se nell'app compare un altro indirizzo esterno.
 
 ## I pezzi
 
