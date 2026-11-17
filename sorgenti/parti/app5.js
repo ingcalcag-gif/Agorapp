@@ -7,14 +7,14 @@ function fImpostazioni(){
   const corpo = `
     <section class="sezione"><div class="tipo">${tr('Aspetto')}</div><div class="seg" role="group"><button data-tema-set="light" aria-pressed="${!scuro}">${tr('Chiaro')}</button><button data-tema-set="dark" aria-pressed="${scuro}">${tr('Scuro')}</button></div>
       <button class="riga-int" data-az="semplice" aria-pressed="${st.semplice}"><div><span class="t">${tr('Modalità semplice')}</span><span class="meta">${tr('Testi più grandi e meno comandi: niente sottocategorie e combinazioni.')}</span></div><span class="interr" aria-hidden="true"></span></button></section>
-    <section class="sezione" id="sez-demo"><div class="tipo">${tr('Prova Agorapp')}</div>${bloccoDemo()}</section>
+    <section class="sezione" id="sez-demo"><div class="tipo">${tr('Prova {nome}')}</div>${bloccoDemo()}</section>
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
     <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
       <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Conforme GDPR · v1.2 · marzo 2026')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button></div>
-      <p class="meta">${tr('Scrivici')}: <a class="mail" href="mailto:info@agorapp.it">info@agorapp.it</a></p></section>
+      <p class="meta">${tr('Scrivici')}: ${casellaHtml('mail')}</p></section>
     <section class="sezione"><div class="tipo">${tr('Area riservata')}</div>
       ${st.admin ? `<button class="riga-int" data-az="admin"><div><span class="t">${tr('Sei in modalità admin')}</span><span class="meta">${tr('Eventi on-grid, importa ed esporta in Excel, esci')}</span></div>${freccia}</button>`
         : st.adminPw ? `<div style="display:flex;gap:8px"><label class="campo${st.adminErr?' errore':''}" style="flex:1"><input id="adminpw" type="password" placeholder="${esc(tr('Password admin'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="entra-admin">${tr('Entra')}</button></div>${st.adminErr?`<span class="err">${tr('Password non riconosciuta.')}</span>`:''}`
@@ -24,7 +24,7 @@ function fImpostazioni(){
 function fLegale(){
   const T = {privacy:tr('Informativa privacy'), storage:tr('Dati locali'), disclaimer:tr('Note legali')};
   const testo = (lang!=='it' && LEGALI[lang] && LEGALI[lang][st.legale]) || ($('leg-'+st.legale) ? $('leg-'+st.legale).innerHTML : '');
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Documenti legali')}</h2><p class="meta">Agorapp · Torino · Lorenzo Calcagno · <a class="mail" href="mailto:info@agorapp.it">info@agorapp.it</a></p></div>${chiudiBtn('indietro-impostazioni')}</div>
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Documenti legali')}</h2><p class="meta">${esc(NOME)} · Torino · ${esc(CFG.titolare || '')} · ${casellaHtml('mail')}</p></div>${chiudiBtn('indietro-impostazioni')}</div>
     <div class="seg" role="tablist">${Object.entries(T).map(([k,l]) => `<button data-legale="${k}" aria-pressed="${st.legale===k}" role="tab">${l}</button>`).join('')}</div>`;
   const corpo = `<div class="legale">${testo}</div>
     <p class="meta">Ai sensi degli artt. 12–13 Reg. UE 2016/679 (GDPR) · D.Lgs. 196/2003 mod. D.Lgs. 101/2018 · Provvedimento Garante 10 giugno 2021 · v1.2 · Marzo 2026</p>`;
@@ -33,13 +33,13 @@ function fLegale(){
 function fCitta(){
   const testa = `<div class="riga-titolo"><div><h2>${tr('Città e zone')}</h2><p class="meta">${tr('Zone con più eventi sulla mappa')}</p></div>${chiudiBtn()}</div>`;
   const corpo = `<div class="menu-lista">${CITTA.map(c => `<button class="menu-r${c.id===citta?' on':''}" data-citta="${c.id}"><div><span class="t">${esc(c.n)}</span>${c.h?`<span class="meta">${esc(c.h)}</span>`:''}</div>${c.id===citta?`<span style="color:var(--verde)">${spunta()}</span>`:''}</button>`).join('')}</div>
-    <p class="meta">${tr('La città scelta resta su questo telefono. Il logo Agorapp riporta sempre alla vista della città.')}</p>
+    <p class="meta">${tr('La città scelta resta su questo telefono. Il logo {nome} riporta sempre alla vista della città.')}</p>
     ${bloccoCittaVoglio()}`;
   return foglio('forte alto', testa, corpo);
 }
 function applicaCitta(id, anima){
   citta = CITTA.find(x => x.id===id) ? id : 'torino'; LS.set('agorapp_city', citta);
-  $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = 'Agorapp — '+cittaObj().n;
+  $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n;
   vaiCitta(anima);
 }
 
@@ -54,7 +54,7 @@ function fAdmin(){
       <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono, senza la demo')}</span></div>${freccia}</button></div>
     <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo telefono') : tr('{n} operazioni registrate su questo telefono',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo telefono'))(storico().length)}</span></div>${freccia}</button>
     <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
-    <p class="meta">${tr('La demo ora è per tutti: Impostazioni → Prova Agorapp.')}</p>
+    <p class="meta">${tr('La demo ora è per tutti: Impostazioni → Prova {nome}.')}</p>
     ${st.demoMsg?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.demoMsg)}</p>`:''}
     ${st.eliminati.length?`<p class="meta">${tr('Eliminati in questa sessione: {n}.',{n:st.eliminati.length})} <button class="link" style="min-height:32px" data-az="ripristina">${tr('Ripristina')}</button></p>`:''}
     <p class="meta">${tr('In modalità admin ogni scheda evento ha «Modifica» ed «Elimina».')}</p>
@@ -90,7 +90,7 @@ function ridisegnaSezioni(){
 /* il blocco della demo nelle Impostazioni: un solo tasto, Carica o Togli */
 function bloccoDemo(){
   const nDemo = events.filter(e => e.demo).length, on = !!(DEMO || nDemo);
-  return `<p class="meta">${on ? tr('{n} eventi d’esempio su questo telefono, con progetti e istanze. I tuoi eventi restano.',{n:nDemo}) : tr('Eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: per vedere come funziona Agorapp. Restano solo su questo telefono.')}</p>
+  return `<p class="meta">${on ? tr('{n} eventi d’esempio su questo telefono, con progetti e istanze. I tuoi eventi restano.',{n:nDemo}) : tr('Eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: per vedere come funziona {nome}. Restano solo su questo telefono.')}</p>
     <button class="tasto ${on?'sec':'pri'} pieno" data-az="demo">${on ? croce + tr('Togli la demo') : icoDemo + tr('Carica la demo')}</button>
     ${st.demoMsg?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.demoMsg)}</p>`:''}`;
 }
@@ -216,7 +216,7 @@ function leggiImportJson(file){
     try{ const d = JSON.parse(e.target.result), imp = Array.isArray(d) ? d : (d.events||[]); const ids = new Set(events.map(x => x.id));
       const ok = imp.filter(x => x && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime);
       st.importa = {fase:'pronto', tot:imp.length, ok, scarti:[], avvisi:[], json:true}; apri('importa');
-    }catch(err){ st.demoMsg = tr('Il file non si legge: controlla che sia un JSON di Agorapp.'); apri('admin'); }
+    }catch(err){ st.demoMsg = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
   };
   r.readAsText(file);
 }
@@ -259,13 +259,13 @@ function scaricaModello(){
     ['Obbligatori: Titolo, Strato, Data, Ora inizio, e Indirizzo oppure Latitudine e Longitudine.'],
     ['Strato e Sottostrato: scrivili come nel foglio «Strati».'],
     ['Data: una data (05/11/2026). Ora inizio e Ora fine: 18:30.'],
-    ['Indirizzo: via, numero civico e città. Se mancano le coordinate, Agorapp cerca l’indirizzo da sé (uno al secondo).'],
+    ['Indirizzo: via, numero civico e città. Se mancano le coordinate, '+NOME+' cerca l’indirizzo da sé (uno al secondo).'],
     ['Nascosto: sì o no. Se sì, serve la Password per sbloccarlo.'],
     ['Provenienza (facoltativa): «Consenso diretto» se l’organizzatore ti ha dato il consenso, «Fonte pubblica» se l’evento viene da un sito o una pagina pubblica. Serve alle Misure.'],
     ['Gli eventi già passati, o che ci sono già, non vengono importati.'],
     ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx.']];
-  fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], 'agorapp-modello-eventi.xlsx')
-    .then(() => { st.demoMsg = tr('Modello scaricato: agorapp-modello-eventi.xlsx'); disegnaFoglio(); })
+  fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], nomeFile()+'-modello-eventi.xlsx')
+    .then(() => { st.demoMsg = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
     .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 function esportaExcel(){
@@ -341,10 +341,10 @@ function salvaAdmin(){
 
 /* ======================= Guida alla prima apertura ======================= */
 const GUIDA = () => [
-  {t:tr('Benvenuto su Agorapp'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
+  {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
   {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid», o tenendo premuto un punto della mappa, aggiungi un tuo evento. Resta solo su questo telefono.'), el:'btnNuovo'},
-  {t:tr('Prova la demo'), d:tr('La demo riempie Agorapp di eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: serve a vedere come funziona. Gli eventi della demo sono tutti a Torino. Restano solo su questo telefono e i tuoi eventi non si toccano.')+' '+tr('Si accende e si spegne quando vuoi da Impostazioni → Prova Agorapp.'), el:'btnImpo', demo:true}
+  {t:tr('Prova la demo'), d:tr('La demo riempie {nome} di eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: serve a vedere come funziona. Gli eventi della demo sono tutti a Torino. Restano solo su questo telefono e i tuoi eventi non si toccano.')+' '+tr('Si accende e si spegne quando vuoi da Impostazioni → Prova {nome}.'), el:'btnImpo', demo:true}
 ];
 /* ultimo cartellino: la demo, con la scelta subito */
 function tastiGuidaDemo(){
@@ -438,7 +438,7 @@ function testiFissi(){
   document.documentElement.lang = lang; document.documentElement.dir = lang==='ar' ? 'rtl' : 'ltr';
   document.querySelectorAll('[data-t]').forEach(el => { el.textContent = tr(el.getAttribute('data-t')); });
   $('cercaLbl').textContent = tr('Cerca eventi, luoghi, indirizzi');
-  $('btnHome').setAttribute('aria-label', tr('Agorapp: torna alla vista della città'));
+  $('btnHome').setAttribute('aria-label', tr('{nome}: torna alla vista della città'));
   $('btnCitta').setAttribute('aria-label', tr('Scegli città o zona'));
   $('btnImpo').setAttribute('aria-label', tr('Impostazioni'));
   $('btnGps').setAttribute('aria-label', tr('Mostra dove sono'));

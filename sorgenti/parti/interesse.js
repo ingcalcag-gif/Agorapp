@@ -1,9 +1,9 @@
 /* ======================= Pulsanti volontari (Misure, tranche 2 · 6 ottobre 2026) =======================
-   «Mi interessa» nelle anteprime di Agorà e Progetti, «Vorrei Agorapp qui» nella scelta della città.
+   «Mi interessa» nelle anteprime di Agorà e Progetti, «Vorrei … qui» nella scelta della città.
    Parte qualcosa SOLO quando la persona tocca il tasto: la scelta (es. {voce:'agora'}) e nient'altro, senza cookie,
    senza credenziali, senza referrer. La funzione Netlify somma +1 e non salva l'IP. Questo telefono ricorda solo
    che il tasto è stato toccato (chiave agorapp_interesse), per non chiederlo di nuovo. */
-const API_INTERESSE = (/(^|\.)netlify\.app$|(^|\.)agorapp\.it$/.test(location.hostname) ? '' : 'https://melodic-custard-8a668b.netlify.app') + '/api/interesse';
+const API_INTERESSE = (/(^|\.)netlify\.app$/.test(location.hostname) || location.origin === (CFG.indirizzi || {}).app_pubblica ? '' : (CFG.indirizzi || {}).app_pubblica) + '/api/interesse';
 /* Tutti i 7.896 comuni italiani (Istat, elenco Situas di giugno 2025, licenza CC BY 4.0), come «Nome (PR)».
    Il file si scarica dal sito solo quando la persona tocca il campo di ricerca, e una volta sola. */
 const COMUNI = {lista:null, norm:null, carico:null, scelto:''};
@@ -40,7 +40,7 @@ function bloccoCittaVoglio(){
     ${c ? `<p class="interesse-ok" role="status">${spuntaInt}<span>${tr('Segnato: +1 per {c}. Grazie.',{c:esc(c==='Altra'?tr('Altra città'):c)})}</span></p>`
       : `<div class="interesse-cerca"><label class="sr-only" for="int-citta-q">${tr('Cerca il tuo comune')}</label><span class="campo"><input id="int-citta-q" type="search" autocomplete="off" spellcheck="false" maxlength="60" placeholder="${esc(tr('Scrivi il nome del tuo comune'))}" aria-describedby="int-citta-n"></span>
         <div class="interesse-esiti" id="int-citta-l"></div><p class="meta" id="int-citta-n" aria-live="polite"></p>
-        <button class="tasto sec" data-interesse="citta">${tr('Vorrei Agorapp qui')}</button></div><p class="meta interesse-err" role="status"></p>`}
+        <button class="tasto sec" data-interesse="citta">${tr('Vorrei {nome} qui')}</button></div><p class="meta interesse-err" role="status"></p>`}
     <p class="meta">${tr('Arriva a noi solo il nome del comune che scegli dall’elenco, con un +1. Niente posizione, niente nome, niente email.')} ${tr('Elenco dei comuni: Istat, licenza CC BY 4.0.')}</p></section>`;
 }
 document.addEventListener('click', ev => {

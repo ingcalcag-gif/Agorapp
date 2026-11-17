@@ -11,11 +11,23 @@ Il montaggio legge soltanto i file di `sorgenti/` e scrive due uscite:
 - `dist/pubblica/`: l'app pubblica, la sola cartella che il sito pubblica;
 - `dist/redazione/`: l'app della redazione. Fino al blocco 8 del piano di adeguamento è uguale alla pubblica.
 
-In ogni uscita la pagina `index.html` richiama file propri: `app.css`, `traduzioni.js`, `app.js`, `sezioni.js`. Nessun codice JavaScript e nessun foglio di stile stanno dentro la pagina, così le intestazioni di sicurezza potranno accettare soltanto file dello stesso indirizzo. Ogni collegamento porta un numero di versione ricavato dal contenuto (`app.js?v=…`), perché il telefono non tenga copie vecchie.
+In ogni uscita la pagina `index.html` richiama file propri: `config.js`, `app.css`, `traduzioni.js`, `app.js`, `sezioni.js`. Nessun codice JavaScript e nessun foglio di stile stanno dentro la pagina, così le intestazioni di sicurezza potranno accettare soltanto file dello stesso indirizzo. Ogni collegamento porta un numero di versione ricavato dal contenuto (`app.js?v=…`), perché il telefono non tenga copie vecchie.
 
 Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`node --check`): se un file ha un errore, il comando si ferma e lo dice.
 
 **Le uscite non si modificano a mano**: si cambiano i sorgenti e si rimonta. Le uscite stanno nel repository perché il collegamento di prova (githack) e il sito le leggono così come sono.
+
+## Nome, recapiti e indirizzi: `config.js`
+
+`sorgenti/config.js` è l'unico punto in cui stanno il nome del servizio, il titolare, le caselle di posta, gli indirizzi base e le versioni dei testi pubblicati. Per cambiare nome basta cambiare `nome` e rimontare.
+
+- Nel codice il nome si usa con la costante `NOME`, la casella di contatto con `CASELLA` o `casellaHtml()`, i nomi dei file scaricati con `nomeFile()`.
+- Nelle traduzioni e nei testi passati a `tr()` il nome è la variabile `{nome}`, che `tr()` riempie da sé.
+- Nella pagina e nei testi legali il montaggio sostituisce `{nome}`, `{titolare}`, `{casella_contatto}`, `{versione_legali}` e `{data_legali}`.
+- I valori tra parentesi quadre (per esempio `[casella di contatto]`) sono segnaposto: l'app li mostra come testo, senza collegamento.
+- Le chiavi interne della memoria del telefono (`agorapp_…`) non sono visibili e restano come sono.
+
+Copia di prova con un altro nome: `npm run build:prova-nome` scrive `dist/prova-nome/pubblica/` con il nome «Nomeprova». Serve solo a provare che il nome cambia ovunque; il sito non la pubblica.
 
 ## I pezzi
 

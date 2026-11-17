@@ -1,31 +1,31 @@
-<template id="leg-privacy"><span class="legal-badge">✓ Conforme GDPR · v1.2 · Marzo 2026</span>
+<template id="leg-privacy"><span class="legal-badge">✓ Conforme GDPR · v{versione_legali} · {data_legali}</span>
         <h3>1. Titolare del trattamento</h3>
-        <p><strong>Agorapp</strong>, progetto di <strong>Lorenzo Calcagno</strong>, Torino<br>
-        Contatto: <a href="mailto:info@agorapp.it">info@agorapp.it</a></p>
+        <p><strong>{nome}</strong>, progetto di <strong>{titolare}</strong>, Torino<br>
+        Contatto: {casella_contatto}</p>
         <h3>2. Quali dati trattiamo e perché</h3>
-        <p>Agorapp è una mappa interattiva degli eventi urbani di Torino. <strong>Non raccoglie dati personali degli utenti che consultano la mappa</strong>: non ci sono account, non ci sono cookie di profilazione, non ci sono sistemi di tracciamento.</p>
+        <p>{nome} è una mappa interattiva degli eventi urbani di Torino. <strong>Non raccoglie dati personali degli utenti che consultano la mappa</strong>: non ci sono account, non ci sono cookie di profilazione, non ci sono sistemi di tracciamento.</p>
         <p>Gli unici dati trattati riguardano gli <strong>organizzatori di eventi</strong> che richiedono la pubblicazione: titolo, luogo, orario, descrizione, eventualmente un nome artistico o il nome dell'organizzazione.</p>
         <p>Trattiamo inoltre informazioni su eventi provenienti da <strong>fonti pubblicamente accessibili</strong> (siti web, pagine social pubbliche), quando l'organizzatore ha scelto consapevolmente di renderle pubbliche.</p>
         <h3>3. Base giuridica del trattamento</h3>
         <ul>
           <li><strong>Consenso esplicito (art. 6(1)(a) GDPR)</strong> — per gli organizzatori che ci contattano direttamente. Il consenso è documentato e conservato.</li>
-          <li><strong>Legittimo interesse (art. 6(1)(f) GDPR)</strong> — per eventi da fonti pubbliche. Il bilanciamento è documentato internamente. Puoi opporti in qualsiasi momento scrivendo a <a href="mailto:info@agorapp.it">info@agorapp.it</a>.</li>
+          <li><strong>Legittimo interesse (art. 6(1)(f) GDPR)</strong> — per eventi da fonti pubbliche. Il bilanciamento è documentato internamente. Puoi opporti in qualsiasi momento scrivendo a {casella_contatto}.</li>
         </ul>
         <h3>4. Per quanto tempo conserviamo i dati</h3>
         <p>I dati di ogni evento vengono <strong>eliminati automaticamente 3 ore dopo la scadenza dell'evento</strong>. Non esiste un archivio storico. Le prove del consenso sono conservate per un massimo di 3 anni dalla data dell'evento.</p>
         <h3>5. Chi può vedere i dati</h3>
-        <p>Le informazioni degli eventi sono visibili a chiunque visiti Agorapp. <strong>Nessun dato viene ceduto, venduto o comunicato a terzi</strong> per finalità commerciali o di marketing.</p>
+        <p>Le informazioni degli eventi sono visibili a chiunque visiti {nome}. <strong>Nessun dato viene ceduto, venduto o comunicato a terzi</strong> per finalità commerciali o di marketing.</p>
         <h3>6. Trasferimento dati fuori dall'UE</h3>
-        <p>Agorapp non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l'indirizzo IP dell'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p>
+        <p>{nome} non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l'indirizzo IP dell'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p>
         <h3>7. I tuoi diritti (artt. 15–21 GDPR)</h3>
-        <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a <a href="mailto:info@agorapp.it">info@agorapp.it</a> — risponderemo entro 30 giorni.</p>
+        <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a {casella_contatto} — risponderemo entro 30 giorni.</p>
         <h3>8. Reclamo al Garante</h3>
         <p>Puoi proporre reclamo al Garante per la protezione dei dati personali: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Roma</p>
         <h3>9. Decisioni automatizzate</h3>
-        <p>Agorapp non effettua profilazione né decisioni automatizzate.</p></template>
+        <p>{nome} non effettua profilazione né decisioni automatizzate.</p></template>
 <template id="leg-storage"><span class="legal-badge">Solo sul tuo dispositivo · Nessun server</span>
         <h3>Cosa viene salvato sul tuo dispositivo</h3>
-        <p>Agorapp utilizza esclusivamente strumenti di archiviazione tecnica locale. <strong>Nessun dato viene mai trasmesso a server esterni</strong> da questi strumenti.</p>
+        <p>{nome} utilizza esclusivamente strumenti di archiviazione tecnica locale. <strong>Nessun dato viene mai trasmesso a server esterni</strong> da questi strumenti.</p>
         <h3>localStorage</h3>
         <p>Conserva sul tuo dispositivo:</p>
         <ul>
@@ -44,21 +44,21 @@
           <li><strong>CartoDB/Carto</strong> — fornisce le immagini della mappa. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Opera su base Clausole Contrattuali Standard UE.</li>
           <li><strong>OpenStreetMap</strong> — base cartografica open source. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">osmfoundation.org/wiki/Privacy_Policy</a>.</li>
         </ul>
-        <p>Agorapp non ha accesso a questi dati e non li controlla.</p>
+        <p>{nome} non ha accesso a questi dati e non li controlla.</p>
         <h3>Come cancellare i dati locali</h3>
-        <p>Puoi cancellare tutti i dati locali di Agorapp in qualsiasi momento dalle impostazioni del tuo browser (Impostazioni → Privacy → Cancella dati di navigazione → Dati siti web).</p></template>
+        <p>Puoi cancellare tutti i dati locali di {nome} in qualsiasi momento dalle impostazioni del tuo browser (Impostazioni → Privacy → Cancella dati di navigazione → Dati siti web).</p></template>
 <template id="leg-disclaimer"><span class="legal-badge">Avvisi importanti</span>
         <h3>Accuratezza delle informazioni</h3>
         <p>Le informazioni sugli eventi provenienti da fonti pubbliche esterne <strong>potrebbero non essere aggiornate</strong>. <strong>Ti consigliamo di verificare sempre con l'organizzatore</strong> prima di spostarti.</p>
-        <p>Per segnalare un evento non più valido: <a href="mailto:info@agorapp.it">info@agorapp.it</a> — lo rimuoviamo entro 48 ore.</p>
+        <p>Per segnalare un evento non più valido: {casella_contatto} — lo rimuoviamo entro 48 ore.</p>
         <h3>Responsabilità sui contenuti</h3>
-        <p>Agorapp aggrega informazioni già pubblicamente disponibili senza modificarle. Per gli eventi caricati da fonti pubbliche, Agorapp non risponde di modifiche, cancellazioni o inesattezze rispetto alla fonte originale al momento dell'acquisizione.</p>
+        <p>{nome} aggrega informazioni già pubblicamente disponibili senza modificarle. Per gli eventi caricati da fonti pubbliche, {nome} non risponde di modifiche, cancellazioni o inesattezze rispetto alla fonte originale al momento dell'acquisizione.</p>
         <h3>Eventi politici, manifestazioni e presidi</h3>
-        <p>Per eventi di natura politica, manifestazioni, cortei e presidi, la <strong>verifica preliminare con l'organizzatore è indispensabile</strong> prima di spostarsi. Agorapp non assume alcuna responsabilità per conseguenze derivanti dalla presenza in luoghi indicati dalla mappa in relazione a eventi di questo tipo.</p>
+        <p>Per eventi di natura politica, manifestazioni, cortei e presidi, la <strong>verifica preliminare con l'organizzatore è indispensabile</strong> prima di spostarsi. {nome} non assume alcuna responsabilità per conseguenze derivanti dalla presenza in luoghi indicati dalla mappa in relazione a eventi di questo tipo.</p>
         <h3>Conformità normativa degli eventi</h3>
-        <p>Agorapp <strong>non verifica la conformità degli eventi</strong> alla normativa sugli spettacoli pubblici, alle autorizzazioni di agibilità o alle licenze richieste dalla legge. La responsabilità della regolarità dell'evento ricade esclusivamente sull'organizzatore.</p>
+        <p>{nome} <strong>non verifica la conformità degli eventi</strong> alla normativa sugli spettacoli pubblici, alle autorizzazioni di agibilità o alle licenze richieste dalla legge. La responsabilità della regolarità dell'evento ricade esclusivamente sull'organizzatore.</p>
         <h3>Proprietà intellettuale</h3>
-        <p>I testi e le descrizioni degli eventi sono di proprietà dei rispettivi organizzatori. Agorapp non rivendica diritti sui contenuti degli eventi pubblicati.</p>
+        <p>I testi e le descrizioni degli eventi sono di proprietà dei rispettivi organizzatori. {nome} non rivendica diritti sui contenuti degli eventi pubblicati.</p>
         <h3>Contatti</h3>
-        <p>Per qualsiasi richiesta legale: <a href="mailto:info@agorapp.it">info@agorapp.it</a><br>
-        Titolare del trattamento: Lorenzo Calcagno, Torino</p></template>
+        <p>Per qualsiasi richiesta legale: {casella_contatto}<br>
+        Titolare del trattamento: {titolare}, Torino</p></template>

@@ -182,7 +182,7 @@ function fScheda(e){
       ${descrizione(e)}
       <div class="fonte${man?' attenzione':''}">${x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
-      <a class="link" href="mailto:info@agorapp.it?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>${boxAdmin(e)}`;
+      ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
   } else if(e.tipo==='pratica'){
     const b = DEMO && DEMO.progetti && DEMO.progetti.bacheche && DEMO.progetti.bacheche[x.parentId];
     const liberi = b ? b.mano.posti.filter(p => !p.coperto).length : 0;
@@ -194,7 +194,7 @@ function fScheda(e){
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}</div>
       ${descrizione(e)}
       ${b?`<div class="pratica-box">${MANO(34)}<div><span style="font-weight:600">${tr('Vuoi dare una mano?')}</span><span class="meta">${liberi===1 ? tr('1 posto libero per {g}',{g:nomeSettimana(e.giorno)}) : tr('{n} posti liberi per {g}',{n:liberi, g:nomeSettimana(e.giorno)})}</span></div></div>`:''}
-      <p class="meta">${tr('È un appuntamento di un progetto: lo cura chi porta avanti il progetto, non Agorapp.')}</p>${boxAdmin(e)}`;
+      <p class="meta">${tr('È un appuntamento di un progetto: lo cura chi porta avanti il progetto, non {nome}.')}</p>${boxAdmin(e)}`;
   } else if(e.tipo==='istanza'){
     testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--ic);--pb:var(--it);--pt:var(--ic)">${tr('Istanza · {i}',{i:esc(x.istanza||'')})}</span>${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>
@@ -309,9 +309,9 @@ function fPdf(){
   const giorni = [...new Set(scelti.map(e => e.giorno))];
   const testa = `<div class="riga-titolo"><div><h2>${tr('Anteprima PDF')}</h2><p class="meta">${tr('Togli quello che non vuoi stampare.')}</p></div>${chiudiBtn('indietro-cal')}</div>`;
   const corpo = base.length ? `<div class="lista">${base.map(e => `<button class="menu-r" data-pdf="${esc(e.id)}" aria-pressed="${!st.pdf.tolti.has(e.id)}"><span class="casella">${!st.pdf.tolti.has(e.id)?spunta(14):''}</span><div><span class="t">${esc(e.titolo)}</span><span class="meta">${st.pdf.giornata?'':esc(titoloGiorno(e.giorno))+' · '}${e.inizio}${e.fine?'–'+e.fine:''}</span></div></button>`).join('')}</div>
-    <div class="carta"><div class="cm">Agorapp · ${esc(cittaObj().n)}</div><div class="ct">${titolo}</div><div class="cm" style="text-transform:none;letter-spacing:0;font-weight:500">${esc(sotto)}</div>
+    <div class="carta"><div class="cm">${esc(NOME)} · ${esc(cittaObj().n)}</div><div class="ct">${titolo}</div><div class="cm" style="text-transform:none;letter-spacing:0;font-weight:500">${esc(sotto)}</div>
       ${giorni.map(g => `${st.pdf.giornata?'':`<div class="cm" style="margin-top:4px">${esc(titoloGiorno(g))}</div>`}${scelti.filter(e => e.giorno===g).map(e => `<div class="pr"><b>${e.inizio}</b><span><strong>${esc(e.titolo)}</strong>${e.luogo?'<br>'+esc(e.luogo):''}${e.tipo==='og'&&e.desc?`<span class="nt">${esc(e.desc)}</span>`:''}</span></div>`).join('')}`).join('')}
-      <div class="cp">${tr('Stampato da Agorapp. Verifica orari e luoghi con chi organizza.')}</div></div>
+      <div class="cp">${tr('Stampato da {nome}. Verifica orari e luoghi con chi organizza.')}</div></div>
     <button class="tasto pri pieno tasto-pdf" style="justify-content:center" data-az="scarica-pdf" ${scelti.length?'':'disabled'}>${icoCondividi()}${tr('Condividi o scarica il PDF · {n}',{n:scelti.length})}</button>
     <button class="link" data-az="stampa-pdf" ${scelti.length?'':'disabled'}>${tr('Oppure stampalo')}</button>
     <p class="meta">${tr('Niente link: il PDF è un file, lo mandi tu a chi vuoi con le app del telefono.')}</p>`
@@ -353,7 +353,7 @@ function creaPdf(scelti){
     });
   });
   spazio(12); doc.setDrawColor('#D8CFC2'); doc.line(X, y, X + W, y); y += 5;
-  riga(tr('Stampato da Agorapp. Verifica orari e luoghi con chi organizza.'), 'helvetica', 'normal', 8.5, '#5C5246', X, W);
+  riga(tr('Stampato da {nome}. Verifica orari e luoghi con chi organizza.'), 'helvetica', 'normal', 8.5, '#5C5246', X, W);
   return doc.output('blob');
 }
 /* «Condividi o scarica»: sul telefono si apre il foglio delle app (WhatsApp, posta…); altrimenti il file si scarica */
@@ -362,7 +362,7 @@ async function condividiPdf(){
   if(lang==='ar') return stampaPdf();   /* i font standard del PDF non hanno l'arabo: si stampa dal browser */
   try{ await preparaPdf(); }catch(e){ return stampaPdf(); }
   let blob; try{ blob = creaPdf(scelti); }catch(e){ return stampaPdf(); }
-  const nome = (st.pdf.giornata ? 'agorapp-giornata-' + st.pdf.giornata : 'agorapp-calendario-' + oggi()) + '.pdf';
+  const nome = (st.pdf.giornata ? nomeFile() + '-giornata-' + st.pdf.giornata : nomeFile() + '-calendario-' + oggi()) + '.pdf';
   const file = typeof File==='function' ? new File([blob], nome, {type:'application/pdf'}) : null;
   if(file && navigator.canShare && navigator.canShare({files:[file]})){
     try{ await navigator.share({files:[file], title:nome}); }catch(e){ if(e && e.name!=='AbortError') scaricaBlob(blob, nome); }
@@ -375,9 +375,9 @@ function stampaPdf(){
   const giorni = [...new Set(scelti.map(e => e.giorno))];
   const righe = giorni.map(g => `<tr><td colspan="3" class="day">${esc(maiusc(titoloGiorno(g)))}</td></tr>` + scelti.filter(e => e.giorno===g).map(e =>
     `<tr><td class="tm">${e.inizio}${e.fine?'–'+e.fine:''}</td><td class="tt">${esc(e.titolo)}${e.tipo==='og'&&e.desc?`<div class="nt">${esc(e.desc)}</div>`:''}</td><td>${esc(e.luogo)}<div class="nt">${esc(sottotitoloEv(e))}${e.prezzo?' · '+esc(formatPrice(e.prezzo)):''}</div></td></tr>`).join('')).join('');
-  const html = `<!DOCTYPE html><html lang="${lang}" dir="${lang==='ar'?'rtl':'ltr'}"><head><meta charset="UTF-8"><title>${esc(titolo)} · Agorapp</title><style>body{font-family:Georgia,serif;max-width:760px;margin:24px auto;color:#1c1712;padding:0 16px}h1{font-size:24px;margin:0 0 2px;font-weight:400}p{font-size:12px;color:#5c5246;margin:0 0 18px;font-family:Helvetica,Arial,sans-serif}.m{text-transform:uppercase;letter-spacing:.08em;font-size:11px}table{width:100%;border-collapse:collapse;font-family:Helvetica,Arial,sans-serif}td{padding:8px 10px;border-bottom:1px solid #e3ddd0;font-size:12px;vertical-align:top}td.day{background:#f5f0e8;font-weight:700;font-size:13px;border-top:2px solid #cfc6b4}td.tm{white-space:nowrap;color:#5c5246;font-weight:700}td.tt{font-weight:600}.nt{font-weight:400;color:#5c5246;font-size:11px;margin-top:2px;white-space:pre-wrap}.f{margin-top:18px;font-size:11px;color:#5c5246;font-family:Helvetica,Arial,sans-serif}</style></head><body><p class="m">Agorapp · ${esc(cittaObj().n)}</p><h1>${esc(titolo)}</h1><p>${esc(sotto)}</p><table><tbody>${righe}</tbody></table><p class="f">${tr('Stampato da Agorapp. Verifica orari e luoghi con chi organizza.')}</p></body></html>`;
+  const html = `<!DOCTYPE html><html lang="${lang}" dir="${lang==='ar'?'rtl':'ltr'}"><head><meta charset="UTF-8"><title>${esc(titolo)} · ${esc(NOME)}</title><style>body{font-family:Georgia,serif;max-width:760px;margin:24px auto;color:#1c1712;padding:0 16px}h1{font-size:24px;margin:0 0 2px;font-weight:400}p{font-size:12px;color:#5c5246;margin:0 0 18px;font-family:Helvetica,Arial,sans-serif}.m{text-transform:uppercase;letter-spacing:.08em;font-size:11px}table{width:100%;border-collapse:collapse;font-family:Helvetica,Arial,sans-serif}td{padding:8px 10px;border-bottom:1px solid #e3ddd0;font-size:12px;vertical-align:top}td.day{background:#f5f0e8;font-weight:700;font-size:13px;border-top:2px solid #cfc6b4}td.tm{white-space:nowrap;color:#5c5246;font-weight:700}td.tt{font-weight:600}.nt{font-weight:400;color:#5c5246;font-size:11px;margin-top:2px;white-space:pre-wrap}.f{margin-top:18px;font-size:11px;color:#5c5246;font-family:Helvetica,Arial,sans-serif}</style></head><body><p class="m">${esc(NOME)} · ${esc(cittaObj().n)}</p><h1>${esc(titolo)}</h1><p>${esc(sotto)}</p><table><tbody>${righe}</tbody></table><p class="f">${tr('Stampato da {nome}. Verifica orari e luoghi con chi organizza.')}</p></body></html>`;
   const url = URL.createObjectURL(new Blob([html], {type:'text/html'}));
   const w = window.open(url, '_blank');
   if(w){ setTimeout(() => { try{ w.print(); }catch(e){} }, 700); setTimeout(() => URL.revokeObjectURL(url), 60000); }
-  else { const a = document.createElement('a'); a.href = url; a.download = 'agorapp-calendario.html'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+  else { const a = document.createElement('a'); a.href = url; a.download = nomeFile() + '-calendario.html'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
 }

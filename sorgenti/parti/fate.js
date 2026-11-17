@@ -3,7 +3,7 @@
    Si accende scrivendo la formula nella barra degli eventi nascosti (Cerca). Da quel momento:
    - nel Calendario il tasto «PDF» diventa solo l'icona condividi, dorata e scintillante; fa scegliere tra PDF e pacchetto;
    - il pacchetto è un link con dentro gli Off-Grid scelti, cifrati (AES-GCM) con una chiave che sta dentro l'app:
-     lo apre solo Agorapp. Nessun server: tutto sta nel link, dopo il #, che il browser non manda a nessuno;
+     lo apre solo l'app. Nessun server: tutto sta nel link, dopo il #, che il browser non manda a nessuno;
    - al primo pacchetto si sceglie il «vero nome», che poi non si cambia più;
    - chi riceve il link lo apre o lo incolla nella stessa barra; se non ha ancora detto la formula, gliela chiede.
      Gli eventi ricevuti restano sul telefono come gli Off-Grid, ma nello strato «Ordine delle Fate»
@@ -46,7 +46,7 @@ function fCondividi(){
   const testa = `<div class="riga-titolo"><div><h2>${tr('Condividi')}</h2><p class="meta">${tr('Cosa vuoi mandare?')}</p></div>${chiudiBtn('indietro-cal')}</div>`;
   const corpo = `<div class="stack-s">
     <button class="riga-int scelta-cond" data-az="pdf"><span class="cond-ico">${icoDoc}</span><div><span class="t">PDF</span><span class="meta">${tr('Il calendario da stampare o da mandare come file.')}</span></div>${freccia}</button>
-    <button class="riga-int scelta-cond oro" data-az="pacchetto"><span class="cond-ico oro">${STELLA}</span><div><span class="t">${tr('Il pacchetto dei tuoi eventi')}</span><span class="meta">${tr('Un link che solo Agorapp sa aprire. Dentro, gli Off-Grid che scegli tu.')}</span></div>${freccia}</button></div>`;
+    <button class="riga-int scelta-cond oro" data-az="pacchetto"><span class="cond-ico oro">${STELLA}</span><div><span class="t">${tr('Il pacchetto dei tuoi eventi')}</span><span class="meta">${tr('Un link che solo {nome} sa aprire. Dentro, gli Off-Grid che scegli tu.')}</span></div>${freccia}</button></div>`;
   return foglio('forte', testa, corpo);
 }
 
@@ -159,7 +159,7 @@ async function copiaLink(){
 }
 async function mandaLink(){
   const l = st.pk && st.pk.link; if(!l || !navigator.share) return;
-  try{ await navigator.share({title:'Agorapp', text:tr('Un pacchetto di eventi per te, da aprire con Agorapp.'), url:l}); }catch(e){}
+  try{ await navigator.share({title:NOME, text:tr('Un pacchetto di eventi per te, da aprire con {nome}.'), url:l}); }catch(e){}
 }
 
 /* ---------- La formula ---------- */

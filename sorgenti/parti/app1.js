@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 /* =====================================================================
-   Agorapp — restyling (ramo restyling-app)
+   App della mappa degli eventi — restyling (ramo restyling-app)
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
    Funzioni vere dall'app online OG 1.7: mappa CARTO, indirizzi Photon/Nominatim,
    GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
@@ -9,6 +9,17 @@
    ===================================================================== */
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* ---------- Configurazione (sorgenti/config.js, caricata prima dell'app) ---------- */
+const CFG = window.AGR_CONFIG || {};
+const NOME = CFG.nome || '';
+const CASELLA = (CFG.caselle || {}).contatto || '';
+const segnaposto = s => /^\[.*\]$/.test(String(s || ''));
+/* nome dei file scaricati: il nome del servizio in minuscolo, senza spazi né accenti */
+const nomeFile = () => NOME.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app';
+/* la casella di contatto: un collegamento se esiste, il segnaposto come testo finché non esiste */
+const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
+  ? `<span class="${classe}">${esc(CASELLA)}</span>`
+  : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
 const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
 
 /* ---------- Memoria del telefono ---------- */
@@ -24,7 +35,10 @@ let lang = LS.s('agorapp_lang','it'); if(!['it','en','es','fr','ar'].includes(la
 const dloc = () => ({it:'it-IT',en:'en-GB',es:'es-ES',fr:'fr-FR',ar:'ar'})[lang] || 'it-IT';
 const TR = window.AGR_TR || {};
 function tr(s, v){
-  let x = (lang!=='it' && TR[lang] && TR[lang][s]) || s;
+  const d = lang!=='it' && TR[lang];
+  /* un testo che arriva dai dati con il nome già scritto si traduce con la chiave che ha {nome} */
+  let x = (d && (d[s] || (NOME && String(s).includes(NOME) && d[String(s).split(NOME).join('{nome}')]))) || s;
+  x = String(x).split('{nome}').join(NOME);
   if(v) Object.keys(v).forEach(k => { x = x.split('{'+k+'}').join(v[k]); });
   return x;
 }

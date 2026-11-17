@@ -2,6 +2,7 @@
 (function(){
 'use strict';
 const T = (s,v) => window.AGR.tr(s,v), IT = () => window.AGR.lingua()==="it";
+const CFG = window.AGR_CONFIG || {}, NOME = CFG.nome || "", CASELLA = (CFG.caselle || {}).contatto || "";
 const icoInfo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4M8 4.8v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 /* Lorenzo, 4 ottobre: senza demo la sezione non deve sembrare un buco. Invito alla demo, poi l'avviso sulle proposte e il tasto Proponi */
 function vuotoDemo(cosa, proponi){ return `<section class="stack" style="padding-top:12px"><div class="tipo">${cosa}</div><h1>${T("Ancora niente qui")}</h1>
@@ -181,7 +182,7 @@ function vIstanza(){
     </button>`;
   };
   const come = IS.permanente
-    ? T("Ogni tavolo affronta una parte dell’obiettivo e si incontra di persona. Ogni incontro è un <strong>evento Istanza</strong>, visibile sulla mappa; dopo, il tavolo pubblica il <strong>rendiconto</strong>. Quando una parte è pronta diventa una regola di Agorapp, e il tavolo riparte.")
+    ? T("Ogni tavolo affronta una parte dell’obiettivo e si incontra di persona. Ogni incontro è un <strong>evento Istanza</strong>, visibile sulla mappa; dopo, il tavolo pubblica il <strong>rendiconto</strong>. Quando una parte è pronta diventa una regola di {nome}, e il tavolo riparte.")
     : T("Ogni tavolo affronta una parte dell’obiettivo. Chi siede al tavolo si incontra di persona, ogni volta in un luogo diverso. Ogni incontro è un <strong>evento Istanza</strong>, visibile sulla mappa. Dopo, il tavolo pubblica il <strong>rendiconto</strong>: di cosa si è parlato e quale passo avanti si è fatto verso l’obiettivo.");
   return `<button class="indietro" data-az="tutte">${frecciaSx}${T("Tutte le istanze")}</button>
   <section class="stack">
@@ -291,7 +292,7 @@ const rigaCarta = (k,v) => `<div class="pr" style="grid-template-columns:84px 1f
 function pdfRendiconto(n,p){
   const t = TAVOLI.find(x=>x.n===n), i = t.incontri.find(x=>x.p===p);
   return `<div class="eyebrow">${T("PDF del rendiconto")}</div><h3>${T("Anteprima")}</h3>
-    <div class="carta"><div class="cm">Agorapp · Agorà · ${esc(IS.titolo)}</div><div class="ct">${T("Tavolo {n}",{n})} · ${esc(t.titolo)}</div>
+    <div class="carta"><div class="cm">${esc(NOME)} · Agorà · ${esc(IS.titolo)}</div><div class="ct">${T("Tavolo {n}",{n})} · ${esc(t.titolo)}</div>
       <div class="cm" style="text-transform:none;letter-spacing:0;font-weight:500">${T("Rendiconto del passo {n}",{n:p})} · ${i.data}, ${i.dove} · ${i.ora}</div>
       ${rigaCarta(T("Obiettivo"), IS.obiettivo)}${rigaCarta(T("Di cosa"), i.parlato)}${rigaCarta(T("Passo avanti"), i.avantiLungo||i.avanti)}${rigaCarta(T("Resta aperto"), i.aperto)}
       ${rigaCarta(T("Chi fa cosa"), (i.compiti||[]).map(c=>c[0]+": "+c[1]).join(" · "))}
@@ -301,7 +302,7 @@ function pdfRendiconto(n,p){
 function pdfProposta(){
   const c = IS.conclusa;
   return `<div class="eyebrow">${T("La proposta consegnata")}</div><h3>${esc(IS.obiettivo)}</h3>
-    <div class="carta"><div class="cm">Agorapp · Agorà · ${esc(IS.titolo)}</div><div class="ct">${esc(c.come)}</div>
+    <div class="carta"><div class="cm">${esc(NOME)} · Agorà · ${esc(IS.titolo)}</div><div class="ct">${esc(c.come)}</div>
       <div class="cm" style="text-transform:none;letter-spacing:0;font-weight:500">${IT()?`Al ${esc(c.a)}`:esc(c.a)} · ${T("depositata il {d}",{d:dataCorta(c.iso)+" "+c.iso.slice(0,4)})} · ${T("{n} firme",{n:c.firme})}</div>
       ${TAVOLI.map(t=>rigaCarta(T("Parte {n}",{n:t.n}), `${t.titolo}. ${t.finale}`)).join("")}
       <div class="cp">${T("Scritta da {s} soggetti in {t} tavoli e {i} incontri. Ogni rendiconto è nell’Agorà.",{s:TAVOLI.reduce((n,t)=>n+t.soggetti.length,0), t:TAVOLI.length, i:TAVOLI.reduce((n,t)=>n+t.incontri.length,0)})}</div></div>
@@ -327,7 +328,7 @@ function foglioAnteprima(){
   return `<div class="tipo">${T("Anteprima")}</div><h3>${T("Tutto pronto, iscrizioni in arrivo")}</h3>
     <p>${T("Progetti e Agorà partiranno quando potremo accogliere chi vi partecipa. Intanto puoi vedere com’è fatto tutto: le bacheche dei progetti, le persone che ci tengono, i tavoli delle istanze, gli eventi sulla mappa.")}</p>
     <p>${T("Le istanze sono quelle dell’app. Obiettivi, tavoli, soggetti e rendiconti sono d’esempio; ogni istanza è messa a un punto diverso del cammino, per vedere come appare dall’inizio alla fine.")}</p>
-    <p class="meta">${T("Vuoi proporre un tavolo? Scrivi a")} <span class="mail">info@agorapp.it</span>.</p>`;
+    <p class="meta">${T("Vuoi proporre un tavolo? Scrivi a")} <span class="mail">${esc(CASELLA)}</span>.</p>`;
 }
 
 function disegna(){
@@ -378,6 +379,7 @@ A.agora = {
 (function(){
 'use strict';
 const T = (s,v) => window.AGR.tr(s,v), IT = () => window.AGR.lingua()==="it";
+const CFG = window.AGR_CONFIG || {}, NOME = CFG.nome || "", CASELLA = (CFG.caselle || {}).contatto || "";
 const icoInfo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4M8 4.8v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 function vuotoDemo(cosa, proponi){ return `<section class="stack" style="padding-top:12px"><div class="tipo">${cosa}</div><h1>${T("Ancora niente qui")}</h1>
   <p>${T("Questa sezione si riempie quando aprono le iscrizioni.")}</p>
@@ -403,7 +405,7 @@ const STRATI = {
   teatro:{label:"Teatro e danza",pp:"#7B52D4",pb:"#EDE7F6",pt:"#311B92"},
   benessere:{label:"Benessere e meditazione",pp:"#7CB342",pb:"#F1F8E9",pt:"#1A5C28"}
 };
-/* Le tre etichette di presenza di Agorapp, con i colori dell'app online */
+/* Le tre etichette di presenza dell'app, con i colori dell'app online */
 let TIPO = {}, PROGETTI = [], BACHECHE = {}, _pronto = null;
 function prepara(){
   const D = window.AGR.demo(); if(!D || !D.progetti){ PROGETTI = []; _pronto = null; return false; }
@@ -561,7 +563,7 @@ function vTutti(){
   const filtri = `<button class="pill tutti" data-filtro="tutti" aria-pressed="${filtro==="tutti"}"><span>${T("Tutti")}</span></button>`
     + presenti.map(id=>{const s=STRATI[id];return `<button class="pill dot" data-filtro="${id}" aria-pressed="${filtro===id}" style="--pp:${s.pp};--pb:${s.pb};--pt:${s.pt}"><span>${T(s.label)}</span></button>`;}).join("");
   return `<section class="stack"><div class="tipo">${T("Progetti")}</div><h1>${T("Pratiche collettive nel tessuto urbano")}</h1>
-    <p>${T("La produzione culturale non avviene dove viene riconosciuta. Avviene nei cortili, nei presidi, nelle assemblee informali. Questi progetti esistono indipendentemente da Agorapp: la piattaforma rende visibile ciò che era già in atto.")}</p></section>
+    <p>${T("La produzione culturale non avviene dove viene riconosciuta. Avviene nei cortili, nei presidi, nelle assemblee informali. Questi progetti esistono indipendentemente da {nome}: la piattaforma rende visibile ciò che era già in atto.")}</p></section>
   <section class="stack" style="gap:10px">
     <div class="filtri" role="group" aria-label="${T("Filtra per strato")}">${filtri}</div>
   </section>
@@ -645,7 +647,7 @@ function foglioCal(){
     <button class="scelta" data-cal="volta" aria-pressed="${s("volta")}"><div><div class="t">${T("Solo il {d}",{d:PROSSIMA.giorno})}</div><div class="meta">${PROSSIMA.ora} · ${PROSSIMA.luogo}</div></div>${s("volta")?`<span class="spunta">${spunta(18)}</span>`:""}</button>
     <button class="scelta" data-cal="serie" aria-pressed="${s("serie")}"><div><div class="t">${T("Tutti gli appuntamenti del progetto")}</div><div class="meta">${T("Compaiono nel calendario man mano che vengono fissati")}</div></div>${s("serie")?`<span class="spunta">${spunta(18)}</span>`:""}</button>
     ${calModo?`<button class="link" data-cal="togli">${T("Togli dal calendario")}</button>`:""}
-    <p class="meta">${T("Se un appuntamento viene annullato, lo vedi quando riapri il calendario: Agorapp non manda notifiche. Si elimina come gli altri eventi ricorrenti: solo questo giorno o tutta la serie.")}</p>`;
+    <p class="meta">${T("Se un appuntamento viene annullato, lo vedi quando riapri il calendario: {nome} non manda notifiche. Si elimina come gli altri eventi ricorrenti: solo questo giorno o tutta la serie.")}</p>`;
 }
 function foglioPersona(ruolo, id){
   const fonte = ruolo==="ancora" ? ANCORE : ruolo==="fata" ? FATE : vorrebberoTutti();
@@ -682,7 +684,7 @@ function foglioStampa(){
       <div style="font-weight:700;font-size:14px">${esc(B.stampa.invito)}</div>
       <div class="mano-c">${mano(22,"#C8743E")}${T("Vuoi dare una mano?")}</div>
       <ul>${liberi.map(x=>`<li>${esc(x.t.toLowerCase())}</li>`).join("")}</ul>
-      <div class="cr">${T("Le Ancore: {n}, [recapito]. Questa bacheca è anche su Agorapp, sezione Progetti.",{n:ANCORE.map(a=>a.nome).join(", ")})}</div>
+      <div class="cr">${T("Le Ancore: {n}, [recapito]. Questa bacheca è anche su {nome}, sezione Progetti.",{n:ANCORE.map(a=>a.nome).join(", ")})}</div>
     </div>
     <button class="tasto pri pieno" data-stampa-carta="1">${T("Scarica il PDF")}</button>
     <p class="meta">${T("Nell’app si scarica in PDF, come il PDF della giornata. Così il progetto arriva anche a chi non usa lo smartphone e non è nei gruppi di chat.")}</p>`;
@@ -691,7 +693,7 @@ function foglioAnteprima(){
   return `<div class="tipo">${T("Anteprima")}</div><h3>${T("Tutto pronto, iscrizioni in arrivo")}</h3>
     <p>${T("Progetti e Agorà partiranno quando potremo accogliere chi vi partecipa. Intanto puoi vedere com’è fatto tutto: le bacheche dei progetti, le persone che ci tengono, i tavoli delle istanze, gli eventi sulla mappa.")}</p>
     <p>${T("I progetti in elenco sono quelli dell’app. Date, persone e cortili del Cortile Comune sono d’esempio.")}</p>
-    <p class="meta">${T("Vuoi portare il tuo progetto? Scrivi a")} <span class="mail">info@agorapp.it</span>.</p>`;
+    <p class="meta">${T("Vuoi portare il tuo progetto? Scrivi a")} <span class="mail">${esc(CASELLA)}</span>.</p>`;
 }
 
 document.addEventListener("click", e => {
@@ -729,7 +731,7 @@ document.addEventListener("click", e => {
   if(az==="mappa"){ window.AGR.vaiMappa("demo-pratica-"+CORTILE.id); return; }
   if(az==="cal"){ foglio(foglioCal()); return; }
   if(az==="vengo"){ foglio(foglioVengo()); return; }
-  if(az==="scrivi"){ if(!b.nextElementSibling || !b.nextElementSibling.classList.contains("nota-scrivi")) b.insertAdjacentHTML("afterend", `<p class="meta nota-scrivi">${T("Con le iscrizioni aperte si apre il tuo programma di posta, con il recapito già scritto. Agorapp non ha una chat.")}</p>`); return; }
+  if(az==="scrivi"){ if(!b.nextElementSibling || !b.nextElementSibling.classList.contains("nota-scrivi")) b.insertAdjacentHTML("afterend", `<p class="meta nota-scrivi">${T("Con le iscrizioni aperte si apre il tuo programma di posta, con il recapito già scritto. {nome} non ha una chat.")}</p>`); return; }
   if(az==="stampa"){ foglio(foglioStampa()); return; }
   if(az==="anteprima"){ foglio(foglioAnteprima()); return; }
 });
@@ -765,7 +767,7 @@ const scelta = (id, voci) => `<div class="chips-in" data-gruppo="${id}" role="gr
 function form(){
   const prog = tipo==="progetto";
   const testa = prog
-    ? `<div class="tipo">${T("Progetti · proposta")}</div><h3>${T("Proponi un nuovo progetto")}</h3><p>${T("Un progetto è qualcosa che esiste già o sta per partire: un cortile aperto, un coro, una sartoria. Agorapp lo rende visibile, non lo gestisce.")}</p>`
+    ? `<div class="tipo">${T("Progetti · proposta")}</div><h3>${T("Proponi un nuovo progetto")}</h3><p>${T("Un progetto è qualcosa che esiste già o sta per partire: un cortile aperto, un coro, una sartoria. {nome} lo rende visibile, non lo gestisce.")}</p>`
     : `<div class="tipo">${T("Agorà · proposta")}</div><h3>${T("Proponi una nuova istanza")}</h3><p>${T("Un’istanza è un’ipotesi di trasformazione con un obiettivo comune. Si apre con un primo tavolo: soggetti che si incontrano di persona e scrivono una parte della proposta.")}</p>`;
   const avviso = `<div class="avviso-proposte verde" role="note"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4M8 4.8v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>${T("Stiamo lavorando alla ricezione delle proposte: è prevista per la prima metà del 2027. Per ora il modulo è un’anteprima: non invia e non salva niente.")}</span></div>`;
   const campi = prog ? [
@@ -775,7 +777,7 @@ function form(){
     campo("strati",T("Strati"),T("uno o più"),ovali("strati",STRATI_V())),
     campo("temi",T("Temi"),T("fino a 3"),ovali("temi",TEMI_V())),
     campo("cerca",T("Cosa serve adesso"),T("facoltativo"),input("cerca",T("es. un cortile, mani per la merenda, sedie"))),
-    campo("etich",T("Come vuoi esserci"),"",scelta("etich",["Indipendente","Accompagnato da Agorapp"]) + `<div class="meta">${T("Indipendente: il progetto fa tutto da sé. Accompagnato: Agorapp aiuta a partire, poi si fa da parte.")}</div>`),
+    campo("etich",T("Come vuoi esserci"),"",scelta("etich",["Indipendente","Accompagnato da {nome}"]) + `<div class="meta">${T("Indipendente: il progetto fa tutto da sé. Accompagnato: {nome} aiuta a partire, poi si fa da parte.")}</div>`),
     campo("chi",T("Chi lo regge"),T("una persona di riferimento, un’Ancora"),input("chi",T("Nome, anche solo di battesimo"))),
     campo("mail",T("Dove risponderti"),"",input("mail",T("nome@esempio.it"),'type="email" inputmode="email"'))
   ] : [
@@ -790,13 +792,13 @@ function form(){
     campo("mail",T("Dove risponderti"),"",input("mail",T("nome@esempio.it"),'type="email" inputmode="email"'))
   ];
   return `<div class="sez-proposta-in stack">${avviso}${testa}${campi.join("")}
-    <div class="p-privacy meta">${T("Agorapp non ha una chat: la redazione ti risponderà per email. L’indirizzo servirà solo per questa proposta.")} [INFORMATIVA PRIVACY DELLE PROPOSTE DA SCRIVERE]</div>
+    <div class="p-privacy meta">${T("{nome} non ha una chat: la redazione ti risponderà per email. L’indirizzo servirà solo per questa proposta.")} [INFORMATIVA PRIVACY DELLE PROPOSTE DA SCRIVERE]</div>
     <button class="tasto pri pieno" data-pz="invia">${T("Prova a inviare")}</button></div>`;
 }
 function fatto(dati){
   const prog = tipo==="progetto";
   return `<div class="stack p-fatto"><span class="p-sigillo">${spunta}</span><div class="tipo">${T("Anteprima")}</div><h3>${T("Il modulo funziona così")}</h3>
-    <p>${T("«{t}» è scritta, ma per ora non parte: la ricezione delle proposte è prevista per la prima metà del 2027. Allora arriverà alla redazione di Agorapp, che ti scriverà all’indirizzo che hai dato.",{t:esc(dati.titolo)})}</p>
+    <p>${T("«{t}» è scritta, ma per ora non parte: la ricezione delle proposte è prevista per la prima metà del 2027. Allora arriverà alla redazione di {nome}, che ti scriverà all’indirizzo che hai dato.",{t:esc(dati.titolo)})}</p>
     <p class="meta">${T("Non abbiamo salvato né inviato niente: né la proposta né l’email.")}</p>
     <p class="meta">${prog?T("Se il progetto entra, avrà la sua bacheca e i suoi appuntamenti sulla mappa come eventi Pratica."):T("Se l’istanza si apre, il primo tavolo avrà la sua pagina nell’Agorà e i suoi incontri sulla mappa come eventi Istanza.")}</p>
     <button class="tasto sec pieno" data-pz="chiudi">${T("Chiudi")}</button></div>`;

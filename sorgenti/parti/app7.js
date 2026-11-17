@@ -1,5 +1,5 @@
 
-/* ======================= Temi: ovali Strati e Temi trasversali, lenti di Agorapp e tre lenti tue (passo 2) ======================= */
+/* ======================= Temi: ovali Strati e Temi trasversali, lenti dell'app e tre lenti tue (passo 2) ======================= */
 const TEMI_VOC = ["Diritto all'abitare","Spazi autogestiti","Riuso e rigenerazione","Beni comuni","Aree verdi","Orti urbani","Mobilità dolce","Ciclabili","Sostenibilità","Clima","Inclusione","Accoglienza e migrazione","Accessibilità","Parità di genere","Diritti","Antirazzismo","Cultura libera","Educazione popolare","Memoria e territorio","Autoproduzione","Mutualismo","Salute di comunità","Infanzia e famiglie","Convivialità"];
 const GLIFI = {
   casa:'<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/><path d="M10 19v-5h4v5"/>',
@@ -92,7 +92,7 @@ function vEsplora(){
       <span class="t-lente-p">${l.k.map(k => { const u = byK(k); return `<span class="pallino" style="background:${u.dot}" title="${esc(u.label)}"></span>`; }).join('')}<span class="meta">${n===1?tr('1 cosa ora'):tr('{n} cose ora',{n})}</span></span></button>`; };
   return `${testataTemi()}
   <section class="stack"><h1>${tr('Esplora per tema')}</h1><p>${tr('Tutti gli strati e tutti i temi, nessuna classifica. Parti da una lente, o scegli tu uno o più strati e temi: poi vedi insieme gli eventi, le pratiche e le istanze che li portano.')}</p></section>
-  <section class="stack-s"><div class="t-gruppo">${tr('Le lenti di Agorapp')}</div><div class="t-lenti" role="list">${LENTI_AG.map(carta).join('')}</div>
+  <section class="stack-s"><div class="t-gruppo">${tr('Le lenti di {nome}')}</div><div class="t-lenti" role="list">${LENTI_AG.map(carta).join('')}</div>
     <p class="meta">${tr('Le propone la redazione. Non scelgono per te: mostrano tutto ciò che porta quei temi, in ordine di tempo.')}</p></section>
   <section class="stack-s"><div class="t-gruppo">${tr('Le tue lenti')}</div>
     ${mie.length?`<div class="ovali">${mie.map(l => `<button class="ovale lente" data-tz-lente="${l.i}">${ICT.segno}${esc(l.nome)} <span class="meta">${l.k.length}</span></button>`).join('')}${mie.length<3?`<span class="meta t-ancora">${3-mie.length===1?tr('1 libera'):tr('{n} libere',{n:3-mie.length})}</span>`:''}</div>`
@@ -140,7 +140,7 @@ function vRisultati(){
   const seg = [['tutti',tr('Tutti')],['evento',tr('Eventi')],['pratica',tr('Pratiche')],['istanza',tr('Istanze')]].map(([k,l]) => `<button data-ttipo="${k}" aria-pressed="${TM.tipo===k}">${l} ${c[k]}</button>`).join('');
   return `${testataTemi()}
   <button class="indietro" data-tz="esplora">${frecciaSx}${tr('Cambia la scelta')}</button>
-  ${ag?`<section class="t-lente-testa" style="--lc:${ag.col}"><span class="t-lente-g">${glifo(ag.id,24)}</span><div class="stack-s"><div class="t-gruppo">${tr('Lente di Agorapp')}</div><h1>${esc(nomeLenteAg(ag))}</h1><p class="t-lente-motto">${esc(tr(ag.motto))}</p><p>${esc(tr(ag.testo))}</p></div></section>`:''}
+  ${ag?`<section class="t-lente-testa" style="--lc:${ag.col}"><span class="t-lente-g">${glifo(ag.id,24)}</span><div class="stack-s"><div class="t-gruppo">${tr('Lente di {nome}')}</div><h1>${esc(nomeLenteAg(ag))}</h1><p class="t-lente-motto">${esc(tr(ag.motto))}</p><p>${esc(tr(ag.testo))}</p></div></section>`:''}
   <section class="stack-s">${ag?`<div class="t-gruppo">${tr('Cosa guarda')}</div>`:`<h1>${esc(titolo)}</h1>`}
     <div class="ovali">${TM.scelti.map(k => { const u = byK(k); return `<button class="ovale sel p" data-togli="${esc(k)}" style="--dot:${u.dot}" aria-label="${esc(tr('Togli {t}',{t:u.label}))}"><span class="pallino"></span>${esc(u.label)}${ICT.croce}</button>`; }).join('')}</div>
     <div class="t-azioni"><button class="link" data-tz="salva">${ICT.segno}${ag?tr('Fanne una tua lente'):tr('Salva come lente')}</button><button class="link" data-tz="esplora">${tr('Aggiungi altri')}</button></div></section>
