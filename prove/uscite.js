@@ -30,6 +30,9 @@ function prova() {
     confrontaUscita(e, 'prova-nome/pubblica', { ...monta(c2), ...fileLicenze(c2), ...vendor });
   }
 
+  // Nessuna copia dell'app fuori da dist/: il vecchio index.html alla radice è uscito il 17/11/2026.
+  if (fs.existsSync(path.join(RADICE, 'index.html'))) e.errori.push('index.html alla radice: l\'app sta solo in dist/, toglilo');
+
   // Il sito pubblica soltanto dist/pubblica/ (T-003).
   const toml = fs.readFileSync(path.join(RADICE, 'netlify.toml'), 'utf8');
   const pub = (toml.match(/^\s*publish\s*=\s*"([^"]*)"/m) || [])[1];
