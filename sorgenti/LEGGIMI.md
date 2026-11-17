@@ -11,6 +11,8 @@ Il montaggio legge soltanto i file di `sorgenti/` e scrive due uscite:
 - `dist/pubblica/`: l'app pubblica, la sola cartella che il sito pubblica;
 - `dist/redazione/`: l'app della redazione. Fino al blocco 8 del piano di adeguamento è uguale alla pubblica.
 
+Il sito pubblica soltanto `dist/pubblica/` (lo dice `netlify.toml`). Versioni archiviate (`versioni/`), demo, `dati/`, sorgenti e strumenti restano nel repository ma non vanno sul sito: un file che l'app deve scaricare dal sito va montato dentro `dist/pubblica/`.
+
 In ogni uscita la pagina `index.html` richiama file propri: `config.js`, `app.css`, `traduzioni.js`, `app.js`, `sezioni.js`. Nessun codice JavaScript e nessun foglio di stile stanno dentro la pagina, così le intestazioni di sicurezza potranno accettare soltanto file dello stesso indirizzo. Ogni collegamento porta un numero di versione ricavato dal contenuto (`app.js?v=…`), perché il telefono non tenga copie vecchie.
 
 Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`node --check`): se un file ha un errore, il comando si ferma e lo dice.

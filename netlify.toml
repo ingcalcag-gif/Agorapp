@@ -1,6 +1,8 @@
-# Agorapp: il sito è index.html così com'è (nessuna build). Le funzioni stanno in netlify/functions.
+# Il sito pubblica soltanto l'app montata in dist/pubblica/ (voce T-003 del piano di adeguamento).
+# Versioni archiviate, demo, dati, sorgenti e strumenti restano nel repository ma non vanno sul sito.
+# Netlify non monta nulla: dist/ sta già nel repository, montata con `npm run build`.
 [build]
-  publish = "."
+  publish = "dist/pubblica"
   command = ""
 
 [functions]
