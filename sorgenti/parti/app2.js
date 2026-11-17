@@ -162,18 +162,18 @@ function initMappa(){
   map.on('click', ev => {
     const t = ev.originalEvent && ev.originalEvent.target;
     if(t && t.closest && t.closest('.mk')) return;
-    if(st.foglio && ['strati','elenco','gruppo','scheda'].includes(st.foglio)) chiudi();
+    if(st.foglio && ['strati','elenco','gruppo','scheda','punto'].includes(st.foglio)) chiudi();
   });
   map.on('contextmenu', ev => {
     if(st.posa || Date.now()-ultimaLunga < 1500) return;
     annullaLungo(); ultimaLunga = Date.now();
-    apriFormPunto({lat:ev.lngLat.lat, lng:ev.lngLat.lng});
+    mostraPunto({lat:ev.lngLat.lat, lng:ev.lngLat.lng});
   });
   installaLunga();
 }
 function aggiornaZoomBtn(){ if(!map) return; const z = map.getZoom(); $('zPiu').disabled = z >= map.getMaxZoom()-0.01; $('zMeno').disabled = z <= map.getMinZoom()+0.01; }
 
-/* pressione lunga sulla mappa = nuovo Off-Grid in quel punto */
+/* pressione lunga sulla mappa = coordinate del punto, con il solo tasto «Copia» (T-009; § 2.2) */
 let lungo = null, ultimaLunga = 0;
 function annullaLungo(){ if(lungo){ clearTimeout(lungo.t1); clearTimeout(lungo.t2); if(lungo.segno) lungo.segno.remove(); lungo = null; } }
 function installaLunga(){
@@ -189,7 +189,7 @@ function installaLunga(){
       if(lungo!==L) return; annullaLungo();
       if(Date.now()-ultimaLunga < 1500) return; ultimaLunga = Date.now();
       const mr = $('map').getBoundingClientRect(), ll = map.unproject([t.clientX - mr.left, t.clientY - mr.top]);
-      apriFormPunto({lat:ll.lat, lng:ll.lng});
+      mostraPunto({lat:ll.lat, lng:ll.lng});
     }, 650);
   }, {passive:true});
   can.addEventListener('touchmove', ev => { if(!lungo) return; const t = ev.touches[0]; if(ev.touches.length>1 || Math.hypot(t.clientX-lungo.x0, t.clientY-lungo.y0) > 8) annullaLungo(); }, {passive:true});
@@ -240,6 +240,7 @@ function disegnaPins(){
   });
   if(st.tuQui) mettiSegnaposto(`<span class="tu-qui" aria-label="${esc(tr('Sei qui'))}"></span>`, st.tuQui.lng, st.tuQui.lat, 'mk-tu');
   if(st.cercaQui) mettiSegnaposto('<span class="cerca-qui"></span>', st.cercaQui.lng, st.cercaQui.lat, 'mk-q');
+  if(st.punto && st.foglio==='punto') mettiSegnaposto('<span class="cerca-qui"></span>', st.punto.lng, st.punto.lat, 'mk-q');
 }
 
 /* ---------- Inquadrare ---------- */

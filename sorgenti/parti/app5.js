@@ -345,7 +345,7 @@ function salvaAdmin(){
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
-  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid», o tenendo premuto un punto della mappa, aggiungi un tuo evento. Resta solo su questo telefono.'), el:'btnNuovo'},
+  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'},
   {t:tr('Prova la demo'), d:tr('La demo riempie {nome} di eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: serve a vedere come funziona. Gli eventi della demo sono tutti a Torino. Restano solo su questo telefono e i tuoi eventi non si toccano.')+' '+tr('Si accende e si spegne quando vuoi da Impostazioni → Prova {nome}.'), el:'btnImpo', demo:true}
 ];
 /* ultimo cartellino: la demo, con la scelta subito */

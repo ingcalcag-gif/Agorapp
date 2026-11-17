@@ -4,7 +4,8 @@
    nessun servizio esterno riceve nulla). Sono ammessi solo gli indirizzi di sorgenti/config.js; ogni altro è uno
    scarto noto con la voce che lo toglie. Controlla anche che i caratteri e le librerie arrivino dall'app e che la
    ricerca degli indirizzi (T-008; § 3.8) parta solo mentre la persona scrive, senza referrer e con il solo testo
-   scritto e parametri fissi: niente posizione, centro o zoom della mappa. */
+   scritto e parametri fissi: niente posizione, centro o zoom della mappa; e che la pressione prolungata (T-009) mostri
+   soltanto le coordinate con «Copia», senza richieste e senza salvare nulla. */
 'use strict';
 const { esito, eseguiDaSola, confronta, config } = require('../comune.js');
 const { playwright, server, apri, giorno, pausa } = require('./comune.js');
@@ -45,6 +46,17 @@ async function prova() {
     const [d] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('[data-az="scarica-pdf"]')]);
     if (!/\.pdf$/.test(d.suggestedFilename())) e.errori.push('PDF del calendario non creato: ' + d.suggestedFilename());
     vista = 'impostazioni'; await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="impostazioni"]'); await p.click('[data-az="impostazioni"]'); await pausa(400);
+    // Pressione prolungata (T-009; § 2.2): coordinate calcolate sul telefono, il solo tasto «Copia», nulla salvato.
+    vista = 'pressione prolungata'; await p.goto(s.url + 'index.html'); await p.waitForSelector('#map canvas', { state: 'attached' }); await pausa(300);
+    const memoria = () => p.evaluate(() => JSON.stringify(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)])));
+    const prima = await memoria();
+    await p.click('#map canvas', { button: 'right', position: { x: 196, y: 420 } }); await pausa(500);
+    const coord = ((await p.locator('#punto-testo').textContent().catch(() => '')) || '').trim();
+    if (!/^-?\d{1,2}\.\d{4}, -?\d{1,3}\.\d{4}$/.test(coord)) e.errori.push('pressione prolungata: coordinate non mostrate nel formato «45.0703, 7.6869» (' + (coord || 'nessun foglio') + ')');
+    const tasti = await p.locator('#foglio-slot .corpo button').evaluateAll(b => b.map(x => x.dataset.az));
+    if (tasti.join() !== 'copia-punto') e.errori.push('pressione prolungata: nel foglio ci devono essere solo «Copia», trovati: ' + (tasti.join(', ') || 'nessuno'));
+    if (coord) { await p.click('[data-az="copia-punto"]'); await pausa(400); }
+    if (await memoria() !== prima) e.errori.push('la pressione prolungata ha salvato qualcosa nella memoria del telefono');
     vista = 'cerca'; await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="cerca"]'); await p.click('[data-az="cerca"]'); await pausa(300);
     await p.keyboard.type('via Po 1'); await pausa(1500);
   } finally {

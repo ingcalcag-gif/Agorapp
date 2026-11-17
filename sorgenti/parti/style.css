@@ -352,6 +352,8 @@ a.menu-r{color:inherit;text-decoration:none}
 .menu-r .t{font-weight:600}
 .menu-r.on .t{color:var(--verde)}
 .mail{font-weight:600;user-select:all;-webkit-user-select:all}
+/* coordinate della pressione prolungata (T-009): tutte selezionabili con un tocco lungo */
+.coordinate{margin:0;font-size:24px;line-height:32px;font-weight:600;font-variant-numeric:tabular-nums;user-select:all;-webkit-user-select:all}
 .legale{display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:21px;-webkit-user-select:text;user-select:text}
 .legale h3{font-family:var(--sans);font-weight:700;font-size:14px;line-height:20px;margin-top:6px}
 .legale p,.legale ul{margin:0}

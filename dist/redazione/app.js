@@ -160,7 +160,7 @@ const st = {
   tempo:'tutto', da:null, a:null, salvatiSolo:false, prezzo:'tutti', finiti:false, nascostiOn:true,
   tipi:{evento:true, pratica:true, istanza:true, og:true},
   strati:new Set(), subOff:new Set(), aperto:null, preset:0,
-  sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null,
+  sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
   admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, demoMsg:null, lente:null, vuoti:false
@@ -406,18 +406,18 @@ function initMappa(){
   map.on('click', ev => {
     const t = ev.originalEvent && ev.originalEvent.target;
     if(t && t.closest && t.closest('.mk')) return;
-    if(st.foglio && ['strati','elenco','gruppo','scheda'].includes(st.foglio)) chiudi();
+    if(st.foglio && ['strati','elenco','gruppo','scheda','punto'].includes(st.foglio)) chiudi();
   });
   map.on('contextmenu', ev => {
     if(st.posa || Date.now()-ultimaLunga < 1500) return;
     annullaLungo(); ultimaLunga = Date.now();
-    apriFormPunto({lat:ev.lngLat.lat, lng:ev.lngLat.lng});
+    mostraPunto({lat:ev.lngLat.lat, lng:ev.lngLat.lng});
   });
   installaLunga();
 }
 function aggiornaZoomBtn(){ if(!map) return; const z = map.getZoom(); $('zPiu').disabled = z >= map.getMaxZoom()-0.01; $('zMeno').disabled = z <= map.getMinZoom()+0.01; }
 
-/* pressione lunga sulla mappa = nuovo Off-Grid in quel punto */
+/* pressione lunga sulla mappa = coordinate del punto, con il solo tasto «Copia» (T-009; § 2.2) */
 let lungo = null, ultimaLunga = 0;
 function annullaLungo(){ if(lungo){ clearTimeout(lungo.t1); clearTimeout(lungo.t2); if(lungo.segno) lungo.segno.remove(); lungo = null; } }
 function installaLunga(){
@@ -433,7 +433,7 @@ function installaLunga(){
       if(lungo!==L) return; annullaLungo();
       if(Date.now()-ultimaLunga < 1500) return; ultimaLunga = Date.now();
       const mr = $('map').getBoundingClientRect(), ll = map.unproject([t.clientX - mr.left, t.clientY - mr.top]);
-      apriFormPunto({lat:ll.lat, lng:ll.lng});
+      mostraPunto({lat:ll.lat, lng:ll.lng});
     }, 650);
   }, {passive:true});
   can.addEventListener('touchmove', ev => { if(!lungo) return; const t = ev.touches[0]; if(ev.touches.length>1 || Math.hypot(t.clientX-lungo.x0, t.clientY-lungo.y0) > 8) annullaLungo(); }, {passive:true});
@@ -484,6 +484,7 @@ function disegnaPins(){
   });
   if(st.tuQui) mettiSegnaposto(`<span class="tu-qui" aria-label="${esc(tr('Sei qui'))}"></span>`, st.tuQui.lng, st.tuQui.lat, 'mk-tu');
   if(st.cercaQui) mettiSegnaposto('<span class="cerca-qui"></span>', st.cercaQui.lng, st.cercaQui.lat, 'mk-q');
+  if(st.punto && st.foglio==='punto') mettiSegnaposto('<span class="cerca-qui"></span>', st.punto.lng, st.punto.lat, 'mk-q');
 }
 
 /* ---------- Inquadrare ---------- */
@@ -580,7 +581,7 @@ function posizioni(){
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
@@ -649,7 +650,7 @@ function disegnaFoglio(){
     strati:fStrati,
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
-    scheda:() => fScheda(byId(st.sel)), cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, aform:fAdminForm, conferma:fConferma,
+    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, aform:fAdminForm, conferma:fConferma,
     condividi:fCondividi, pacchetto:fPacchetto, formula:fFormula, fate:fFateArrivo,
     impostazioni:fImpostazioni, legale:fLegale, citta:fCitta, admin:fAdmin, importa:fImporta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
@@ -1148,11 +1149,29 @@ function apriForm(raw, preset){
   st.form = f; st.sel = null; st.posa = null; disegnaPosa(); apri('form');
   if(!raw && !preset.pos && !preset.aiuto) setTimeout(() => { const t = $('f-titolo'); if(t) t.focus(); }, 80);
 }
-function apriFormPunto(p){
-  if(st.sezione!=='mappa') return;
-  apriForm(null, {pos:p});
-  if(!st.form) return; st.form.indirizzo = tr('Punto scelto sulla mappa'); st.form.addrFull = st.form.indirizzo;
-  const el = $('f-indirizzo'); if(el && !el.value) el.value = st.form.indirizzo; aggiornaPunto();
+/* Pressione prolungata (T-009; libro mastro, § 2.2): le coordinate del punto, calcolate qui, con il solo tasto
+   «Copia». Nessuna richiesta a servizi, nessun salvataggio: il punto vive solo finché il foglio resta aperto.
+   Formato universale: latitudine prima, punto decimale, quattro decimali («45.0703, 7.6869»). */
+const testoPunto = p => p.lat.toFixed(4) + ', ' + p.lng.toFixed(4);
+function mostraPunto(p){
+  if(st.sezione!=='mappa' || (st.foglio && !['strati','elenco','gruppo','scheda','punto'].includes(st.foglio))) return;
+  st.punto = p; st.sel = null; st.puntoCopiato = false; apri('punto');
+}
+function fPunto(){
+  const p = st.punto; if(!p) return '';
+  const testa = `<div class="riga-titolo"><h2>${tr('Punto sulla mappa')}</h2>${chiudiBtn()}</div>`;
+  const corpo = `<div class="stack-s"><span class="etich">${tr('Latitudine, longitudine')}</span>
+      <p class="coordinate" id="punto-testo" dir="ltr" translate="no">${testoPunto(p)}</p></div>
+    <div class="tasti"><button class="tasto pri" data-az="copia-punto">${st.puntoCopiato ? tr('Copiato') : tr('Copia')}</button></div>
+    <p class="meta" id="punto-esito" role="status" aria-live="polite">${st.puntoCopiato===null ? esc(tr('Copia non riuscita: tieni premuto sul testo per selezionarlo.')) : ''}</p>`;
+  return foglio('forte', testa, corpo);
+}
+function copiaPunto(){
+  const p = st.punto; if(!p) return;
+  const t = testoPunto(p), fatto = ok => { if(st.punto!==p) return; st.puntoCopiato = ok ? true : null; disegnaFoglio(); };
+  const aMano = () => { try{ const a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly',''); a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; }catch(e){ return false; } };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => fatto(true), () => fatto(aMano()));
+  else fatto(aMano());
 }
 function boxPunto(f){
   if(!f.pos) return '';
@@ -1634,7 +1653,7 @@ function salvaAdmin(){
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
-  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid», o tenendo premuto un punto della mappa, aggiungi un tuo evento. Resta solo su questo telefono.'), el:'btnNuovo'},
+  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'},
   {t:tr('Prova la demo'), d:tr('La demo riempie {nome} di eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: serve a vedere come funziona. Gli eventi della demo sono tutti a Torino. Restano solo su questo telefono e i tuoi eventi non si toccano.')+' '+tr('Si accende e si spegne quando vuoi da Impostazioni → Prova {nome}.'), el:'btnImpo', demo:true}
 ];
 /* ultimo cartellino: la demo, con la scelta subito */
@@ -3149,6 +3168,7 @@ $('app').addEventListener('click', ev => {
   switch(d.az){
     case 'strati': st.sel = null; apri('strati'); break;
     case 'elenco': st.sel = null; apri('elenco'); break;
+    case 'copia-punto': copiaPunto(); break;
     case 'cerca': st.sel = null; sugg.lista = []; st.fateMsg = null; apri('cerca'); break;
     case 'date': if(!st.da){ st.da = oggi(); st.a = null; } apri('date'); break;
     case 'mostra-date': if(st.da){ st.tempo = 'date'; chiudi(); tutto(); } break;

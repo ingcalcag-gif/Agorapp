@@ -56,6 +56,7 @@ $('app').addEventListener('click', ev => {
   switch(d.az){
     case 'strati': st.sel = null; apri('strati'); break;
     case 'elenco': st.sel = null; apri('elenco'); break;
+    case 'copia-punto': copiaPunto(); break;
     case 'cerca': st.sel = null; sugg.lista = []; st.fateMsg = null; apri('cerca'); break;
     case 'date': if(!st.da){ st.da = oggi(); st.a = null; } apri('date'); break;
     case 'mostra-date': if(st.da){ st.tempo = 'date'; chiudi(); tutto(); } break;

@@ -185,11 +185,29 @@ function apriForm(raw, preset){
   st.form = f; st.sel = null; st.posa = null; disegnaPosa(); apri('form');
   if(!raw && !preset.pos && !preset.aiuto) setTimeout(() => { const t = $('f-titolo'); if(t) t.focus(); }, 80);
 }
-function apriFormPunto(p){
-  if(st.sezione!=='mappa') return;
-  apriForm(null, {pos:p});
-  if(!st.form) return; st.form.indirizzo = tr('Punto scelto sulla mappa'); st.form.addrFull = st.form.indirizzo;
-  const el = $('f-indirizzo'); if(el && !el.value) el.value = st.form.indirizzo; aggiornaPunto();
+/* Pressione prolungata (T-009; libro mastro, § 2.2): le coordinate del punto, calcolate qui, con il solo tasto
+   «Copia». Nessuna richiesta a servizi, nessun salvataggio: il punto vive solo finché il foglio resta aperto.
+   Formato universale: latitudine prima, punto decimale, quattro decimali («45.0703, 7.6869»). */
+const testoPunto = p => p.lat.toFixed(4) + ', ' + p.lng.toFixed(4);
+function mostraPunto(p){
+  if(st.sezione!=='mappa' || (st.foglio && !['strati','elenco','gruppo','scheda','punto'].includes(st.foglio))) return;
+  st.punto = p; st.sel = null; st.puntoCopiato = false; apri('punto');
+}
+function fPunto(){
+  const p = st.punto; if(!p) return '';
+  const testa = `<div class="riga-titolo"><h2>${tr('Punto sulla mappa')}</h2>${chiudiBtn()}</div>`;
+  const corpo = `<div class="stack-s"><span class="etich">${tr('Latitudine, longitudine')}</span>
+      <p class="coordinate" id="punto-testo" dir="ltr" translate="no">${testoPunto(p)}</p></div>
+    <div class="tasti"><button class="tasto pri" data-az="copia-punto">${st.puntoCopiato ? tr('Copiato') : tr('Copia')}</button></div>
+    <p class="meta" id="punto-esito" role="status" aria-live="polite">${st.puntoCopiato===null ? esc(tr('Copia non riuscita: tieni premuto sul testo per selezionarlo.')) : ''}</p>`;
+  return foglio('forte', testa, corpo);
+}
+function copiaPunto(){
+  const p = st.punto; if(!p) return;
+  const t = testoPunto(p), fatto = ok => { if(st.punto!==p) return; st.puntoCopiato = ok ? true : null; disegnaFoglio(); };
+  const aMano = () => { try{ const a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly',''); a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; }catch(e){ return false; } };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => fatto(true), () => fatto(aMano()));
+  else fatto(aMano());
 }
 function boxPunto(f){
   if(!f.pos) return '';
