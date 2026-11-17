@@ -335,7 +335,7 @@ function creaPdf(scelti){
   const X = 16, W = 178, COL = 34; let y = 18;
   const riga = (t, font, stile, size, col, x, w) => { doc.setFont(font, stile); doc.setFontSize(size); doc.setTextColor(col); const l = doc.splitTextToSize(pulisci(t), w); doc.text(l, x, y); return l.length * size * 0.42; };
   const spazio = h => { if(y + h > 282){ doc.addPage(); y = 18; } };
-  riga('AGORAPP · ' + cittaObj().n.toUpperCase(), 'helvetica', 'bold', 8, '#5C5246', X, W); y += 8;
+  riga(NOME.toUpperCase() + ' · ' + cittaObj().n.toUpperCase(), 'helvetica', 'bold', 8, '#5C5246', X, W); y += 8;
   y += riga(titolo, 'times', 'bold', 22, '#1C1712', X, W) + 1;
   y += riga(sotto, 'helvetica', 'normal', 11, '#5C5246', X, W) + 4;
   const giorni = [...new Set(scelti.map(e => e.giorno))];

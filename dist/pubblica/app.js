@@ -913,7 +913,7 @@ function creaPdf(scelti){
   const X = 16, W = 178, COL = 34; let y = 18;
   const riga = (t, font, stile, size, col, x, w) => { doc.setFont(font, stile); doc.setFontSize(size); doc.setTextColor(col); const l = doc.splitTextToSize(pulisci(t), w); doc.text(l, x, y); return l.length * size * 0.42; };
   const spazio = h => { if(y + h > 282){ doc.addPage(); y = 18; } };
-  riga('AGORAPP · ' + cittaObj().n.toUpperCase(), 'helvetica', 'bold', 8, '#5C5246', X, W); y += 8;
+  riga(NOME.toUpperCase() + ' · ' + cittaObj().n.toUpperCase(), 'helvetica', 'bold', 8, '#5C5246', X, W); y += 8;
   y += riga(titolo, 'times', 'bold', 22, '#1C1712', X, W) + 1;
   y += riga(sotto, 'helvetica', 'normal', 11, '#5C5246', X, W) + 4;
   const giorni = [...new Set(scelti.map(e => e.giorno))];
@@ -1399,7 +1399,7 @@ function togliDemo(silenzio){
 function esporta(){
   const dati = events.filter(e => !e.demo && !e.fata);   /* gli eventi ricevuti con un pacchetto non escono dal telefono */
   const blob = new Blob([JSON.stringify({events:dati, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = 'agorapp_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nomeFile()+'_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
   st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
 }
 /* ======================= Excel: importa, modello, esporta ======================= */
@@ -1568,7 +1568,7 @@ function esportaExcel(){
   const dati = events.filter(e => !e.demo && !e.personal && !e.offgrid && !e.fata);
   const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
     return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.image||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
-  fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], 'agorapp_'+oggi()+'.xlsx')
+  fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
     .then(() => { registra('esporta-excel', {n:dati.length}); st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
     .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
