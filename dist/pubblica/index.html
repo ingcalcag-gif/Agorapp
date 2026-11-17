@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFDF8">
+<meta name="referrer" content="no-referrer">
 <title>Agorapp — Torino</title>
 <link rel="stylesheet" href="lib/caratteri/caratteri.css?v=0d359f5805">
 <link rel="stylesheet" href="lib/maplibre-gl-5.24.0/maplibre-gl.css">
@@ -43,7 +44,7 @@
       <button class="fab" data-az="nuovo" id="btnNuovo"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Off-Grid</button>
     </div>
     <div class="tipi-mappa" id="tipiMappa" role="group"></div>
-    <div class="attrib vetro" id="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></div>
+    <div class="attrib vetro" id="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">OpenStreetMap</a> · <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">CARTO</a></div>
 
     <button class="peek vetro" id="peek" data-az="strati"></button>
     <div class="avviso-strati vetro" id="avvisoStrati" role="note" hidden></div>
@@ -92,11 +93,11 @@
         <h3>5. Chi può vedere i dati</h3>
         <p>Le informazioni degli eventi sono visibili a chiunque visiti Agorapp. <strong>Nessun dato viene ceduto, venduto o comunicato a terzi</strong> per finalità commerciali o di marketing.</p>
         <h3>6. Trasferimento dati fuori dall'UE</h3>
-        <p>Agorapp non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l'indirizzo IP dell'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p>
+        <p>Agorapp non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l'indirizzo IP dell'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p>
         <h3>7. I tuoi diritti (artt. 15–21 GDPR)</h3>
         <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a <span class="segnaposto">[casella di contatto]</span> — risponderemo entro 30 giorni.</p>
         <h3>8. Reclamo al Garante</h3>
-        <p>Puoi proporre reclamo al Garante per la protezione dei dati personali: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Roma</p>
+        <p>Puoi proporre reclamo al Garante per la protezione dei dati personali: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Roma</p>
         <h3>9. Decisioni automatizzate</h3>
         <p>Agorapp non effettua profilazione né decisioni automatizzate.</p></template>
 <template id="leg-storage"><span class="legal-badge">Solo sul tuo dispositivo · Nessun server</span>
@@ -117,8 +118,8 @@
         <h3>Servizi cartografici di terze parti</h3>
         <p>La visualizzazione della mappa utilizza due servizi esterni che ricevono l'indirizzo IP dell'utente ad ogni caricamento delle immagini geografiche:</p>
         <ul>
-          <li><strong>CartoDB/Carto</strong> — fornisce le immagini della mappa. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Opera su base Clausole Contrattuali Standard UE.</li>
-          <li><strong>OpenStreetMap</strong> — base cartografica open source. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">osmfoundation.org/wiki/Privacy_Policy</a>.</li>
+          <li><strong>CartoDB/Carto</strong> — fornisce le immagini della mappa. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">carto.com/privacy</a>. Opera su base Clausole Contrattuali Standard UE.</li>
+          <li><strong>OpenStreetMap</strong> — base cartografica open source. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">osmfoundation.org/wiki/Privacy_Policy</a>.</li>
         </ul>
         <p>Agorapp non ha accesso a questi dati e non li controlla.</p>
         <h3>Come cancellare i dati locali</h3>
@@ -141,7 +142,7 @@
 <script src="lib/maplibre-gl-5.24.0/maplibre-gl.js"></script>
 <script src="config.js?v=b3c4bab9f2"></script>
 <script src="traduzioni.js?v=dffa20eddd"></script>
-<script src="app.js?v=a0c06a7f05"></script>
+<script src="app.js?v=533c747bbb"></script>
 <script src="sezioni.js?v=7e5c8f2011"></script>
 </body>
 </html>

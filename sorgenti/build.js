@@ -136,6 +136,7 @@ function monta(cfg) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFDF8">
+<meta name="referrer" content="no-referrer">
 <title>${escH(cfg.nome)} — Torino</title>
 <link rel="stylesheet" href="lib/caratteri/caratteri.css?v=${crypto.createHash('sha256').update(caratteri).digest('hex').slice(0, 10)}">
 <link rel="stylesheet" href="${lib('maplibre-gl.css')}">

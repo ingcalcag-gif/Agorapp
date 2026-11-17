@@ -20,11 +20,12 @@ async function prova() {
   const ricerca = c.indirizzi && c.indirizzi.ricerca_indirizzi ? new URL(c.indirizzi.ricerca_indirizzi).host : '';
   const PARAMETRI_RICERCA = ['q', 'limit', 'bbox'];
   const cerche = [];
-  const ev = eventi(false).map(x => ({ ...x, datetime: giorno(0) + 'T22:00', end: giorno(0) + 'T23:30' }));
+  const ev = eventi(false).map(x => ({ ...x, datetime: giorno(0) + 'T22:00', end: giorno(0) + 'T23:30',
+    link: x.offgrid ? '' : 'https://organizzatore.esempio.invalid/evento' }));
   const s = await server('pubblica');
   const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: ev,
     agorapp_cal: { 'prova-ostile-1': true, 'prova-ostile-og': true } });
-  const esterne = [], locali = new Set();
+  const esterne = [], locali = new Set(), senzaNoref = [];
   ctx.on('request', r => {
     const u = new URL(r.url());
     if (u.protocol === 'data:' || u.protocol === 'blob:') return;
@@ -41,6 +42,12 @@ async function prova() {
     if (!car.mappa) e.errori.push('MapLibre non caricato dall\'app');
     vista = 'elenco e scheda'; await p.click('[data-az="elenco"]'); await pausa(400);
     await p.locator('[data-ev="prova-ostile-1"]').first().click(); await pausa(500);
+    // Collegamenti esterni (T-012; § 5.3, regola 3): solo al tocco, senza referrer, e la pagina ha la regola generale.
+    const col = await p.evaluate(() => ({ meta: (document.querySelector('meta[name="referrer"]') || {}).content || '',
+      a: [...document.querySelectorAll('#foglio-slot a[href^="http"]')].map(a => ({ h: a.host, rel: a.rel, pol: a.referrerPolicy })) }));
+    if (col.meta !== 'no-referrer') e.errori.push('la pagina non ha la regola generale «no-referrer» (trovato: ' + (col.meta || 'nulla') + ')');
+    if (!col.a.some(x => x.h === 'organizzatore.esempio.invalid')) e.errori.push('scheda: non trovo il collegamento al sito di chi organizza');
+    for (const x of col.a) if (!/\bnoreferrer\b/.test(x.rel) || x.pol !== 'no-referrer') senzaNoref.push({ chiave: 'collegamento senza noreferrer: ' + x.h, dove: 'scheda', dettaglio: 'rel «' + x.rel + '», referrerpolicy «' + (x.pol || '') + '»' });
     vista = 'calendario e PDF'; await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="calendario"]'); await pausa(400);
     await p.click('[data-az="calendario"]'); await pausa(400); await p.click('[data-az="pdf"]'); await pausa(800);
     const [d] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('[data-az="scarica-pdf"]')]);
@@ -80,7 +87,7 @@ async function prova() {
     const k = x.host + (x.primo ? '/' + x.primo : '');
     per.set(k, [...new Set((per.get(k) || []).concat(x.momento))]);
   }
-  const trovati = [...per].map(([k, m]) => ({ chiave: k, dove: 'app', dettaglio: m.join(', ') }));
+  const trovati = [...per].map(([k, m]) => ({ chiave: k, dove: 'app', dettaglio: m.join(', ') })).concat(senzaNoref);
   confronta(e, 'richieste', trovati);
   const ok = esterne.filter(x => ammessi.includes(x.host)).map(x => x.host + ' (' + x.momento + ')');
   e.note.push('richieste ammesse dalla configurazione: ' + ([...new Set(ok)].join(', ') || 'nessuna'));

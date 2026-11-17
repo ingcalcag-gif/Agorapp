@@ -9,7 +9,7 @@
 'use strict';
 const { stampa } = require('./comune.js');
 
-const STATICHE = ['./sintassi.js', './uscite.js', './componenti.js', './nome.js', './indirizzi.js', './chiavi.js', './parole.js'];
+const STATICHE = ['./sintassi.js', './uscite.js', './componenti.js', './nome.js', './indirizzi.js', './collegamenti.js', './chiavi.js', './parole.js'];
 const BROWSER = ['./browser/ostili.js', './browser/richieste.js', './browser/tolte.js', './browser/accessibilita.js'];
 
 async function main() {
