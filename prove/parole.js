@@ -1,18 +1,23 @@
-/* Prova: parole vietate nei testi dell'interfaccia (voce T-005; l'elenco lo completa T-013).
+/* Prova: parole vietate nei testi dell'interfaccia (voci T-005 e T-013).
 
    Libro mastro: § 2.5, principio 7 (nessuna frase che prometta più del vero); § 5.2 (nessun «verificato»
    o «ufficiale» riferito agli eventi); § 8.3; § 10.3; § 11.1 (nessuna dichiarazione di conformità non
    dimostrata); § 1.3 e § 2.4 (nessuna versione anticipata o abbreviata della frase sui dati).
 
-   Si cercano le parole nei testi dei sorgenti (commenti esclusi) e nelle traduzioni, lingua per lingua.
-   Molte di queste parole hanno anche usi innocui («Sei sicuro?»): T-013 rivede ogni caso, lo toglie o lo
-   dichiara ammesso; fino ad allora ogni caso trovato oggi è uno scarto noto, contato per file. */
+   Si cercano le parole nei testi dei sorgenti (commenti esclusi), nelle traduzioni e nei testi legali tradotti,
+   lingua per lingua, arabo compreso. Molte di queste parole hanno anche usi innocui («schermo intero», «copia
+   completa»): ogni caso è stato rivisto con T-013 e, se resta, è nell'elenco AMMESSI qui sotto con la frase esatta
+   e il motivo. Un caso nuovo fa fallire la prova finché non si toglie o non si aggiunge, motivato, all'elenco. I casi
+   che una voce successiva toglie stanno in prove/scarti-noti.js. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const { RADICE, elencaFile, riga, esito, eseguiDaSola, confronta } = require('./comune.js');
 
 const p = src => new RegExp('(?<![\\p{L}\\p{N}_])(?:' + src + ')(?![\\p{L}\\p{N}_])', 'giu');
+/* arabo: la stessa regola, con i prefissi uniti alla parola e le terminazioni del femminile e del plurale */
+const pas = src => '[وبلفك]?(?:ال)?(?:' + src + ')(?:ة|ات|ون|ين|ان)?';
+const pa = src => p(pas(src));
 const PAROLE = {
   it: {
     'conforme': p('conform[ei]'), 'verificato': p('verificat[oaie]'), 'ufficiale': p('ufficial[ei]'),
@@ -32,8 +37,45 @@ const PAROLE = {
   fr: {
     'conforme': p('conformes?'), 'vérifié': p('vérifiée?s?'), 'officiel': p('officiel(?:le)?s?'), 'autorisé': p('autorisée?s?'),
     'sûr': p('sûre?s?|sécurisée?s?'), 'neutre': p('neutres?'), 'impartial': p('impartiale?s?|impartiaux'), 'tous les événements': p('tous les événements'), 'complet': p('complète?s?'),
+    'frase sui dati abbreviata': p('données[^.<"\'`]{0,60}(?:ne quittent|restent|demeurent)[^.<"\'`]{0,30}(?:Europe|UE|Union)'),
+  },
+  /* arabo: prefissi uniti alla parola (و ب ل ف ك e l'articolo ال) e terminazioni comuni */
+  ar: {
+    'متوافق': pa('متوافق|مطابق'), 'موثق': p(pas('موثق|موثوق') + '|تم التحقق'), 'رسمي': pa('رسمي'), 'مرخص': pa('مرخص|مصرح'),
+    'آمن': pa('آمن|مأمون'), 'محايد': pa('محايد'), 'غير متحيز': p('غير متحيز[ةين]*|نزيه[ةين]*'), 'جميع الفعاليات': p('(?:جميع|كل|كافة) الفعاليات'),
+    'كامل': pa('كامل|مكتمل|شامل'),
+    'frase sui dati abbreviata': p('بيانات[^.<"\'`]{0,60}(?:لا تغادر|تبقى|تظل)[^.<"\'`]{0,30}(?:أوروبا|الاتحاد)'),
   },
 };
+PAROLE.es['frase sui dati abbreviata'] = p('datos[^.<"\'`]{0,60}(?:no salen|se quedan|permanecen)[^.<"\'`]{0,30}(?:Europa|UE|Unión)');
+
+/* Casi ammessi dopo la revisione di T-013: la parola compare dentro la frase indicata, che non è riferita agli eventi
+   né alla mappa e non dichiara una conformità. Ogni riga: lingua, frase esatta (o un suo pezzo), motivo. */
+const AMMESSI = [
+  ['it', 'crea invece un evento on-grid completo', 'amministrazione: «completo» è il modulo, non la mappa'],
+  ['it', 'Form completo, con strato', 'amministrazione: «completo» è il modulo, non la mappa'],
+  ['it', 'Per una copia completa, con i tuoi Off-Grid', 'copia di sicurezza dei dati del telefono'],
+  ['it', 'come farlo restando conformi', 'Misure (amministrazione): intenzione di rispettare le regole, non dichiarazione di conformità'],
+  ['it', 'Scheda completa: calcolo, metodo, conformità', 'Misure (amministrazione): scheda di una misura'],
+  ['it', 'va verificata la compatibilità', 'Misure (amministrazione): catalogo delle misure, non riferito agli eventi'],
+  ['it', 'va verificato cosa registra Netlify', 'Misure (amministrazione): catalogo delle misure, non riferito agli eventi'],
+  ['it', 'Copia completa esportata in JSON', 'storico delle operazioni: copia di sicurezza'],
+  ['en', 'Regulatory compliance of events', 'testi legali v1.2: titolo dell\'avvertenza che nega il controllo (T-080 li sostituisce)'],
+  ['en', 'does not verify the compliance of events', 'testi legali v1.2: avvertenza che nega il controllo (T-080 li sostituisce)'],
+  ['es', 'pantalla completa', '«schermo intero»'],
+  ['es', 'evento on-grid completo', 'amministrazione: «completo» è il modulo, non la mappa'],
+  ['es', 'Formulario completo', 'amministrazione: «completo» è il modulo, non la mappa'],
+  ['es', 'una copia completa', 'copia di sicurezza dei dati del telefono'],
+  ['es', 'textos completos', 'testi integrali delle licenze'],
+  ['fr', 'une copie complète', 'copia di sicurezza dei dati del telefono'],
+  ['ar', 'كيوم كامل', '«come giornata intera»'],
+  ['ar', 'فعالية on-grid كاملة', 'amministrazione: «completo» è il modulo, non la mappa'],
+  ['ar', 'نموذج كامل', 'amministrazione: «completo» è il modulo, non la mappa'],
+  ['ar', 'لنسخة كاملة', 'copia di sicurezza dei dati del telefono'],
+  ['ar', 'الاجتماعات غير الرسمية', '«غير الرسمية» vuol dire «non ufficiali»: contenuto d\'esempio di Progetti'],
+  ['ar', 'إعادة إرساله كاملًا', 'Fate: «rimandarlo intero» (esce con T-014)'],
+  ['ar', 'النصوص الكاملة', 'testi integrali delle licenze'],
+];
 
 /* Toglie i commenti da un testo JavaScript o CSS, lasciando le righe al loro posto (per i numeri di riga).
    È una pulizia semplice: basta per cercare parole, non per capire il codice. */
@@ -43,9 +85,19 @@ function senzaCommenti(t) {
 }
 const senzaCommentiHtml = t => t.replace(/<!--[\s\S]*?-->/g, s => s.replace(/[^\n]/g, ' '));
 
+/* Vero se il caso alla posizione i (lunghezza n) sta dentro una delle frasi ammesse per quella lingua. */
+function ammesso(testo, lingua, i, n) {
+  for (const [l, frase] of AMMESSI) {
+    if (l !== lingua) continue;
+    for (let k = testo.indexOf(frase); k >= 0; k = testo.indexOf(frase, k + 1)) if (i >= k && i + n <= k + frase.length) return true;
+  }
+  return false;
+}
 function cercaIn(testo, lingua, dove, trovati) {
-  for (const [nome, re] of Object.entries(PAROLE[lingua])) for (const m of testo.matchAll(re))
+  for (const [nome, re] of Object.entries(PAROLE[lingua])) for (const m of testo.matchAll(re)) {
+    if (ammesso(testo, lingua, m.index, m[0].length)) continue;
     trovati.push({ chiave: `${lingua}: ${nome}`, dove, dettaglio: `riga ${riga(testo, m.index)}: «${m[0]}»` });
+  }
 }
 
 function prova() {
@@ -58,11 +110,17 @@ function prova() {
     cercaIn(f.endsWith('.html') ? senzaCommentiHtml(t) : senzaCommenti(t), 'it', 'sorgenti/parti/' + f, trovati);
   }
   const TR = JSON.parse(fs.readFileSync(path.join(PARTI, 'traduzioni.js'), 'utf8').replace(/^window\.AGR_TR=/, '').replace(/;\s*$/, ''));
-  for (const l of ['en', 'es', 'fr']) cercaIn(Object.values(TR[l]).join('\n'), l, 'traduzioni.js:' + l, trovati);
+  for (const l of ['en', 'es', 'fr', 'ar']) cercaIn(Object.values(TR[l]).join('\n'), l, 'traduzioni.js:' + l, trovati);
   const LEG = JSON.parse(fs.readFileSync(path.join(RADICE, 'sorgenti', 'dati', 'legali_tradotti.json'), 'utf8'));
   for (const l of Object.keys(LEG)) if (PAROLE[l]) cercaIn(Object.values(LEG[l]).join('\n'), l, 'legali_tradotti.json:' + l, trovati);
   confronta(e, 'parole', trovati);
-  e.note.push('arabo non ancora controllato: lo aggiunge T-013');
+  // Una frase ammessa che non si trova più va tolta dall'elenco, così l'elenco resta vero.
+  for (const [l, frase] of AMMESSI) {
+    const dove = l === 'it' ? elencaFile(PARTI).filter(f => f !== 'traduzioni.js').map(f => fs.readFileSync(path.join(PARTI, f), 'utf8')).join('\n')
+      : Object.values(TR[l] || {}).join('\n') + '\n' + Object.values(LEG[l] || {}).join('\n');
+    if (!dove.includes(frase)) e.errori.push(`frase ammessa che non c'è più (${l}): «${frase}»: toglila da AMMESSI in prove/parole.js`);
+  }
+  e.note.push('lingue: it, en, es, fr, ar; frasi ammesse dopo la revisione: ' + AMMESSI.length);
   return e;
 }
 
