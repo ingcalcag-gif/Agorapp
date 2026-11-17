@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!-- App montata da sorgenti/build.js: non modificare questo file, si cambia nei sorgenti. -->
+<html lang="it" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFDF8">
+<title>Agorapp — Torino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<link rel="stylesheet" href="app.css?v=58b90f6ce8">
+</head>
+<body>
+<div class="app" id="app" data-sez="mappa">
+  <header class="top">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0">
+      <button class="marchio" data-az="home" id="btnHome" aria-label="Agorapp"><span class="quad"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 14V7M8 7C8 4.5 6 3 3.5 3 3.5 5.5 5.5 7 8 7ZM8 9c0-2.5 2-4 4.5-4 0 2.5-2 4-4.5 4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nome">Agorapp</span></button>
+      <button class="badge-admin" id="badgeAdmin" data-az="admin" hidden>Admin</button>
+    </div>
+    <div class="top-dx">
+      <button class="citta" data-az="citta" id="btnCitta"><span id="cittaLbl">Torino</span></button>
+      <button class="ingr" data-az="impostazioni" id="btnImpo"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 6h8M15 6h2M3 14h2M9 14h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="13" cy="6" r="2" stroke="currentColor" stroke-width="1.7"/><circle cx="7" cy="14" r="2" stroke="currentColor" stroke-width="1.7"/></svg></button>
+    </div>
+  </header>
+
+  <div id="scena">
+  <div id="area">
+    <div id="map"></div>
+
+    <div class="sopra" id="sopra">
+      <div class="riga-cerca">
+        <button class="cerca vetro" data-az="cerca" id="btnCerca"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="m20 20-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span id="cercaLbl"></span></button>
+        <button class="btn-strati btn-elenco vetro" data-az="elenco" id="btnElenco"></button>
+      </div>
+      <div class="riga-chips"><div id="chipCal"></div><div class="chips" id="chips" role="group"></div><button class="chips-avanti vetro" id="chipsAvanti" data-az="chips-avanti" hidden aria-label="Altri"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3 9.5 7l-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+    </div>
+
+    <div class="lato" id="lato">
+      <div class="zoom vetro" role="group" id="zoomGr"><button data-az="zoom-piu" id="zPiu"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3.5v11M3.5 9h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><span class="zoom-sep"></span><button data-az="zoom-meno" id="zMeno"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3.5 9h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
+      <button class="tondo piccolo vetro" data-az="pieno" id="btnPieno" aria-pressed="false"></button>
+      <button class="tondo piccolo vetro" data-az="posizione" id="btnGps"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="1.7"/><circle cx="10" cy="10" r="2.2" fill="currentColor"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      <button class="tondo vetro cal-grande" data-az="calendario" id="btnCal"></button>
+      <button class="fab" data-az="nuovo" id="btnNuovo"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Off-Grid</button>
+    </div>
+    <div class="tipi-mappa" id="tipiMappa" role="group"></div>
+    <div class="attrib vetro" id="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></div>
+
+    <button class="peek vetro" id="peek" data-az="strati"></button>
+    <div class="avviso-strati vetro" id="avvisoStrati" role="note" hidden></div>
+  </div>
+    <div id="pagina-progetti" class="pagina sez-progetti" hidden>
+      <div class="anteprima" role="note"><b data-t="Anteprima">Anteprima</b><span data-t="Iscrizioni non ancora aperte: i contenuti sono d’esempio.">Iscrizioni non ancora aperte: i contenuti sono d’esempio.</span><button data-az="anteprima" data-t="Cosa vuol dire">Cosa vuol dire</button></div>
+      <main id="pag-progetti"></main>
+    </div>
+    <div id="pagina-agora" class="pagina sez-agora c-abitativo" hidden>
+      <div class="anteprima" role="note"><b data-t="Anteprima">Anteprima</b><span data-t="Iscrizioni non ancora aperte: i contenuti sono d’esempio.">Iscrizioni non ancora aperte: i contenuti sono d’esempio.</span><button data-az="anteprima" data-t="Cosa vuol dire">Cosa vuol dire</button></div>
+      <main id="pag-agora"></main>
+    </div>
+    <div id="pagina-temi" class="pagina sez-temi" hidden></div>
+    <div id="pagina-misure" class="pagina sez-misure" hidden></div>
+    <div id="foglio-slot"></div>
+    <div id="posa-slot"></div>
+    <div id="guida-slot"></div>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </div>
+
+  <nav class="bassa" id="navBassa">
+    <button data-sez="mappa" aria-current="page"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 4.5 6.5 3l5 1.5L16 3v10.5L11.5 15l-5-1.5L2 15V4.5ZM6.5 3v10.5M11.5 4.5V15" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span data-t="Mappa">Mappa</span></button>
+    <button data-sez="progetti"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m9 2 7 4-7 4-7-4 7-4ZM2 9.5l7 4 7-4M2 12.5l7 4 7-4" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span data-t="Progetti">Progetti</span></button>
+    <button data-sez="agora"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 7 9 3l7 4M3.5 7.5v6M7 7.5v6M11 7.5v6M14.5 7.5v6M2 15h14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-t="Agorà">Agorà</span></button>
+    <button data-sez="temi"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M7 2 5.5 16M12.5 2 11 16M3 6.5h13M2 11.5h13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span data-t="Temi">Temi</span></button>
+  </nav>
+  <input type="file" id="fileImporta" class="file-nascosto" accept=".xlsx,.xls,.ods,.csv,.json" tabindex="-1" aria-hidden="true">
+</div>
+
+<!-- Testi legali: quelli dell'app online OG 1.7 (v1.2), invariati -->
+<template id="leg-privacy"><span class="legal-badge">✓ Conforme GDPR · v1.2 · Marzo 2026</span>
+        <h3>1. Titolare del trattamento</h3>
+        <p><strong>Agorapp</strong>, progetto di <strong>Lorenzo Calcagno</strong>, Torino<br>
+        Contatto: <a href="mailto:info@agorapp.it">info@agorapp.it</a></p>
+        <h3>2. Quali dati trattiamo e perché</h3>
+        <p>Agorapp è una mappa interattiva degli eventi urbani di Torino. <strong>Non raccoglie dati personali degli utenti che consultano la mappa</strong>: non ci sono account, non ci sono cookie di profilazione, non ci sono sistemi di tracciamento.</p>
+        <p>Gli unici dati trattati riguardano gli <strong>organizzatori di eventi</strong> che richiedono la pubblicazione: titolo, luogo, orario, descrizione, eventualmente un nome artistico o il nome dell'organizzazione.</p>
+        <p>Trattiamo inoltre informazioni su eventi provenienti da <strong>fonti pubblicamente accessibili</strong> (siti web, pagine social pubbliche), quando l'organizzatore ha scelto consapevolmente di renderle pubbliche.</p>
+        <h3>3. Base giuridica del trattamento</h3>
+        <ul>
+          <li><strong>Consenso esplicito (art. 6(1)(a) GDPR)</strong> — per gli organizzatori che ci contattano direttamente. Il consenso è documentato e conservato.</li>
+          <li><strong>Legittimo interesse (art. 6(1)(f) GDPR)</strong> — per eventi da fonti pubbliche. Il bilanciamento è documentato internamente. Puoi opporti in qualsiasi momento scrivendo a <a href="mailto:info@agorapp.it">info@agorapp.it</a>.</li>
+        </ul>
+        <h3>4. Per quanto tempo conserviamo i dati</h3>
+        <p>I dati di ogni evento vengono <strong>eliminati automaticamente 3 ore dopo la scadenza dell'evento</strong>. Non esiste un archivio storico. Le prove del consenso sono conservate per un massimo di 3 anni dalla data dell'evento.</p>
+        <h3>5. Chi può vedere i dati</h3>
+        <p>Le informazioni degli eventi sono visibili a chiunque visiti Agorapp. <strong>Nessun dato viene ceduto, venduto o comunicato a terzi</strong> per finalità commerciali o di marketing.</p>
+        <h3>6. Trasferimento dati fuori dall'UE</h3>
+        <p>Agorapp non trasferisce dati personali verso paesi extra-UE. La visualizzazione della mappa utilizza il servizio <strong>CartoDB/Carto</strong> per le immagini geografiche. Tale servizio può registrare l'indirizzo IP dell'utente secondo la propria privacy policy disponibile su <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Carto Inc. opera sulla base di Clausole Contrattuali Standard approvate dalla Commissione europea.</p>
+        <h3>7. I tuoi diritti (artt. 15–21 GDPR)</h3>
+        <p>Puoi esercitare in qualsiasi momento i diritti di accesso, rettifica, cancellazione, limitazione, opposizione e portabilità. Le richieste di rimozione di un evento vengono eseguite entro <strong>48 ore</strong>. Scrivi a <a href="mailto:info@agorapp.it">info@agorapp.it</a> — risponderemo entro 30 giorni.</p>
+        <h3>8. Reclamo al Garante</h3>
+        <p>Puoi proporre reclamo al Garante per la protezione dei dati personali: <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Roma</p>
+        <h3>9. Decisioni automatizzate</h3>
+        <p>Agorapp non effettua profilazione né decisioni automatizzate.</p></template>
+<template id="leg-storage"><span class="legal-badge">Solo sul tuo dispositivo · Nessun server</span>
+        <h3>Cosa viene salvato sul tuo dispositivo</h3>
+        <p>Agorapp utilizza esclusivamente strumenti di archiviazione tecnica locale. <strong>Nessun dato viene mai trasmesso a server esterni</strong> da questi strumenti.</p>
+        <h3>localStorage</h3>
+        <p>Conserva sul tuo dispositivo:</p>
+        <ul>
+          <li>Gli eventi presenti sulla mappa</li>
+          <li>Il tema grafico scelto (Chiaro / Scuro)</li>
+          <li>Il calendario personale degli eventi salvati</li>
+          <li>Lo stato dei filtri per strato</li>
+        </ul>
+        <p>I dati in localStorage rimangono fino a quando non vengono cancellati manualmente o finché gli eventi non scadono automaticamente.</p>
+        <h3>Base normativa</h3>
+        <p>Questi strumenti sono assimilabili ai <strong>cookie tecnici</strong> ai sensi del Provvedimento Garante del 10 giugno 2021 e sono <strong>esenti dall'obbligo di consenso preventivo</strong>.</p>
+        <p>Non vengono utilizzati cookie di profilazione, cookie analitici né strumenti di tracciamento di terze parti.</p>
+        <h3>Servizi cartografici di terze parti</h3>
+        <p>La visualizzazione della mappa utilizza due servizi esterni che ricevono l'indirizzo IP dell'utente ad ogni caricamento delle immagini geografiche:</p>
+        <ul>
+          <li><strong>CartoDB/Carto</strong> — fornisce le immagini della mappa. Privacy policy: <a href="https://carto.com/privacy" target="_blank" rel="noopener">carto.com/privacy</a>. Opera su base Clausole Contrattuali Standard UE.</li>
+          <li><strong>OpenStreetMap</strong> — base cartografica open source. Privacy policy: <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">osmfoundation.org/wiki/Privacy_Policy</a>.</li>
+        </ul>
+        <p>Agorapp non ha accesso a questi dati e non li controlla.</p>
+        <h3>Come cancellare i dati locali</h3>
+        <p>Puoi cancellare tutti i dati locali di Agorapp in qualsiasi momento dalle impostazioni del tuo browser (Impostazioni → Privacy → Cancella dati di navigazione → Dati siti web).</p></template>
+<template id="leg-disclaimer"><span class="legal-badge">Avvisi importanti</span>
+        <h3>Accuratezza delle informazioni</h3>
+        <p>Le informazioni sugli eventi provenienti da fonti pubbliche esterne <strong>potrebbero non essere aggiornate</strong>. <strong>Ti consigliamo di verificare sempre con l'organizzatore</strong> prima di spostarti.</p>
+        <p>Per segnalare un evento non più valido: <a href="mailto:info@agorapp.it">info@agorapp.it</a> — lo rimuoviamo entro 48 ore.</p>
+        <h3>Responsabilità sui contenuti</h3>
+        <p>Agorapp aggrega informazioni già pubblicamente disponibili senza modificarle. Per gli eventi caricati da fonti pubbliche, Agorapp non risponde di modifiche, cancellazioni o inesattezze rispetto alla fonte originale al momento dell'acquisizione.</p>
+        <h3>Eventi politici, manifestazioni e presidi</h3>
+        <p>Per eventi di natura politica, manifestazioni, cortei e presidi, la <strong>verifica preliminare con l'organizzatore è indispensabile</strong> prima di spostarsi. Agorapp non assume alcuna responsabilità per conseguenze derivanti dalla presenza in luoghi indicati dalla mappa in relazione a eventi di questo tipo.</p>
+        <h3>Conformità normativa degli eventi</h3>
+        <p>Agorapp <strong>non verifica la conformità degli eventi</strong> alla normativa sugli spettacoli pubblici, alle autorizzazioni di agibilità o alle licenze richieste dalla legge. La responsabilità della regolarità dell'evento ricade esclusivamente sull'organizzatore.</p>
+        <h3>Proprietà intellettuale</h3>
+        <p>I testi e le descrizioni degli eventi sono di proprietà dei rispettivi organizzatori. Agorapp non rivendica diritti sui contenuti degli eventi pubblicati.</p>
+        <h3>Contatti</h3>
+        <p>Per qualsiasi richiesta legale: <a href="mailto:info@agorapp.it">info@agorapp.it</a><br>
+        Titolare del trattamento: Lorenzo Calcagno, Torino</p></template>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="traduzioni.js?v=9d441eb65a"></script>
+<script src="app.js?v=c52f6919ab"></script>
+<script src="sezioni.js?v=200a90c231"></script>
+</body>
+</html>

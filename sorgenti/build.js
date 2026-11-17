@@ -1,26 +1,63 @@
-const fs=require('fs'),vm=require('vm');
-const P='parti/';
-const old=fs.readFileSync('/home/claude/agorapp/versioni/og17/index.html','utf8').split('\n');
-const mock=fs.readFileSync(fs.existsSync('mock_v7.html')?'mock_v7.html':'../index.html','utf8').split('\n');  /* senza il mockup: i testi legali si prendono dall'index.html già assemblato */
-// LAYERS e icone dall'app online
-const i1=old.findIndex(l=>l.startsWith('const LAYER_ICONS={')), i2=old.findIndex(l=>l.startsWith('const LAYERS=['));
-let i3=i2; while(old[i3]!=='];') i3++;
-const layers=old.slice(i1,i3+1).join('\n');
-// testi legali nelle altre lingue (T dell'app online)
-const t0=old.findIndex(l=>l.startsWith('const T={')); let t1=t0; while(old[t1]!=='};') t1++;
-const ctx={};vm.createContext(ctx);vm.runInContext(old.slice(t0,t1+1).join('\n').replace('const T','var T'),ctx);
-const LEG={};['en','es','fr','ar'].forEach(l=>{const x=ctx.T[l]||{};LEG[l]={privacy:x.legal_html_privacy||'',storage:x.legal_html_storage||'',disclaimer:x.legal_html_disclaimer||''};});
-const legali='const LEGALI = '+JSON.stringify(LEG)+';';
-// testi legali italiani (template del mockup = app online OG 1.7)
-const lA=mock.findIndex(l=>l.startsWith('<template id="leg-privacy">'));
-let lB=mock.findIndex(l=>l.startsWith('<template id="leg-disclaimer">')); while(!mock[lB].includes('</template>')) lB++;
-const tmpl=mock.slice(lA,lB+1).join('\n');
-let js=['app1.js','app2.js','app3.js','app4.js','app5.js','app7.js','fate.js','misure_kpi.js','misure.js','interesse.js','storico.js','app6.js'].map(f=>fs.readFileSync(P+f,'utf8')).join('\n');
-js=js.replace('/*@@LAYERS@@*/',layers).replace('/*@@LEGALI@@*/',legali);
-const tr=fs.existsSync(P+'traduzioni.js')?fs.readFileSync(P+'traduzioni.js','utf8'):'window.AGR_TR={};';
-const css=fs.readFileSync(P+'style.css','utf8')+'\n'+fs.readFileSync(P+'style2.css','utf8')+'\n'+fs.readFileSync(P+'style_temi.css','utf8')+'\n'+fs.readFileSync(P+'style_sezioni.css','utf8')+'\n'+fs.readFileSync(P+'style_fate.css','utf8')+'\n'+fs.readFileSync(P+'style_misure.css','utf8');
-const html=`<!DOCTYPE html>
-<!-- Restyling 4 — ${new Date().toISOString().slice(0,10)} — ramo restyling-app. Mappa, Calendario, Off-Grid, Strati, Temi; Progetti e Agorà in anteprima (5 lingue). 4 ottobre: «Il tuo calendario» fermo, tasto Calendario grande, trattino che allarga i pannelli, Strati trasparenti, PDF da condividere, demo per tutti, import/export Excel per l'admin, primo accesso chiaro. 4 ottobre sera: Ordine delle Fate (funzione nascosta). 6 ottobre: Misure nell'admin (tranche 1) e pulsanti volontari «Mi interessa» (tranche 2). OG 1.7 archiviata in versioni/og17 -->
+#!/usr/bin/env node
+/* Montaggio dell'app.
+   Si lancia da qualunque cartella: `npm run build` (oppure `node sorgenti/build.js`).
+   Legge soltanto i file di sorgenti/ e scrive due uscite:
+     dist/pubblica/   l'app pubblica (la sola cartella che il sito pubblica)
+     dist/redazione/  l'app della redazione (uguale alla pubblica fino al blocco 8 del piano)
+   In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina.
+   Alla fine controlla la sintassi di ogni file JavaScript prodotto (node --check).
+
+   Opzioni:
+     --uscita=<cartella>   cartella delle uscite, relativa alla radice del repository (predefinita: dist)
+*/
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { execFileSync } = require('child_process');
+
+const SORGENTI = __dirname;
+const RADICE = path.resolve(SORGENTI, '..');
+const PARTI = path.join(SORGENTI, 'parti');
+const DATI = path.join(SORGENTI, 'dati');
+
+const opz = Object.fromEntries(process.argv.slice(2)
+  .filter(a => a.startsWith('--'))
+  .map(a => { const [k, ...v] = a.slice(2).split('='); return [k, v.length ? v.join('=') : true]; }));
+
+const leggi = (...p) => fs.readFileSync(path.join(...p), 'utf8');
+
+/* ---------- Ordine dei pezzi ---------- */
+// Un solo modulo JavaScript: app1 apre, app6 chiude.
+const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js', 'fate.js',
+  'misure_kpi.js', 'misure.js', 'interesse.js', 'storico.js', 'app6.js'];
+const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css', 'style_fate.css', 'style_misure.css'];
+
+/* ---------- Montaggio ---------- */
+function monta() {
+  const strati = leggi(DATI, 'strati.js').replace(/^\/\*[^\n]*\*\/\n/, '').replace(/\n$/, '');
+  const legali = 'const LEGALI = ' + JSON.stringify(JSON.parse(leggi(DATI, 'legali_tradotti.json'))) + ';';
+  const legaliIt = leggi(PARTI, 'legali_it.html').replace(/\n$/, '');
+
+  let app = JS_APP.map(f => leggi(PARTI, f)).join('\n');
+  if (!app.includes('/*@@LAYERS@@*/') || !app.includes('/*@@LEGALI@@*/')) throw new Error('Segnaposto LAYERS o LEGALI mancante nei pezzi JavaScript');
+  app = app.replace('/*@@LAYERS@@*/', () => strati).replace('/*@@LEGALI@@*/', () => legali);
+
+  const traduzioni = fs.existsSync(path.join(PARTI, 'traduzioni.js')) ? leggi(PARTI, 'traduzioni.js') : 'window.AGR_TR={};';
+  const css = CSS.map(f => leggi(PARTI, f)).join('\n');
+  const sezioni = leggi(PARTI, 'sezioni.js');
+
+  const file = {
+    'app.css': css + '\n',
+    'traduzioni.js': traduzioni + '\n',
+    'app.js': app + '\n',
+    'sezioni.js': sezioni + '\n',
+  };
+  // Il numero di versione nei collegamenti cambia quando cambia il file: il telefono non tiene copie vecchie.
+  const v = f => crypto.createHash('sha256').update(file[f]).digest('hex').slice(0, 10);
+
+  file['index.html'] = `<!DOCTYPE html>
+<!-- App montata da sorgenti/build.js: non modificare questo file, si cambia nei sorgenti. -->
 <html lang="it" data-theme="light">
 <head>
 <meta charset="UTF-8">
@@ -30,26 +67,52 @@ const html=`<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
-<style>
-${css}
-</style>
+<link rel="stylesheet" href="app.css?v=${v('app.css')}">
 </head>
 <body>
-${fs.readFileSync(P+'body.html','utf8')}
+${leggi(PARTI, 'body.html')}
 <!-- Testi legali: quelli dell'app online OG 1.7 (v1.2), invariati -->
-${tmpl}
+${legaliIt}
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-<script>
-${tr}
-</script>
-<script>
-${js}
-</script>
-<script>
-${fs.readFileSync(P+'sezioni.js','utf8')}
-</script>
+<script src="traduzioni.js?v=${v('traduzioni.js')}"></script>
+<script src="app.js?v=${v('app.js')}"></script>
+<script src="sezioni.js?v=${v('sezioni.js')}"></script>
 </body>
 </html>
 `;
-fs.writeFileSync('/home/claude/agorapp/index.html',html);
-console.log('ok',html.length);
+  return file;
+}
+
+/* ---------- Scrittura delle uscite ---------- */
+function scrivi(cartella, file) {
+  const dentro = path.relative(RADICE, cartella);
+  if (!dentro || dentro.startsWith('..') || path.isAbsolute(dentro)) throw new Error('Uscita fuori dal repository: ' + cartella);
+  fs.rmSync(cartella, { recursive: true, force: true });
+  fs.mkdirSync(cartella, { recursive: true });
+  for (const [nome, testo] of Object.entries(file)) fs.writeFileSync(path.join(cartella, nome), testo);
+}
+
+function controllaSintassi(cartella) {
+  for (const f of fs.readdirSync(cartella).filter(f => f.endsWith('.js'))) {
+    try { execFileSync(process.execPath, ['--check', path.join(cartella, f)], { stdio: 'pipe' }); }
+    catch (e) { throw new Error('Errore di sintassi in ' + path.join(cartella, f) + '\n' + e.stderr); }
+  }
+}
+
+function main() {
+  const base = path.resolve(RADICE, typeof opz.uscita === 'string' ? opz.uscita : 'dist');
+  const file = monta();
+  const uscite = ['pubblica', 'redazione'];
+  for (const u of uscite) {
+    const c = path.join(base, u);
+    scrivi(c, file);
+    controllaSintassi(c);
+  }
+  console.log('Montaggio riuscito: ' + uscite.map(u => path.relative(RADICE, path.join(base, u)) + '/').join(', ') +
+    ' (index.html ' + Math.round(file['index.html'].length / 1024) + ' KB, app.js ' + Math.round(file['app.js'].length / 1024) + ' KB)');
+}
+
+if (require.main === module) {
+  try { main(); } catch (e) { console.error(e.message); process.exit(1); }
+}
+module.exports = { monta };

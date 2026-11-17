@@ -1,7 +1,10 @@
 {
   "name": "agorapp",
   "private": true,
-  "description": "Agorapp: sito statico (index.html) più una funzione Netlify per i pulsanti volontari «Mi interessa».",
+  "description": "Web-app della mappa degli eventi: sorgenti in sorgenti/, uscite montate in dist/ (pubblica e redazione).",
+  "scripts": {
+    "build": "node sorgenti/build.js"
+  },
   "dependencies": {
     "@netlify/blobs": "^11.1.3"
   }
