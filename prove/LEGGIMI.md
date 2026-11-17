@@ -24,7 +24,7 @@ Le prove controllano a ogni montaggio, e su GitHub Actions a ogni invio su qualu
 | `chiavi.js` | Nessuna chiave, password o formula segreta nel codice | T-005 |
 | `parole.js` | Parole vietate nei testi dell'interfaccia, in italiano, inglese, spagnolo e francese; l'elenco lo completa T-013 | T-005, T-013 |
 | `browser/ostili.js` | Eventi inventati con testi ostili in ogni campo si mostrano come testo in elenco, scheda, Off-Grid, calendario e ricerca; nessun collegamento `javascript:` | T-005, T-024 |
-| `browser/richieste.js` | Le richieste che il telefono fa davvero aprendo l'app, la scheda, il calendario con il PDF, le impostazioni e la ricerca: ammessi solo gli indirizzi di `config.js`; controlla anche che caratteri, MapLibre e jsPDF arrivino dall'app | T-007 |
+| `browser/richieste.js` | Le richieste che il telefono fa davvero aprendo l'app, la scheda, il calendario con il PDF, le impostazioni e la ricerca: ammessi solo gli indirizzi di `config.js`; controlla anche che caratteri, MapLibre e jsPDF arrivino dall'app e che la ricerca degli indirizzi parta solo mentre si scrive, senza referrer, con il solo testo e parametri fissi (niente posizione, centro o zoom della mappa) | T-007, T-008 |
 | `browser/accessibilita.js` | Controllo automatico con axe-core delle regole WCAG 2.1 A e AA su mappa, elenco, scheda, calendario, ricerca e impostazioni | T-005, T-057-T-059 |
 
 Le prove della memoria del telefono (solo chiavi dell'elenco chiuso) arrivano con il blocco 6 (T-026).

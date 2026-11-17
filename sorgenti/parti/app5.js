@@ -195,12 +195,13 @@ function leggiImport(file){
       if(coord) I.ok.push(ev); else daCercare.push({ev, riga:o.riga});
     });
     I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; disegnaFoglio();
-    /* gli indirizzi senza coordinate si cercano uno alla volta (Nominatim chiede calma) */
+    /* gli indirizzi senza coordinate si cercano con Photon uno alla volta, con una pausa tra l'uno e l'altro (T-008) */
     (async () => {
       for(const x of daCercare){
         if(st.importa!==I) return;
         const q = x.ev.address, pa = parseAddr(q);
-        let r = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n, null, true); r = res.list[0]; }catch(e){}
+        let r = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); r = res.list[0]; }catch(e){}
+        await new Promise(ok => setTimeout(ok, 400));
         if(st.importa!==I) return;
         if(r){ x.ev.lat = r.lat; x.ev.lng = r.lng; x.ev.addressFull = testoRisultato(r); x.ev.addrPrecision = r.precision||'exact'; x.ev.addrNum = r.hn||''; I.ok.push(x.ev); }
         else I.scarti.push({riga:x.riga, motivo:tr('indirizzo non trovato: aggiungi latitudine e longitudine')});
@@ -321,7 +322,7 @@ function salvaAdmin(){
   if(!f.pos && !Object.keys(E).length){
     const q = f.indirizzo.trim(); if(q.length<3){ E.indirizzo = 1; disegnaFoglio(); return; }
     const b = $('a-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
-    lookup(parseAddr(q).city ? q : q+', '+cittaObj().n, null, true).then(res => { if(st.aform!==f) return;
+    lookup(parseAddr(q).city ? q : q+', '+cittaObj().n).then(res => { if(st.aform!==f) return;
       if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; disegnaFoglio(); }
       else { f.err.indirizzo = 2; disegnaFoglio(); } });
     return;

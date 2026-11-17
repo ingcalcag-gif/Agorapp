@@ -29,8 +29,6 @@ module.exports = [
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
   s('indirizzi', 'basemaps.cartocdn.com/gl', 'app.js', 1, 'T-017', 'stile e tasselli della mappa CARTO'),
   s('indirizzi', 'carto.com/attributions', 'index.html', 1, 'T-017', 'attribuzione CARTO sulla mappa'),
-  s('indirizzi', 'nominatim.openstreetmap.org/search', 'app.js', 2, 'T-008, T-042', 'ricerca degli indirizzi con Nominatim'),
-  s('indirizzi', 'nominatim.openstreetmap.org/reverse', 'app.js', 1, 'T-009', 'indirizzo dal punto, pressione prolungata'),
   s('indirizzi', 'www.openstreetmap.org/directions', 'app.js', 1, 'T-016', '«Indicazioni» verso OpenStreetMap'),
   s('indirizzi', 'esempio.it', 'app.js', 1, 'T-033, T-042', "esempio nel modello Excel dell'importazione (amministrazione)"),
   s('indirizzi', 'carto.com/privacy', 'app.js', 2, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),

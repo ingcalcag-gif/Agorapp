@@ -1,15 +1,24 @@
 
-/* ======================= Indirizzi (OG 1.1–1.2: Photon mentre scrivi, Nominatim una volta per il civico) ======================= */
+/* ======================= Indirizzi: solo Photon, solo il testo scritto (T-008) =======================
+   La ricerca parte soltanto quando la persona scrive in Cerca o nel campo indirizzo (Off-Grid; modulo e
+   importazione della redazione). A Photon arriva il testo scritto, con parametri fissi uguali per tutti:
+   niente posizione, niente centro o zoom della mappa, niente città scelta (libro mastro, §§ 2.2 e 3.8;
+   informativa, sezione 3). Le proposte vicine alla città scelta si mettono prima qui, sul telefono.
+   L'indirizzo del servizio viene da config.js; le richieste partono senza credenziali e senza referrer. */
+const RICERCA = ((CFG.indirizzi || {}).ricerca_indirizzi || '').replace(/\/+$/, '');
 const cacheGeo = {};
-let _nomiUltimo = 0;
-function nomiGate(){ const w = Math.max(0, _nomiUltimo + 1100 - Date.now()); _nomiUltimo = Date.now() + w; return new Promise(r => setTimeout(r, w)); }
 function getJ(u, sig){
   if(cacheGeo[u]) return Promise.resolve(cacheGeo[u]);
-  const go = u.indexOf('nominatim.openstreetmap.org')>=0 ? nomiGate() : Promise.resolve();
-  return go.then(() => fetch(u, {signal:sig, headers:{'Accept-Language':'it'}})).then(r => { if(!r.ok) throw 0; return r.json(); }).then(j => { cacheGeo[u] = j; return j; });
+  return fetch(u, {signal:sig, credentials:'omit', referrerPolicy:'no-referrer', headers:{'Accept-Language':'it'}})
+    .then(r => { if(!r.ok) throw 0; return r.json(); }).then(j => { cacheGeo[u] = j; return j; });
 }
-function centro(){ try{ const c = map.getCenter(); return {lat:c.lat, lng:c.lng, z:Math.round(map.getZoom())}; }catch(e){ const c = cittaObj(); return {lat:(c.center||[45.07])[0], lng:(c.center||[0,7.69])[1], z:12}; } }
-function vbox(){ try{ const b = map.getBounds(); return '&viewbox='+encodeURIComponent(b.getWest()+','+b.getNorth()+','+b.getEast()+','+b.getSouth()); }catch(e){ return ''; } }
+/* Vicino alla città scelta: dentro i suoi confini o entro 25 km dal centro. Calcolo solo sul telefono. */
+function vicinoCitta(r){
+  const c = cittaObj();
+  if(c.bounds){ const [[o,s],[e,n]] = c.bounds; return r.lng>=o-0.1 && r.lng<=e+0.1 && r.lat>=s-0.1 && r.lat<=n+0.1; }
+  const [la,lo] = c.center || [45.0703,7.6869], dy = (r.lat-la)*111, dx = (r.lng-lo)*111*Math.cos(la*Math.PI/180);
+  return dx*dx + dy*dy < 25*25;
+}
 const norm = x => (x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function parseAddr(q){
   const parts = q.split(',').map(x => x.trim()).filter(Boolean);
@@ -22,7 +31,6 @@ function parseAddr(q){
   const city = rest.join(', ').replace(/\b\d{5}\b/g,'').replace(/\(\s*[A-Z]{2}\s*\)|\b[A-Z]{2}\b$/g,'').replace(/\s{2,}/g,' ').replace(/^[\s,]+|[\s,]+$/g,'');
   return {street, num, city};
 }
-const provOf = a => { const m = ((a && a['ISO3166-2-lvl6'])||'').match(/^IT-([A-Z]{2})$/); return m ? m[1] : ''; };
 function fullLine(r){
   const l1 = r.street ? (r.street + (r.hn ? ' '+r.hn : '')) : '';
   const l2 = ((r.postcode ? r.postcode+' ' : '') + (r.city||'')).trim() + (r.prov ? ' ('+r.prov+')' : '');
@@ -38,34 +46,18 @@ function fromPhoton(f){
   else r.kind = 'house';
   return r;
 }
-function fromNomi(d){
-  const a = d.address||{}, street = a.road||a.pedestrian||a.square||a.footway||a.path||'';
-  const r = {lat:+d.lat, lng:+d.lon, name:'', street, hn:a.house_number||'', postcode:a.postcode||'', city:a.city||a.town||a.village||a.municipality||'', prov:provOf(a), county:a.county||''};
-  const cls = d.class||'', typ = d.type||'';
-  if(r.hn && (cls==='place'&&typ==='house' || cls==='building' || !d.name)) r.kind = 'house';
-  else if(cls==='highway' || typ==='square') r.kind = 'street';
-  else if(cls==='place' || cls==='boundary') r.kind = 'place';
-  else { r.kind = 'poi'; r.name = d.name || (d.display_name||'').split(',')[0]; }
-  return r;
-}
-function photon(q, sig){ const c = centro();
-  return getJ('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&limit=8&lat='+c.lat.toFixed(4)+'&lon='+c.lng.toFixed(4)+'&zoom='+c.z+'&bbox=6.6,36.6,18.6,47.1', sig)
-    .then(j => (j.features||[]).map(fromPhoton).filter(Boolean)).catch(() => []); }
-function nomiStructured(pa, sig){
-  if(!pa.num || !pa.street) return Promise.resolve([]);
-  let u = 'https://nominatim.openstreetmap.org/search?street='+encodeURIComponent(pa.num+' '+pa.street)+(pa.city?'&city='+encodeURIComponent(pa.city):'')+'&countrycodes=it&format=json&addressdetails=1&limit=4';
-  if(!pa.city) u += vbox();
-  return getJ(u, sig).then(d => (d||[]).map(fromNomi)).catch(() => []);
-}
-function nomiFree(q, sig){ return getJ('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&addressdetails=1&limit=5&countrycodes=it'+vbox(), sig).then(d => (d||[]).map(fromNomi)).catch(() => []); }
+/* Parametri fissi: testo, numero di proposte e riquadro dell'Italia, uguali per chiunque cerchi. */
+function photon(q, sig){
+  if(!RICERCA) return Promise.resolve([]);
+  return getJ(RICERCA+'/api/?q='+encodeURIComponent(q)+'&limit=15&bbox=6.6,36.6,18.6,47.1', sig)
+    .then(j => { const tutte = (j.features||[]).map(fromPhoton).filter(Boolean);
+      return tutte.filter(vicinoCitta).concat(tutte.filter(r => !vicinoCitta(r))); })
+    .catch(() => []); }
 const streetMatches = (r, pa) => { const a = norm(pa.street), b = norm(r.street||r.name); return !!a && !!b && (a===b || b.indexOf(a)>=0 || a.indexOf(b)>=0); };
 const cityMatches = (r, pa) => { if(!pa.city) return true; const a = norm(pa.city), b = norm(r.city); return !b || a===b || b.indexOf(a)>=0 || a.indexOf(b)>=0; };
-function lookup(q, sig, preciso){
+function lookup(q, sig){
   const pa = parseAddr(q);
-  return photon(q, sig).then(ph => {
-    if(!preciso) return build(ph, pa);
-    return nomiStructured(pa, sig).then(nm => { const all = nm.concat(ph); if(!all.length) return nomiFree(q, sig).then(r => build(r, pa)); return build(all, pa); });
-  });
+  return photon(q, sig).then(ph => build(ph, pa));
 }
 function build(all, pa){
   const out = [], seen = {};
@@ -85,8 +77,6 @@ function build(all, pa){
   all.forEach(r => { if(!r.precision) r.precision = r.hn ? 'exact' : (r.kind==='poi' ? 'exact' : 'nonum'); push(r); });
   return {list:out.slice(0,7), pa};
 }
-function reverseGeo(p){ return getJ('https://nominatim.openstreetmap.org/reverse?lat='+p.lat.toFixed(6)+'&lon='+p.lng.toFixed(6)+'&format=json&zoom=18&addressdetails=1')
-  .then(d => { if(!d || !d.address) return ''; return fullLine(fromNomi(d)) || (d.display_name||'').split(',').slice(0,3).join(','); }).catch(() => ''); }
 const testoRisultato = r => { const full = fullLine(r); return (r.kind==='poi' && r.name) ? (r.name + (full ? ', '+full : '')) : (full || r.name || r.city || ''); };
 function htmlRisultato(r){
   const full = fullLine(r);
@@ -135,7 +125,7 @@ function cercaInvio(){
   const q = st.q.trim(); if(q.length<3) return;
   if(sugg.lista.length && sugg.dove==='cerca') return scegliLuogo(0);
   const el = $('risultati-luoghi'); if(el) el.innerHTML = `<p class="caricamento">${tr('Cerco…')}</p>`;
-  lookup(q, null, true).then(res => { if(!$('risultati-luoghi')) return; sugg.lista = res.list; sugg.dove = 'cerca';
+  lookup(q).then(res => { if(!$('risultati-luoghi')) return; sugg.lista = res.list; sugg.dove = 'cerca';
     if(res.list.length===1) return scegliLuogo(0);
     $('risultati-luoghi').innerHTML = res.list.length ? `<div class="giorno">${tr('Luoghi e indirizzi')}</div><div class="lista">${res.list.map((r,i) => `<button class="luogo-r" data-si="${i}">${icoLuogo}<div>${htmlRisultato(r)}</div>${freccia}</button>`).join('')}</div>` : `<p class="meta">${tr('Nessun indirizzo trovato. Prova a scrivere solo via e città.')}</p>`; });
 }
@@ -198,7 +188,8 @@ function apriForm(raw, preset){
 function apriFormPunto(p){
   if(st.sezione!=='mappa') return;
   apriForm(null, {pos:p});
-  reverseGeo(p).then(a => { if(!st.form || st.form.raw || st.form.pos!==p) return; st.form.indirizzo = a || tr('Punto scelto sulla mappa'); st.form.addrFull = st.form.indirizzo; const el = $('f-indirizzo'); if(el && !el.value) el.value = st.form.indirizzo; aggiornaPunto(); });
+  if(!st.form) return; st.form.indirizzo = tr('Punto scelto sulla mappa'); st.form.addrFull = st.form.indirizzo;
+  const el = $('f-indirizzo'); if(el && !el.value) el.value = st.form.indirizzo; aggiornaPunto();
 }
 function boxPunto(f){
   if(!f.pos) return '';
@@ -254,7 +245,7 @@ function salvaForm(modo){
     const q = f.indirizzo.trim();
     if(q.length<3){ f.err.indirizzo = 1; disegnaFoglio(); return; }
     const b = $('f-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
-    lookup(q, null, true).then(res => { if(st.form!==f) return;
+    lookup(q).then(res => { if(st.form!==f) return;
       if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; disegnaFoglio(); const p = $('f-punto'); if(p && p.scrollIntoView) p.scrollIntoView({block:'center', behavior:'smooth'}); }
       else { f.err.indirizzo = 2; disegnaFoglio(); } });
     return;
@@ -325,9 +316,10 @@ function iniziaPosa(chi){
 function finePosa(ok){
   const chi = st.posa, f = chi==='aform' ? st.aform : st.form; st.posa = null; disegnaPosa();
   if(ok && f && map){
-    const c = map.getCenter(), p = {lat:c.lat, lng:c.lng}; f.pos = p; f.precision = 'map'; if(f.err) f.err.indirizzo = 0;
-    const tenere = f.indirizzo && parseAddr(f.indirizzo).num;
-    reverseGeo(p).then(a => { if(f.pos!==p) return; if(!tenere){ f.indirizzo = a || tr('Punto scelto sulla mappa'); } f.addrFull = f.indirizzo; const el = $(chi==='aform'?'a-indirizzo':'f-indirizzo'); if(el) el.value = f.indirizzo; if(chi==='form') aggiornaPunto(); else { const b = $('a-punto'); if(b) b.innerHTML = boxPunto(f); } });
+    const c = map.getCenter(); f.pos = {lat:c.lat, lng:c.lng}; f.precision = 'map'; if(f.err) f.err.indirizzo = 0;
+    /* nessuna ricerca inversa (T-008): resta ciò che la persona ha scritto, altrimenti «Punto scelto sulla mappa» */
+    if(!String(f.indirizzo||'').trim()) f.indirizzo = tr('Punto scelto sulla mappa');
+    f.addrFull = f.indirizzo;
   }
   st.foglio = chi; disegnaFoglio(); posizioni();
 }

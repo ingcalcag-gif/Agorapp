@@ -32,8 +32,6 @@ $('app').addEventListener('click', ev => {
     const inp = $(sugg.dove==='a' ? 'a-indirizzo' : 'f-indirizzo'); if(inp) inp.value = f.indirizzo;
     const box = $(sugg.dove==='a' ? 'a-sugg' : 'f-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
     const pb = $(sugg.dove==='a' ? 'a-punto' : 'f-punto'); if(pb) pb.innerHTML = boxPunto(f);
-    if(r.precision==='street' && r.hn){ const pa = {street:r.street, num:r.hn, city:r.city}, mio = f.pos;
-      nomiStructured(pa).then(nm => { if(f.pos!==mio) return; const b2 = build(nm, pa).list.filter(x => x.precision==='exact')[0]; if(b2){ f.indirizzo = testoRisultato(b2); f.addrFull = f.indirizzo; f.precision = 'exact'; f.hn = b2.hn||''; f.pos = {lat:b2.lat, lng:b2.lng}; if(inp) inp.value = f.indirizzo; if(pb) pb.innerHTML = boxPunto(f); } }); }
     return; }
   if(d.giorno){ if(!st.da || st.a){ st.da = d.giorno; st.a = null; } else if(d.giorno < st.da){ st.da = d.giorno; } else { st.a = d.giorno; } disegnaFoglio(); return; }
   if(d.vista){ st.cal.vista = d.vista; disegnaFoglio(); disegnaPins(); posizioni(); if(modoGiornata()) requestAnimationFrame(() => inquadraTutti(giornata(st.cal.giorno).vive)); return; }

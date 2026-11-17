@@ -2,7 +2,9 @@
    principio 1). Apre l'app e le sue viste principali, stampa il PDF del calendario e cerca un indirizzo,
    annotando ogni richiesta verso un indirizzo diverso da quello dell'app (le richieste sono bloccate, quindi
    nessun servizio esterno riceve nulla). Sono ammessi solo gli indirizzi di sorgenti/config.js; ogni altro è uno
-   scarto noto con la voce che lo toglie. Controlla anche che i caratteri e le librerie arrivino dall'app. */
+   scarto noto con la voce che lo toglie. Controlla anche che i caratteri e le librerie arrivino dall'app e che la
+   ricerca degli indirizzi (T-008; § 3.8) parta solo mentre la persona scrive, senza referrer e con il solo testo
+   scritto e parametri fissi: niente posizione, centro o zoom della mappa. */
 'use strict';
 const { esito, eseguiDaSola, confronta, config } = require('../comune.js');
 const { playwright, server, apri, giorno, pausa } = require('./comune.js');
@@ -14,6 +16,9 @@ async function prova() {
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const c = config();
   const ammessi = Object.values(c.indirizzi || {}).filter(Boolean).map(u => new URL(u).host);
+  const ricerca = c.indirizzi && c.indirizzi.ricerca_indirizzi ? new URL(c.indirizzi.ricerca_indirizzi).host : '';
+  const PARAMETRI_RICERCA = ['q', 'limit', 'bbox'];
+  const cerche = [];
   const ev = eventi(false).map(x => ({ ...x, datetime: giorno(0) + 'T22:00', end: giorno(0) + 'T23:30' }));
   const s = await server('pubblica');
   const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: ev,
@@ -24,6 +29,7 @@ async function prova() {
     if (u.protocol === 'data:' || u.protocol === 'blob:') return;
     if (/^127\.0\.0\.1(:\d+)?$/.test(u.host)) { locali.add(u.pathname); return; }
     esterne.push({ host: u.host, primo: u.pathname.split('/').filter(Boolean)[0] || '', momento: vista });
+    if (u.host === ricerca) cerche.push({ momento: vista, parametri: [...u.searchParams.keys()], q: u.searchParams.get('q'), referer: r.headers().referer || '' });
   });
   let vista = 'apertura';
   try {
@@ -45,6 +51,17 @@ async function prova() {
     await browser.close(); await s.chiudi();
   }
   if (![...locali].some(x => x.includes('/lib/jspdf-'))) e.errori.push('jsPDF non è stato caricato dall\'app');
+  // Ricerca degli indirizzi: solo in Cerca, solo il testo scritto e parametri fissi, senza referrer.
+  if (ricerca) {
+    if (!cerche.some(x => x.momento === 'cerca' && x.q === 'via Po 1')) e.errori.push('nessuna richiesta di ricerca per «via Po 1» scritto in Cerca');
+    for (const x of cerche) {
+      if (x.momento !== 'cerca') e.errori.push('ricerca degli indirizzi partita senza che la persona scrivesse (' + x.momento + ')');
+      const altri = x.parametri.filter(k => !PARAMETRI_RICERCA.includes(k));
+      if (altri.length) e.errori.push('la ricerca manda parametri in più: ' + altri.join(', '));
+      if (x.referer) e.errori.push('la ricerca manda il referrer: ' + x.referer);
+    }
+    e.note.push('richieste di ricerca: ' + cerche.length + ', parametri ' + [...new Set(cerche.flatMap(x => x.parametri))].join(', '));
+  }
   // Un caso per indirizzo, con i momenti in cui il telefono l'ha chiesto.
   const per = new Map();
   for (const x of esterne.filter(x => !ammessi.includes(x.host))) {
