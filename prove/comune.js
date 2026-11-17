@@ -17,10 +17,11 @@ function elencaFile(cartella, base = cartella) {
   });
 }
 
-/* I file di un'uscita montata, come {percorso: testo}. */
+/* I file di un'uscita montata, come {percorso: testo}; i file binari (caratteri) come Buffer. */
+const TESTO = /\.(html|js|css|txt|json|md)$/;
 function leggiUscita(nome = 'pubblica') {
   const c = path.join(DIST, nome);
-  return Object.fromEntries(elencaFile(c).map(f => [f, fs.readFileSync(path.join(c, f), 'utf8')]));
+  return Object.fromEntries(elencaFile(c).map(f => [f, TESTO.test(f) ? fs.readFileSync(path.join(c, f), 'utf8') : fs.readFileSync(path.join(c, f))]));
 }
 
 /* La configurazione, letta come la legge il montaggio. */

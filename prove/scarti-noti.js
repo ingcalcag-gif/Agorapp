@@ -27,10 +27,6 @@ module.exports = [
   s('nome', 'agorapp-demo', 'Nomeprova/app.js', 1, 'T-015', 'formato del file della demo'),
 
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
-  s('indirizzi', 'fonts.googleapis.com', 'index.html', 1, 'T-007', 'caratteri da Google Fonts'),
-  s('indirizzi', 'fonts.googleapis.com/css2', 'index.html', 1, 'T-007', 'caratteri da Google Fonts'),
-  s('indirizzi', 'unpkg.com/maplibre-gl@5.24.0', 'index.html', 2, 'T-007', 'MapLibre da unpkg'),
-  s('indirizzi', 'cdnjs.cloudflare.com/ajax', 'app.js', 2, 'T-007, T-042', 'jsPDF e SheetJS da cdnjs'),
   s('indirizzi', 'basemaps.cartocdn.com/gl', 'app.js', 1, 'T-017', 'stile e tasselli della mappa CARTO'),
   s('indirizzi', 'carto.com/attributions', 'index.html', 1, 'T-017', 'attribuzione CARTO sulla mappa'),
   s('indirizzi', 'nominatim.openstreetmap.org/search', 'app.js', 2, 'T-008, T-042', 'ricerca degli indirizzi con Nominatim'),
@@ -41,6 +37,9 @@ module.exports = [
   s('indirizzi', 'carto.com/privacy', 'index.html', 2, 'T-080', 'testi legali v1.2 in uso'),
   s('indirizzi', 'osmfoundation.org/wiki', 'app.js', 1, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),
   s('indirizzi', 'osmfoundation.org/wiki', 'index.html', 1, 'T-080', 'testi legali v1.2 in uso'),
+
+  /* ---------- Richieste vere del telefono (prove/browser/richieste.js) ---------- */
+  s('richieste', 'basemaps.cartocdn.com/gl', 'app', 1, 'T-017', 'stile della mappa CARTO a ogni apertura (poi tasselli, caratteri e icone della mappa)'),
 
   /* ---------- Chiavi e password nel codice (prove/chiavi.js) ---------- */
   s('chiavi', 'segreto assegnato a un testo: ADMIN_PW', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione nel codice'),

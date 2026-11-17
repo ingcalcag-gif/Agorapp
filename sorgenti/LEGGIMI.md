@@ -41,6 +41,7 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 
 - `build.js`: il programma di montaggio.
 - `licenze.js`: la pagina delle licenze, da `COMPONENTI_DI_TERZI.md` e `licenze/`.
+- `vendor/`: librerie e caratteri di terzi a versione fissa, con `elenco.js` (impronte) e `caratteri.css`.
 - `parti/body.html`: struttura della pagina.
 - `parti/legali_it.html`: testi legali italiani in uso (versione 1.2), come modelli `<template>`.
 - `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`, `style_fate`, `style_misure`. `parti/css_mock.css` non entra nel montaggio.
@@ -60,6 +61,6 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 - `dati/strati.js`: strati della mappa e loro icone (`LAYER_ICONS`, `LAYERS`), inseriti al posto del segnaposto `/*@@LAYERS@@*/` di `app1.js`.
 - `dati/legali_tradotti.json`: testi legali tradotti (oggi solo l'inglese), inseriti al posto del segnaposto `/*@@LEGALI@@*/` di `app5.js`.
 
-## Librerie esterne
+## Librerie e caratteri di terzi: `vendor/`
 
-Fino al blocco 2 del piano (T-007) l'app chiede ancora a servizi esterni i caratteri DM Sans e DM Serif Display (Google Fonts), MapLibre GL 5.24.0 (unpkg) e, solo quando servono, jsPDF 2.5.1 e SheetJS 0.18.5 (cdnjs).
+Dal blocco 2 (T-007) l'app non chiede più nulla a Google Fonts, unpkg o cdnjs. I caratteri DM Sans e DM Serif Display, MapLibre GL 5.24.0, jsPDF 2.5.1 e SheetJS 0.18.5 stanno in `sorgenti/vendor/`, a versione fissa, e il montaggio li copia in `lib/` di ogni uscita con accanto il testo della licenza; jsPDF e SheetJS si caricano solo quando servono. `vendor/elenco.js` annota le impronte dei file: il montaggio si ferma se un file non corrisponde. Provenienza e aggiornamento in `vendor/LEGGIMI.md`. Resta esterna, fino a T-017, la mappa di base di CARTO.

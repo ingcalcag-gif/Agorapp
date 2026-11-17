@@ -18,12 +18,13 @@ Le prove controllano a ogni montaggio, e su GitHub Actions a ogni invio su qualu
 | --- | --- | --- |
 | `sintassi.js` | Sintassi di ogni file JavaScript e JSON dell'app montata e degli strumenti | T-005 |
 | `uscite.js` | Le uscite in `dist/` sono esattamente ciò che i sorgenti producono; il sito pubblica solo `dist/pubblica/` e lì non finiscono versioni archiviate, demo, dati o sorgenti | T-001, T-003 |
-| `componenti.js` | Ogni libreria, carattere, dato o servizio di terzi dell'app ha la sua riga in `COMPONENTI_DI_TERZI.md`, con la stessa versione, e il testo della licenza è pubblicato | T-004 |
+| `componenti.js` | Ogni libreria, carattere, dato o servizio di terzi dell'app ha la sua riga in `COMPONENTI_DI_TERZI.md`, con la stessa versione, e il testo della licenza è pubblicato; nessun file estraneo in `lib/` | T-004, T-007 |
 | `nome.js` | «agorapp» non compare fuori da `sorgenti/config.js`: né nei sorgenti, né nell'app montata con il nome «Nomeprova». Ammesse solo le chiavi interne della memoria del telefono (`agorapp_…`) | T-002 |
-| `indirizzi.js` | Nell'app montata non ci sono indirizzi esterni oltre a quelli di `config.js` (`indirizzi` e `collegamenti`) | T-005 |
+| `indirizzi.js` | Nei testi dell'app montata non ci sono indirizzi esterni oltre a quelli di `config.js` (`indirizzi` e `collegamenti`); le librerie in `lib/` si controllano sull'impronta | T-005 |
 | `chiavi.js` | Nessuna chiave, password o formula segreta nel codice | T-005 |
 | `parole.js` | Parole vietate nei testi dell'interfaccia, in italiano, inglese, spagnolo e francese; l'elenco lo completa T-013 | T-005, T-013 |
 | `browser/ostili.js` | Eventi inventati con testi ostili in ogni campo si mostrano come testo in elenco, scheda, Off-Grid, calendario e ricerca; nessun collegamento `javascript:` | T-005, T-024 |
+| `browser/richieste.js` | Le richieste che il telefono fa davvero aprendo l'app, la scheda, il calendario con il PDF, le impostazioni e la ricerca: ammessi solo gli indirizzi di `config.js`; controlla anche che caratteri, MapLibre e jsPDF arrivino dall'app | T-007 |
 | `browser/accessibilita.js` | Controllo automatico con axe-core delle regole WCAG 2.1 A e AA su mappa, elenco, scheda, calendario, ricerca e impostazioni | T-005, T-057-T-059 |
 
 Le prove della memoria del telefono (solo chiavi dell'elenco chiuso) arrivano con il blocco 6 (T-026).

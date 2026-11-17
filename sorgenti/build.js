@@ -6,7 +6,8 @@
      dist/redazione/  l'app della redazione (uguale alla pubblica fino al blocco 8 del piano)
    In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina.
    Ogni uscita contiene anche licenze/: titolari, licenze e testi integrali dei componenti di terzi
-   (sorgenti/licenze.js, da COMPONENTI_DI_TERZI.md e licenze/).
+   (sorgenti/licenze.js, da COMPONENTI_DI_TERZI.md e licenze/), e lib/: librerie e caratteri di terzi
+   a versione fissa, copiati da sorgenti/vendor/ con accanto il testo della loro licenza (T-007).
    Alla fine controlla la sintassi di ogni file JavaScript prodotto (node --check).
 
    Nome, titolare, caselle, indirizzi e versioni dei testi vengono da sorgenti/config.js:
@@ -25,6 +26,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { fileLicenze } = require('./licenze.js');
+const VENDOR = require('./vendor/elenco.js');
 
 const SORGENTI = __dirname;
 const RADICE = path.resolve(SORGENTI, '..');
@@ -70,6 +72,30 @@ function riempi(html, cfg, lingua) {
   return html.replace(/\{(nome|titolare|casella_contatto|versione_legali|data_legali)\}/g, (_, k) => v[k]);
 }
 
+/* ---------- Librerie e caratteri ospitati con l'app (T-007) ---------- */
+const VENDOR_DIR = path.join(SORGENTI, 'vendor');
+// I file di sorgenti/vendor/ in lib/, ciascuno controllato sull'impronta annotata in vendor/elenco.js.
+function fileVendor() {
+  const file = {};
+  for (const c of VENDOR) {
+    for (const [f, impronta] of Object.entries(c.file)) {
+      const dati = fs.readFileSync(path.join(VENDOR_DIR, c.cartella, f));
+      if (crypto.createHash('sha256').update(dati).digest('hex') !== impronta)
+        throw new Error('sorgenti/vendor/' + c.cartella + '/' + f + ': il file non corrisponde all\'impronta annotata in vendor/elenco.js');
+      file['lib/' + c.cartella + '/' + f] = dati;
+    }
+    file['lib/' + c.cartella + '/' + (c.nomeLicenza || 'LICENSE.txt')] = fs.readFileSync(path.join(RADICE, 'licenze', c.licenza), 'utf8');
+  }
+  file['lib/caratteri/caratteri.css'] = leggi(VENDOR_DIR, 'caratteri.css');
+  return file;
+}
+// Percorso di un file di libreria nell'uscita, a partire dal nome del file (es. «maplibre-gl.js»).
+function lib(nome) {
+  const c = VENDOR.find(x => nome in x.file);
+  if (!c) throw new Error('vendor/elenco.js: manca ' + nome);
+  return 'lib/' + c.cartella + '/' + nome;
+}
+
 /* ---------- Ordine dei pezzi ---------- */
 // Un solo modulo JavaScript: app1 apre, app6 chiude.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js', 'fate.js',
@@ -78,6 +104,7 @@ const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css', '
 
 /* ---------- Montaggio ---------- */
 function monta(cfg) {
+  const caratteri = leggi(VENDOR_DIR, 'caratteri.css');
   const strati = leggi(DATI, 'strati.js').replace(/^\/\*[^\n]*\*\/\n/, '').replace(/\n$/, '');
   const leg = JSON.parse(leggi(DATI, 'legali_tradotti.json'));
   for (const l of Object.keys(leg)) for (const k of Object.keys(leg[l])) leg[l][k] = riempi(leg[l][k], cfg, l);
@@ -110,16 +137,15 @@ function monta(cfg) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFDF8">
 <title>${escH(cfg.nome)} — Torino</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<link rel="stylesheet" href="lib/caratteri/caratteri.css?v=${crypto.createHash('sha256').update(caratteri).digest('hex').slice(0, 10)}">
+<link rel="stylesheet" href="${lib('maplibre-gl.css')}">
 <link rel="stylesheet" href="app.css?v=${v('app.css')}">
 </head>
 <body>
 ${riempi(leggi(PARTI, 'body.html'), cfg, 'it')}
 <!-- Testi legali: quelli dell'app online OG 1.7 (v1.2), invariati -->
 ${legaliIt}
-<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="${lib('maplibre-gl.js')}"></script>
 <script src="config.js?v=${v('config.js')}"></script>
 <script src="traduzioni.js?v=${v('traduzioni.js')}"></script>
 <script src="app.js?v=${v('app.js')}"></script>
@@ -152,7 +178,7 @@ function controllaSintassi(cartella) {
 function main() {
   const base = path.resolve(RADICE, typeof opz.uscita === 'string' ? opz.uscita : 'dist');
   const cfg = configurazione();
-  const file = { ...monta(cfg), ...fileLicenze(cfg) };
+  const file = { ...monta(cfg), ...fileLicenze(cfg), ...fileVendor() };
   const uscite = opz.solo === 'pubblica' ? ['pubblica'] : ['pubblica', 'redazione'];
   for (const u of uscite) {
     const c = path.join(base, u);
@@ -166,4 +192,4 @@ function main() {
 if (require.main === module) {
   try { main(); } catch (e) { console.error(e.message); process.exit(1); }
 }
-module.exports = { monta, configurazione, riempi };
+module.exports = { monta, configurazione, riempi, fileVendor };

@@ -3,7 +3,10 @@
    Ammessi: gli indirizzi base di sorgenti/config.js (indirizzi) e le pagine che l'app apre solo al tocco
    (collegamenti). Ogni altro indirizzo è uno scarto del § 2.4 e deve stare in prove/scarti-noti.js con la voce
    che lo toglie (piano di adeguamento, sezione 11). I testi delle licenze (licenze/*.txt) sono riprodotti così
-   come sono e non si controllano; della pagina licenze/index.html si controllano i collegamenti. */
+   come sono e non si controllano; della pagina licenze/index.html si controllano i collegamenti. Non si
+   controllano neppure le librerie di terzi in lib/: sono copie fisse, verificate sull'impronta da
+   prove/componenti.js, e i loro testi contengono indirizzi che non contattano (spazi dei nomi, guide).
+   Le richieste che il telefono fa davvero le controlla prove/browser/richieste.js. */
 'use strict';
 const { USCITE, leggiUscita, config, riga, esito, eseguiDaSola, confronta } = require('./comune.js');
 
@@ -21,7 +24,7 @@ function prova() {
   for (const u of USCITE) {
     const trovati = [];
     for (const [f, testo] of Object.entries(leggiUscita(u))) {
-      if (/^licenze\/.*\.txt$/.test(f)) continue;
+      if (/^licenze\/.*\.txt$/.test(f) || f.startsWith('lib/')) continue;
       const fonte = f === 'licenze/index.html' ? [...testo.matchAll(/\b(?:href|src)="([^"]*)"/g)].map(m => m[1]).join('\n') : testo;
       for (const m of fonte.matchAll(URL_RE)) {
         const url = m[0].replace(/[.,;:!?]+$/, '');

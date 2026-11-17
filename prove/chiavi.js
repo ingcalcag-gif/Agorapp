@@ -3,7 +3,7 @@
 
    Si controllano sorgenti/, le funzioni in netlify/, i file di configurazione alla radice e .github/.
    Le uscite in dist/ sono copie dei sorgenti (lo garantisce prove/uscite.js). prove/ non si controlla:
-   contiene, per le prove, testi ostili inventati. */
+   contiene, per le prove, testi ostili inventati. Neppure sorgenti/vendor/: librerie di terzi a impronta fissa. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -29,7 +29,7 @@ const RADICE_FILE = ['netlify.toml', 'package.json'];
 function prova() {
   const e = esito('Nessuna chiave nel codice');
   const file = [
-    ...CARTELLE.flatMap(c => elencaFile(path.join(RADICE, c)).map(f => c + '/' + f)),
+    ...CARTELLE.flatMap(c => elencaFile(path.join(RADICE, c)).map(f => c + '/' + f)).filter(f => !f.startsWith('sorgenti/vendor/')),
     ...RADICE_FILE.filter(f => fs.existsSync(path.join(RADICE, f))),
   ].filter(f => /\.(m?js|html|css|json|toml|ya?ml)$/.test(f));
   const trovati = [];

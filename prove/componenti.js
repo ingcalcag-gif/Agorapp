@@ -13,15 +13,17 @@ const fs = require('fs');
 const path = require('path');
 const { RADICE, USCITE, leggiUscita, esito, eseguiDaSola } = require('./comune.js');
 const { tabella, ELENCO } = require('../sorgenti/licenze.js');
+const VENDOR = require('../sorgenti/vendor/elenco.js');
 
-/* Come si riconosce ciascun componente nell'app montata. versione: true = la versione sta nell'indirizzo;
-   false = versione non fissata o non pertinente (la riga deve dirlo con «Non …»). */
+/* Come si riconosce ciascun componente nell'app montata (nei testi dell'app e nei percorsi dei suoi file).
+   versione: true = la versione sta nel percorso; false = versione non pertinente (la riga lo dice con «Non …»).
+   Le librerie e i caratteri stanno in lib/, copiati da sorgenti/vendor/ (T-007). */
 const COMPONENTI = [
-  { nome: 'MapLibre GL JS', re: /unpkg\.com\/maplibre-gl@(\d+\.\d+\.\d+)\//g, versione: true },
-  { nome: 'jsPDF', re: /cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf\/(\d+\.\d+\.\d+)\//g, versione: true },
-  { nome: 'SheetJS Community Edition (xlsx)', re: /cdnjs\.cloudflare\.com\/ajax\/libs\/xlsx\/(\d+\.\d+\.\d+)\//g, versione: true },
-  { nome: 'DM Sans', re: /family=DM\+Sans\b/g, versione: false },
-  { nome: 'DM Serif Display', re: /family=DM\+Serif\+Display\b/g, versione: false },
+  { nome: 'MapLibre GL JS', re: /lib\/maplibre-gl-(\d+\.\d+\.\d+)\//g, versione: true },
+  { nome: 'jsPDF', re: /lib\/jspdf-(\d+\.\d+\.\d+)\//g, versione: true },
+  { nome: 'SheetJS Community Edition (xlsx)', re: /lib\/sheetjs-(\d+\.\d+\.\d+)\//g, versione: true },
+  { nome: 'DM Sans', re: /lib\/caratteri\/dm-sans-(v\d+)\//g, versione: true },
+  { nome: 'DM Serif Display', re: /lib\/caratteri\/dm-serif-display-(v\d+)\//g, versione: true },
   { nome: 'Dati di OpenStreetMap', re: /openstreetmap\.org\/copyright/g, versione: false },
 ];
 /* Servizi che oggi consegnano parti dell'app al telefono (tabella «Servizi che oggi forniscono parti dell'app»). */
@@ -33,8 +35,10 @@ const SERVIZI = [
 ];
 /* Qualunque indirizzo esterno di un file di programma, di stile, di caratteri o di mappa. */
 const RISORSA_ESTERNA = /https?:\/\/[^\s"'`<>()\\]+?\.(?:m?js|css|woff2?|ttf|otf|pbf|pmtiles|json)(?=[?#"'`\s)\\]|$)|https?:\/\/fonts\.googleapis\.com\/css2?\?[^\s"'`<>]+/g;
-/* File che il montaggio produce da sé. Ogni altro file nell'uscita è un componente da elencare. */
-const FILE_PROPRI = /^(index\.html|config\.js|app\.css|app\.js|traduzioni\.js|sezioni\.js|licenze\/[a-z0-9.-]+\.(txt|css|html))$/;
+/* File che il montaggio produce da sé, e file di terzi annotati in sorgenti/vendor/elenco.js.
+   Ogni altro file nell'uscita è un componente da elencare. */
+const FILE_PROPRI = /^(index\.html|config\.js|app\.css|app\.js|traduzioni\.js|sezioni\.js|licenze\/[a-z0-9.-]+\.(txt|css|html)|lib\/caratteri\/caratteri\.css)$/;
+const FILE_VENDOR = new Set(VENDOR.flatMap(c => Object.keys(c.file).concat(c.nomeLicenza || 'LICENSE.txt').map(f => 'lib/' + c.cartella + '/' + f)));
 
 function prova() {
   const e = esito('Componenti di terzi e licenze');
@@ -53,8 +57,11 @@ function prova() {
   for (const u of USCITE) {
     const file = leggiUscita(u);
     if (!Object.keys(file).length) { e.errori.push(`uscita dist/${u}/ vuota: lancia npm run build`); continue; }
-    for (const f of Object.keys(file)) if (!FILE_PROPRI.test(f)) e.errori.push(`dist/${u}/${f}: file che il montaggio non produce da sé; se è un componente di terzi, aggiungi la riga e il riconoscimento in prove/componenti.js`);
-    const testo = Object.entries(file).filter(([f]) => !f.startsWith('licenze/')).map(([, t]) => t).join('\n');
+    for (const f of Object.keys(file)) if (!FILE_PROPRI.test(f) && !FILE_VENDOR.has(f)) e.errori.push(`dist/${u}/${f}: file che il montaggio non produce da sé; se è un componente di terzi, aggiungi la riga e il riconoscimento in prove/componenti.js`);
+    // I testi dell'app (non le licenze, non le librerie di terzi) e l'elenco dei percorsi dei file.
+    const testo = Object.entries(file).filter(([f]) => !f.startsWith('licenze/') && (!f.startsWith('lib/') || f.endsWith('.css') && f.startsWith('lib/caratteri/')))
+      .map(([, t]) => t).concat(Object.keys(file).map(f => '/' + f)).join('\n');
+    for (const f of FILE_VENDOR) if (!(f in file)) e.errori.push(`dist/${u}/${f} manca: rimonta`);
 
     for (const c of COMPONENTI) for (const m of testo.matchAll(c.re)) {
       trovati.add(c.nome);
