@@ -2824,8 +2824,8 @@ function esportaMisure(){
   const TI = totInteresse(), Ig = TI ? Object.keys(TI.giorni).sort() : [];
   const IN = [[tr('Giorno'), tr('Agorà'), tr('Progetti'), tr('Città')]].concat(Ig.map(g => { const x = TI.giorni[g]||{}; return [dIso(g), x.agora||0, x.progetti||0, Object.keys(x).filter(k => k.startsWith('citta:')).map(k => k.slice(6)+' '+x[k]).join(' · ')]; }));
   const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico], [tr('«Mi interessa» per l’on-grid'), m.soglie.interesse]];
-  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Interesse'), IN, [12,10,10,50]], [tr('Soglie'), Sg, [44,10]]], 'agorapp_misure_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-misure'); avviso(tr('Misure esportate: agorapp_misure_{d}.xlsx',{d:oggi()}), null, true); })
+  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Interesse'), IN, [12,10,10,50]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
+    .then(() => { registra('esporta-misure'); avviso(tr('Misure esportate: {f}',{f:nomeFile()+'_misure_'+oggi()+'.xlsx'}), null, true); })
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 
@@ -3080,8 +3080,8 @@ function esportaStorico(){
   const R = [[tr('Giorno'), tr('Ora'), tr('Tipo'), tr('Operazione'), tr('Evento (se ancora sulla mappa)'), tr('Strato'), tr('Quanti'), tr('Riga delle Misure'), tr('Dettaglio')]]
     .concat(storico().map(x => { const d = new Date(x.t), ev = x.id ? rawById(x.id) : null;
       return [dIso(oggiDi(d)), hm(d), tr(GRUPPI_STORICO.find(g => g[0]===OP_STORICO[x.op][0])[1]), tr(OP_STORICO[x.op][1]), x.id ? (ev ? ev.title : tr('non più sulla mappa')) : '', x.s && S[x.s] ? tr(S[x.s].label) : '', x.n==null ? '' : x.n, x.r==null ? '' : x.r, x.x||'']; }));
-  fileExcel([[tr('Storico'), R, [12,8,16,32,40,18,8,10,30]]], 'agorapp_storico_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-storico'); avviso(tr('Storico esportato: agorapp_storico_{d}.xlsx',{d:oggi()}), null, true); foglioStorico(); })
+  fileExcel([[tr('Storico'), R, [12,8,16,32,40,18,8,10,30]]], nomeFile()+'_storico_'+oggi()+'.xlsx')
+    .then(() => { registra('esporta-storico'); avviso(tr('Storico esportato: {f}',{f:nomeFile()+'_storico_'+oggi()+'.xlsx'}), null, true); foglioStorico(); })
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 document.addEventListener('click', ev => {

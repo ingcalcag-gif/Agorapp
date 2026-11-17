@@ -62,8 +62,8 @@ function esportaStorico(){
   const R = [[tr('Giorno'), tr('Ora'), tr('Tipo'), tr('Operazione'), tr('Evento (se ancora sulla mappa)'), tr('Strato'), tr('Quanti'), tr('Riga delle Misure'), tr('Dettaglio')]]
     .concat(storico().map(x => { const d = new Date(x.t), ev = x.id ? rawById(x.id) : null;
       return [dIso(oggiDi(d)), hm(d), tr(GRUPPI_STORICO.find(g => g[0]===OP_STORICO[x.op][0])[1]), tr(OP_STORICO[x.op][1]), x.id ? (ev ? ev.title : tr('non più sulla mappa')) : '', x.s && S[x.s] ? tr(S[x.s].label) : '', x.n==null ? '' : x.n, x.r==null ? '' : x.r, x.x||'']; }));
-  fileExcel([[tr('Storico'), R, [12,8,16,32,40,18,8,10,30]]], 'agorapp_storico_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-storico'); avviso(tr('Storico esportato: agorapp_storico_{d}.xlsx',{d:oggi()}), null, true); foglioStorico(); })
+  fileExcel([[tr('Storico'), R, [12,8,16,32,40,18,8,10,30]]], nomeFile()+'_storico_'+oggi()+'.xlsx')
+    .then(() => { registra('esporta-storico'); avviso(tr('Storico esportato: {f}',{f:nomeFile()+'_storico_'+oggi()+'.xlsx'}), null, true); foglioStorico(); })
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 document.addEventListener('click', ev => {
