@@ -99,7 +99,7 @@ function lib(nome) {
 /* ---------- Ordine dei pezzi ---------- */
 // Un solo modulo JavaScript: app1 apre, app6 chiude.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js', 'fate.js',
-  'misure_kpi.js', 'misure.js', 'interesse.js', 'storico.js', 'app6.js'];
+  'misure_kpi.js', 'misure.js', 'storico.js', 'app6.js'];
 const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css', 'style_fate.css', 'style_misure.css'];
 
 /* ---------- Montaggio ---------- */

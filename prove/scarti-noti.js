@@ -51,7 +51,7 @@ module.exports = [
   s('parole', 'it: conforme', 'sorgenti/parti/misure.js', 1, 'T-013', 'da rivedere'),
   s('parole', 'it: completo', 'sorgenti/parti/app4.js', 1, 'T-013', 'da rivedere'),
   s('parole', 'it: completo', 'sorgenti/parti/app5.js', 2, 'T-013', 'da rivedere'),
-  s('parole', 'it: completo', 'sorgenti/parti/misure.js', 2, 'T-013', 'da rivedere'),
+  s('parole', 'it: completo', 'sorgenti/parti/misure.js', 1, 'T-013', 'da rivedere'),
   s('parole', 'it: completo', 'sorgenti/parti/storico.js', 1, 'T-013', 'da rivedere'),
   s('parole', 'it: tutti gli eventi', 'sorgenti/parti/fate.js', 1, 'T-013, T-014', 'esce con le Fate'),
   s('parole', 'it: verificato', 'sorgenti/parti/misure_kpi.js', 2, 'T-013', 'da rivedere'),

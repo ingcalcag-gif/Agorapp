@@ -1078,7 +1078,6 @@ label.campo:has(#pw){min-width:0}
 .mz-fonte{align-self:flex-start;font-size:12px;line-height:16px;font-weight:600;border-radius:999px;padding:1px 8px;border:1px solid var(--linea-forte);color:var(--testo-2);background:transparent;white-space:nowrap}
 button.mz-fonte{cursor:pointer;min-height:24px}
 .mz-f-ev{color:var(--verde);border-color:var(--verde)}
-.mz-f-vol{color:var(--mz-c2);border-color:var(--mz-c2)}
 .mz-etich{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .mz-btesta{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .mz-btit{font-weight:600}
@@ -1189,16 +1188,6 @@ button.mz-fonte{cursor:pointer;min-height:24px}
 .mz-form input,.mz-form select,.mz-riga-f input{width:100%;min-width:0}
 .mz-card .riga-int .mz-stato{align-self:center}
 .mz-legenda i.mz-l-linea{width:14px;height:2px;border-radius:2px}
-/* pulsanti volontari (pubblici) */
-.interesse{border:1px solid var(--linea);border-radius:14px;background:color-mix(in srgb,var(--superficie) 80%,transparent);padding:12px;display:flex;flex-direction:column;gap:8px;margin:12px 0}
-.interesse p{margin:0}
-.interesse-t{font-family:var(--serif);font-size:18px;line-height:22px}
-.interesse .tasto{flex:none;align-self:flex-start;padding:4px 20px}
-.interesse-ok{display:flex;gap:8px;align-items:center;color:var(--verde);font-weight:600;margin:0}
-.interesse-riga{display:flex;gap:8px}
-.interesse-riga .campo{flex:1;min-width:0}
-.interesse-riga .tasto{flex:none;padding:4px 14px}
-.interesse-err{color:var(--rosso)}
 /* libreria delle misure */
 .mz-librow{display:flex;gap:6px;align-items:stretch}
 .mz-librow .mz-kpi{flex:1;min-width:0}
@@ -1225,14 +1214,6 @@ button.mz-fonte{cursor:pointer;min-height:24px}
 .mz-pronto{border-style:dashed;background:transparent}
 .mz-pronto .mz-perche{margin:0;font-size:13px;line-height:19px;color:var(--testo-2)}
 @media (prefers-reduced-motion: reduce){.mz-switch i,.mz-switch i::after{transition:none}}
-.interesse-cerca{display:flex;flex-direction:column;gap:6px}
-.interesse-cerca .campo,.interesse-cerca input{width:100%;min-width:0}
-.interesse-esiti{display:flex;flex-direction:column;border-radius:12px;overflow:hidden}
-.interesse-esiti:not(:empty){border:1px solid var(--linea)}
-.interesse-esito{min-height:44px;text-align:left;padding:8px 12px;border:0;border-bottom:1px solid var(--linea);background:var(--superficie);color:var(--testo);font:inherit;cursor:pointer}
-.interesse-esito:last-child{border-bottom:0}
-.interesse-esito:hover,.interesse-esito:focus-visible{background:var(--verde-tenue);outline:none}
-.interesse-cerca #int-citta-n:empty{display:none}
 /* storico delle operazioni */
 .sh .sh-indietro{align-self:flex-start;min-height:32px;padding:0}
 .sh-giorno{font-family:var(--sans,inherit)!important;font-size:12px!important;line-height:16px!important;font-weight:600;color:var(--testo-2);text-transform:uppercase;letter-spacing:.04em;margin:8px 0 0}

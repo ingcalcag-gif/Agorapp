@@ -1,10 +1,7 @@
 # Il sito pubblica soltanto l'app montata in dist/pubblica/ (voce T-003 del piano di adeguamento).
-# Versioni archiviate, demo, dati, sorgenti e strumenti restano nel repository ma non vanno sul sito.
+# Versioni archiviate, demo, sorgenti e strumenti restano nel repository ma non vanno sul sito.
+# Nessuna funzione Netlify: quella dei pulsanti volontari è uscita con T-010.
 # Netlify non monta nulla: dist/ sta già nel repository, montata con `npm run build`.
 [build]
   publish = "dist/pubblica"
   command = ""
-
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"

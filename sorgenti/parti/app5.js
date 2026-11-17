@@ -34,8 +34,7 @@ function fLegale(){
 function fCitta(){
   const testa = `<div class="riga-titolo"><div><h2>${tr('Città e zone')}</h2><p class="meta">${tr('Zone con più eventi sulla mappa')}</p></div>${chiudiBtn()}</div>`;
   const corpo = `<div class="menu-lista">${CITTA.map(c => `<button class="menu-r${c.id===citta?' on':''}" data-citta="${c.id}"><div><span class="t">${esc(c.n)}</span>${c.h?`<span class="meta">${esc(c.h)}</span>`:''}</div>${c.id===citta?`<span style="color:var(--verde)">${spunta()}</span>`:''}</button>`).join('')}</div>
-    <p class="meta">${tr('La città scelta resta su questo telefono. Il logo {nome} riporta sempre alla vista della città.')}</p>
-    ${bloccoCittaVoglio()}`;
+    <p class="meta">${tr('La città scelta resta su questo telefono. Il logo {nome} riporta sempre alla vista della città.')}</p>`;
   return foglio('forte alto', testa, corpo);
 }
 function applicaCitta(id, anima){

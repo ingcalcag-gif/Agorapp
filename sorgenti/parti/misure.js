@@ -3,7 +3,7 @@
    - totali del giorno calcolati dagli eventi on-grid (mai copia degli eventi: l'informativa promette che spariscono 3 ore dopo la fine);
    - numeri inseriti a mano (richieste da Netlify, azioni di comunicazione, rimozioni, segnalazioni, test, interviste);
    - soglie, stato delle decisioni, decisioni sul catalogo delle 50 domande.
-   Nessun dato degli utenti, nessuna rete: la seconda tranche (pulsanti volontari «Mi interessa») richiede un punto di raccolta e l'informativa aggiornata. */
+   Nessun dato degli utenti, nessuna rete. I pulsanti volontari «Mi interessa» della seconda tranche sono stati tolti con T-010. */
 const MZ_KEY = 'agorapp_misure';
 let MZ = null;
 function mz(){
@@ -11,7 +11,7 @@ function mz(){
   const d = LS.get(MZ_KEY, null) || {};
   MZ = Object.assign({v:1, giorni:{}, visti:{}, creati:{}, richieste:{}, azioni:[], rimozioni:[], segnalazioni:{}, correzioni:{}, versioni:[], prove:[], giri:[], rete:{},
     soglie:{}, stati:{}, mie:{}}, d);
-  MZ.soglie = Object.assign({zona:2, nuovi:50, carico:3, interesse:100}, MZ.soglie||{});
+  MZ.soglie = Object.assign({zona:2, nuovi:50, carico:3}, MZ.soglie||{}); delete MZ.soglie.interesse;   /* soglia dei pulsanti volontari, tolta con T-010 */
   return MZ;
 }
 function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
@@ -19,7 +19,7 @@ const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', demo:false, filtroC
 
 /* ---------- Libreria delle misure: ogni domanda del catalogo ha uno stato e, se operativa, si accende e spegne ----------
    stati: operativo (si vede nella sua sezione se è accesa) · studio · sospeso · eliminato */
-const HA_PANNELLO = new Set([1,2,3,4,5,6,7,8,9,10,11,13,15,16,17,18,20,27,28,32,35,37,40,42,43,44,45,47]);
+const HA_PANNELLO = new Set([1,2,3,4,5,6,7,8,9,10,11,13,15,16,17,18,20,35,37,40,42,43,44,45,47]);   /* 27, 28 e 32 (pulsanti volontari) tolti con T-010 */
 const SEZ_DI_AREA = {A:'offerta', B:'rete', C:'accessi', D:'accessi', E:'accessi', F:'qualita', G:'impatto', H:'panoramica'};
 const SEZ_KPI = {35:'impatto', 37:'impatto'};   /* misure dei test sul campo: il loro pannello sta in Impatto */
 const sezioneKpi = k => SEZ_KPI[k.n] || SEZ_DI_AREA[(k.area||'').trim().charAt(0)] || 'panoramica';
@@ -139,9 +139,6 @@ function decisioniMz(S){
   if(az){ const e = effettoAzione(az); out.push({id:firma('az', az.d+az.t), liv: e>=10 ? 'ok' : 'neu', st: e>=10 ? tr('Funziona') : tr('Effetto debole'),
     tit: tr('«{t}» del {d}: richieste {e} %',{t:az.t, d:brevD(az.d), e:(e>=0?'+':'')+e}), perche: tr('Confronto per data: tre giorni prima e tre giorni dopo. Nessun link tracciato, nessun parametro nell’indirizzo.'),
     azione: e>=10 ? tr('Ripeti il canale e confronta di nuovo.') : tr('Prova un canale diverso.'), kpi:[20]}); }
-  const I = totInteresse();
-  if(I && I.agora+I.progetti >= m.soglie.interesse) out.push({id:firma('ongrid', m.soglie.interesse), liv:'warn', st:tr('Soglia superata'), tit: tr('{n} «Mi interessa» per Agorà e Progetti (soglia {s})',{n:I.agora+I.progetti, s:m.soglie.interesse}),
-    perche: tr('Agorà {a} · Progetti {p}. L’apertura dell’on-grid resta legata alla costituzione della società, che deve gestire i dati degli utenti.',{a:I.agora, p:I.progetti}), azione: tr('Metti in calendario la costituzione della società e l’informativa per gli utenti.'), kpi:[27,28]});
   return out.filter(d => mz().stati[d.id]!=='fatto');
 }
 
@@ -156,7 +153,7 @@ const mzIco = {
   avanti:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   x:'<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m3.5 3.5 7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
 };
-const FONTI_MZ = {ev:'Dagli eventi', man:'Da Netlify, a mano', vol:'Pulsante volontario', test:'Test interno', int:'Interviste', mail:'Dalla posta', reg:'Registro a mano'};
+const FONTI_MZ = {ev:'Dagli eventi', man:'Da Netlify, a mano', test:'Test interno', int:'Interviste', mail:'Dalla posta', reg:'Registro a mano'};
 const fonteMz = k => `<span class="mz-fonte mz-f-${k}">${tr(FONTI_MZ[k])}</span>`;
 const righeBtn = (k, l) => `<button class="mz-fonte" data-mz="kpiset" data-k="${k.join(',')}" data-l="${esc(l)}">${k.length>1?tr('righe'):tr('riga')} ${k.join(', ')}</button>`;
 function mzTile(lab, val, det, fonte, metro, warn, kpi){
@@ -214,7 +211,7 @@ function tabLineaMz(serie, giorni){
 const decCls = l => ({crit:'crit', warn:'warn', ok:'ok', neu:'neu'})[l]||'neu';
 
 /* ---------- schede ---------- */
-const SCHEDE_MZ = [['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi e interesse'],['qualita','Qualità'],['impatto','Impatto'],['libreria','Libreria · 50']];
+const SCHEDE_MZ = [['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi'],['qualita','Qualità'],['impatto','Impatto'],['libreria','Libreria · 50']];
 const PER_MZ = {7:'7 giorni', 30:'30 giorni', 90:'3 mesi'};
 function disegnaMisure(){
   const el = $('pagina-misure'); if(!el) return;
@@ -257,7 +254,6 @@ function vPanoramicaMz(){
       ${mzTile(tr('Copertura delle zone'), `${zOk}<small> ${tr('su {n}',{n:zTot})}</small>`, tr('zone di Torino con almeno {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}), 'ev', zOk/zTot, zOk<zTot, [5,3])}
       ${mzTile(tr('Ritmo di raccolta'), `${nf(S.nuovi7)}<small> / ${tr('sett.')}</small>`, tr('eventi nuovi inseriti da te ({nome}), non nuovi utenti · obiettivo {o}',{o:m.soglie.nuovi}), 'ev', S.nuovi7/m.soglie.nuovi, S.nuovi7<m.soglie.nuovi, [2,10,12])}
       ${mzTile(tr('Solidità delle fonti'), quotaCons==null?'–':`${quotaCons}<small> %</small>`, tr('eventi con consenso diretto')+(rimP.length?' · '+tr('rimozioni entro 48 h: {a} su {b}',{a:rimOk, b:rimP.length}):''), 'ev', quotaCons==null?null:quotaCons/100, false, [6,15,13])}
-      ${tileInteresseMz()}
       ${mzTile(tr('Richieste al sito'), S.mediaRic==null?'–':`${nf(S.mediaRic)}<small> / ${tr('giorno')}</small>`, S.mediaRic==null?tr('copia i numeri da Netlify in «Accessi»'):tr('media del periodo · un indice, non persone'), 'man', null, false, [18,20])}
       ${mzTile(tr('Qualità dei dati'), S.qualita==null?'–':`${n1(S.qualita)}<small> %</small>`, tr('eventi corretti o rimossi sui nuovi · {n} segnalazioni',{n:S.segn}), 'ev', null, false, [11,16])}
     </div>
@@ -270,13 +266,6 @@ function vPanoramicaMz(){
     <p class="mz-nota">${tr('Quanto tempo le persone restano nell’app, quante volte tornano, dove toccano la mappa, cosa cercano, chi sono. Sono misure escluse per principio o per legge: le trovi nel Catalogo, con il motivo.')}</p>
     <button class="tasto sec pieno" data-mz="scheda" data-v="libreria" data-f="eliminato">${tr('Vedi le misure eliminate')}</button>
     ${studioSezioneMz('panoramica')}`;
-}
-function tileInteresseMz(){
-  if(!on(27) && !on(28)) return '';
-  const I = totInteresse(), m = mz();
-  if(!I) return `<button class="mz-tile mz-tile-attesa" data-mz="kpiset" data-k="27,28" data-l="${esc(tr('Interesse per l’on-grid'))}"><span class="mz-lab">${tr('Interesse per l’on-grid')}</span><span class="mz-val">–</span><span class="mz-det">${MS.int && MS.int.stato==='carico' ? tr('Leggo i totali…') : tr('Totali non raggiungibili: il contatore è attivo solo sul sito pubblicato.')}</span>${fonteMz('vol')}</button>`;
-  const tot = I.agora + I.progetti;
-  return mzTile(tr('Interesse per l’on-grid'), nf(tot), tr('«Mi interessa» · Agorà {a} · Progetti {p} · soglia {s}',{a:I.agora, p:I.progetti, s:m.soglie.interesse}), 'vol', tot/m.soglie.interesse, false, [27,28]);
 }
 function sparkMz(v){ const W = 150, H = 48, mn = Math.min(...v), mx = Math.max(...v); const x = i => i/(v.length-1)*(W-8)+4, y = a => H-5-(a-mn)/((mx-mn)||1)*(H-12);
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-hidden="true"><path d="${v.map((a,i) => `${i?'L':'M'}${x(i).toFixed(1)},${y(a).toFixed(1)}`).join('')}" fill="none" class="mz-spark-l" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(v.length-1)}" cy="${y(v[v.length-1])}" r="4" class="mz-spark-p"/></svg>`; }
@@ -344,7 +333,7 @@ function vAccessiMz(){
   const az = m.azioni.map(a => ({i:g.indexOf(a.d), t:a.t})).filter(a => a.i>=0);
   const mancanti = r.filter(v => v==null).length;
   const elenco = m.azioni.slice().sort((a,b) => b.d.localeCompare(a.d)).slice(0,8);
-  return `<h2 class="mz-h1">${tr('Accessi e interesse')}</h2><p class="meta">${on(18)?tr('I totali di Netlify, che copi a mano ogni giorno, e le azioni di comunicazione segnate per data.'):tr('Il traffico del sito è in studio: gli spazi sono pronti e vuoti. Qui sotto, l’interesse che le persone dichiarano da sole.')}</p>
+  return `<h2 class="mz-h1">${tr('Accessi')}</h2><p class="meta">${on(18)?tr('I totali di Netlify, che copi a mano ogni giorno, e le azioni di comunicazione segnate per data.'):tr('Il traffico del sito è in studio: gli spazi sono pronti e vuoti.')}</p>
     ${mzBox('rich', tr('Richieste al sito ogni giorno'), lineaMz('rich', [{nome:tr('Richieste'), v:r, col:'var(--verde)'}], g, {azioni:az, vuoto:tr('Copia qui sotto il numero di oggi da Netlify: il grafico parte da lì.')})+`<div class="mz-legenda"><span><i class="mz-l-az"></i>${tr('azione di comunicazione')}</span><span>${tr('giorni senza dato: {n}',{n:mancanti})}</span></div>`, tabLineaMz([{nome:tr('Richieste'), v:r}], g), 'man', [18,20])}
     ${mzBox('banda', tr('Banda consumata e picchi'), '', null, 'man', [19])}
     ${on(18)?`<div class="mz-avviso">${mzIco.avviso}<p><strong>${tr('Richieste, non persone.')}</strong> ${tr('Una visita fa molte richieste. Netlify non sa da che città arrivano: il filtro città qui non vale. Sul piano gratuito i numeri restano solo 24 ore: vanno copiati ogni giorno.')}</p></div>`:''}
@@ -354,24 +343,12 @@ function vAccessiMz(){
       <form class="mz-riga-f" data-mzform="azione"><label class="sr-only" for="mz-az">${tr('Azione di comunicazione di oggi')}</label><span class="campo"><input id="mz-az" name="t" type="text" maxlength="60" placeholder="${esc(tr('Azione di oggi, es. un volantino'))}"></span><button class="tasto sec" type="submit">${tr('Segna')}</button></form>
       ${elenco.length?`<div class="mz-elenco">${elenco.map(a => { const e = effettoAzione(a); return `<div><span>${esc(brevD(a.d))} · ${esc(a.t)}</span><span class="meta">${e==null?tr('effetto: servono i numeri di 3 giorni prima e dopo'):tr('effetto: {e} %',{e:(e>=0?'+':'')+e})}</span><button class="mz-icona piccola" data-mz="az-togli" data-i="${m.azioni.indexOf(a)}" aria-label="${esc(tr('Togli'))}">${mzIco.x}</button></div>`; }).join('')}</div>`:''}
       <p class="meta">${tr('Niente link tracciati o parametri nell’indirizzo: per l’EDPB anche il tracciamento via URL rientra nell’art. 5(3) ePrivacy. Basta il confronto per data.')}</p></div>`:''}
-    ${on(27)||on(28)||on(32)?`<h2 class="mz-h2">${tr('Interesse, solo se le persone lo dicono')}</h2>
-    <p class="meta">${tr('Pulsanti «Mi interessa» nelle anteprime di Agorà e Progetti e «Vorrei {nome} qui» nella scelta della città: un tocco invia solo +1. Niente nomi, niente email, niente IP salvati.')}</p>
-    ${interesseMz(g)}`:''}
     ${studioSezioneMz('accessi')}
     ${bloccataMz(26, tr('Aperture di Agorà, Progetti, calendario'), tr('Contatore automatico via script: per l’EDPB (Linee guida 2/2023) è «accesso» al dispositivo.'))}
     ${bloccataMz(36, tr('Eventi Off-Grid creati'), tr('Il contenuto non lascerebbe mai il telefono; resta comunque un segnale automatico.'))}
     ${bloccataMz(33, tr('Lingue e modalità semplice'), tr('Stesso motivo. Ora: chiedilo nei test sul campo.'))}`;
 }
 
-function interesseMz(g){
-  const I = totInteresse();
-  if(!I) return vuotoMz(MS.int && MS.int.stato==='carico' ? tr('Leggo i totali…') : tr('Totali non raggiungibili. Il contatore funziona solo quando la funzione è pubblicata sul sito (main) e il telefono è in rete.'));
-  const a = serieInteresse(g, 'agora'), p = serieInteresse(g, 'progetti');
-  return (on(27)||on(28) ? mzBox('inter', tr('«Mi interessa» accumulati'), lineaMz('inter', [{nome:tr('Agorà'), v:a, col:'var(--mz-c1)'}, {nome:tr('Progetti'), v:p, col:'var(--mz-c2)'}], g, {})+`<div class="mz-legenda"><span><i class="mz-l-linea" style="background:var(--mz-c1)"></i>${tr('Agorà')} · ${I.agora}</span><span><i class="mz-l-linea" style="background:var(--mz-c2)"></i>${tr('Progetti')} · ${I.progetti}</span><span>${tr('soglia: {s} in totale',{s:mz().soglie.interesse})}</span></div>`,
-      tabLineaMz([{nome:tr('Agorà'), v:a}, {nome:tr('Progetti'), v:p}], g), 'vol', [on(27)?27:28]) : '')
-    + mzBox('voglio', tr('«Vorrei {nome} qui»'), I.citta.length ? hbarMz(I.citta.slice(0,15), 'var(--mz-c2)')+`<p class="meta">${I.citta.length>15?tr('I primi 15 comuni su {n}; l’elenco completo è nell’export Excel.',{n:I.citta.length})+' ':''}${tr('La persona sceglie il comune dall’elenco Istat: nessuna geolocalizzazione dell’IP.')}</p>` : vuotoMz(tr('Ancora nessuna città segnalata.')), null, 'vol', [on(27)?27:28])
-    + `<p class="meta">${tr('I numeri sono indicativi: senza identificare nessuno non si possono escludere i tocchi ripetuti da telefoni diversi.')}</p>`;
-}
 function vQualitaMz(){
   const m = mz(), V = m.versioni.slice(-6), soglia = m.soglie.carico;
   const W = 360, H = 170, pl = 28, pb = 26, pt = 16, mx = Math.max(soglia+1, ...V.map(v => v.s))+.5, n = Math.max(1,V.length);
@@ -411,7 +388,7 @@ function vImpattoMz(){
     ${studioSezioneMz('impatto')}`;
 }
 
-const NOMI_SEZ = Object.fromEntries([['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi e interesse'],['qualita','Qualità'],['impatto','Impatto']]);
+const NOMI_SEZ = Object.fromEntries([['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi'],['qualita','Qualità'],['impatto','Impatto']]);
 const ORDINE_LIB = ['operativo','segnaposto','studio','rimandato','sospeso','eliminato'];
 const statoChip = n => { const s = libStato(n); return `<span class="mz-stato ${STATO_CLS[s]}">${tr(STATI_LIB[s])}</span>`; };
 const interruttoreMz = n => { const v = libVisibile(n); return `<button class="mz-switch" role="switch" aria-checked="${v}" data-mz="lib-vis" data-n="${n}" aria-label="${esc(tr('Mostra la riga {n} nella sua sezione',{n}))}"><i aria-hidden="true"></i><span>${v?tr('Visibile'):tr('Nascosta')}</span></button>`; };
@@ -479,7 +456,6 @@ function foglioFontiMz(){
     <div><dt>${fonteMz('mail')} ${fonteMz('reg')}</dt><dd>${tr('Contati da te: segnalazioni arrivate per email e richieste di rimozione, con solo date e ore.')}</dd></div>
     <div><dt>${fonteMz('test')}</dt><dd>${tr('Misure fatte da te sui tuoi telefoni: velocità, mappa, rete lenta.')}</dd></div>
     <div><dt>${fonteMz('int')}</dt><dd>${tr('Interviste e test sul campo, con il consenso dei partecipanti.')}</dd></div>
-    <div><dt>${fonteMz('vol')}</dt><dd>${tr('Un tocco della persona invia +1, niente altro. La funzione sul sito somma i tocchi e non salva l’indirizzo IP; i totali stanno in un archivio Netlify nell’Unione europea (Francoforte).')}</dd></div>
     <div><dt>${tr('Dove restano')}</dt><dd>${tr('Su questo telefono, nella chiave agorapp_misure, come il resto dell’admin. Si esportano in Excel. Cancellando i dati di Chrome si perdono: esporta ogni tanto.')}</dd></div>
     <div><dt>${tr('Cosa non c’è')}</dt><dd>${tr('Nessun dato sulle persone che usano l’app: niente identificativi, cookie, IP, posizione, cronologia.')}</dd></div></dl>`);
 }
@@ -487,7 +463,7 @@ function foglioSoglieMz(){
   const s = mz().soglie;
   const sl = (k, t, mn, mx, st0, suf) => `<div class="mz-slider"><div class="mz-sr"><label for="mzs-${k}">${t}</label><output id="mzo-${k}">${k==='carico'?n1(s[k]):s[k]}${suf}</output></div><input id="mzs-${k}" data-mzs="${k}" type="range" min="${mn}" max="${mx}" step="${st0}" value="${s[k]}"></div>`;
   foglioMz(`<h2>${tr('Le tue soglie')}</h2><p class="meta">${tr('Decidono quando una misura diventa «da fare».')}</p>
-    ${sl('zona', tr('Eventi per zona nei prossimi 7 giorni'), 1, 15, 1, '')}${sl('nuovi', tr('Obiettivo di eventi nuovi a settimana'), 5, 200, 5, '')}${sl('carico', tr('Tempo massimo di caricamento'), 1.5, 6, .1, ' s')}${sl('interesse', tr('«Mi interessa» per pensare all’on-grid'), 20, 500, 10, '')}`);
+    ${sl('zona', tr('Eventi per zona nei prossimi 7 giorni'), 1, 15, 1, '')}${sl('nuovi', tr('Obiettivo di eventi nuovi a settimana'), 5, 200, 5, '')}${sl('carico', tr('Tempo massimo di caricamento'), 1.5, 6, .1, ' s')}`);
 }
 
 /* ---------- export Excel ---------- */
@@ -503,16 +479,14 @@ function esportaMisure(){
   const I = [[tr('Data'), tr('Giro'), tr('Persone'), tr('Scoperto eventi nuovi'), tr('Andati a un evento'), tr('Guida senza aiuto'), tr('Off-Grid al primo tentativo'), tr('Mediana consiglio')]].concat(m.giri.map(x => [dIso(x.d), x.titolo||'', x.n, x.scoperto, x.andato, x.guida, x.og, x.cons==null?'':x.cons]));
   const C = [['N.', tr('Domanda'), tr('Sezione'), tr('Stato'), tr('Nella sezione'), tr('Decisione di Lorenzo'), tr('Note di Lorenzo'), tr('Risposta di Claude'), tr('Appunti di studio'), tr('Data appunti'), tr('Ultimo cambio di stato'), tr('UE'), tr('IT')]]
     .concat(MZ_KPI.map(k => { const x = (m.lib||{})[k.n]||{}, s = libStato(k.n); return [k.n, k.q, tr(NOMI_SEZ[sezioneKpi(k)]), tr(STATI_LIB[s]), s==='operativo' ? (HA_PANNELLO.has(k.n) ? (libVisibile(k.n)?tr('Visibile'):tr('Nascosta')) : tr('Pannello da costruire')) : '', k.lorD||'', k.lorNota||'', k.risposta||'', x.appunti||'', x.appuntiD?dIso(x.appuntiD):'', x.stato?dIso(x.agg):'', k.eu, k.it]; }));
-  const TI = totInteresse(), Ig = TI ? Object.keys(TI.giorni).sort() : [];
-  const IN = [[tr('Giorno'), tr('Agorà'), tr('Progetti'), tr('Città')]].concat(Ig.map(g => { const x = TI.giorni[g]||{}; return [dIso(g), x.agora||0, x.progetti||0, Object.keys(x).filter(k => k.startsWith('citta:')).map(k => k.slice(6)+' '+x[k]).join(' · ')]; }));
-  const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico], [tr('«Mi interessa» per l’on-grid'), m.soglie.interesse]];
-  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Interesse'), IN, [12,10,10,50]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
+  const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico]];
+  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
     .then(() => { registra('esporta-misure'); avviso(tr('Misure esportate: {f}',{f:nomeFile()+'_misure_'+oggi()+'.xlsx'}), null, true); })
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 
 /* ---------- apertura e interazioni ---------- */
-function apriMisure(){ mzFotografa(); MS.demo = false; caricaInteresse(); vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
+function apriMisure(){ mzFotografa(); MS.demo = false; vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
 function salvaAppuntiMz(n){ const ta = $('mz-app-'+n), x = (mz().lib||{})[n]||{}; if(ta && ta.value.trim()!==(x.appunti||'')) libSet(n, {appunti:ta.value.trim(), appuntiD:oggi()}); }
 function clickMisure(t){
   const d = t.dataset, m = mz(), a = d.mz; if(!a) return false;

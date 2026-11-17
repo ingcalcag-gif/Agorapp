@@ -11,7 +11,7 @@ Il montaggio legge soltanto i file di `sorgenti/` e scrive due uscite:
 - `dist/pubblica/`: l'app pubblica, la sola cartella che il sito pubblica;
 - `dist/redazione/`: l'app della redazione. Fino al blocco 8 del piano di adeguamento è uguale alla pubblica.
 
-Il sito pubblica soltanto `dist/pubblica/` (lo dice `netlify.toml`). Versioni archiviate (`versioni/`), demo, `dati/`, sorgenti e strumenti restano nel repository ma non vanno sul sito: un file che l'app deve scaricare dal sito va montato dentro `dist/pubblica/`.
+Il sito pubblica soltanto `dist/pubblica/` (lo dice `netlify.toml`). Versioni archiviate (`versioni/`), demo, sorgenti e strumenti restano nel repository ma non vanno sul sito: un file che l'app deve scaricare dal sito va montato dentro `dist/pubblica/`.
 
 In ogni uscita la pagina `index.html` richiama file propri: `config.js`, `app.css`, `traduzioni.js`, `app.js`, `sezioni.js`. Nessun codice JavaScript e nessun foglio di stile stanno dentro la pagina, così le intestazioni di sicurezza potranno accettare soltanto file dello stesso indirizzo. Ogni collegamento porta un numero di versione ricavato dal contenuto (`app.js?v=…`), perché il telefono non tenga copie vecchie.
 
@@ -45,7 +45,7 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 - `parti/body.html`: struttura della pagina.
 - `parti/legali_it.html`: testi legali italiani in uso (versione 1.2), come modelli `<template>`.
 - `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`, `style_fate`, `style_misure`. `parti/css_mock.css` non entra nel montaggio.
-- `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, `fate`, `misure_kpi`, `misure`, `interesse`, `storico`, `app6` (app1 apre, app6 chiude).
+- `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, `fate`, `misure_kpi`, `misure`, `storico`, `app6` (app1 apre, app6 chiude).
   - app1: dati, stato, filtri, lingue (`tr()`);
   - app2: icone, mappa MapLibre, segnaposto;
   - app3: fogli (Strati, Elenco, schede, Calendario, PDF);
@@ -54,7 +54,6 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
   - app7: Temi;
   - fate: Ordine delle Fate (funzione nascosta, da togliere con T-014);
   - misure, misure_kpi, storico: Misure e storico nell'amministrazione;
-  - interesse: pulsanti volontari «Mi interessa» (da togliere con T-010);
   - app6: tocchi (`data-az`), tastiera, avvio.
 - `parti/sezioni.js`: Progetti e Agorà in anteprima, montato a parte in `sezioni.js`.
 - `parti/traduzioni.js`: testi in EN ES FR AR (`window.AGR_TR`, chiave = testo italiano, una riga di JSON).

@@ -7,8 +7,5 @@
     "build:prova-nome": "node sorgenti/build.js --nome=Nomeprova --uscita=dist/prova-nome --solo=pubblica",
     "test": "node prove/esegui.js",
     "prove:installa": "cd prove && npm ci && npx playwright install chromium"
-  },
-  "dependencies": {
-    "@netlify/blobs": "^11.1.3"
   }
 }

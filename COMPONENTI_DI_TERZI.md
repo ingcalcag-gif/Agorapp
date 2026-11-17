@@ -35,12 +35,6 @@ Non sono componenti distribuiti con l'app: il telefono li contatta direttamente.
 | --- | --- | --- | --- |
 | CARTO (basemaps.cartocdn.com) | Stile e tasselli della mappa di base | «CARTO» sulla mappa, accanto a «© OpenStreetMap», con il collegamento alla pagina delle attribuzioni di CARTO | T-017 |
 
-## Nel repository, fuori dall'app pubblicata
-
-| Componente | Dove si usa | Licenza | Obblighi | Voce |
-| --- | --- | --- | --- | --- |
-| Elenco dei comuni italiani (Istat, elenco Situas di giugno 2025), `dati/comuni.json` | Funzione Netlify dei pulsanti volontari; dal 17/11/2026 (T-003) il sito non lo pubblica più | Creative Commons Attribuzione 4.0 | Indicare la fonte («Elenco dei comuni: Istat, licenza CC BY 4.0», oggi nel testo dell'app) | Esce con T-010 |
-
 ## Strumenti usati solo nelle prove
 
 Stanno in `prove/package.json`, servono alle prove automatiche (T-005) e non vanno mai nell'app.

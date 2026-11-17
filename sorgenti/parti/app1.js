@@ -29,6 +29,12 @@ const LS = {
   set(k,v){ try{ localStorage.setItem(k, typeof v==='string' ? v : JSON.stringify(v)); return true; }catch(e){ return false; } },
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
+/* Pulizia una tantum: chiavi di funzioni tolte dall'app (piano di adeguamento). Se il telefono le ha ancora,
+   si cancellano all'avvio senza leggerle. */
+const CHIAVI_TOLTE = [
+  'agorapp_interesse',   // pulsanti volontari «Mi interessa» e «Vorrei … qui» (T-010)
+];
+CHIAVI_TOLTE.forEach(k => LS.del(k));
 
 /* ---------- Lingue ---------- */
 let lang = LS.s('agorapp_lang','it'); if(!['it','en','es','fr','ar'].includes(lang)) lang = 'it';
