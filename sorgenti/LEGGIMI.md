@@ -19,6 +19,10 @@ Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`
 
 **Le uscite non si modificano a mano**: si cambiano i sorgenti e si rimonta. Le uscite stanno nel repository perché il collegamento di prova (githack) e il sito le leggono così come sono.
 
+## Componenti di terzi e licenze
+
+`COMPONENTI_DI_TERZI.md`, alla radice del repository, elenca i componenti di terzi con versione, licenza e obblighi; `licenze/` contiene i testi integrali delle licenze. Il montaggio (`sorgenti/licenze.js`) legge la tabella «Componenti nell'app» e scrive in ogni uscita la cartella `licenze/`: la pagina `index.html` con titolari, licenze e testi, il suo foglio di stile e i file di testo. L'app la apre da Impostazioni → Documenti → «Licenze dei componenti». Chi aggiunge o aggiorna un componente aggiorna la riga e il testo; la prova `prove/componenti.js` controlla che ogni componente dell'app abbia la sua riga.
+
 ## Nome, recapiti e indirizzi: `config.js`
 
 `sorgenti/config.js` è l'unico punto in cui stanno il nome del servizio, il titolare, le caselle di posta, gli indirizzi base e le versioni dei testi pubblicati. Per cambiare nome basta cambiare `nome` e rimontare.
@@ -34,6 +38,7 @@ Copia di prova con un altro nome: `npm run build:prova-nome` scrive `dist/prova-
 ## I pezzi
 
 - `build.js`: il programma di montaggio.
+- `licenze.js`: la pagina delle licenze, da `COMPONENTI_DI_TERZI.md` e `licenze/`.
 - `parti/body.html`: struttura della pagina.
 - `parti/legali_it.html`: testi legali italiani in uso (versione 1.2), come modelli `<template>`.
 - `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`, `style_fate`, `style_misure`. `parti/css_mock.css` non entra nel montaggio.

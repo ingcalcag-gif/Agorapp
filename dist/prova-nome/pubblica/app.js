@@ -1309,7 +1309,8 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
       <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Conforme GDPR · v1.2 · marzo 2026')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
-      <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button></div>
+      <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button>
+      <a class="menu-r" href="licenze/index.html" target="_blank" rel="noopener noreferrer"><div><span class="t">${tr('Licenze dei componenti')}</span><span class="meta">${tr('Mappa, librerie e caratteri: testi integrali')}</span></div>${freccia}</a></div>
       <p class="meta">${tr('Scrivici')}: ${casellaHtml('mail')}</p></section>
     <section class="sezione"><div class="tipo">${tr('Area riservata')}</div>
       ${st.admin ? `<button class="riga-int" data-az="admin"><div><span class="t">${tr('Sei in modalità admin')}</span><span class="meta">${tr('Eventi on-grid, importa ed esporta in Excel, esci')}</span></div>${freccia}</button>`

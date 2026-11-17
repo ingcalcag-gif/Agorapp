@@ -347,6 +347,7 @@ button.dato:last-child{border-bottom:0}
 .menu-lista{border-radius:14px;border:1px solid var(--linea);background:color-mix(in srgb,var(--superficie) 70%,transparent);display:flex;flex-direction:column}
 .menu-r{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 12px;border:0;border-bottom:1px solid var(--linea);background:none;width:100%;text-align:left;cursor:pointer}
 .menu-r:last-child{border-bottom:0}
+a.menu-r{color:inherit;text-decoration:none}
 .menu-r>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .menu-r .t{font-weight:600}
 .menu-r.on .t{color:var(--verde)}

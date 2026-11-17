@@ -5,6 +5,8 @@
      dist/pubblica/   l'app pubblica (la sola cartella che il sito pubblica)
      dist/redazione/  l'app della redazione (uguale alla pubblica fino al blocco 8 del piano)
    In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina.
+   Ogni uscita contiene anche licenze/: titolari, licenze e testi integrali dei componenti di terzi
+   (sorgenti/licenze.js, da COMPONENTI_DI_TERZI.md e licenze/).
    Alla fine controlla la sintassi di ogni file JavaScript prodotto (node --check).
 
    Nome, titolare, caselle, indirizzi e versioni dei testi vengono da sorgenti/config.js:
@@ -22,6 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
+const { fileLicenze } = require('./licenze.js');
 
 const SORGENTI = __dirname;
 const RADICE = path.resolve(SORGENTI, '..');
@@ -133,7 +136,10 @@ function scrivi(cartella, file) {
   if (!dentro || dentro.startsWith('..') || path.isAbsolute(dentro)) throw new Error('Uscita fuori dal repository: ' + cartella);
   fs.rmSync(cartella, { recursive: true, force: true });
   fs.mkdirSync(cartella, { recursive: true });
-  for (const [nome, testo] of Object.entries(file)) fs.writeFileSync(path.join(cartella, nome), testo);
+  for (const [nome, testo] of Object.entries(file)) {
+    fs.mkdirSync(path.dirname(path.join(cartella, nome)), { recursive: true });
+    fs.writeFileSync(path.join(cartella, nome), testo);
+  }
 }
 
 function controllaSintassi(cartella) {
@@ -145,7 +151,8 @@ function controllaSintassi(cartella) {
 
 function main() {
   const base = path.resolve(RADICE, typeof opz.uscita === 'string' ? opz.uscita : 'dist');
-  const file = monta(configurazione());
+  const cfg = configurazione();
+  const file = { ...monta(cfg), ...fileLicenze(cfg) };
   const uscite = opz.solo === 'pubblica' ? ['pubblica'] : ['pubblica', 'redazione'];
   for (const u of uscite) {
     const c = path.join(base, u);
