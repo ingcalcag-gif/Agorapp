@@ -5,7 +5,9 @@
    scarto noto con la voce che lo toglie. Controlla anche che i caratteri e le librerie arrivino dall'app e che la
    ricerca degli indirizzi (T-008; § 3.8) parta solo mentre la persona scrive, senza referrer e con il solo testo
    scritto e parametri fissi: niente posizione, centro o zoom della mappa; e che la pressione prolungata (T-009) mostri
-   soltanto le coordinate con «Copia», senza richieste e senza salvare nulla. */
+   soltanto le coordinate con «Copia», senza richieste e senza salvare nulla; e che la posizione del telefono (T-016)
+   resti in memoria, mai salvata né inviata, e che la scheda offra «Apri nelle mappe del telefono» (collegamento geo:
+   con le sole coordinate) su Android e «Copia indirizzo» altrove, senza più «Indicazioni» verso OpenStreetMap. */
 'use strict';
 const { esito, eseguiDaSola, confronta, config } = require('../comune.js');
 const { playwright, server, apri, giorno, pausa } = require('./comune.js');
@@ -23,8 +25,8 @@ async function prova() {
   const ev = eventi(false).map(x => ({ ...x, datetime: giorno(0) + 'T22:00', end: giorno(0) + 'T23:30',
     link: x.offgrid ? '' : 'https://organizzatore.esempio.invalid/evento' }));
   const s = await server('pubblica');
-  const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: ev,
-    agorapp_cal: { 'prova-ostile-1': true, 'prova-ostile-og': true } });
+  const MEMORIA = { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: ev, agorapp_cal: { 'prova-ostile-1': true, 'prova-ostile-og': true } };
+  const { browser, ctx } = await apri(pw, MEMORIA, { geolocation: { latitude: 45.0712, longitude: 7.6845 }, permissions: ['geolocation'] });
   const esterne = [], locali = new Set(), senzaNoref = [];
   ctx.on('request', r => {
     const u = new URL(r.url());
@@ -47,6 +49,9 @@ async function prova() {
       a: [...document.querySelectorAll('#foglio-slot a[href^="http"]')].map(a => ({ h: a.host, rel: a.rel, pol: a.referrerPolicy })) }));
     if (col.meta !== 'no-referrer') e.errori.push('la pagina non ha la regola generale «no-referrer» (trovato: ' + (col.meta || 'nulla') + ')');
     if (!col.a.some(x => x.h === 'organizzatore.esempio.invalid')) e.errori.push('scheda: non trovo il collegamento al sito di chi organizza');
+    // Mappe del telefono (T-016): qui, senza Android, «Copia indirizzo»; mai «Indicazioni» verso OpenStreetMap.
+    if (!(await p.locator('#foglio-slot [data-copia-indirizzo]').count())) e.errori.push('scheda: manca «Copia indirizzo» su un telefono senza Android');
+    if (await p.locator('#foglio-slot a[href*="openstreetmap.org/directions"]').count()) e.errori.push('scheda: c\'è ancora «Indicazioni» verso OpenStreetMap');
     for (const x of col.a) if (!/\bnoreferrer\b/.test(x.rel) || x.pol !== 'no-referrer') senzaNoref.push({ chiave: 'collegamento senza noreferrer: ' + x.h, dove: 'scheda', dettaglio: 'rel «' + x.rel + '», referrerpolicy «' + (x.pol || '') + '»' });
     vista = 'calendario e PDF'; await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="calendario"]'); await pausa(400);
     await p.click('[data-az="calendario"]'); await pausa(400); await p.click('[data-az="pdf"]'); await pausa(800);
@@ -64,8 +69,24 @@ async function prova() {
     if (tasti.join() !== 'copia-punto') e.errori.push('pressione prolungata: nel foglio ci devono essere solo «Copia», trovati: ' + (tasti.join(', ') || 'nessuno'));
     if (coord) { await p.click('[data-az="copia-punto"]'); await pausa(400); }
     if (await memoria() !== prima) e.errori.push('la pressione prolungata ha salvato qualcosa nella memoria del telefono');
-    vista = 'cerca'; await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="cerca"]'); await p.click('[data-az="cerca"]'); await pausa(300);
+    // Posizione del telefono (T-016; QB-4): resta in memoria, non si salva e non parte verso nessuno.
+    vista = 'posizione'; await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="posizione"]'); await pausa(300);
+    const primaPos = await memoria();
+    await p.click('[data-az="posizione"]'); await pausa(800);
+    if (await memoria() !== primaPos) e.errori.push('il tasto della posizione ha salvato qualcosa nella memoria del telefono');
+    const tuQui = await p.locator('.tu-qui').count() + await p.evaluate(() => !!(window.AGR && window.AGR.stato && window.AGR.stato.tuQui));
+    if (!tuQui) e.errori.push('il tasto della posizione non ha trovato la posizione di prova');
+    vista = 'cerca'; await p.click('[data-az="cerca"]'); await pausa(300);
     await p.keyboard.type('via Po 1'); await pausa(1500);
+    // Android: «Apri nelle mappe del telefono» con un collegamento geo: che porta solo le coordinate.
+    const A = await apri(pw, MEMORIA, { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Mobile Safari/537.36' });
+    try {
+      const pa = await A.ctx.newPage(); await pa.goto(s.url + 'index.html'); await pa.waitForSelector('[data-az="elenco"]'); await pausa(400);
+      await pa.click('[data-az="elenco"]'); await pausa(400); await pa.locator('[data-ev="prova-ostile-1"]').first().click(); await pausa(500);
+      const geo = await pa.locator('#foglio-slot a[href^="geo:"]').evaluateAll(a => a.map(x => x.getAttribute('href')));
+      if (geo.length !== 1 || !/^geo:-?\d+\.\d+,-?\d+\.\d+\?q=-?\d+\.\d+,-?\d+\.\d+$/.test(geo[0])) e.errori.push('Android: «Apri nelle mappe del telefono» assente o con altro oltre alle coordinate (' + (geo.join(' ') || 'nessuno') + ')');
+      if (await pa.locator('#foglio-slot [data-copia-indirizzo]').count()) e.errori.push('Android: compare «Copia indirizzo» insieme a «Apri nelle mappe del telefono»');
+    } finally { await A.browser.close(); }
   } finally {
     await browser.close(); await s.chiudi();
   }

@@ -174,7 +174,7 @@ const st = {
   tempo:'tutto', da:null, a:null, salvatiSolo:false, prezzo:'tutti', finiti:false, nascostiOn:true,
   tipi:{evento:true, pratica:true, istanza:true, og:true},
   strati:new Set(), subOff:new Set(), aperto:null, preset:0,
-  sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false,
+  sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
   admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, demoMsg:null, lente:null, vuoti:false
@@ -595,7 +595,7 @@ function posizioni(){
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
@@ -743,8 +743,14 @@ function tastoSalva(e){
   return inCal(e.id) ? `<button class="tasto fatto-ok" data-salva="${esc(e.id)}" aria-pressed="true">${spunta()}${tr('Nel calendario')}</button>`
                      : `<button class="tasto pri" data-salva="${esc(e.id)}" aria-pressed="false">${tr('Salva in calendario')}</button>`;
 }
-const indicazioni = e => `https://www.openstreetmap.org/directions?route=%3B${(+e.lat).toFixed(5)}%2C${(+e.lng).toFixed(5)}`;
-const tastoIndicazioni = e => `<a class="tasto sec" href="${indicazioni(e)}" target="_blank" rel="noopener">${tr('Indicazioni')}</a>`;
+/* «Apri nelle mappe del telefono» (T-016; QB-4; § 2.5, principio 1): un collegamento geo: con le sole coordinate passa
+   il punto all'app di mappe che la persona ha sul telefono, senza che l'app contatti nessuno. Dove il telefono non apre
+   i collegamenti geo: (iPhone, computer) c'è «Copia indirizzo». */
+const APRE_GEO = /Android/i.test(navigator.userAgent || '');
+const geoLink = e => { const c = (+e.lat).toFixed(6) + ',' + (+e.lng).toFixed(6); return 'geo:' + c + '?q=' + c; };
+const testoIndirizzo = e => e.luogo || ((+e.lat).toFixed(4) + ', ' + (+e.lng).toFixed(4));
+const tastoMappe = e => APRE_GEO ? `<a class="tasto sec" href="${esc(geoLink(e))}">${tr('Apri nelle mappe del telefono')}</a>`
+  : `<button class="tasto sec" data-copia-indirizzo="${esc(e.id)}">${st.copiato===e.id ? tr('Copiato') : tr('Copia indirizzo')}</button>`;
 function pillStrato(e){ const s = S[e.strato]; if(!s) return ''; return `<span class="pillola" style="--pp:${s.pin};--pb:${s.bg};--pt:${s.text}"><span class="mini">${ICO[s.id]}</span>${esc(tr(s.label))}${e.sub?' · '+esc(tr(e.sub)):''}</span>`; }
 const TEMA_PAL = {blue:{bg:'#E3F2FD',tx:'#1565C0',dot:'#1E88E5'},cyan:{bg:'#E0F7FA',tx:'#00838F',dot:'#00ACC1'},teal:{bg:'#E0F2F1',tx:'#00695C',dot:'#00897B'},rose:{bg:'#FCE4EC',tx:'#AD1457',dot:'#D81B60'},gold:{bg:'#FBF4DD',tx:'#8A6D0B',dot:'#C9A227'},slate:{bg:'#ECEFF1',tx:'#455A64',dot:'#607D8B'}};
 const TEMA_FAM = {"Mobilità dolce":"blue","Ciclabili":"blue","Diritti":"blue","Educazione popolare":"blue","Sostenibilità":"cyan","Clima":"cyan","Aree verdi":"cyan","Orti urbani":"cyan","Beni comuni":"teal","Spazi autogestiti":"teal","Riuso e rigenerazione":"teal","Autoproduzione":"teal","Diritto all'abitare":"rose","Inclusione":"rose","Accoglienza e migrazione":"rose","Antirazzismo":"rose","Cultura libera":"gold","Memoria e territorio":"gold","Convivialità":"gold","Infanzia e famiglie":"gold","Accessibilità":"slate","Parità di genere":"slate","Mutualismo":"slate","Salute di comunità":"slate"};
@@ -764,7 +770,7 @@ function fScheda(e){
     const man = e.strato==='manifestazioni', link = safeUrl(x.link);
     testa = `<div class="riga-titolo"><div class="pill-row">${pillStrato(e)}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa"><span style="${finito(e)?'filter:grayscale(1);opacity:.6':''}">${forma('evento',e.strato,40)}</span><div><div class="eyebrow" style="color:var(--testo-2)">${e.nascosto ? icoLucchetto(12)+' '+tr('Evento nascosto, sbloccato con la password') : tr('Evento')}</div><h2>${esc(e.titolo)}</h2></div></div>
-      ${finito(e)?'':`<div class="tasti tasti-testa">${tastoSalva(e)}${tastoIndicazioni(e)}</div>`}`;
+      ${finito(e)?'':`<div class="tasti tasti-testa">${tastoSalva(e)}${tastoMappe(e)}</div>`}`;
     corpo = `<div class="fatti">${quando(e)}
         ${e.luogo?`<div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span></div></div>`:''}
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
@@ -778,7 +784,7 @@ function fScheda(e){
     const liberi = b ? b.mano.posti.filter(p => !p.coperto).length : 0;
     testa = `<div class="riga-titolo"><div class="pill-row">${x.etichetta?`<span class="pillola dot" style="--pp:var(--clay);--pb:var(--clay-tenue);--pt:var(--clay-ink)">${esc(tr(x.etichetta))}</span>`:''}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa">${forma('pratica',e.strato,40)}<div><div class="eyebrow" style="color:var(--clay-ink)">${tr('Evento Pratica · {p}',{p:esc(x.progetto||'')})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${b?`<button class="tasto sec" data-progetto="${esc(x.parentId)}">${tr('Bacheca')} ${freccia}</button>`:tastoIndicazioni(e)}</div>`;
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${b?`<button class="tasto sec" data-progetto="${esc(x.parentId)}">${tr('Bacheca')} ${freccia}</button>`:tastoMappe(e)}</div>`;
     corpo = `<div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${x.addrNum?`<span class="meta">${esc(x.addrNum)}</span>`:''}</div></div>
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}</div>
@@ -788,7 +794,7 @@ function fScheda(e){
   } else if(e.tipo==='istanza'){
     testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--ic);--pb:var(--it);--pt:var(--ic)">${tr('Istanza · {i}',{i:esc(x.istanza||'')})}</span>${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${DEMO?(x.restituzione?`<button class="tasto sec" data-apri-istanza="${esc(x.parentId)}">${tr('L’istanza')} ${freccia}</button>`:`<button class="tasto sec" data-apri-tavolo="${esc(x.parentId)}:${x.tavolo}">${tr('Il tavolo')} ${freccia}</button>`):tastoIndicazioni(e)}</div>`;
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${DEMO?(x.restituzione?`<button class="tasto sec" data-apri-istanza="${esc(x.parentId)}">${tr('L’istanza')} ${freccia}</button>`:`<button class="tasto sec" data-apri-tavolo="${esc(x.parentId)}:${x.tavolo}">${tr('Il tavolo')} ${freccia}</button>`):tastoMappe(e)}</div>`;
     corpo = `${x.obiettivo?`<div class="richiamo">${BERSAGLIO(18)}<div class="stack-s" style="gap:2px"><span class="meta">${x.restituzione?tr('Obiettivo raggiunto: la proposta è consegnata'):tr('Obiettivo dell’istanza')}</span><span style="font-weight:600">${esc(x.obiettivo)}</span></div></div>`:''}
       <div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${e.citta?`<span class="meta">${esc(e.citta)}</span>`:''}</div></div>
@@ -806,7 +812,7 @@ function fScheda(e){
         ${e.luogo?`<div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${prec?`<span class="meta">${prec}</span>`:''}</div></div>`:''}
         ${e.desc?`<div class="dato">${icoNote}<div><span style="white-space:pre-wrap">${esc(e.desc)}</span></div></div>`:''}
         ${links.map(l => `<div class="dato">${icoLink}<div><a href="${esc(l)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(hostDi(l))}</a></div></div>`).join('')}</div>
-      <div class="tasti">${tastoIndicazioni(e)}<button class="tasto sec" data-giornata="${e.giorno}">${icoCal()}${tr('La mia giornata')}</button></div>
+      <div class="tasti">${tastoMappe(e)}<button class="tasto sec" data-giornata="${e.giorno}">${icoCal()}${tr('La mia giornata')}</button></div>
       <div class="tasti"><button class="tasto sec" data-modifica="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina="${esc(e.id)}">${tr('Elimina')}</button></div>
       <div class="og-box">${GLIFO_OG}<span class="meta" style="color:var(--testo)">${tr('Vive solo nella memoria di questo telefono: non passa da nessun server. È già nel tuo calendario e sparisce dalla mappa tre ore dopo la fine; nel calendario resta per tre mesi.')}</span></div>`;
   }
@@ -1177,12 +1183,19 @@ function fPunto(){
     <p class="meta" id="punto-esito" role="status" aria-live="polite">${st.puntoCopiato===null ? esc(tr('Copia non riuscita: tieni premuto sul testo per selezionarlo.')) : ''}</p>`;
   return foglio('forte', testa, corpo);
 }
+/* Copia un testo negli appunti del telefono; se il browser non lo consente, prova la via vecchia. Promessa di vero o falso. */
+function copiaTesto(t){
+  const aMano = () => { try{ const a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly',''); a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; }catch(e){ return false; } };
+  if(navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(() => true, () => aMano());
+  return Promise.resolve(aMano());
+}
 function copiaPunto(){
   const p = st.punto; if(!p) return;
-  const t = testoPunto(p), fatto = ok => { if(st.punto!==p) return; st.puntoCopiato = ok ? true : null; disegnaFoglio(); };
-  const aMano = () => { try{ const a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly',''); a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; }catch(e){ return false; } };
-  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => fatto(true), () => fatto(aMano()));
-  else fatto(aMano());
+  copiaTesto(testoPunto(p)).then(ok => { if(st.punto!==p) return; st.puntoCopiato = ok ? true : null; disegnaFoglio(); });
+}
+function copiaIndirizzo(id){
+  const e = byId(id); if(!e) return; const t = testoIndirizzo(e);
+  copiaTesto(t).then(ok => { if(ok){ st.copiato = id; if(st.foglio==='scheda') disegnaFoglio(); } else avviso(tr('Non riesco a copiare. L’indirizzo è: {a}',{a:t}), null, true); });
 }
 function boxPunto(f){
   if(!f.pos) return '';
@@ -1716,7 +1729,7 @@ function selezionaEv(id){
     if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); st.preset = -1; st.prezzo = 'tutti'; st.lente = null;
     if(e.nascosto) st.nascostiOn = true;
   }
-  st.sel = id; st.foglio = 'scheda'; st.cercaQui = null; st.descAperta = false;
+  st.sel = id; st.foglio = 'scheda'; st.cercaQui = null; st.descAperta = false; st.copiato = null;
   tutto(); disegnaFoglio();
   requestAnimationFrame(() => inquadra(e.lat, e.lng, 14));
 }
@@ -2697,6 +2710,7 @@ $('app').addEventListener('click', ev => {
     const box = $(sugg.dove==='a' ? 'a-sugg' : 'f-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
     const pb = $(sugg.dove==='a' ? 'a-punto' : 'f-punto'); if(pb) pb.innerHTML = boxPunto(f);
     return; }
+  if(d.copiaIndirizzo){ copiaIndirizzo(d.copiaIndirizzo); return; }
   if(d.giorno){ if(!st.da || st.a){ st.da = d.giorno; st.a = null; } else if(d.giorno < st.da){ st.da = d.giorno; } else { st.a = d.giorno; } disegnaFoglio(); return; }
   if(d.vista){ st.cal.vista = d.vista; disegnaFoglio(); disegnaPins(); posizioni(); if(modoGiornata()) requestAnimationFrame(() => inquadraTutti(giornata(st.cal.giorno).vive)); return; }
   if(d.giornoCal){ st.cal.giorno = d.giornoCal; st.cal.vista = 'giornata'; const g = dIso(d.giornoCal); st.cal.y = g.getFullYear(); st.cal.m = g.getMonth(); disegnaFoglio(); disegnaPins(); posizioni(); requestAnimationFrame(() => inquadraTutti(giornata(st.cal.giorno).vive)); return; }

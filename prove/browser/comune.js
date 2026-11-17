@@ -32,10 +32,10 @@ function server(uscita = 'pubblica') {
 }
 
 /* Un browser con un contesto da telefono. memoria: chiavi e valori da mettere nella memoria del telefono
-   prima dell'apertura (una volta sola per contesto). */
-async function apri(pw, memoria = {}) {
+   prima dell'apertura (una volta sola per contesto); opzioni: altre impostazioni del contesto (per esempio userAgent). */
+async function apri(pw, memoria = {}, opzioni = {}) {
   const browser = await pw.chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'it-IT', timezoneId: 'Europe/Rome' });
+  const ctx = await browser.newContext(Object.assign({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'it-IT', timezoneId: 'Europe/Rome' }, opzioni));
   await ctx.route(r => !/^https?:\/\/127\.0\.0\.1(:\d+)?\//.test(r.href), r => r.abort());
   await ctx.addInitScript(m => {
     if (sessionStorage.getItem('prova-seminata')) return;

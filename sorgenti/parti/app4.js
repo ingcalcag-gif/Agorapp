@@ -202,12 +202,19 @@ function fPunto(){
     <p class="meta" id="punto-esito" role="status" aria-live="polite">${st.puntoCopiato===null ? esc(tr('Copia non riuscita: tieni premuto sul testo per selezionarlo.')) : ''}</p>`;
   return foglio('forte', testa, corpo);
 }
+/* Copia un testo negli appunti del telefono; se il browser non lo consente, prova la via vecchia. Promessa di vero o falso. */
+function copiaTesto(t){
+  const aMano = () => { try{ const a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly',''); a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; }catch(e){ return false; } };
+  if(navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(() => true, () => aMano());
+  return Promise.resolve(aMano());
+}
 function copiaPunto(){
   const p = st.punto; if(!p) return;
-  const t = testoPunto(p), fatto = ok => { if(st.punto!==p) return; st.puntoCopiato = ok ? true : null; disegnaFoglio(); };
-  const aMano = () => { try{ const a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly',''); a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; }catch(e){ return false; } };
-  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => fatto(true), () => fatto(aMano()));
-  else fatto(aMano());
+  copiaTesto(testoPunto(p)).then(ok => { if(st.punto!==p) return; st.puntoCopiato = ok ? true : null; disegnaFoglio(); });
+}
+function copiaIndirizzo(id){
+  const e = byId(id); if(!e) return; const t = testoIndirizzo(e);
+  copiaTesto(t).then(ok => { if(ok){ st.copiato = id; if(st.foglio==='scheda') disegnaFoglio(); } else avviso(tr('Non riesco a copiare. L’indirizzo è: {a}',{a:t}), null, true); });
 }
 function boxPunto(f){
   if(!f.pos) return '';

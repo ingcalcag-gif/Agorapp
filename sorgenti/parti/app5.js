@@ -398,7 +398,7 @@ function selezionaEv(id){
     if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); st.preset = -1; st.prezzo = 'tutti'; st.lente = null;
     if(e.nascosto) st.nascostiOn = true;
   }
-  st.sel = id; st.foglio = 'scheda'; st.cercaQui = null; st.descAperta = false;
+  st.sel = id; st.foglio = 'scheda'; st.cercaQui = null; st.descAperta = false; st.copiato = null;
   tutto(); disegnaFoglio();
   requestAnimationFrame(() => inquadra(e.lat, e.lng, 14));
 }

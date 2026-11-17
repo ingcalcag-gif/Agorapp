@@ -29,7 +29,6 @@ module.exports = [
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
   s('indirizzi', 'basemaps.cartocdn.com/gl', 'app.js', 1, 'T-017', 'stile e tasselli della mappa CARTO'),
   s('indirizzi', 'carto.com/attributions', 'index.html', 1, 'T-017', 'attribuzione CARTO sulla mappa'),
-  s('indirizzi', 'www.openstreetmap.org/directions', 'app.js', 1, 'T-016', '«Indicazioni» verso OpenStreetMap'),
   s('indirizzi', 'esempio.it', 'app.js', 1, 'T-033, T-042', "esempio nel modello Excel dell'importazione (amministrazione)"),
   s('indirizzi', 'carto.com/privacy', 'app.js', 2, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),
   s('indirizzi', 'carto.com/privacy', 'index.html', 2, 'T-080', 'testi legali v1.2 in uso'),
@@ -37,11 +36,9 @@ module.exports = [
   s('indirizzi', 'osmfoundation.org/wiki', 'index.html', 1, 'T-080', 'testi legali v1.2 in uso'),
 
   /* ---------- Collegamenti esterni senza referrer (prove/collegamenti.js) ---------- */
-  s('collegamenti', 'collegamento senza noreferrer: ${indicazioni(e)}', 'app.js', 1, 'T-016', '«Indicazioni» verso OpenStreetMap, sostituito da «Apri nelle mappe del telefono»'),
 
   /* ---------- Richieste vere del telefono (prove/browser/richieste.js) ---------- */
   s('richieste', 'basemaps.cartocdn.com/gl', 'app', 1, 'T-017', 'stile della mappa CARTO a ogni apertura (poi tasselli, caratteri e icone della mappa)'),
-  s('richieste', 'collegamento senza noreferrer: www.openstreetmap.org', 'scheda', 1, 'T-016', '«Indicazioni» verso OpenStreetMap, sostituito da «Apri nelle mappe del telefono»'),
 
   /* ---------- Chiavi e password nel codice (prove/chiavi.js) ---------- */
   s('chiavi', 'segreto assegnato a un testo: ADMIN_PW', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione nel codice'),
