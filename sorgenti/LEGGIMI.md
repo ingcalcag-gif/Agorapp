@@ -44,15 +44,14 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 - `vendor/`: librerie e caratteri di terzi a versione fissa, con `elenco.js` (impronte) e `caratteri.css`.
 - `parti/body.html`: struttura della pagina.
 - `parti/legali_it.html`: testi legali italiani in uso (versione 1.2), come modelli `<template>`.
-- `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`, `style_fate`, `style_misure`. `parti/css_mock.css` non entra nel montaggio.
-- `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, `fate`, `misure_kpi`, `misure`, `storico`, `app6` (app1 apre, app6 chiude).
+- `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`, `style_misure`. `parti/css_mock.css` non entra nel montaggio.
+- `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, `misure_kpi`, `misure`, `storico`, `app6` (app1 apre, app6 chiude).
   - app1: dati, stato, filtri, lingue (`tr()`);
   - app2: icone, mappa MapLibre, segnaposto;
   - app3: fogli (Strati, Elenco, schede, Calendario, PDF);
   - app4: Cerca, Scegli i giorni, Off-Grid, conferme;
   - app5: impostazioni, demo, amministrazione, Excel, guida;
   - app7: Temi;
-  - fate: Ordine delle Fate (funzione nascosta, da togliere con T-014);
   - misure, misure_kpi, storico: Misure e storico nell'amministrazione;
   - app6: tocchi (`data-az`), tastiera, avvio.
 - `parti/sezioni.js`: Progetti e Agorà in anteprima, montato a parte in `sezioni.js`.

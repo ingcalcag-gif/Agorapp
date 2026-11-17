@@ -38,7 +38,6 @@ module.exports = [
 
   /* ---------- Collegamenti esterni senza referrer (prove/collegamenti.js) ---------- */
   s('collegamenti', 'collegamento senza noreferrer: ${indicazioni(e)}', 'app.js', 1, 'T-016', '«Indicazioni» verso OpenStreetMap, sostituito da «Apri nelle mappe del telefono»'),
-  s('collegamenti', 'collegamento senza noreferrer: ${esc(l)}', 'app.js', 1, 'T-014', "collegamenti nella scheda di un evento delle Fate, che esce con le Fate"),
 
   /* ---------- Richieste vere del telefono (prove/browser/richieste.js) ---------- */
   s('richieste', 'basemaps.cartocdn.com/gl', 'app', 1, 'T-017', 'stile della mappa CARTO a ogni apertura (poi tasselli, caratteri e icone della mappa)'),
@@ -46,14 +45,10 @@ module.exports = [
 
   /* ---------- Chiavi e password nel codice (prove/chiavi.js) ---------- */
   s('chiavi', 'segreto assegnato a un testo: ADMIN_PW', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione nel codice'),
-  s('chiavi', 'segreto assegnato a un testo: FATE_FRASE', 'sorgenti/parti/fate.js', 1, 'T-014', "formula dell'Ordine delle Fate"),
-  s('chiavi', 'segreto assegnato a un testo: FATE_FINE', 'sorgenti/parti/fate.js', 1, 'T-014', "formula di chiusura dell'Ordine delle Fate"),
-  s('chiavi', 'segreto assegnato a un testo: FATE_CHIAVE', 'sorgenti/parti/fate.js', 1, 'T-014', "chiave dei pacchetti delle Fate, uguale per tutti"),
 
   /* ---------- Parole vietate (prove/parole.js): rivisti con T-013; gli usi innocui sono nell'elenco AMMESSI della prova ---------- */
-  s('parole', 'it: tutti gli eventi', 'sorgenti/parti/fate.js', 1, 'T-014', 'esce con le Fate'),
-  s('parole', 'es: todos los eventos', 'traduzioni.js:es', 2, 'T-014, T-015', 'Fate («Todos los eventos de {n}») e guida della demo («Todos los eventos de la demo»)'),
-  s('parole', 'fr: tous les événements', 'traduzioni.js:fr', 2, 'T-014, T-015', 'Fate («Tous les événements de {n}») e guida della demo («Tous les événements de la démo»)'),
+  s('parole', 'es: todos los eventos', 'traduzioni.js:es', 1, 'T-015', 'guida della demo («Todos los eventos de la demo»)'),
+  s('parole', 'fr: tous les événements', 'traduzioni.js:fr', 1, 'T-015', 'guida della demo («Tous les événements de la démo»)'),
 
   /* ---------- Accessibilità (prove/browser/accessibilita.js): regole di axe-core ---------- */
   s('accessibilita', 'label-content-name-mismatch', 'mappa', 2, 'T-057', 'il nome letto dal lettore di schermo non contiene il testo visibile (città, calendario)'),

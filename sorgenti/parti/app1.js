@@ -33,6 +33,7 @@ const LS = {
    si cancellano all'avvio senza leggerle. */
 const CHIAVI_TOLTE = [
   'agorapp_interesse',   // pulsanti volontari «Mi interessa» e «Vorrei … qui» (T-010)
+  'agorapp_fate', 'agorapp_fate_io', 'agorapp_fate_strato', 'agorapp_fate_chi',   // Ordine delle Fate (T-014)
 ];
 CHIAVI_TOLTE.forEach(k => LS.del(k));
 
@@ -58,8 +59,11 @@ const nomeStrato = id => S[id] ? tr(S[id].label) : '';
 
 /* ---------- Dati sul telefono ---------- */
 let events = LS.get('agorapp_events', []); if(!Array.isArray(events)) events = [];
-(function pulizia(){
+const IDS_TOLTI = (function pulizia(){
   const n = events.length;
+  /* eventi ricevuti con i pacchetti dell'Ordine delle Fate, tolto con T-014: si cancellano, anche dal calendario */
+  const fate = events.filter(e => e && typeof e==='object' && e.fata).map(e => e.id);
+  events = events.filter(e => !(e && typeof e==='object' && e.fata));
   /* gli eventi demo che l'app online rimetteva da sola non ci sono più: l'app parte vuota */
   events = events.filter(e => e && typeof e==='object' && !e.isDemo);
   /* niente contatori «Ci vado / Sono qui» */
@@ -68,8 +72,10 @@ let events = LS.get('agorapp_events', []); if(!Array.isArray(events)) events = [
   events.forEach(e => { if('image' in e){ delete e.image; tolti = true; } });
   if(events.length!==n || tolti) LS.set('agorapp_events', events);
   try{ sessionStorage.removeItem('agorapp_votes'); }catch(e){}
+  return fate;
 })();
 let calEvents = LS.get('agorapp_cal', {}); if(!calEvents || typeof calEvents!=='object') calEvents = {};
+if(IDS_TOLTI.some(id => id in calEvents)){ IDS_TOLTI.forEach(id => delete calEvents[id]); LS.set('agorapp_cal', calEvents); }
 let DEMO = LS.get('agorapp_demo', null);
 function saveEvents(){ if(!LS.set('agorapp_events', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
 function saveCal(){ LS.set('agorapp_cal', calEvents); }
@@ -109,7 +115,7 @@ function getEnd(ev){
   }catch(e){ return null; }
 }
 function isGone(ev){ const e = getEnd(ev); return e!==null && Date.now() > e + EXPIRE_MS; }
-function shouldDelete(ev){ const e = getEnd(ev); if(e===null) return false; return Date.now() > e + ((ev.personal || ev.fata) ? OG_KEEP_MS : EXPIRE_MS); }
+function shouldDelete(ev){ const e = getEnd(ev); if(e===null) return false; return Date.now() > e + (ev.personal ? OG_KEEP_MS : EXPIRE_MS); }
 function purgeExpired(){
   const n = events.length; events = events.filter(ev => !shouldDelete(ev));
   if(events.length!==n){ Object.keys(calEvents).forEach(id => { if(!events.some(e=>e.id===id)) delete calEvents[id]; }); saveEvents(); saveCal(); return true; }
@@ -130,7 +136,7 @@ function vista(ev){
     desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||'', ist:ev.parentType==='istanza'?ev.parentId:null};
 }
 let EV = [];
-function ricostruisci(){ EV = events.filter(ev => fateAttiva || !ev.fata).map(vista).filter(Boolean); }   /* Ordine delle Fate: senza la formula non si vede */
+function ricostruisci(){ EV = events.map(vista).filter(Boolean); }
 const byId = id => EV.find(e => e.id===id);
 const rawById = id => events.find(e => e.id===id);
 
@@ -203,7 +209,7 @@ function nelTempo(e){
   if(st.tempo==='adesso') return e.a <= f[1];
   return e.a < f[1] && (e.b > f[0] || e.a >= f[0]);
 }
-function nelloStrato(e){ if(e.tipo==='og') return true; if(e.strato==='fate') return fataVisibile(e); if(!st.strati.has(e.strato)) return false; return !st.subOff.has(e.strato+'|'+e.sub); }
+function nelloStrato(e){ if(e.tipo==='og') return true; if(!st.strati.has(e.strato)) return false; return !st.subOff.has(e.strato+'|'+e.sub); }
 const gratuito = p => /^(gratuito|gratis|free|ingresso libero|libero|0\s*€?)$/i.test(String(p||'').trim());
 function nelPrezzo(e){ if(e.tipo==='og' || st.prezzo==='tutti' || !e.prezzo) return true; return st.prezzo==='gratis' ? gratuito(e.prezzo) : !gratuito(e.prezzo); }
 function nascostoOk(e){ return !e.nascosto || (st.sbloccati.has(e.raw.hiddenPassword) && st.nascostiOn); }

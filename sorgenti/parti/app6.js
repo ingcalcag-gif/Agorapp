@@ -8,7 +8,6 @@ $('app').addEventListener('click', ev => {
   if(t.closest('.sez-agora,.sez-progetti,.sez-proposta')) return;
   if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */
   const d = t.dataset;
-  if(clickFate(t, d)) return;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
   if(d.sez){ vaiSezione(d.sez, true); return; }
   if(d.progetto){ window.AGR.progetti.apri(d.progetto); return; }
@@ -56,7 +55,7 @@ $('app').addEventListener('click', ev => {
     case 'strati': st.sel = null; apri('strati'); break;
     case 'elenco': st.sel = null; apri('elenco'); break;
     case 'copia-punto': copiaPunto(); break;
-    case 'cerca': st.sel = null; sugg.lista = []; st.fateMsg = null; apri('cerca'); break;
+    case 'cerca': st.sel = null; sugg.lista = []; apri('cerca'); break;
     case 'date': if(!st.da){ st.da = oggi(); st.a = null; } apri('date'); break;
     case 'mostra-date': if(st.da){ st.tempo = 'date'; chiudi(); tutto(); } break;
     case 'chiudi': chiudi(); break;
@@ -94,7 +93,7 @@ $('app').addEventListener('click', ev => {
     case 'indietro-cal': st.pdf = null; apriCalendario(); break;
     case 'scarica-pdf': condividiPdf(); break;
     case 'stampa-pdf': stampaPdf(); break;
-    case 'sblocca': { const pw = ($('pw').value||'').trim(); if(pw && sbloccaFate(pw)) break; st.fateMsg = null; const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
+    case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
       if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; st.demoMsg = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
@@ -179,7 +178,6 @@ $('foglio-slot').addEventListener('change', ev => {
 $('foglio-slot').addEventListener('keydown', ev => {
   if(ev.key!=='Enter') return;
   if(ev.target.id==='tz-nome'){ ev.preventDefault(); const b = document.querySelector('[data-tz="salva-ok"]'); if(b) b.click(); return; }
-  if(ev.target.id==='fate-formula' || ev.target.id==='fate-nome'){ ev.preventDefault(); const b = document.querySelector('[data-az="'+ev.target.id+'"]'); if(b) b.click(); return; }
   if(ev.target.id==='pw'){ ev.preventDefault(); document.querySelector('[data-az="sblocca"]').click(); }
   else if(ev.target.id==='adminpw'){ ev.preventDefault(); document.querySelector('[data-az="entra-admin"]').click(); }
   else if(ev.target.id==='q'){ ev.preventDefault(); clearTimeout(sugg.t); cercaInvio(); }
@@ -199,8 +197,7 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   testiFissi(); purgeExpired(); ricostruisci();
   st.cal.giorno = oggi();
   initMappa(); tutto();
-  const pacco = controllaLinkFate();   /* aperto da un link dell'Ordine delle Fate */
-  if(!pacco && LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
+  if(LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     demo:() => DEMO,

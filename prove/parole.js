@@ -73,7 +73,6 @@ const AMMESSI = [
   ['ar', 'نموذج كامل', 'amministrazione: «completo» è il modulo, non la mappa'],
   ['ar', 'لنسخة كاملة', 'copia di sicurezza dei dati del telefono'],
   ['ar', 'الاجتماعات غير الرسمية', '«غير الرسمية» vuol dire «non ufficiali»: contenuto d\'esempio di Progetti'],
-  ['ar', 'إعادة إرساله كاملًا', 'Fate: «rimandarlo intero» (esce con T-014)'],
   ['ar', 'النصوص الكاملة', 'testi integrali delle licenze'],
 ];
 

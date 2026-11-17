@@ -39,7 +39,7 @@ function perchePronto(n){ const k = kpiDi(n); return k && k.risposta ? k.rispost
 function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.assign({}, m.lib[n]||{}, campi, {agg:oggi()}); mzSalva(); }
 
 /* ---------- quale evento conta ---------- */
-const mzReale = e => e && typeof e==='object' && !e.personal && !e.offgrid && !e.fata && e.datetime && isFinite(+e.lat) && isFinite(+e.lng);
+const mzReale = e => e && typeof e==='object' && !e.personal && !e.offgrid && e.datetime && isFinite(+e.lat) && isFinite(+e.lng);
 function mzEventi(){ return events.filter(e => mzReale(e) && (MS.demo || !e.demo)).filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
 function cittaDi(e){
   let best = 'altro', bd = 1e9; const la = +e.lat, ln = +e.lng;
