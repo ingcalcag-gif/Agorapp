@@ -171,11 +171,11 @@ function fScheda(e){
   if(e.raw.fata) return fSchedaFata(e);
   let testa, corpo; const x = e.raw;
   if(e.tipo==='evento'){
-    const man = e.strato==='manifestazioni', link = safeUrl(x.link), img = safeUrl(x.image);
+    const man = e.strato==='manifestazioni', link = safeUrl(x.link);
     testa = `<div class="riga-titolo"><div class="pill-row">${pillStrato(e)}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa"><span style="${finito(e)?'filter:grayscale(1);opacity:.6':''}">${forma('evento',e.strato,40)}</span><div><div class="eyebrow" style="color:var(--testo-2)">${e.nascosto ? icoLucchetto(12)+' '+tr('Evento nascosto, sbloccato con la password') : tr('Evento')}</div><h2>${esc(e.titolo)}</h2></div></div>
       ${finito(e)?'':`<div class="tasti tasti-testa">${tastoSalva(e)}${tastoIndicazioni(e)}</div>`}`;
-    corpo = `${img?`<img class="scheda-img" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`:''}<div class="fatti">${quando(e)}
+    corpo = `<div class="fatti">${quando(e)}
         ${e.luogo?`<div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span></div></div>`:''}
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
         ${link?`<div class="dato">${icoLink}<div><a href="${esc(link)}" target="_blank" rel="noopener">${tr('Sito di chi organizza')}</a><span class="meta">${esc(hostDi(link))}</span></div></div>`:''}</div>

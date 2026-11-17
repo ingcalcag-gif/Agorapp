@@ -64,6 +64,8 @@ let events = LS.get('agorapp_events', []); if(!Array.isArray(events)) events = [
   events = events.filter(e => e && typeof e==='object' && !e.isDemo);
   /* niente contatori «Ci vado / Sono qui» */
   let tolti = false; events.forEach(e => { if('going' in e || 'here' in e){ delete e.going; delete e.here; tolti = true; } });
+  /* nessuna immagine negli eventi (T-011; libro mastro, § 6.2): il campo si toglie dai dati */
+  events.forEach(e => { if('image' in e){ delete e.image; tolti = true; } });
   if(events.length!==n || tolti) LS.set('agorapp_events', events);
   try{ sessionStorage.removeItem('agorapp_votes'); }catch(e){}
 })();

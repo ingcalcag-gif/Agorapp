@@ -276,7 +276,7 @@ function salvaForm(modo){
   const endOff = edt ? Math.round((dIso(edt.slice(0,10)) - dIso(date))/864e5) : 0;
   const links = f.links.map(normLink).filter(Boolean);
   const campi = {title:f.titolo.trim(), address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng,
-    datetime:sdt, end:edt, duration:'', notes:f.note.trim(), description:f.note.trim(), links, link:links[0]||'', offgrid:true, personal:true, category:'', sublayer:'', hidden:false, hiddenPassword:'', price:'', image:''};
+    datetime:sdt, end:edt, duration:'', notes:f.note.trim(), description:f.note.trim(), links, link:links[0]||'', offgrid:true, personal:true, category:'', sublayer:'', hidden:false, hiddenPassword:'', price:''};
   let primo;
   if(f.id){
     const ev = rawById(f.id);

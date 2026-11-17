@@ -93,6 +93,8 @@ let events = LS.get('agorapp_events', []); if(!Array.isArray(events)) events = [
   events = events.filter(e => e && typeof e==='object' && !e.isDemo);
   /* niente contatori «Ci vado / Sono qui» */
   let tolti = false; events.forEach(e => { if('going' in e || 'here' in e){ delete e.going; delete e.here; tolti = true; } });
+  /* nessuna immagine negli eventi (T-011; libro mastro, § 6.2): il campo si toglie dai dati */
+  events.forEach(e => { if('image' in e){ delete e.image; tolti = true; } });
   if(events.length!==n || tolti) LS.set('agorapp_events', events);
   try{ sessionStorage.removeItem('agorapp_votes'); }catch(e){}
 })();
@@ -756,11 +758,11 @@ function fScheda(e){
   if(e.raw.fata) return fSchedaFata(e);
   let testa, corpo; const x = e.raw;
   if(e.tipo==='evento'){
-    const man = e.strato==='manifestazioni', link = safeUrl(x.link), img = safeUrl(x.image);
+    const man = e.strato==='manifestazioni', link = safeUrl(x.link);
     testa = `<div class="riga-titolo"><div class="pill-row">${pillStrato(e)}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa"><span style="${finito(e)?'filter:grayscale(1);opacity:.6':''}">${forma('evento',e.strato,40)}</span><div><div class="eyebrow" style="color:var(--testo-2)">${e.nascosto ? icoLucchetto(12)+' '+tr('Evento nascosto, sbloccato con la password') : tr('Evento')}</div><h2>${esc(e.titolo)}</h2></div></div>
       ${finito(e)?'':`<div class="tasti tasti-testa">${tastoSalva(e)}${tastoIndicazioni(e)}</div>`}`;
-    corpo = `${img?`<img class="scheda-img" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`:''}<div class="fatti">${quando(e)}
+    corpo = `<div class="fatti">${quando(e)}
         ${e.luogo?`<div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span></div></div>`:''}
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
         ${link?`<div class="dato">${icoLink}<div><a href="${esc(link)}" target="_blank" rel="noopener">${tr('Sito di chi organizza')}</a><span class="meta">${esc(hostDi(link))}</span></div></div>`:''}</div>
@@ -1246,7 +1248,7 @@ function salvaForm(modo){
   const endOff = edt ? Math.round((dIso(edt.slice(0,10)) - dIso(date))/864e5) : 0;
   const links = f.links.map(normLink).filter(Boolean);
   const campi = {title:f.titolo.trim(), address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng,
-    datetime:sdt, end:edt, duration:'', notes:f.note.trim(), description:f.note.trim(), links, link:links[0]||'', offgrid:true, personal:true, category:'', sublayer:'', hidden:false, hiddenPassword:'', price:'', image:''};
+    datetime:sdt, end:edt, duration:'', notes:f.note.trim(), description:f.note.trim(), links, link:links[0]||'', offgrid:true, personal:true, category:'', sublayer:'', hidden:false, hiddenPassword:'', price:''};
   let primo;
   if(f.id){
     const ev = rawById(f.id);
@@ -1423,14 +1425,16 @@ function esporta(){
 /* ======================= Excel: importa, modello, esporta ======================= */
 /* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers.
    La libreria (SheetJS) si scarica solo quando l'admin la usa. */
-const COLONNE = ['Titolo','Strato','Sottostrato','Descrizione','Data','Ora inizio','Ora fine','Durata','Prezzo','Indirizzo','Latitudine','Longitudine','Link','Immagine','Nascosto','Password','Provenienza'];
+const COLONNE = ['Titolo','Strato','Sottostrato','Descrizione','Data','Ora inizio','Ora fine','Durata','Prezzo','Indirizzo','Latitudine','Longitudine','Link','Nascosto','Password','Provenienza'];
+/* colonne che non si importano: si riconoscono solo per rifiutare la riga che le compila (T-011; § 6.2) */
+const COLONNE_RIFIUTATE = ['Immagine'];
 const ALIAS = {titolo:['title','nome','evento'], strato:['category','categoria','layer'], sottostrato:['sublayer','sottocategoria'], descrizione:['description','descr'], data:['date','giorno'],
   'ora inizio':['ora','inizio','orario','time','start'], 'ora fine':['fine','end'], durata:['duration'], prezzo:['price','costo'], indirizzo:['address','luogo','dove'],
   latitudine:['lat','latitude'], longitudine:['lng','lon','long','longitude'], link:['url','sito'], immagine:['image','img','foto'], nascosto:['hidden'], password:['parola segreta'], provenienza:['fonte','origine','source','flusso']};
 const normT = x => String(x==null?'':x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function chiaveColonna(h){
   const n = normT(h); if(!n) return null;
-  for(const c of COLONNE){ const k = c.toLowerCase(); if(n===normT(c) || (ALIAS[k]||[]).some(a => normT(a)===n)) return k; }
+  for(const c of COLONNE.concat(COLONNE_RIFIUTATE)){ const k = c.toLowerCase(); if(n===normT(c) || (ALIAS[k]||[]).some(a => normT(a)===n)) return k; }
   return null;
 }
 const pad2 = n => String(n).padStart(2,'0');
@@ -1480,7 +1484,7 @@ function leggiImport(file){
     if(iTesta<0){ st.importa = null; st.demoMsg = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
     const mappa = righe[iTesta].map(chiaveColonna);
     const dati = righe.slice(iTesta+1).map((r, k) => { const o = {riga:iTesta+k+2}; mappa.forEach((c, j) => { if(c) o[c] = r[j]; }); return o; })
-      .filter(o => COLONNE.some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
+      .filter(o => COLONNE.concat(COLONNE_RIFIUTATE).some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
     I.tot = dati.length;
     const chiavi = new Set(events.map(e => normT(e.title)+'|'+e.datetime));
     const daCercare = [];
@@ -1488,6 +1492,7 @@ function leggiImport(file){
       const no = motivo => I.scarti.push({riga:o.riga, motivo});
       const titolo = String(o.titolo==null?'':o.titolo).trim().slice(0, TITLE_MAX);
       if(!titolo) return no(tr('manca il titolo'));
+      if(String(o.immagine==null?'':o.immagine).trim()) return no(tr('colonna «Immagine» compilata: {nome} non pubblica immagini, svuotala e importa di nuovo'));
       const l = trovaStrato(o.strato); if(!l) return no(o.strato ? tr('strato «{s}» non riconosciuto',{s:o.strato}) : tr('manca lo strato'));
       const g = leggiData(o.data); if(!g) return no(o.data ? tr('data non leggibile') : tr('manca la data'));
       const h = leggiOra(o['ora inizio']) || (typeof o.data==='number' && o.data%1 ? leggiOra(o.data) : null); if(!h) return no(tr('manca l’ora di inizio'));
@@ -1503,18 +1508,18 @@ function leggiImport(file){
       const nascosto = siNo(o.nascosto), pw = String(o.password==null?'':o.password).trim();
       if(nascosto && !pw) return no(tr('evento nascosto senza password'));
       const ev = {id:'x'+Date.now().toString(36)+k, title:titolo, category:l.id, sublayer:sub?sub.label:'', description:String(o.descrizione==null?'':o.descrizione).trim().slice(0,500),
-        datetime, end:fine, duration:String(o.durata==null?'':o.durata).trim(), price:String(o.prezzo==null?'':o.prezzo).trim(), link:normLink(String(o.link==null?'':o.link)), image:safeUrl(o.immagine),
+        datetime, end:fine, duration:String(o.durata==null?'':o.durata).trim(), price:String(o.prezzo==null?'':o.prezzo).trim(), link:normLink(String(o.link==null?'':o.link)),
         hidden:nascosto, hiddenPassword:nascosto?pw:'', offgrid:false, address:indirizzo, addressFull:indirizzo, addrPrecision:coord?'exact':'', addrNum:'', lat:coord?lat:null, lng:coord?lng:null, importato:true, creato:new Date().toISOString(), provenienza:leggiProv(o.provenienza)};
       if(coord) I.ok.push(ev); else daCercare.push({ev, riga:o.riga});
     });
     I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; disegnaFoglio();
-    /* gli indirizzi senza coordinate si cercano con Photon uno alla volta, con una pausa tra l'uno e l'altro (T-008) */
+    /* gli indirizzi senza coordinate si cercano con Photon uno alla volta, uno al secondo (T-008) */
     (async () => {
       for(const x of daCercare){
         if(st.importa!==I) return;
         const q = x.ev.address, pa = parseAddr(q);
         let r = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); r = res.list[0]; }catch(e){}
-        await new Promise(ok => setTimeout(ok, 400));
+        await new Promise(ok => setTimeout(ok, 1000));
         if(st.importa!==I) return;
         if(r){ x.ev.lat = r.lat; x.ev.lng = r.lng; x.ev.addressFull = testoRisultato(r); x.ev.addrPrecision = r.precision||'exact'; x.ev.addrNum = r.hn||''; I.ok.push(x.ev); }
         else I.scarti.push({riga:x.riga, motivo:tr('indirizzo non trovato: aggiungi latitudine e longitudine')});
@@ -1529,8 +1534,11 @@ function leggiImportJson(file){
   const r = new FileReader();
   r.onload = e => {
     try{ const d = JSON.parse(e.target.result), imp = Array.isArray(d) ? d : (d.events||[]); const ids = new Set(events.map(x => x.id));
-      const ok = imp.filter(x => x && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime);
-      st.importa = {fase:'pronto', tot:imp.length, ok, scarti:[], avvisi:[], json:true}; apri('importa');
+      const scarti = [], conImmagine = x => x && typeof x.image==='string' && x.image.trim();
+      imp.forEach((x, i) => { if(conImmagine(x)) scarti.push({riga:i+1, motivo:tr('evento con un’immagine: {nome} non pubblica immagini, toglila dal file e importa di nuovo')}); });
+      const ok = imp.filter(x => x && !conImmagine(x) && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime)
+        .map(x => { const y = Object.assign({}, x); delete y.image; return y; });
+      st.importa = {fase:'pronto', tot:imp.length, ok, scarti, avvisi:[], json:true}; apri('importa');
     }catch(err){ st.demoMsg = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
   };
   r.readAsText(file);
@@ -1552,7 +1560,7 @@ function fImporta(){
   return foglio('forte alto', testa, corpo);
 }
 const ESEMPIO = () => { const d = new Date(); d.setDate(d.getDate()+7); const m = LAYERS.find(l => l.id==='musica') || LAYERS[0];
-  return ['Concerto nel cortile', m.label, (m.sub[0]||{}).label||'', 'Un pomeriggio di musica dal vivo nel cortile, aperto a tutto il quartiere.', d, '18:30', '20:00', '', 'Gratuito', 'Via Giuseppe Mazzini 10, Torino', '', '', 'https://esempio.it', '', 'no', '', 'Fonte pubblica']; };
+  return ['Concerto nel cortile', m.label, (m.sub[0]||{}).label||'', 'Un pomeriggio di musica dal vivo nel cortile, aperto a tutto il quartiere.', d, '18:30', '20:00', '', 'Gratuito', 'Via Giuseppe Mazzini 10, Torino', '', '', 'https://esempio.it', 'no', '', 'Fonte pubblica']; };
 function fileExcel(fogli, nome){
   return caricaScript(URL_XLSX).then(() => {
     const wb = XLSX.utils.book_new();
@@ -1566,7 +1574,7 @@ function fileExcel(fogli, nome){
     XLSX.writeFile(wb, nome, {compression:true});
   });
 }
-const LARG = [28,22,24,48,12,10,10,10,12,34,12,12,26,26,10,14,20];
+const LARG = [28,22,24,48,12,10,10,10,12,34,12,12,26,10,14,20];
 function scaricaModello(){
   const strati = [['Strato','Sottostrato']].concat(...LAYERS.map(l => l.sub.map((x, i) => [i ? '' : l.label, x.label])));
   const istr = [['Come compilare il file'],[''],
@@ -1586,7 +1594,7 @@ function scaricaModello(){
 function esportaExcel(){
   const dati = events.filter(e => !e.demo && !e.personal && !e.offgrid && !e.fata);
   const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
-    return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.image||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
+    return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
   fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
     .then(() => { registra('esporta-excel', {n:dati.length}); st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
     .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
@@ -1596,8 +1604,8 @@ const maxDt = () => { const d = new Date(); d.setMonth(d.getMonth()+20); return 
 const dtLocal = d => ymd(d)+'T'+hm(d);
 function apriAdminForm(raw){
   const sub = raw && S[raw.category] ? (S[raw.category].sub.find(s => s.label===raw.sublayer)||{}).id||'' : '';
-  st.aform = raw ? {id:raw.id, raw, titolo:raw.title||'', strato:raw.category||'', sub, desc:raw.description||'', dt:raw.datetime||'', durata:raw.duration||'', prezzo:raw.price||'', link:raw.link||'', img:raw.image||'', indirizzo:raw.address||'', addrFull:raw.addressFull||raw.address||'', pos:{lat:+raw.lat, lng:+raw.lng}, precision:raw.addrPrecision||'exact', hn:raw.addrNum||'', nascosto:!!raw.hidden, pw:raw.hiddenPassword||'', prov:raw.provenienza||'', err:{}}
-    : {id:null, raw:null, titolo:'', strato:'', sub:'', desc:'', dt:'', durata:'', prezzo:'', link:'', img:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', nascosto:false, pw:'', prov:'', err:{}};
+  st.aform = raw ? {id:raw.id, raw, titolo:raw.title||'', strato:raw.category||'', sub, desc:raw.description||'', dt:raw.datetime||'', durata:raw.duration||'', prezzo:raw.price||'', link:raw.link||'', indirizzo:raw.address||'', addrFull:raw.addressFull||raw.address||'', pos:{lat:+raw.lat, lng:+raw.lng}, precision:raw.addrPrecision||'exact', hn:raw.addrNum||'', nascosto:!!raw.hidden, pw:raw.hiddenPassword||'', prov:raw.provenienza||'', err:{}}
+    : {id:null, raw:null, titolo:'', strato:'', sub:'', desc:'', dt:'', durata:'', prezzo:'', link:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', nascosto:false, pw:'', prov:'', err:{}};
   st.sel = null; st.form = null; apri('aform');
 }
 function contaDesc(f){ const n = f.desc.trim().length; return `<span class="conta-car${n>=DESC_MIN?' ok':''}" id="a-conta">${n>=DESC_MIN ? tr('perfetta') : tr('almeno {n} caratteri',{n:DESC_MIN})} · ${n} / 500</span>`; }
@@ -1615,7 +1623,6 @@ function fAdminForm(){
     <div class="due">${campo('a-prezzo', tr('Prezzo'), `<div class="campo${E.prezzo?' errore':''}"><input id="a-prezzo" data-acampo="prezzo" value="${esc(f.prezzo)}" placeholder="${esc(tr('Gratuito / 10 €'))}"></div>`, E.prezzo&&tr('Indica il prezzo'))}
       ${campo('a-link', tr('Link'), `<div class="campo"><input id="a-link" type="url" inputmode="url" data-acampo="link" value="${esc(f.link)}" placeholder="https://"></div>`, '', tr('facoltativo'))}</div>
     ${campo('a-prov', tr('Provenienza'), `<div class="campo"><select id="a-prov" data-acampo="prov"><option value="">${tr('— Non indicata —')}</option><option value="consenso" ${f.prov==='consenso'?'selected':''}>${tr('Consenso diretto dell’organizzatore')}</option><option value="pubblica" ${f.prov==='pubblica'?'selected':''}>${tr('Fonte pubblica')}</option></select></div><span class="meta">${tr('Serve alle Misure: quanta offerta ha il consenso diretto (Flusso A) e quanta viene da fonti pubbliche (Flusso B).')}</span>`, '', tr('facoltativo'))}
-    ${campo('a-img', tr('Immagine'), `<div class="campo"><input id="a-img" type="url" inputmode="url" data-acampo="img" value="${esc(f.img)}" placeholder="https://"></div>`, '', tr('facoltativo'))}
     ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${icoLuogo} ${tr('Scegli sulla mappa')}</button>`, E.indirizzo&&(E.indirizzo===2?tr('Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.'):tr('Scegli un indirizzo dai suggerimenti o dalla mappa')))}
     <button class="riga-int" data-az="a-nascosto" aria-pressed="${f.nascosto}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Evento nascosto')}</span><span class="meta">${tr('Visibile solo a chi ha la password')}</span></div><span class="interr" aria-hidden="true"></span></button>
     ${f.nascosto?campo('a-pw', tr('Password per sbloccarlo'), `<div class="campo${E.pw?' errore':''}"><input id="a-pw" data-acampo="pw" value="${esc(f.pw)}" placeholder="${esc(tr('Una parola segreta'))}" autocomplete="off"></div>`, E.pw&&tr('Scegli una password')):''}
@@ -1643,10 +1650,10 @@ function salvaAdmin(){
   if(!f.pos) E.indirizzo = 1;
   if(Object.keys(E).length){ disegnaFoglio(); const c = document.querySelector('#foglio-slot .errore'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center', behavior:'smooth'}); return; }
   const l = S[f.strato], sublayer = (l.sub.find(s => s.id===f.sub)||{}).label||'';
-  const campi = {title:t, category:f.strato, sublayer, description:f.desc.trim(), datetime:f.dt, duration:f.durata.trim(), end:'', price:f.prezzo.trim(), link:f.link.trim(), image:f.img.trim(),
+  const campi = {title:t, category:f.strato, sublayer, description:f.desc.trim(), datetime:f.dt, duration:f.durata.trim(), end:'', price:f.prezzo.trim(), link:f.link.trim(),
     hidden:f.nascosto, hiddenPassword:f.nascosto ? f.pw.trim() : '', offgrid:false, address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng, provenienza:f.prov||''};
   let id = f.id;
-  if(f.id){ const ev = rawById(f.id); if(ev) Object.assign(ev, campi); misureConta('corretti'); registra('modifica', {id:f.id, s:campi.category}); }
+  if(f.id){ const ev = rawById(f.id); if(ev){ Object.assign(ev, campi); delete ev.image; } misureConta('corretti'); registra('modifica', {id:f.id, s:campi.category}); }
   else { id = Date.now().toString(); events.push(Object.assign({id, creato:new Date().toISOString()}, campi)); registra('crea', {id, s:campi.category}); }
   if(campi.hidden) st.sbloccati.add(campi.hiddenPassword);
   saveEvents(); ricostruisci(); st.aform = null; mzFotografa();

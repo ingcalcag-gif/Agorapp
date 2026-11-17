@@ -19,7 +19,7 @@ function eventi(ostili = true) {
   const ev = { id: 'prova-ostile-1', title: 'Concerto ' + ATTR('titolo') + O('titolo'), category: 'musica', sublayer: '',
     description: 'Descrizione ' + O('descrizione'), datetime: g + 'T18:00', end: g + 'T20:00', price: '5 ' + O('prezzo'),
     lat: 45.0703, lng: 7.6869, address: 'Via Inventata 1 ' + ATTR('indirizzo') + O('indirizzo'), source: 'Fonte inventata ' + O('fonte'),
-    tema: '', hidden: false, offgrid: false, link: JS("javascript:window.__ostile='link'"), image: '' };
+    tema: '', hidden: false, offgrid: false, link: JS("javascript:window.__ostile='link'") };
   const og = { id: 'prova-ostile-og', personal: true, offgrid: true, title: 'Cena ' + ATTR('og-titolo') + O('og-titolo'),
     address: 'Via Finta 2 ' + O('og-indirizzo'), addressFull: 'Via Finta 2, Torino ' + O('og-indfull'), addrPrecision: 'exact', addrNum: '2',
     notes: 'Note ' + O('og-note'), description: 'Descr ' + O('og-descr'),

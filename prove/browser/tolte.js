@@ -2,10 +2,12 @@
    (criterio d'ordine 6: pulizia completa e subito; libro mastro, § 1.3, regola 2, e § 3.7).
    - T-010: niente pulsanti volontari in Città, Agorà e Progetti; nessuna richiesta a /api/; la chiave
      agorapp_interesse, se il telefono l'aveva, sparisce all'avvio.
+   - T-011: un evento con un'immagine nei dati la perde all'avvio; la scheda non mostra immagini e il telefono
+     non chiede nulla al sito dell'immagine (§ 6.2; § 2.5, principio 1).
    Dati inventati; ogni richiesta verso l'esterno è bloccata. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
-const { playwright, server, apri, pausa } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa } = require('./comune.js');
 
 /* Chiavi delle funzioni tolte, con un valore inventato: all'avvio l'app le deve cancellare senza leggerle. */
 const CHIAVI_TOLTE = { agorapp_interesse: { agora: '2026-10-10', citta: 'Comune inventato (XX)' } };
@@ -15,14 +17,27 @@ async function prova() {
   const pw = playwright();
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const s = await server('pubblica');
-  const { browser, ctx } = await apri(pw, Object.assign({ agorapp_guida: '1' }, CHIAVI_TOLTE));
-  const api = [];
-  ctx.on('request', r => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/')) api.push(u.pathname); });
+  const g = giorno(1), IMG = 'https://immagini.esempio.invalid/locandina.png';
+  const ev = { id: 'prova-immagine', title: 'Concerto inventato', category: 'musica', sublayer: '', description: 'Evento inventato per la prova.',
+    datetime: g + 'T18:00', end: g + 'T20:00', price: '', lat: 45.0703, lng: 7.6869, address: 'Via Inventata 1', hidden: false, offgrid: false, link: '', image: IMG };
+  const { browser, ctx } = await apri(pw, Object.assign({ agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: [ev] }, CHIAVI_TOLTE));
+  const api = [], immagini = [];
+  ctx.on('request', r => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/')) api.push(u.pathname); if (r.url() === IMG) immagini.push(r.url()); });
   try {
     const p = await ctx.newPage();
     await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="citta"]'); await pausa(500);
     const rimaste = await p.evaluate(k => k.filter(x => localStorage.getItem(x) != null), Object.keys(CHIAVI_TOLTE));
     if (rimaste.length) e.errori.push('chiavi di funzioni tolte ancora nella memoria del telefono dopo l\'avvio: ' + rimaste.join(', '));
+    const conImmagine = await p.evaluate(() => (JSON.parse(localStorage.getItem('agorapp_events') || '[]')).filter(x => 'image' in x).length);
+    if (conImmagine) e.errori.push(conImmagine + ' eventi conservano il campo dell\'immagine dopo l\'avvio');
+    await p.click('[data-az="elenco"]'); await pausa(400);
+    const riga = p.locator('[data-ev="prova-immagine"]').first();
+    if (!(await riga.count())) e.errori.push('elenco: non trovo l\'evento di prova');
+    else {
+      await riga.click(); await pausa(600);
+      const img = await p.locator('#foglio-slot img').count();
+      if (img) e.errori.push('scheda dell\'evento: ' + img + ' immagini');
+    }
     const viste = [['Città', async () => { await p.click('[data-az="citta"]'); }],
       ['Agorà', async () => { await p.click('button[data-sez="agora"]'); }],
       ['Progetti', async () => { await p.click('button[data-sez="progetti"]'); }]];
@@ -38,7 +53,8 @@ async function prova() {
     await browser.close(); await s.chiudi();
   }
   if (api.length) e.errori.push('richieste a ' + [...new Set(api)].join(', '));
-  e.note.push('viste: Città, Agorà, Progetti; chiavi tolte controllate: ' + Object.keys(CHIAVI_TOLTE).join(', '));
+  if (immagini.length) e.errori.push('il telefono ha chiesto l\'immagine dell\'evento al suo sito');
+  e.note.push('viste: scheda evento, Città, Agorà, Progetti; chiavi tolte controllate: ' + Object.keys(CHIAVI_TOLTE).join(', '));
   return e;
 }
 
