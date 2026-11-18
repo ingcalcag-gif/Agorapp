@@ -546,7 +546,7 @@ function chiCiTiene(){
     </div>`;
   return `<section class="stack">
     <div class="stack-s"><h2>${T("Chi ci tiene")}</h2><p class="meta">${IT()?`Le persone legate ${esc(B.a)}.`:T("Le persone legate al progetto.")} ${T("Il bollino ti dice chi sono e a chi puoi scrivere.")}</p></div>
-    ${gruppo("ancora",T("Le Ancore"),IT()?`Reggono il progetto. Scrivi a loro ${esc(B.ancoreScopo)}.`:T("Reggono il progetto. Scrivi a loro per organizzarti."),ANCORE,"ancora")}
+    ${gruppo("ancora",T("Le Ancore"),T("Reggono il progetto. Scrivi a loro {s}.",{s:esc(B.ancoreScopo)}),ANCORE,"ancora")}
     ${gruppo("fata",IT()?`Le Fate ${esc(B.di)}`:T("Le Fate"),T("Ci tengono e ci sono spesso. Puoi scrivere a loro per sapere com’è, prima di venire."),FATE,"fata")}
     ${gruppo("compagnia",T("Vorrebbero venire il {d}",{d:PROSSIMA.giorno}),T("Solo chi ha scelto di farlo sapere. Con il bollino, chi cerca qualcuno con cui andare."),vorrebberoTutti(),"vorrebbe",
       `<button class="tasto ${io.vengo?"fatto":"sec"} pieno" data-az="vengo">${io.vengo?spunta()+T("Ci sei anche tu"):T("Vorrei venire anch’io")}</button>`)}

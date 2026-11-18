@@ -80,6 +80,7 @@ const AMMESSI = [
   ['it', 'completa quelle di Bologna', 'Agorà, contenuto d\'esempio: «completare» come verbo'],
   ['it', 'completa la raccolta a Palermo', 'Agorà, contenuto d\'esempio: «completare» come verbo'],
   ['it', 'Come rendere sicuro uno spazio', 'Agorà, contenuto d\'esempio: la sicurezza di uno spazio autogestito, non degli eventi'],
+  ['en', 'How to make a space safe', 'Agorà, contenuto d\'esempio: la sicurezza di uno spazio autogestito, non degli eventi'],
 ];
 
 /* Toglie i commenti da un testo JavaScript o CSS, lasciando le righe al loro posto (per i numeri di riga).
