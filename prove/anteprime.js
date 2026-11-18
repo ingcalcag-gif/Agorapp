@@ -7,7 +7,7 @@
       nessun segnaposto tra parentesi quadre, nessun recapito o indirizzo web, nessuna coordinata (niente va sulla mappa).
    4. Segnaposto: solo {nome}, {mese:…}, {data:…}, {mesi:…/…}, con date valide; ogni traduzione conserva gli stessi.
    5. Traduzioni: ogni testo ha la sua traduzione in inglese, spagnolo, francese e arabo; nessuna traduzione in più.
-      I testi senza traduzione sono scarti noti finché il passo 3 di T-015 non li chiude. */
+      Dal passo 3 di T-015 tutti i testi sono tradotti: un testo nuovo senza traduzione fa fallire la prova. */
 'use strict';
 const fs = require('fs');
 const path = require('path');

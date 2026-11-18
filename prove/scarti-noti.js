@@ -11,9 +11,6 @@ module.exports = [
   s('nome', 'agorapp2024', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
   s('nome', 'agorapp2024', 'Nomeprova/app.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
 
-  /* ---------- Contenuti d'esempio di Agorà e Progetti (prove/anteprime.js) ---------- */
-  s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/ar.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
-
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
   s('indirizzi', 'basemaps.cartocdn.com/gl', 'app.js', 1, 'T-017', 'stile e tasselli della mappa CARTO'),
   s('indirizzi', 'carto.com/attributions', 'index.html', 1, 'T-017', 'attribuzione CARTO sulla mappa'),

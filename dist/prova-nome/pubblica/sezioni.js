@@ -529,9 +529,10 @@ function avatar(p, ruolo, grande){
                                : `<span class="bollino ${ruolo}" aria-hidden="true">${glifo[ruolo]}</span>`;
   return `<span class="av${p.tipo==="collettivo"?" coll":""}${grande?" grande":""}${p.tu?" tu":""}">${esc(p.sigla)}${b}</span>`;
 }
+/* i nomi delle persone stanno in <bdi>: in arabo «Pietro S.» resta «Pietro S.» e non diventa «.Pietro S» */
 function volto(p, ruolo){
   const lab = ruolo==="ancora" ? T("Ancora") : ruolo==="fata" ? T("Fata") : (p.compagnia ? T("Vorrebbe venire, cerca compagnia") : T("Vorrebbe venire"));
-  return `<button class="volto" data-persona="${ruolo}:${p.id}" aria-label="${esc(p.nome)}, ${lab}">${avatar(p, ruolo)}<span class="n">${esc(p.corto||p.nome)}</span></button>`;
+  return `<button class="volto" data-persona="${ruolo}:${p.id}" aria-label="${esc(p.nome)}, ${lab}">${avatar(p, ruolo)}<span class="n"><bdi>${esc(p.corto||p.nome)}</bdi></span></button>`;
 }
 function vorrebberoTutti(){
   const lista = VORREBBERO.slice();
@@ -698,7 +699,7 @@ function foglioPersona(ruolo, id){
   const nota = p.nota ? `<p>${esc(p.nota)}</p>` : "";
   const comp = p.compagnia ? `<div class="stato-volta">${glifo.compagnia}${T("Cerca qualcuno con cui andare")}</div>` : "";
   const scrivi = ruolo==="vorrebbe" ? (p.compagnia ? T("Scrivi per andarci insieme") : "") : T("Scrivi per allearti");
-  return `<div class="profilo-testa">${avatar(p, ruolo, true)}<div><div class="tipo">${chi}</div><h3>${esc(p.nome)}</h3><div class="eyebrow">${titolo}</div></div></div>
+  return `<div class="profilo-testa">${avatar(p, ruolo, true)}<div><div class="tipo">${chi}</div><h3><bdi>${esc(p.nome)}</bdi></h3><div class="eyebrow">${titolo}</div></div></div>
     ${comp}${nota}${fatti}
     ${scrivi?`<button class="tasto pri pieno" data-scrivi="${ruolo}:${esc(p.id)}">${scrivi}</button>`:`<p class="meta">${T("Ha scelto di farsi vedere, ma non di essere contattato.")}</p>`}
     <p class="meta">${T("Il profilo mostra solo ciò che ha fatto apparire nel progetto: niente seguaci, niente contatori.")}</p>`;
@@ -709,7 +710,7 @@ let scriviA = null;
 function foglioScrivi(){
   const p = scriviA.ruolo!=="ancore" ? persona(scriviA.ruolo, scriviA.id) : null;
   const titolo = p ? (scriviA.ruolo==="vorrebbe" ? T("Scrivi per andarci insieme") : T("Scrivi per allearti")) : T("Scrivi alle Ancore");
-  return `<div class="eyebrow">${titolo}</div><h3>${esc(p ? p.nome : CORTILE.titolo)}</h3>
+  return `<div class="eyebrow">${titolo}</div><h3>${p ? `<bdi>${esc(p.nome)}</bdi>` : esc(CORTILE.titolo)}</h3>
     <div class="stack-s p-campo" data-campo="msg"><label class="etich" for="s-msg">${T("Il tuo messaggio")}</label><div class="campo"><textarea id="s-msg" rows="4"></textarea></div><div class="p-err" hidden></div></div>
     <button class="tasto pri pieno" data-az="scrivi-invia">${T("Prova a inviare")}</button>`;
 }
@@ -717,7 +718,7 @@ function scrittoMessaggio(){
   const p = scriviA.ruolo!=="ancore" ? persona(scriviA.ruolo, scriviA.id) : null;
   return `<div class="stack p-fatto"><span class="p-sigillo">${spunta(14)}</span><div class="tipo">${T("Demo")}</div><h3>${T("Il messaggio funziona così")}</h3>
     <p>${T("Il messaggio è scritto, ma non parte: questa è una demo e non invia né salva niente.")}</p>
-    <p class="meta">${p ? T("Quando la sezione sarà aperta, arriverà a {n}.",{n:esc(p.nome)}) : T("Quando la sezione sarà aperta, arriverà a chi cura il progetto.")}</p>
+    <p class="meta">${p ? T("Quando la sezione sarà aperta, arriverà a {n}.",{n:`<bdi>${esc(p.nome)}</bdi>`}) : T("Quando la sezione sarà aperta, arriverà a chi cura il progetto.")}</p>
     <button class="tasto sec pieno" data-az="chiudi-foglio">${T("Chiudi")}</button></div>`;
 }
 function foglioVengo(){
@@ -737,7 +738,7 @@ function foglioStampa(){
       <div style="font-weight:700;font-size:14px">${esc(B.stampa.invito)}</div>
       <div class="mano-c">${mano(22,"#C8743E")}${T("Vuoi dare una mano?")}</div>
       <ul>${liberi.map(x=>`<li>${esc(x.t.toLowerCase())}</li>`).join("")}</ul>
-      <div class="cr">${T("Le Ancore: {n}. Questa bacheca è anche su {nome}, sezione Progetti.",{n:esc(ANCORE.map(a=>a.nome).join(", "))})}</div>
+      <div class="cr">${T("Le Ancore: {n}. Questa bacheca è anche su {nome}, sezione Progetti.",{n:ANCORE.map(a=>`<bdi>${esc(a.nome)}</bdi>`).join(", ")})}</div>
     </div>
     <button class="tasto pri pieno" data-stampa-carta="1">${T("Scarica il PDF")}</button>
     <p class="meta">${T("Nell’app si scarica in PDF, come il PDF della giornata. Così il progetto arriva anche a chi non usa lo smartphone e non è nei gruppi di chat.")}</p>`;

@@ -98,13 +98,13 @@
 .sez-progetti .scelta[aria-pressed="true"] .casella{background:var(--verde);border-color:var(--verde)}
 .sez-progetti .profilo-testa{display:flex;gap:14px;align-items:center}
 .sez-progetti .profilo-testa>div{min-width:0;display:flex;flex-direction:column;gap:4px}
-.sez-progetti .fatti{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.sez-progetti .fatti{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px}
 .sez-progetti .recapito{background:var(--incassata);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .sez-progetti .carta{background:var(--carta);color:var(--carta-testo);border:1px solid var(--carta-linea);border-radius:4px;padding:18px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--ombra-card)}
 .sez-progetti .carta .cm{font-size:11px;line-height:15px;color:var(--carta-2);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
 .sez-progetti .carta .ct{font-family:var(--serif);font-size:24px;line-height:28px}
 .sez-progetti .carta .cq{font-family:var(--serif);font-size:18px;line-height:22px}
-.sez-progetti .carta ul{margin:0;padding-left:18px;font-size:13px;line-height:19px}
+.sez-progetti .carta ul{margin:0;padding-inline-start:18px;font-size:13px;line-height:19px}
 .sez-progetti .carta .cr{border-top:1px solid var(--carta-linea);padding-top:8px;font-size:12px;line-height:17px;color:var(--carta-2)}
 .sez-progetti .carta .mano-c{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
 @media (prefers-reduced-motion: no-preference){.sez-progetti main{animation:entra .18s ease-out}
