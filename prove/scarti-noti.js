@@ -12,7 +12,6 @@ module.exports = [
   s('nome', 'agorapp2024', 'Nomeprova/app.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
 
   /* ---------- Contenuti d'esempio di Agorà e Progetti (prove/anteprime.js) ---------- */
-  s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/es.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
   s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/fr.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
   s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/ar.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
 
