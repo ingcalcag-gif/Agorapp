@@ -200,15 +200,12 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
     aggiorna(){ disegnaChips(); disegnaPeek(); },
     vaiSezione,
     vaiMappa(id){ vaiSezione('mappa'); selezionaEv(id); },
-    passerellaStrato(id){ st.strati = new Set([id]); st.subOff.clear(); st.preset = -1; st.tempo = 'tutto'; st.lente = null; st.tipi = {evento:true, pratica:true, istanza:true, og:true}; vaiSezione('mappa'); tutto(); requestAnimationFrame(() => inquadraTutti(visibili())); },
-    prossimaPratica(titolo){ return EV.filter(e => e.tipo==='pratica' && e.raw.progetto===titolo && !finito(e)).sort((a,b) => a.a-b.a)[0]; },
-    quando(e){ return maiusc(titoloGiorno(e.giorno))+', '+e.inizio+(e.fine?'–'+e.fine:''); },
-    breve(e){ return dIso(e.giorno).toLocaleDateString(dloc(), {weekday:'short', day:'numeric', month:'long'}); },
+    passerellaStrato(id){ st.strati = new Set([id]); st.subOff.clear(); st.preset = -1; st.tempo = 'tutto'; st.lente = null; st.tipi = {evento:true, og:true}; vaiSezione('mappa'); tutto(); requestAnimationFrame(() => inquadraTutti(visibili())); },
     dati:{strati:LAYERS.map(l => ({id:l.id, label:l.label, pin:l.pin})), temaCol, temiVoc:TEMI_VOC}
   });
   /* «Scarica il PDF» nei fogli di Progetti e Agorà: stampa la carta in anteprima */
   document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('[data-stampa-carta]'); if(!b) return; const c = b.closest('.corpo') && b.closest('.corpo').querySelector('.carta'); if(!c) return;
-    const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>${esc(NOME)}</title><style>body{font-family:Helvetica,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1c1712;font-size:13px;line-height:19px}.cm{text-transform:uppercase;letter-spacing:.06em;font-size:11px;color:#5c5246;font-weight:600}.ct{font-family:Georgia,serif;font-size:24px;line-height:30px;margin:4px 0}.pr{display:grid;grid-template-columns:96px 1fr;gap:8px;border-top:1px solid #ddd;padding:6px 0}.cp,.cr{font-size:11px;color:#5c5246;border-top:1px solid #ddd;padding-top:8px;margin-top:6px}svg{max-width:22px}</style></head><body>${c.innerHTML}</body></html>`;
+    const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>${esc(NOME)}</title><style>body{font-family:Helvetica,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1c1712;font-size:13px;line-height:19px}.cm{text-transform:uppercase;letter-spacing:.06em;font-size:11px;color:#5c5246;font-weight:600}.ct{font-family:Georgia,serif;font-size:24px;line-height:30px;margin:4px 0}.pr{display:grid;grid-template-columns:96px 1fr;gap:8px;border-top:1px solid #ddd;padding:6px 0}.cp,.cr{font-size:11px;color:#5c5246;border-top:1px solid #ddd;padding-top:8px;margin-top:6px}.cs{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5c5246;border:1px dashed #5c5246;border-radius:6px;padding:2px 8px;margin-bottom:8px}svg{max-width:22px}</style></head><body>${c.innerHTML}</body></html>`;
     const url = URL.createObjectURL(new Blob([html], {type:'text/html'})), w = window.open(url, '_blank'); if(w) setTimeout(() => { try{ w.print(); }catch(e){} }, 700); setTimeout(() => URL.revokeObjectURL(url), 60000); });
 })();
 })();

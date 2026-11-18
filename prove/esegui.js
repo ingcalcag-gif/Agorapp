@@ -9,8 +9,8 @@
 'use strict';
 const { stampa } = require('./comune.js');
 
-const STATICHE = ['./sintassi.js', './uscite.js', './componenti.js', './nome.js', './indirizzi.js', './collegamenti.js', './chiavi.js', './parole.js'];
-const BROWSER = ['./browser/ostili.js', './browser/richieste.js', './browser/tolte.js', './browser/accessibilita.js'];
+const STATICHE = ['./sintassi.js', './uscite.js', './componenti.js', './nome.js', './indirizzi.js', './collegamenti.js', './chiavi.js', './parole.js', './anteprime.js'];
+const BROWSER = ['./browser/ostili.js', './browser/richieste.js', './browser/tolte.js', './browser/anteprime.js', './browser/accessibilita.js'];
 
 async function main() {
   const opz = new Set(process.argv.slice(2));

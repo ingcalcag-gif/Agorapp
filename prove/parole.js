@@ -74,6 +74,12 @@ const AMMESSI = [
   ['ar', 'لنسخة كاملة', 'copia di sicurezza dei dati del telefono'],
   ['ar', 'الاجتماعات غير الرسمية', '«غير الرسمية» vuol dire «non ufficiali»: contenuto d\'esempio di Progetti'],
   ['ar', 'النصوص الكاملة', 'testi integrali delle licenze'],
+  // contenuti d'esempio di Agorà (T-015): parole riferite alla proposta di un'istanza o a uno spazio, non agli eventi né alla mappa
+  ['it', 'Con questa parte la proposta è completa', 'Agorà, contenuto d\'esempio: la bozza della proposta di un\'istanza'],
+  ['it', 'completa le schede di Torino', 'Agorà, contenuto d\'esempio: «completare» come verbo'],
+  ['it', 'completa quelle di Bologna', 'Agorà, contenuto d\'esempio: «completare» come verbo'],
+  ['it', 'completa la raccolta a Palermo', 'Agorà, contenuto d\'esempio: «completare» come verbo'],
+  ['it', 'Come rendere sicuro uno spazio', 'Agorà, contenuto d\'esempio: la sicurezza di uno spazio autogestito, non degli eventi'],
 ];
 
 /* Toglie i commenti da un testo JavaScript o CSS, lasciando le righe al loro posto (per i numeri di riga).
@@ -110,13 +116,17 @@ function prova() {
   }
   const TR = JSON.parse(fs.readFileSync(path.join(PARTI, 'traduzioni.js'), 'utf8').replace(/^window\.AGR_TR=/, '').replace(/;\s*$/, ''));
   for (const l of ['en', 'es', 'fr', 'ar']) cercaIn(Object.values(TR[l]).join('\n'), l, 'traduzioni.js:' + l, trovati);
+  // contenuti d'esempio di Agorà e Progetti (T-015), in italiano e tradotti
+  const AC = require('../sorgenti/contenuti_esempio.js'), ATR = AC.traduzioni(), ATESTI = AC.testi();
+  cercaIn(ATESTI.join('\n'), 'it', 'sorgenti/anteprime', trovati);
+  for (const l of AC.LINGUE) cercaIn(Object.values(ATR[l]).join('\n'), l, 'sorgenti/anteprime/lingue/' + l + '.json', trovati);
   const LEG = JSON.parse(fs.readFileSync(path.join(RADICE, 'sorgenti', 'dati', 'legali_tradotti.json'), 'utf8'));
   for (const l of Object.keys(LEG)) if (PAROLE[l]) cercaIn(Object.values(LEG[l]).join('\n'), l, 'legali_tradotti.json:' + l, trovati);
   confronta(e, 'parole', trovati);
   // Una frase ammessa che non si trova più va tolta dall'elenco, così l'elenco resta vero.
   for (const [l, frase] of AMMESSI) {
-    const dove = l === 'it' ? elencaFile(PARTI).filter(f => f !== 'traduzioni.js').map(f => fs.readFileSync(path.join(PARTI, f), 'utf8')).join('\n')
-      : Object.values(TR[l] || {}).join('\n') + '\n' + Object.values(LEG[l] || {}).join('\n');
+    const dove = l === 'it' ? elencaFile(PARTI).filter(f => f !== 'traduzioni.js').map(f => fs.readFileSync(path.join(PARTI, f), 'utf8')).join('\n') + '\n' + ATESTI.join('\n')
+      : Object.values(TR[l] || {}).join('\n') + '\n' + Object.values(LEG[l] || {}).join('\n') + '\n' + Object.values(ATR[l] || {}).join('\n');
     if (!dove.includes(frase)) e.errori.push(`frase ammessa che non c'è più (${l}): «${frase}»: toglila da AMMESSI in prove/parole.js`);
   }
   e.note.push('lingue: it, en, es, fr, ar; frasi ammesse dopo la revisione: ' + AMMESSI.length);

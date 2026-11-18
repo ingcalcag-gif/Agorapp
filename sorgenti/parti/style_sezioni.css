@@ -116,15 +116,15 @@
 .c-autogestiti{--ic:#7D3C98;--it:#F5EEF8;--ib:#D8BFE3}
 .c-gentrificazione{--ic:#A84F12;--it:#FEF3E4;--ib:#F3C99A}
 .c-uguaglianza{--ic:#1F618D;--it:#EBF5FB;--ib:#AED0E8}
-.c-agorapp{--ic:#2D5A3D;--it:#E8F2EB;--ib:#B9D3C1}
+.c-app{--ic:#2D5A3D;--it:#E8F2EB;--ib:#B9D3C1}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
-:root:not([data-theme="light"]) .c-fuorisede,:root:not([data-theme="light"]) .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root:not([data-theme="light"]) .c-fuorisede,:root:not([data-theme="light"]) .c-app{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
 :root:not([data-theme="light"]) .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
 :root:not([data-theme="light"]) .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
 :root:not([data-theme="light"]) .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
 :root:not([data-theme="light"]) .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}}
 :root[data-theme="dark"] .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
-:root[data-theme="dark"] .c-fuorisede,:root[data-theme="dark"] .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root[data-theme="dark"] .c-fuorisede,:root[data-theme="dark"] .c-app{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
 :root[data-theme="dark"] .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
 :root[data-theme="dark"] .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
 :root[data-theme="dark"] .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
@@ -263,3 +263,6 @@
 
 .foglio .corpo>.sez-agora,.foglio .corpo>.sez-progetti,.foglio .corpo>.sez-proposta{display:flex;flex-direction:column;gap:14px}
 .pagina-vuota .tasto{flex:none}
+/* Demo (T-015): striscia in testa a ogni PDF; bollino delle schede di Agorà e Progetti in Temi */
+.carta .cs{align-self:flex-start;font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--carta-2);border:1px dashed currentColor;border-radius:6px;padding:2px 8px;margin-bottom:6px}
+.t-sez-demo{font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--testo-2);border:1px dashed var(--linea-forte);border-radius:999px;padding:0 6px}

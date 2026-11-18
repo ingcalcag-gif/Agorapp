@@ -118,15 +118,13 @@ function fStrati(){
 
 /* --- Elenco --- */
 function sottotitoloEv(e){
-  return e.tipo==='og' ? (e.serie ? tr('Off-Grid · si ripete') : tr('Off-Grid · tuo'))
-    : e.tipo==='pratica' ? tr('Pratica · {p}',{p:e.raw.progetto||''})
-    : e.tipo==='istanza' ? tr('Istanza · {i}',{i:e.raw.istanza||''}) : nomeStrato(e.strato);
+  return e.tipo==='og' ? (e.serie ? tr('Off-Grid · si ripete') : tr('Off-Grid · tuo')) : nomeStrato(e.strato);
 }
-const luogoBreve = e => (e.citta && e.citta!=='Torino' && e.tipo==='istanza') ? e.citta : (e.luogo||'').split(/[·,]/)[0].trim();
+const luogoBreve = e => (e.luogo||'').split(/[·,]/)[0].trim();
 function rigaEv(e){
   const n = ora(), inCorso = e.a<=n && e.b>n, fin = finito(e);
   const meta = [luogoBreve(e), sottotitoloEv(e)].filter(Boolean).join(' · ');
-  return `<button class="riga-ev" data-ev="${esc(e.id)}"><span class="ora${inCorso?' adesso':''}${fin?' fin':''}">${fin ? tr('finito') : inCorso ? tr('ora') : e.inizio}</span><span style="${fin?'filter:grayscale(1);opacity:.55':''}">${forma(e.tipo,e.strato,28,e.ist)}</span><div><span class="t">${e.nascosto?icoLucchetto(12)+' ':''}${esc(e.titolo)}</span><span class="meta">${esc(meta)}</span></div>${inCal(e.id)&&e.tipo!=='og'?`<span class="sv" aria-label="${esc(tr('Nel calendario'))}">${icoCal()}</span>`:''}</button>`;
+  return `<button class="riga-ev" data-ev="${esc(e.id)}"><span class="ora${inCorso?' adesso':''}${fin?' fin':''}">${fin ? tr('finito') : inCorso ? tr('ora') : e.inizio}</span><span style="${fin?'filter:grayscale(1);opacity:.55':''}">${forma(e.tipo,e.strato,28)}</span><div><span class="t">${e.nascosto?icoLucchetto(12)+' ':''}${esc(e.titolo)}</span><span class="meta">${esc(meta)}</span></div>${inCal(e.id)&&e.tipo!=='og'?`<span class="sv" aria-label="${esc(tr('Nel calendario'))}">${icoCal()}</span>`:''}</button>`;
 }
 function perGiorni(lista){ const giorni = [...new Set(lista.map(e => e.giorno))]; return giorni.map(g => `<div class="giorno">${esc(titoloGiorno(g))}</div><div class="lista">${lista.filter(e => e.giorno===g).map(rigaEv).join('')}</div>`).join(''); }
 function fElenco(lista, titolo, nota, conCal){
@@ -186,25 +184,6 @@ function fScheda(e){
       <div class="fonte${man?' attenzione':''}">${x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
       ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
-  } else if(e.tipo==='pratica'){
-    testa = `<div class="riga-titolo"><div class="pill-row">${x.etichetta?`<span class="pillola dot" style="--pp:var(--clay);--pb:var(--clay-tenue);--pt:var(--clay-ink)">${esc(tr(x.etichetta))}</span>`:''}${pillTema(e)}</div>${chiudiBtn()}</div>
-      <div class="scheda-testa">${forma('pratica',e.strato,40)}<div><div class="eyebrow" style="color:var(--clay-ink)">${tr('Evento Pratica · {p}',{p:esc(x.progetto||'')})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
-    corpo = `<div class="fatti">${quando(e)}
-        <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${x.addrNum?`<span class="meta">${esc(x.addrNum)}</span>`:''}</div></div>
-        ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}</div>
-      ${descrizione(e)}
-      <p class="meta">${tr('È un appuntamento di un progetto: lo cura chi porta avanti il progetto, non {nome}.')}</p>${boxAdmin(e)}`;
-  } else if(e.tipo==='istanza'){
-    testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--ic);--pb:var(--it);--pt:var(--ic)">${tr('Istanza · {i}',{i:esc(x.istanza||'')})}</span>${pillTema(e)}</div>${chiudiBtn()}</div>
-      <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
-    corpo = `${x.obiettivo?`<div class="richiamo">${BERSAGLIO(18)}<div class="stack-s" style="gap:2px"><span class="meta">${x.restituzione?tr('Obiettivo raggiunto: la proposta è consegnata'):tr('Obiettivo dell’istanza')}</span><span style="font-weight:600">${esc(x.obiettivo)}</span></div></div>`:''}
-      <div class="fatti">${quando(e)}
-        <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${e.citta?`<span class="meta">${esc(e.citta)}</span>`:''}</div></div>
-        ${x.soggetti?`<div class="dato">${icoPersone}<div><span class="t">${x.restituzione?tr('Chi la cura'):tr('Al tavolo')}</span><span class="meta">${esc(x.soggetti)}</span></div></div>`:''}</div>
-      ${descrizione(e)}
-      <div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Chi può venire')}:</strong> ${x.restituzione ? tr('tutte e tutti. È l’incontro in cui l’istanza racconta alla città la proposta consegnata.') : tr('[DA DECIDERE]. È un incontro di lavoro del tavolo; dopo, il tavolo pubblica il rendiconto nell’Agorà.')}</span></div>${boxAdmin(e)}`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(safeUrl).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';
@@ -220,7 +199,7 @@ function fScheda(e){
       <div class="tasti"><button class="tasto sec" data-modifica="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina="${esc(e.id)}">${tr('Elimina')}</button></div>
       <div class="og-box">${GLIFO_OG}<span class="meta" style="color:var(--testo)">${tr('Vive solo nella memoria di questo telefono: non passa da nessun server. È già nel tuo calendario e sparisce dalla mappa tre ore dopo la fine; nel calendario resta per tre mesi.')}</span></div>`;
   }
-  return foglio('forte medio'+(e.tipo==='istanza' ? ' c-'+e.ist : ''), testa, corpo);
+  return foglio('forte medio', testa, corpo);
 }
 
 /* ======================= Calendario: Giornata · Mese · Agenda (OG 1.3–1.4) ======================= */

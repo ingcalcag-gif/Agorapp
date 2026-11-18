@@ -7,7 +7,8 @@
    In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina.
    Ogni uscita contiene anche licenze/: titolari, licenze e testi integrali dei componenti di terzi
    (sorgenti/licenze.js, da COMPONENTI_DI_TERZI.md e licenze/), e lib/: librerie e caratteri di terzi
-   a versione fissa, copiati da sorgenti/vendor/ con accanto il testo della loro licenza (T-007).
+   a versione fissa, copiati da sorgenti/vendor/ con accanto il testo della loro licenza (T-007), e anteprime/:
+   i contenuti d'esempio di Agorà e Progetti, un file per lingua (sorgenti/contenuti_esempio.js, T-015).
    Alla fine controlla la sintassi di ogni file JavaScript prodotto (node --check).
 
    Nome, titolare, caselle, indirizzi e versioni dei testi vengono da sorgenti/config.js:
@@ -26,6 +27,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { fileLicenze } = require('./licenze.js');
+const { fileAnteprime } = require('./contenuti_esempio.js');
 const VENDOR = require('./vendor/elenco.js');
 
 const SORGENTI = __dirname;
@@ -154,6 +156,8 @@ ${legaliIt}
 </body>
 </html>
 `;
+  // Contenuti d'esempio di Agorà e Progetti, un file per lingua (T-015): l'app li scarica quando servono.
+  Object.assign(file, fileAnteprime(cfg));
   return file;
 }
 

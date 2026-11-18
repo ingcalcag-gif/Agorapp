@@ -55,8 +55,6 @@
 .t-card h3{padding-right:70px}
 .t-angolo{position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px}
 .t-angolo.evento{background:var(--incassata);color:var(--testo-2)}
-.t-angolo.pratica{background:var(--clay-tenue,#F7E6D6);color:var(--clay-ink,#A85C2C)}
-.t-angolo.istanza{background:color-mix(in srgb,var(--ic) 14%,var(--superficie));color:var(--ic)}
 .t-quando{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--clay-ink,#A85C2C)}
 .t-card.fin .t-quando{color:var(--testo-2)}
 .t-quando .forma{flex-shrink:0}

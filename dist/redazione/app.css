@@ -50,6 +50,8 @@ h2{font-size:20px;line-height:24px}
 .anteprima{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--incassata);border-bottom:1px dashed var(--linea-forte);font-size:12px;line-height:16px;color:var(--testo-2)}
 .anteprima b{color:var(--testo);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
 .anteprima span{flex:1;min-width:0}
+.anteprima b::after{content:" ·";letter-spacing:0;font-weight:400;color:var(--testo-2)}
+.anteprima.striscia-f{position:static;margin:0 0 12px;border:1px dashed var(--linea-forte);border-radius:10px;padding:6px 12px}
 .anteprima button{min-height:36px;background:none;border:0;padding:0 2px;color:var(--verde);font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap}
 .pag-semplice{padding:16px 16px 28px;display:flex;flex-direction:column;gap:20px}
 .tema-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
@@ -89,10 +91,6 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .pin .f{position:relative;display:flex;align-items:center;justify-content:center;box-shadow:var(--ombra-pin);transition:transform .15s}
 .pin.ev .f{width:32px;height:32px;border-radius:50%;background:var(--pin-fondo);border:2.5px solid var(--pc)}
 .pin.ev .f svg{width:26px;height:26px}
-.pin.pr .f{width:34px;height:34px;border-radius:50%;background:var(--pin-fondo);border:2.5px solid var(--clay);box-shadow:inset 0 0 0 2px var(--pin-fondo),inset 0 0 0 3.5px var(--clay),var(--ombra-pin)}
-.pin.pr .f svg{width:20px;height:20px}
-.pin.is .f{width:32px;height:32px;border-radius:10px;background:var(--it);border:2.5px solid var(--ic)}
-.pin.is .f svg{width:22px;height:22px}
 .pin.og .f{width:32px;height:32px;border-radius:50%;background:var(--verde);border:2.5px solid var(--pin-fondo);color:var(--su-verde)}
 .pin.ora .f::after{content:"";position:absolute;inset:-6px;border-radius:inherit;border:2px solid color-mix(in srgb,var(--pc,var(--clay)) 45%,transparent)}
 .pin.is.ora .f::after{border-radius:14px}
@@ -461,25 +459,6 @@ body{background:var(--fondo)}
 [dir="rtl"] .legale ul{padding-left:0;padding-right:20px}
 [dir="rtl"] .freccia-dir{transform:scaleX(-1)}
 [dir="rtl"] .riga-ev .ora{text-align:right}
-.c-abitativo{--ic:#B03A2E;--it:#FDECEA;--ib:#F2B8B0}
-.c-fuorisede{--ic:#2D5A3D;--it:#E8F0EB;--ib:#B9D3C1}
-.c-verde{--ic:#1E7A44;--it:#E6F5EC;--ib:#A9DCBC}
-.c-autogestiti{--ic:#7D3C98;--it:#F5EEF8;--ib:#D8BFE3}
-.c-gentrificazione{--ic:#A84F12;--it:#FEF3E4;--ib:#F3C99A}
-.c-uguaglianza{--ic:#1F618D;--it:#EBF5FB;--ib:#AED0E8}
-.c-agorapp{--ic:#2D5A3D;--it:#E8F2EB;--ib:#B9D3C1}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
-:root:not([data-theme="light"]) .c-fuorisede,:root:not([data-theme="light"]) .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
-:root:not([data-theme="light"]) .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
-:root:not([data-theme="light"]) .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
-:root:not([data-theme="light"]) .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
-:root:not([data-theme="light"]) .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}}
-:root[data-theme="dark"] .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
-:root[data-theme="dark"] .c-fuorisede,:root[data-theme="dark"] .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
-:root[data-theme="dark"] .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
-:root[data-theme="dark"] .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
-:root[data-theme="dark"] .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
-:root[data-theme="dark"] .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}
 a.tasto,a.link{text-decoration:none}
 a.tasto.sec{color:var(--testo)}
 .campo .chiudi{width:36px;height:36px}
@@ -626,8 +605,6 @@ label.campo:has(#pw){min-width:0}
 .t-card h3{padding-right:70px}
 .t-angolo{position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px}
 .t-angolo.evento{background:var(--incassata);color:var(--testo-2)}
-.t-angolo.pratica{background:var(--clay-tenue,#F7E6D6);color:var(--clay-ink,#A85C2C)}
-.t-angolo.istanza{background:color-mix(in srgb,var(--ic) 14%,var(--superficie));color:var(--ic)}
 .t-quando{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--clay-ink,#A85C2C)}
 .t-card.fin .t-quando{color:var(--testo-2)}
 .t-quando .forma{flex-shrink:0}
@@ -800,15 +777,15 @@ label.campo:has(#pw){min-width:0}
 .c-autogestiti{--ic:#7D3C98;--it:#F5EEF8;--ib:#D8BFE3}
 .c-gentrificazione{--ic:#A84F12;--it:#FEF3E4;--ib:#F3C99A}
 .c-uguaglianza{--ic:#1F618D;--it:#EBF5FB;--ib:#AED0E8}
-.c-agorapp{--ic:#2D5A3D;--it:#E8F2EB;--ib:#B9D3C1}
+.c-app{--ic:#2D5A3D;--it:#E8F2EB;--ib:#B9D3C1}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
-:root:not([data-theme="light"]) .c-fuorisede,:root:not([data-theme="light"]) .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root:not([data-theme="light"]) .c-fuorisede,:root:not([data-theme="light"]) .c-app{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
 :root:not([data-theme="light"]) .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
 :root:not([data-theme="light"]) .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
 :root:not([data-theme="light"]) .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
 :root:not([data-theme="light"]) .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}}
 :root[data-theme="dark"] .c-abitativo{--ic:#F1948A;--it:#3A1F1B;--ib:#7A3A32}
-:root[data-theme="dark"] .c-fuorisede,:root[data-theme="dark"] .c-agorapp{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
+:root[data-theme="dark"] .c-fuorisede,:root[data-theme="dark"] .c-app{--ic:#86B795;--it:#1F3326;--ib:#3F6A4C}
 :root[data-theme="dark"] .c-verde{--ic:#7DCEA0;--it:#1C3325;--ib:#3E6A4E}
 :root[data-theme="dark"] .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
 :root[data-theme="dark"] .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
@@ -947,6 +924,9 @@ label.campo:has(#pw){min-width:0}
 
 .foglio .corpo>.sez-agora,.foglio .corpo>.sez-progetti,.foglio .corpo>.sez-proposta{display:flex;flex-direction:column;gap:14px}
 .pagina-vuota .tasto{flex:none}
+/* Demo (T-015): striscia in testa a ogni PDF; bollino delle schede di Agorà e Progetti in Temi */
+.carta .cs{align-self:flex-start;font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--carta-2);border:1px dashed currentColor;border-radius:6px;padding:2px 8px;margin-bottom:6px}
+.t-sez-demo{font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--testo-2);border:1px dashed var(--linea-forte);border-radius:999px;padding:0 6px}
 
 /* ======================= Misure (solo admin) ======================= */
 /* colori dei grafici: verde in scala (una sola tinta, chiaro → scuro), tre categorie verificate per il daltonismo (validate_palette, 6 ottobre 2026) */

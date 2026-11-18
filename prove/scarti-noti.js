@@ -10,9 +10,12 @@ module.exports = [
   /* ---------- Nome fuori dalla configurazione (prove/nome.js) ---------- */
   s('nome', 'agorapp2024', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
   s('nome', 'agorapp2024', 'Nomeprova/app.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
-  s('nome', '.c-agorapp', 'sorgenti/parti/style2.css', 3, 'T-015', "colori dell'istanza d'esempio"),
-  s('nome', '.c-agorapp', 'sorgenti/parti/style_sezioni.css', 3, 'T-015', "colori dell'istanza d'esempio"),
-  s('nome', '.c-agorapp', 'Nomeprova/app.css', 6, 'T-015', "colori dell'istanza d'esempio"),
+
+  /* ---------- Contenuti d'esempio di Agorà e Progetti (prove/anteprime.js) ---------- */
+  s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/en.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
+  s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/es.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
+  s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/fr.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
+  s('anteprime', 'testo senza traduzione', 'sorgenti/anteprime/lingue/ar.json', 835, 'T-015', 'contenuti d\'esempio ancora da tradurre (passo 3 della voce)'),
 
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
   s('indirizzi', 'basemaps.cartocdn.com/gl', 'app.js', 1, 'T-017', 'stile e tasselli della mappa CARTO'),

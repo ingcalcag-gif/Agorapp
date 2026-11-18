@@ -1,8 +1,6 @@
 
 /* ---------- Icone (dal mockup) ---------- */
 const GLIFO_OG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.2" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="8" r="1.9" fill="currentColor"/></svg>';
-const ICO_ABITATIVO = '<svg viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="24" y="6" width="3.6" height="8" rx=".6" fill="#A93226"/><polygon points="3,17.5 18,5 33,17.5" fill="#C0392B"/><rect x="7" y="16" width="22" height="16" rx="1.6" fill="#F1948A"/><rect x="15" y="22" width="6" height="10" rx="1" fill="#C0392B"/><rect x="9.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/><rect x="22.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/></svg>';
-const BERSAGLIO = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="6" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="var(--ic)"/></svg>`;
 const freccia = '<svg class="freccia-dir" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3 9.5 7l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const frecciaSx = '<svg class="freccia-dir" width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const frecciaDx = '<svg class="freccia-dir" width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3 9.5 7l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -25,19 +23,15 @@ const icoOra = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria
 const icoLuogo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 14.5s5-4.6 5-8.3A5 5 0 0 0 3 6.2c0 3.7 5 8.3 5 8.3Z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.3" r="1.8" stroke="currentColor" stroke-width="1.4"/></svg>';
 const icoPrezzo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8.6V3a.5.5 0 0 1 .5-.5h5.6l5.2 5.2a1 1 0 0 1 0 1.4l-4.3 4.3a1 1 0 0 1-1.4 0L2.5 8.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="5.6" cy="5.6" r="1.1" fill="currentColor"/></svg>';
 const icoLink = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 9.5 9.5 6.5M7 4.5l1-1a3 3 0 0 1 4.2 4.2l-1 1M9 11.5l-1 1a3 3 0 0 1-4.2-4.2l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-const icoPersone = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="5.5" cy="5.5" r="2.2" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="5.5" r="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M1.5 13.5c0-2.4 1.8-4 4-4s4 1.6 4 4M8.5 10c.7-.4 1.5-.6 2.5-.6 2.2 0 4 1.6 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 const icoRipeti = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M12.5 6A5 5 0 0 0 3.6 4.4M3.5 10a5 5 0 0 0 8.9 1.6M12.8 2.5V6H9.3M3.2 13.5V10h3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoNote = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.5h10v11H3zM5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoImporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2v7M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoEsporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 9V2M4 5l3-3 3 3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-/* istanze: icona e colore comuni (le icone delle istanze d'esempio restano nell'anteprima di Agorà) */
-const icoIst = () => ICO_ABITATIVO;
-const coloreIst = () => 'var(--ic)';
 const interno = svg => svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
-function colorePin(e){ return e.tipo==='evento' ? (S[e.strato]||{pin:'#888'}).pin : e.tipo==='pratica' ? 'var(--clay)' : e.tipo==='istanza' ? coloreIst(e.ist) : 'var(--verde)'; }
-function contenutoPin(e){ return e.tipo==='og' ? GLIFO_OG : e.tipo==='istanza' ? icoIst(e.ist) : icoPin(e.strato); }
-function forma(tipo, strato, s, ist){
+function colorePin(e){ return e.tipo==='evento' ? (S[e.strato]||{pin:'#888'}).pin : 'var(--verde)'; }
+function contenutoPin(e){ return e.tipo==='og' ? GLIFO_OG : icoPin(e.strato); }
+function forma(tipo, strato, s){
   s = s || 28;
   const apri = `<svg class="forma" width="${s}" height="${s}" viewBox="0 0 28 28" aria-hidden="true">`;
   if(tipo==='evento'){
@@ -45,11 +39,6 @@ function forma(tipo, strato, s, ist){
     const dentro = strato && S[strato] ? `<svg x="4" y="4" width="20" height="20" viewBox="2 2 22 22">${interno(icoPin(strato))}</svg>` : `<circle cx="14" cy="14" r="4" fill="${c}"/>`;
     return `${apri}<circle cx="14" cy="14" r="12" fill="#fff" stroke="${c}" stroke-width="2.5"/>${dentro}</svg>`;
   }
-  if(tipo==='pratica'){
-    const dentro = strato && S[strato] ? `<svg x="8" y="8" width="12" height="12" viewBox="2 2 22 22">${interno(icoPin(strato))}</svg>` : `<circle cx="14" cy="14" r="3.5" fill="var(--clay)"/>`;
-    return `${apri}<circle cx="14" cy="14" r="12" fill="#fff" stroke="var(--clay)" stroke-width="2.5"/><circle cx="14" cy="14" r="8.4" fill="none" stroke="var(--clay)" stroke-width="1.4"/>${dentro}</svg>`;
-  }
-  if(tipo==='istanza') return `${apri.replace('class="forma"', `class="forma c-${ist||'abitativo'}"`)}<rect x="2" y="2" width="24" height="24" rx="7" fill="var(--it)" stroke="var(--ic)" stroke-width="2.5"/><svg x="6" y="6" width="16" height="16" viewBox="0 0 36 36">${interno(icoIst(ist))}</svg></svg>`;
   return `${apri}<circle cx="14" cy="14" r="12" fill="var(--verde)" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="5.5" fill="none" stroke="var(--su-verde)" stroke-width="2"/><circle cx="14" cy="14" r="2" fill="var(--su-verde)"/></svg>`;
 }
 
@@ -226,7 +215,7 @@ function disegnaPins(){
   raggruppa(lista).forEach(g => {
     const ll = map.unproject([g.p.x, g.p.y]);
     if(g.el.length===1){
-      const e = g.el[0], cls = {evento:'ev', pratica:'pr', istanza:'is', og:'og'}[e.tipo] + (e.tipo==='istanza' ? ' c-'+e.ist : '');
+      const e = g.el[0], cls = {evento:'ev', og:'og'}[e.tipo];
       const inCorso = e.a<=n && e.b>n, fin = finito(e);
       const h = `<button class="pin ${cls}${inCorso?' ora':''}${fin?' finito':''}${st.sel===e.id?' sel':''}" style="--pc:${colorePin(e)}" data-ev="${esc(e.id)}" aria-label="${esc(e.titolo+', '+dataBreve(e))}"><span class="f">${contenutoPin(e)}${inCal(e.id)&&e.tipo!=='og'?`<span class="salvato">${icoCalPieno}</span>`:''}${e.nascosto?`<span class="lucchetto">${icoLucchetto(9)}</span>`:''}</span></button>`;
       mettiSegnaposto(h, e.lng, e.lat, st.sel===e.id ? 'alto' : '');
@@ -298,7 +287,7 @@ function disegnaChips(){
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
   $('btnPieno').setAttribute('aria-pressed', st.pieno); $('btnPieno').setAttribute('aria-label', st.pieno ? tr('Esci dallo schermo intero') : tr('Mappa a schermo intero'));
   const per = nelPeriodo();
-  $('tipiMappa').innerHTML = [['evento',tr('Eventi')],['pratica',tr('Pratiche')],['istanza',tr('Istanze')]].map(([t,l]) => {
+  $('tipiMappa').innerHTML = [['evento',tr('Eventi')]].map(([t,l]) => {
     const k = per.filter(e => e.tipo===t && nelloStrato(e)).length;
     return `<button class="tipo-p" data-tipo="${t}" aria-pressed="${st.tipi[t]}">${forma(t,null,24)}<span class="l">${l}</span><span class="n">${k}</span></button>`;
   }).join('');

@@ -305,7 +305,7 @@ function salvaAdmin(){
 
 /* ======================= Guida alla prima apertura ======================= */
 const GUIDA = () => [
-  {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
+  {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
   {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'}
 ];
@@ -360,11 +360,7 @@ function apriCalendario(vista, giorno){
   st.sel = null; apri('calendario'); requestAnimationFrame(() => { if(modoGiornata()) inquadraTutti(giornata(st.cal.giorno).vive); });
 }
 
-/* ======================= Sezioni (Progetti, Agorà, Temi arrivano nei prossimi passi) ======================= */
-function paginaVuota(k){
-  const T = {progetti:[tr('Progetti'), tr('Le pratiche collettive della città, con le loro bacheche.')], agora:[tr('Agorà'), tr('Le istanze dal basso, con i loro tavoli.')], temi:[tr('Temi'), tr('Le passerelle tra le sezioni: strati, temi e lenti.')]}[k];
-  return `${k!=='temi'?`<div class="anteprima" role="note"><b>${tr('Anteprima')}</b><span>${tr('Iscrizioni non ancora aperte: i contenuti sono d’esempio.')}</span></div>`:''}<div class="pagina-vuota"><h1>${T[0]}</h1><p class="meta">${T[1]}</p><p class="meta">${tr('Questa sezione arriva nei prossimi passi del restyling.')}</p></div>`;
-}
+/* ======================= Sezioni ======================= */
 function vaiSezione(s, daNav){
   if(st.pieno) return;
   const stessa = st.sezione===s;

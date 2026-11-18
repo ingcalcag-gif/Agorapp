@@ -131,14 +131,15 @@ const normLink = u => { u = (u||'').trim(); if(!u) return ''; if(!/^https?:\/\//
 const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gratuito|gratis|free|ingresso libero|libero|offerta libera)$/i.test(s)) return s; if(s.includes('€')||/euro/i.test(s)) return s; if(/^\d+([.,]\d+)?$/.test(s)) return s+' €'; return s; };
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */
-function tipoDi(ev){ if(ev.personal || ev.offgrid) return 'og'; if(ev.parentType==='pratica') return 'pratica'; if(ev.parentType==='istanza') return 'istanza'; return 'evento'; }
+/* Pratiche e Istanze non vanno sulla mappa finché Progetti e Agorà non aprono (T-015): tutto ciò che non è un Off-Grid è un evento. */
+function tipoDi(ev){ return (ev.personal || ev.offgrid) ? 'og' : 'evento'; }
 function vista(ev){
   const a = new Date(ev.datetime); if(isNaN(a) || !isFinite(+ev.lat) || !isFinite(+ev.lng)) return null;
   const em = getEnd(ev), b = new Date(em!=null && em>a.getTime() ? em : a.getTime());
   const conFine = b>a;
   return {id:ev.id, raw:ev, tipo:tipoDi(ev), strato:ev.category||'', sub:ev.sublayer||'', titolo:ev.title||'', luogo:ev.addressFull||ev.address||'',
     lat:+ev.lat, lng:+ev.lng, a, b, giorno:ymd(a), inizio:hm(a), fine:conFine?hm(b):'', prezzo:ev.price||'',
-    desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||'', ist:ev.parentType==='istanza'?ev.parentId:null};
+    desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||''};
 }
 let EV = [];
 function ricostruisci(){ EV = events.map(vista).filter(Boolean); }
@@ -148,7 +149,7 @@ const rawById = id => events.find(e => e.id===id);
 /* ---------- Stato ---------- */
 const st = {
   tempo:'tutto', da:null, a:null, salvatiSolo:false, prezzo:'tutti', finiti:false, nascostiOn:true,
-  tipi:{evento:true, pratica:true, istanza:true, og:true},
+  tipi:{evento:true, og:true},
   strati:new Set(), subOff:new Set(), aperto:null, preset:0,
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,

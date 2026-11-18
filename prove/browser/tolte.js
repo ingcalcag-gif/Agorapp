@@ -9,7 +9,8 @@
      Fate, niente tasto dorato nel Calendario (§ 1.3; § 2.4; § 3.7).
    - T-015: niente demo degli eventi. La chiave agorapp_demo, gli eventi e gli Off-Grid della demo (segnati come demo
      o con l'identificativo demo-…) e le loro voci nel calendario spariscono all'avvio; nessun tasto o cartellino per
-     caricarla in Impostazioni, nella guida iniziale, in Agorà e in Progetti; nessuna richiesta del file della demo
+     caricarla in Impostazioni, nella guida iniziale, in Agorà e in Progetti (dove ora «Demo» indica i contenuti
+     d'esempio delle due sezioni, decisione del 18/11/2026); nessuna richiesta del file della demo
      (§ 2.4: nessun evento falso visibile; § 2.6; § 3.7).
    Dati inventati; ogni richiesta verso l'esterno è bloccata. */
 'use strict';
@@ -97,7 +98,7 @@ async function prova() {
       const testo = await p.evaluate(() => document.body.innerText);
       for (const t of ['Mi interessa', 'Ti interessa?', 'La tua città non c’è?']) if (testo.includes(t)) e.errori.push(nome + ': compare ancora «' + t + '»');
       if (await p.locator('[data-az="carica-demo-sez"], .invito-demo').count()) e.errori.push(nome + ': c\'è ancora l\'invito a caricare la demo');
-      if (/\bdemo\b/i.test(testo)) e.errori.push(nome + ': compare ancora la parola «demo»');
+      if (/carica(re)? la demo|togli la demo|prova la demo|accendi la demo/i.test(testo)) e.errori.push(nome + ': compare ancora un invito a caricare la demo degli eventi');
     }
     // Guida alla prima apertura: nessun cartellino della demo, e l'ultimo cartellino si chiude.
     const g2 = await apri(pw, { agorapp_layers: { musica: { on: true } } });
@@ -118,7 +119,7 @@ async function prova() {
       for (const [nome, sez] of [['Agorà', 'agora'], ['Progetti', 'progetti']]) {
         await q.click('button[data-sez="' + sez + '"]'); await pausa(500);
         if (await q.locator('[data-az="carica-demo-sez"], .invito-demo').count()) e.errori.push(nome + ' (telefono nuovo): c\'è ancora l\'invito a caricare la demo');
-        if (/\bdemo\b/i.test(await q.locator('#pagina-' + sez).innerText())) e.errori.push(nome + ' (telefono nuovo): compare ancora la parola «demo»');
+        if (/carica(re)? la demo|togli la demo|prova la demo|accendi la demo/i.test(await q.locator('#pagina-' + sez).innerText())) e.errori.push(nome + ' (telefono nuovo): compare ancora un invito a caricare la demo degli eventi');
       }
     } finally { await g2.browser.close(); }
   } finally {

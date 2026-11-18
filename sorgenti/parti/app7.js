@@ -47,7 +47,7 @@ function caricaLenti(){
   return Array.isArray(a) && a.length===3 ? a.map(conv) : [null,null,null];
 }
 function salvaLenti(){ LS.set('agorapp_temi_slots', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }
-const TM = {vista:'esplora', scelti:[], tipo:'tutti', mostrati:6, mappaOn:true, q:'', strumenti:{terminati:false, nascosti:false}, lenti:caricaLenti(), lenteNome:null, lenteAg:null, salva:null, foglio:null};
+const TM = {vista:'esplora', scelti:[], mostrati:6, mappaOn:true, q:'', strumenti:{terminati:false, nascosti:false}, lenti:caricaLenti(), lenteNome:null, lenteAg:null, salva:null, foglio:null};
 const lenteAg = id => LENTI_AG.find(l => l.id===id);
 const nomeLenteAg = l => tr(l.nome);
 
@@ -62,8 +62,14 @@ function trovati(){
     .filter(e => colpisce(tagsEv(e)))
     .sort((a,b) => (finito(a)-finito(b)) || (a.a-b.a));
 }
-/* progetti e istanze d'esempio di Agorà e Progetti che portano i temi scelti (T-015) */
-function nelleSezioni(){ return {prog:[], ist:[]}; }
+/* progetti e istanze d'esempio di Agorà e Progetti che portano i temi scelti, segnati «Demo» (T-015; decisione del 18/11/2026).
+   I contenuti arrivano con il file della lingua: se non c'è ancora, lo chiede e ridisegna quando arriva. */
+function nelleSezioni(){
+  const X = window.AGR.anteprime, D = X && X.dati();
+  if(!D){ if(X && !X.errore()) X.carica().then(d => { if(d && st.sezione==='temi') disegnaTemi(); }); return {prog:[], ist:[]}; }
+  const tocca = x => colpisce([...x.strati.map(s => 's:'+s), ...(x.temi||[]).map(t => 't:'+t)]);
+  return {prog:D.progetti.progetti.filter(tocca), ist:D.agora.istanze.filter(tocca)};
+}
 
 /* pezzi */
 function ovale(u, attr, piccolo){ const on = TM.scelti.includes(u.k); return `<button class="ovale${on?' sel':''}${piccolo?' p':''}" ${attr}="${esc(u.k)}" aria-pressed="${on}" style="--dot:${u.dot}"><span class="pallino"></span>${esc(u.label)}</button>`; }
@@ -109,44 +115,37 @@ function miniMappa(lista){
   const X = ln => (((ln-cx)*cosl)/w + .5)*W, Y = la => (.5 - (la-cy)/h)*H;
   const fondo = citta==='torino' ? QUARTIERI.map(q => `<rect x="${X(q.ln[0]).toFixed(1)}" y="${Y(q.la[1]).toFixed(1)}" width="${(X(q.ln[1])-X(q.ln[0])).toFixed(1)}" height="${(Y(q.la[0])-Y(q.la[1])).toFixed(1)}" rx="6" fill="var(--mappa-edificio)" opacity=".55"/>`).join('') : '';
   const segni = pts.map(e => { const x = X(e.lng).toFixed(1), y = Y(e.lat).toFixed(1);
-    if(e.tipo==='pratica') return `<circle cx="${x}" cy="${y}" r="7" fill="var(--superficie)" stroke="var(--clay)" stroke-width="2.4"/><circle cx="${x}" cy="${y}" r="3" fill="var(--clay)"/>`;
-    if(e.tipo==='istanza') return `<rect x="${x-6.5}" y="${y-6.5}" width="13" height="13" rx="4" fill="${coloreIst(e.ist)}" stroke="var(--superficie)" stroke-width="2"/>`;
     return `<circle cx="${x}" cy="${y}" r="6.5" fill="${(S[e.strato]||{pin:'#888'}).pin}" stroke="var(--superficie)" stroke-width="2"/>`; }).join('');
   return `<div class="t-mappa"><button class="t-mappa-svg" data-tz="sulla-mappa" aria-label="${esc(tr('Apri questi {n} punti sulla mappa',{n:pts.length}))}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${fondo}<g>${segni}</g></svg></button>
     <span class="t-mappa-lbl">${tr('{n} sulla mappa',{n:pts.length})}${fuori?' · '+tr('{n} in altre città',{n:fuori}):''}</span>
     <button class="t-mappa-x" data-tz="mappa-off" aria-label="${esc(tr('Nascondi la mappa'))}">${ICT.occhio}</button></div>`;
 }
 function cartaRisultato(e){
-  const fin = finito(e), nome = {evento:tr('Evento'), pratica:tr('Pratica'), istanza:tr('Istanza')}[e.tipo];
-  const chi = e.tipo==='pratica' ? e.raw.progetto : e.tipo==='istanza' ? e.raw.istanza : '';
+  const fin = finito(e);
   const d = dIso(e.giorno).toLocaleDateString(dloc(), {weekday:'short', day:'numeric', month:'long'});
-  return `<button class="t-card${fin?' fin':''}" data-tev="${esc(e.id)}"><span class="t-angolo ${e.tipo}"${e.tipo==='istanza'?` style="--ic:${coloreIst(e.ist)}"`:''}>${nome}</span>
-    <div class="t-quando">${forma(e.tipo,e.strato,18,e.ist)}${ICT.ora} ${fin?tr('appena finito'):esc(d+' · '+e.inizio)}${!e.suMappa&&e.citta?' · '+esc(e.citta):''}</div>
-    <h3>${esc(e.titolo)}</h3>${chi?`<div class="meta">${esc(chi)}</div>`:''}
+  return `<button class="t-card${fin?' fin':''}" data-tev="${esc(e.id)}"><span class="t-angolo evento">${tr('Evento')}</span>
+    <div class="t-quando">${forma(e.tipo,e.strato,18)}${ICT.ora} ${fin?tr('appena finito'):esc(d+' · '+e.inizio)}${!e.suMappa&&e.citta?' · '+esc(e.citta):''}</div>
+    <h3>${esc(e.titolo)}</h3>
     <p class="t-desc">${esc(e.desc.slice(0,90))}${e.desc.length>90?'…':''}</p>
     <div class="t-etich">${tagsEv(e).map(etichettaTema).join('')}</div></button>`;
 }
 function vRisultati(){
-  const tutti = trovati(), c = {tutti:tutti.length, evento:0, pratica:0, istanza:0};
-  tutti.forEach(e => c[e.tipo]++);
-  const lista = TM.tipo==='tutti' ? tutti : tutti.filter(e => e.tipo===TM.tipo), vis = lista.slice(0, TM.mostrati);
+  const lista = trovati(), vis = lista.slice(0, TM.mostrati);
   const sez = nelleSezioni(), ag = lenteAg(TM.lenteAg);
   const titolo = TM.lenteNome || (TM.scelti.length===1 ? byK(TM.scelti[0]).label : tr('{n} strati e temi insieme',{n:TM.scelti.length}));
-  const seg = [['tutti',tr('Tutti')],['evento',tr('Eventi')],['pratica',tr('Pratiche')],['istanza',tr('Istanze')]].map(([k,l]) => `<button data-ttipo="${k}" aria-pressed="${TM.tipo===k}">${l} ${c[k]}</button>`).join('');
   return `${testataTemi()}
   <button class="indietro" data-tz="esplora">${frecciaSx}${tr('Cambia la scelta')}</button>
   ${ag?`<section class="t-lente-testa" style="--lc:${ag.col}"><span class="t-lente-g">${glifo(ag.id,24)}</span><div class="stack-s"><div class="t-gruppo">${tr('Lente di {nome}')}</div><h1>${esc(nomeLenteAg(ag))}</h1><p class="t-lente-motto">${esc(tr(ag.motto))}</p><p>${esc(tr(ag.testo))}</p></div></section>`:''}
   <section class="stack-s">${ag?`<div class="t-gruppo">${tr('Cosa guarda')}</div>`:`<h1>${esc(titolo)}</h1>`}
     <div class="ovali">${TM.scelti.map(k => { const u = byK(k); return `<button class="ovale sel p" data-togli="${esc(k)}" style="--dot:${u.dot}" aria-label="${esc(tr('Togli {t}',{t:u.label}))}"><span class="pallino"></span>${esc(u.label)}${ICT.croce}</button>`; }).join('')}</div>
     <div class="t-azioni"><button class="link" data-tz="salva">${ICT.segno}${ag?tr('Fanne una tua lente'):tr('Salva come lente')}</button><button class="link" data-tz="esplora">${tr('Aggiungi altri')}</button></div></section>
-  <div class="seg" role="group">${seg}</div>
   ${miniMappa(lista)}
   <button class="tasto pri pieno" data-tz="sulla-mappa">${tr('Apri sulla mappa')} ${freccia}</button>
   ${sez.prog.length||sez.ist.length?`<section class="stack-s"><div class="t-gruppo">${tr('Nelle sezioni')}</div><div class="t-sezioni">
-      ${sez.prog.map(p => `<button class="t-sez prog" data-tprog="${esc(p.id)}"><span class="t-sez-k">${tr('Progetto')}</span><span class="t">${esc(p.titolo)}</span></button>`).join('')}
-      ${sez.ist.map(a => `<button class="t-sez c-${esc(a.id)}" data-tist="${esc(a.id)}"><span class="t-sez-k">${tr('Istanza')}</span><span class="t">${esc(a.titolo)}</span></button>`).join('')}</div></section>`:''}
+      ${sez.prog.map(p => `<button class="t-sez prog" data-tprog="${esc(p.id)}"><span class="t-sez-k">${tr('Progetto')} <span class="t-sez-demo">${tr('Demo')}</span></span><span class="t">${esc(p.titolo)}</span></button>`).join('')}
+      ${sez.ist.map(a => `<button class="t-sez c-${esc(a.id)}" data-tist="${esc(a.id)}"><span class="t-sez-k">${tr('Istanza')} <span class="t-sez-demo">${tr('Demo')}</span></span><span class="t">${esc(a.titolo)}</span></button>`).join('')}</div></section>`:''}
   <section class="stack-s"><div class="meta">${lista.length===1?tr('1 elemento'):tr('{n} elementi',{n:lista.length})} · ${tr('in ordine di tempo, non di popolarità')}</div>
-    ${vis.length ? vis.map(cartaRisultato).join('') : `<div class="t-vuoto">${TM.tipo!=='tutti'?tr('Niente con questi temi e questo tipo, per ora.'):tr('Niente con questi temi, per ora.')}</div>`}
+    ${vis.length ? vis.map(cartaRisultato).join('') : `<div class="t-vuoto">${tr('Niente con questi temi, per ora.')}</div>`}
     ${lista.length>TM.mostrati?`<button class="tasto sec pieno" data-tz="altri">${tr('Mostra altri {n}',{n:Math.min(6,lista.length-TM.mostrati)})}</button>`:''}</section>`;
 }
 /* fogli Lente e Strumenti */
@@ -189,34 +188,33 @@ function disegnaTemi(){
 }
 function cambiaTemi(){ disegnaTemi(); if(TM.foglio){ if(TM.foglio==='lente' && $('tz-lente')) $('tz-lente').innerHTML = lenteDentro(); else disegnaFoglio(); } }
 function apriFoglioTemi(q){ TM.foglio = q; st.foglio = 'temi'; ultimoFoglio = null; disegnaFoglio(); setTimeout(() => { const i = $(q==='lente'?'tz-q':'tz-nome'); if(i && (q==='lente' || (TM.salva && TM.salva.fase==='nome'))){ i.focus(); } }, 40); }
-function lenteCorrente(){ return {strati:TM.scelti.filter(k => k.startsWith('s:')).map(k => k.slice(2)), temi:TM.scelti.filter(k => k.startsWith('t:')).map(k => k.slice(2)), nome:TM.lenteNome || (TM.scelti.length===1 ? byK(TM.scelti[0]).label : tr('{n} temi',{n:TM.scelti.length})), tipo:TM.tipo, terminati:TM.strumenti.terminati, nascosti:TM.strumenti.nascosti}; }
+function lenteCorrente(){ return {strati:TM.scelti.filter(k => k.startsWith('s:')).map(k => k.slice(2)), temi:TM.scelti.filter(k => k.startsWith('t:')).map(k => k.slice(2)), nome:TM.lenteNome || (TM.scelti.length===1 ? byK(TM.scelti[0]).label : tr('{n} temi',{n:TM.scelti.length})), terminati:TM.strumenti.terminati, nascosti:TM.strumenti.nascosti}; }
 /* una scelta vale anche come filtro della Mappa (la «lente»): chip col nome e ✕ */
 function applicaLente(l, idSel){
   st.lente = l; st.tempo = 'tutto'; st.strati = new Set(LAYERS.map(s => s.id)); st.subOff.clear(); st.preset = 0;
-  const tutti = l.tipo==='tutti'; st.tipi = {evento:tutti||l.tipo==='evento', pratica:tutti||l.tipo==='pratica', istanza:tutti||l.tipo==='istanza', og:tutti};
+  st.tipi = {evento:true, og:false};
   st.prezzo = 'tutti'; st.salvatiSolo = false; st.finiti = !!l.terminati; if(l.nascosti) st.nascostiOn = true;
   TM.foglio = null; vaiSezione('mappa'); chiudi(); tutto();
   if(idSel){ selezionaEv(idSel); return; }
   requestAnimationFrame(() => inquadraTutti(visibili()));
 }
-function apriTemi(keys){ TM.scelti = keys.slice(); TM.lenteNome = null; TM.lenteAg = null; TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; vaiSezione('temi'); $('pagina-temi').scrollTop = 0; }
+function apriTemi(keys){ TM.scelti = keys.slice(); TM.lenteNome = null; TM.lenteAg = null; TM.vista = 'risultati'; TM.mostrati = 6; vaiSezione('temi'); $('pagina-temi').scrollTop = 0; }
 function clickTemi(b){
   const d = b.dataset;
   if(d.scegli){ const i = TM.scelti.indexOf(d.scegli); if(i>=0) TM.scelti.splice(i,1); else TM.scelti.push(d.scegli); TM.lenteNome = null; TM.lenteAg = null; cambiaTemi(); return true; }
   if(d.togli){ TM.scelti = TM.scelti.filter(k => k!==d.togli); TM.lenteNome = null; TM.lenteAg = null; TM.mostrati = 6; cambiaTemi(); return true; }
-  if(d.tzAg){ const l = lenteAg(d.tzAg); TM.scelti = l.k.slice(); TM.lenteNome = nomeLenteAg(l); TM.lenteAg = l.id; TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
-  if(d.ttipo){ TM.tipo = d.ttipo; TM.mostrati = 6; disegnaTemi(); return true; }
-  if(d.tev){ const e = byId(d.tev); if(!e) return true; if(!e.suMappa){ vaiSezione('mappa'); apriCalendario('giornata', e.giorno); return true; } applicaLente(Object.assign(lenteCorrente(), {tipo:'tutti', terminati:finito(e)||TM.strumenti.terminati}), d.tev); return true; }
+  if(d.tzAg){ const l = lenteAg(d.tzAg); TM.scelti = l.k.slice(); TM.lenteNome = nomeLenteAg(l); TM.lenteAg = l.id; TM.vista = 'risultati'; TM.mostrati = 6; disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
+  if(d.tev){ const e = byId(d.tev); if(!e) return true; if(!e.suMappa){ vaiSezione('mappa'); apriCalendario('giornata', e.giorno); return true; } applicaLente(Object.assign(lenteCorrente(), {terminati:finito(e)||TM.strumenti.terminati}), d.tev); return true; }
   if(d.tprog){ window.AGR.progetti.apri(d.tprog); return true; }
   if(d.tist){ window.AGR.agora.apriIstanza(d.tist); return true; }
-  if(d.tzLente){ const l = TM.lenti[+d.tzLente]; TM.scelti = l.k.slice(); TM.lenteNome = l.nome; TM.lenteAg = null; TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; TM.foglio = null; chiudi(); disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
+  if(d.tzLente){ const l = TM.lenti[+d.tzLente]; TM.scelti = l.k.slice(); TM.lenteNome = l.nome; TM.lenteAg = null; TM.vista = 'risultati'; TM.mostrati = 6; TM.foglio = null; chiudi(); disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
   if(d.tzVia){ TM.lenti[+d.tzVia] = null; salvaLenti(); cambiaTemi(); return true; }
   if(d.tzTool){ TM.strumenti[d.tzTool] = !TM.strumenti[d.tzTool]; cambiaTemi(); return true; }
   if(d.tzSlot){ if(!TM.scelti.length) return true; TM.salva = {fase:'nome', i:+d.tzSlot}; apriFoglioTemi('strumenti'); return true; }
   const z = d.tz; if(!z) return false;
   if(z==='lente' || z==='strumenti'){ TM.salva = null; apriFoglioTemi(z); }
   else if(z==='pulisci'){ TM.scelti = []; TM.lenteNome = null; TM.lenteAg = null; TM.vista = 'esplora'; cambiaTemi(); }
-  else if(z==='mostra'){ TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; if(TM.foglio){ TM.foglio = null; chiudi(); } disegnaTemi(); $('pagina-temi').scrollTop = 0; }
+  else if(z==='mostra'){ TM.vista = 'risultati'; TM.mostrati = 6; if(TM.foglio){ TM.foglio = null; chiudi(); } disegnaTemi(); $('pagina-temi').scrollTop = 0; }
   else if(z==='esplora'){ TM.vista = 'esplora'; disegnaTemi(); $('pagina-temi').scrollTop = 0; }
   else if(z==='altri'){ TM.mostrati += 6; disegnaTemi(); }
   else if(z==='mappa-on' || z==='mappa-off'){ TM.mappaOn = z==='mappa-on'; disegnaTemi(); }

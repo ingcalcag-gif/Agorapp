@@ -105,7 +105,7 @@ function chiediSuggerimenti(testo, dove, box){
 /* ======================= Cerca ======================= */
 function risultatiEventi(){
   const q = norm(st.q); if(q.length<2) return '';
-  const ev = EV.filter(e => e.suMappa && !sparito(e) && nascostoOk(e) && serieOk(e) && norm([e.titolo, e.luogo, e.desc, e.sub, nomeStrato(e.strato), e.raw.progetto, e.raw.istanza, e.raw.tema].join(' ')).includes(q)).sort((a,b) => a.a-b.a);
+  const ev = EV.filter(e => e.suMappa && !sparito(e) && nascostoOk(e) && serieOk(e) && norm([e.titolo, e.luogo, e.desc, e.sub, nomeStrato(e.strato), e.raw.tema].join(' ')).includes(q)).sort((a,b) => a.a-b.a);
   return ev.length ? `<div class="giorno">${tr('Eventi · {n}',{n:ev.length})}</div><div class="lista">${ev.slice(0,12).map(rigaEv).join('')}</div>` : `<p class="meta">${tr('Nessun evento con «{q}».',{q:esc(st.q)})}</p>`;
 }
 function fCerca(){

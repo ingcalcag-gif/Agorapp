@@ -54,10 +54,20 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
   - app7: Temi;
   - misure, misure_kpi, storico: Misure e storico nell'amministrazione;
   - app6: tocchi (`data-az`), tastiera, avvio.
-- `parti/sezioni.js`: Progetti e Agorà in anteprima, montato a parte in `sezioni.js`.
+- `parti/sezioni.js`: Agorà e Progetti in forma dimostrativa, montato a parte in `sezioni.js`; i contenuti d'esempio arrivano da `anteprime/` (sezione qui sotto).
 - `parti/traduzioni.js`: testi in EN ES FR AR (`window.AGR_TR`, chiave = testo italiano, una riga di JSON).
 - `dati/strati.js`: strati della mappa e loro icone (`LAYER_ICONS`, `LAYERS`), inseriti al posto del segnaposto `/*@@LAYERS@@*/` di `app1.js`.
 - `dati/legali_tradotti.json`: testi legali tradotti (oggi solo l'inglese), inseriti al posto del segnaposto `/*@@LEGALI@@*/` di `app5.js`.
+
+## Contenuti d'esempio di Agorà e Progetti: `anteprime/`
+
+Dalla voce T-015 Agorà e Progetti sono sempre piene di contenuti d'esempio, con la striscia «Demo · contenuti d'esempio» in ogni schermata, foglio e PDF. Niente va sulla mappa, nel Calendario o nella memoria del telefono, e niente parte: «Vedi sulla mappa» apre la mappa disegnata, «Salva in calendario» e «Vorrei venire anch'io» valgono finché l'app resta aperta, i messaggi e i moduli «Proponi» si provano ma non inviano.
+
+- `anteprime/agora.json` e `anteprime/progetti.json`: i contenuti, in italiano, come approvati il 18/11/2026 (nomi, luoghi ed enti inventati; città e quartieri veri). `ancora` è il giorno attorno a cui sono scritte le date.
+- `anteprime/lingue/en.json`, `es.json`, `fr.json`, `ar.json`: testo italiano → traduzione, come `traduzioni.js`.
+- `contenuti_esempio.js`: dice quali testi si traducono e scrive in ogni uscita `anteprime/<lingua>.json`, con il nome del servizio al posto di `{nome}`. Un testo senza traduzione resta in italiano.
+
+L'app scarica il file della sua lingua solo quando si apre Agorà, Progetti o «Nelle sezioni» di Temi, e sposta tutte le date di settimane intere, perché l'àncora cada tra oggi e sei giorni da oggi: gli appuntamenti non sono mai passati e gli incontri passati restano passati. Nei testi i mesi si scrivono con i segnaposto `{mese:AAAA-MM-GG}`, `{data:AAAA-MM-GG}` e `{mesi:AAAA-MM-GG/AAAA-MM-GG}`, che si spostano con le date. La prova `prove/anteprime.js` controlla forma, date, nomi reali, segnaposto e traduzioni.
 
 ## Librerie e caratteri di terzi: `vendor/`
 

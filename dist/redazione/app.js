@@ -160,14 +160,15 @@ const normLink = u => { u = (u||'').trim(); if(!u) return ''; if(!/^https?:\/\//
 const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gratuito|gratis|free|ingresso libero|libero|offerta libera)$/i.test(s)) return s; if(s.includes('€')||/euro/i.test(s)) return s; if(/^\d+([.,]\d+)?$/.test(s)) return s+' €'; return s; };
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */
-function tipoDi(ev){ if(ev.personal || ev.offgrid) return 'og'; if(ev.parentType==='pratica') return 'pratica'; if(ev.parentType==='istanza') return 'istanza'; return 'evento'; }
+/* Pratiche e Istanze non vanno sulla mappa finché Progetti e Agorà non aprono (T-015): tutto ciò che non è un Off-Grid è un evento. */
+function tipoDi(ev){ return (ev.personal || ev.offgrid) ? 'og' : 'evento'; }
 function vista(ev){
   const a = new Date(ev.datetime); if(isNaN(a) || !isFinite(+ev.lat) || !isFinite(+ev.lng)) return null;
   const em = getEnd(ev), b = new Date(em!=null && em>a.getTime() ? em : a.getTime());
   const conFine = b>a;
   return {id:ev.id, raw:ev, tipo:tipoDi(ev), strato:ev.category||'', sub:ev.sublayer||'', titolo:ev.title||'', luogo:ev.addressFull||ev.address||'',
     lat:+ev.lat, lng:+ev.lng, a, b, giorno:ymd(a), inizio:hm(a), fine:conFine?hm(b):'', prezzo:ev.price||'',
-    desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||'', ist:ev.parentType==='istanza'?ev.parentId:null};
+    desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||''};
 }
 let EV = [];
 function ricostruisci(){ EV = events.map(vista).filter(Boolean); }
@@ -177,7 +178,7 @@ const rawById = id => events.find(e => e.id===id);
 /* ---------- Stato ---------- */
 const st = {
   tempo:'tutto', da:null, a:null, salvatiSolo:false, prezzo:'tutti', finiti:false, nascostiOn:true,
-  tipi:{evento:true, pratica:true, istanza:true, og:true},
+  tipi:{evento:true, og:true},
   strati:new Set(), subOff:new Set(), aperto:null, preset:0,
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
@@ -259,8 +260,6 @@ const miei = () => EV.filter(e => e.tipo==='og' || inCal(e.id));
 
 /* ---------- Icone (dal mockup) ---------- */
 const GLIFO_OG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.2" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="8" r="1.9" fill="currentColor"/></svg>';
-const ICO_ABITATIVO = '<svg viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="24" y="6" width="3.6" height="8" rx=".6" fill="#A93226"/><polygon points="3,17.5 18,5 33,17.5" fill="#C0392B"/><rect x="7" y="16" width="22" height="16" rx="1.6" fill="#F1948A"/><rect x="15" y="22" width="6" height="10" rx="1" fill="#C0392B"/><rect x="9.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/><rect x="22.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/></svg>';
-const BERSAGLIO = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="6" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="var(--ic)"/></svg>`;
 const freccia = '<svg class="freccia-dir" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3 9.5 7l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const frecciaSx = '<svg class="freccia-dir" width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const frecciaDx = '<svg class="freccia-dir" width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3 9.5 7l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -283,19 +282,15 @@ const icoOra = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria
 const icoLuogo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 14.5s5-4.6 5-8.3A5 5 0 0 0 3 6.2c0 3.7 5 8.3 5 8.3Z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.3" r="1.8" stroke="currentColor" stroke-width="1.4"/></svg>';
 const icoPrezzo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8.6V3a.5.5 0 0 1 .5-.5h5.6l5.2 5.2a1 1 0 0 1 0 1.4l-4.3 4.3a1 1 0 0 1-1.4 0L2.5 8.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="5.6" cy="5.6" r="1.1" fill="currentColor"/></svg>';
 const icoLink = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 9.5 9.5 6.5M7 4.5l1-1a3 3 0 0 1 4.2 4.2l-1 1M9 11.5l-1 1a3 3 0 0 1-4.2-4.2l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-const icoPersone = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="5.5" cy="5.5" r="2.2" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="5.5" r="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M1.5 13.5c0-2.4 1.8-4 4-4s4 1.6 4 4M8.5 10c.7-.4 1.5-.6 2.5-.6 2.2 0 4 1.6 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 const icoRipeti = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M12.5 6A5 5 0 0 0 3.6 4.4M3.5 10a5 5 0 0 0 8.9 1.6M12.8 2.5V6H9.3M3.2 13.5V10h3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoNote = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.5h10v11H3zM5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoImporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2v7M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoEsporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 9V2M4 5l3-3 3 3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-/* istanze: icona e colore comuni (le icone delle istanze d'esempio restano nell'anteprima di Agorà) */
-const icoIst = () => ICO_ABITATIVO;
-const coloreIst = () => 'var(--ic)';
 const interno = svg => svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
-function colorePin(e){ return e.tipo==='evento' ? (S[e.strato]||{pin:'#888'}).pin : e.tipo==='pratica' ? 'var(--clay)' : e.tipo==='istanza' ? coloreIst(e.ist) : 'var(--verde)'; }
-function contenutoPin(e){ return e.tipo==='og' ? GLIFO_OG : e.tipo==='istanza' ? icoIst(e.ist) : icoPin(e.strato); }
-function forma(tipo, strato, s, ist){
+function colorePin(e){ return e.tipo==='evento' ? (S[e.strato]||{pin:'#888'}).pin : 'var(--verde)'; }
+function contenutoPin(e){ return e.tipo==='og' ? GLIFO_OG : icoPin(e.strato); }
+function forma(tipo, strato, s){
   s = s || 28;
   const apri = `<svg class="forma" width="${s}" height="${s}" viewBox="0 0 28 28" aria-hidden="true">`;
   if(tipo==='evento'){
@@ -303,11 +298,6 @@ function forma(tipo, strato, s, ist){
     const dentro = strato && S[strato] ? `<svg x="4" y="4" width="20" height="20" viewBox="2 2 22 22">${interno(icoPin(strato))}</svg>` : `<circle cx="14" cy="14" r="4" fill="${c}"/>`;
     return `${apri}<circle cx="14" cy="14" r="12" fill="#fff" stroke="${c}" stroke-width="2.5"/>${dentro}</svg>`;
   }
-  if(tipo==='pratica'){
-    const dentro = strato && S[strato] ? `<svg x="8" y="8" width="12" height="12" viewBox="2 2 22 22">${interno(icoPin(strato))}</svg>` : `<circle cx="14" cy="14" r="3.5" fill="var(--clay)"/>`;
-    return `${apri}<circle cx="14" cy="14" r="12" fill="#fff" stroke="var(--clay)" stroke-width="2.5"/><circle cx="14" cy="14" r="8.4" fill="none" stroke="var(--clay)" stroke-width="1.4"/>${dentro}</svg>`;
-  }
-  if(tipo==='istanza') return `${apri.replace('class="forma"', `class="forma c-${ist||'abitativo'}"`)}<rect x="2" y="2" width="24" height="24" rx="7" fill="var(--it)" stroke="var(--ic)" stroke-width="2.5"/><svg x="6" y="6" width="16" height="16" viewBox="0 0 36 36">${interno(icoIst(ist))}</svg></svg>`;
   return `${apri}<circle cx="14" cy="14" r="12" fill="var(--verde)" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="5.5" fill="none" stroke="var(--su-verde)" stroke-width="2"/><circle cx="14" cy="14" r="2" fill="var(--su-verde)"/></svg>`;
 }
 
@@ -484,7 +474,7 @@ function disegnaPins(){
   raggruppa(lista).forEach(g => {
     const ll = map.unproject([g.p.x, g.p.y]);
     if(g.el.length===1){
-      const e = g.el[0], cls = {evento:'ev', pratica:'pr', istanza:'is', og:'og'}[e.tipo] + (e.tipo==='istanza' ? ' c-'+e.ist : '');
+      const e = g.el[0], cls = {evento:'ev', og:'og'}[e.tipo];
       const inCorso = e.a<=n && e.b>n, fin = finito(e);
       const h = `<button class="pin ${cls}${inCorso?' ora':''}${fin?' finito':''}${st.sel===e.id?' sel':''}" style="--pc:${colorePin(e)}" data-ev="${esc(e.id)}" aria-label="${esc(e.titolo+', '+dataBreve(e))}"><span class="f">${contenutoPin(e)}${inCal(e.id)&&e.tipo!=='og'?`<span class="salvato">${icoCalPieno}</span>`:''}${e.nascosto?`<span class="lucchetto">${icoLucchetto(9)}</span>`:''}</span></button>`;
       mettiSegnaposto(h, e.lng, e.lat, st.sel===e.id ? 'alto' : '');
@@ -556,7 +546,7 @@ function disegnaChips(){
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
   $('btnPieno').setAttribute('aria-pressed', st.pieno); $('btnPieno').setAttribute('aria-label', st.pieno ? tr('Esci dallo schermo intero') : tr('Mappa a schermo intero'));
   const per = nelPeriodo();
-  $('tipiMappa').innerHTML = [['evento',tr('Eventi')],['pratica',tr('Pratiche')],['istanza',tr('Istanze')]].map(([t,l]) => {
+  $('tipiMappa').innerHTML = [['evento',tr('Eventi')]].map(([t,l]) => {
     const k = per.filter(e => e.tipo===t && nelloStrato(e)).length;
     return `<button class="tipo-p" data-tipo="${t}" aria-pressed="${st.tipi[t]}">${forma(t,null,24)}<span class="l">${l}</span><span class="n">${k}</span></button>`;
   }).join('');
@@ -709,15 +699,13 @@ function fStrati(){
 
 /* --- Elenco --- */
 function sottotitoloEv(e){
-  return e.tipo==='og' ? (e.serie ? tr('Off-Grid · si ripete') : tr('Off-Grid · tuo'))
-    : e.tipo==='pratica' ? tr('Pratica · {p}',{p:e.raw.progetto||''})
-    : e.tipo==='istanza' ? tr('Istanza · {i}',{i:e.raw.istanza||''}) : nomeStrato(e.strato);
+  return e.tipo==='og' ? (e.serie ? tr('Off-Grid · si ripete') : tr('Off-Grid · tuo')) : nomeStrato(e.strato);
 }
-const luogoBreve = e => (e.citta && e.citta!=='Torino' && e.tipo==='istanza') ? e.citta : (e.luogo||'').split(/[·,]/)[0].trim();
+const luogoBreve = e => (e.luogo||'').split(/[·,]/)[0].trim();
 function rigaEv(e){
   const n = ora(), inCorso = e.a<=n && e.b>n, fin = finito(e);
   const meta = [luogoBreve(e), sottotitoloEv(e)].filter(Boolean).join(' · ');
-  return `<button class="riga-ev" data-ev="${esc(e.id)}"><span class="ora${inCorso?' adesso':''}${fin?' fin':''}">${fin ? tr('finito') : inCorso ? tr('ora') : e.inizio}</span><span style="${fin?'filter:grayscale(1);opacity:.55':''}">${forma(e.tipo,e.strato,28,e.ist)}</span><div><span class="t">${e.nascosto?icoLucchetto(12)+' ':''}${esc(e.titolo)}</span><span class="meta">${esc(meta)}</span></div>${inCal(e.id)&&e.tipo!=='og'?`<span class="sv" aria-label="${esc(tr('Nel calendario'))}">${icoCal()}</span>`:''}</button>`;
+  return `<button class="riga-ev" data-ev="${esc(e.id)}"><span class="ora${inCorso?' adesso':''}${fin?' fin':''}">${fin ? tr('finito') : inCorso ? tr('ora') : e.inizio}</span><span style="${fin?'filter:grayscale(1);opacity:.55':''}">${forma(e.tipo,e.strato,28)}</span><div><span class="t">${e.nascosto?icoLucchetto(12)+' ':''}${esc(e.titolo)}</span><span class="meta">${esc(meta)}</span></div>${inCal(e.id)&&e.tipo!=='og'?`<span class="sv" aria-label="${esc(tr('Nel calendario'))}">${icoCal()}</span>`:''}</button>`;
 }
 function perGiorni(lista){ const giorni = [...new Set(lista.map(e => e.giorno))]; return giorni.map(g => `<div class="giorno">${esc(titoloGiorno(g))}</div><div class="lista">${lista.filter(e => e.giorno===g).map(rigaEv).join('')}</div>`).join(''); }
 function fElenco(lista, titolo, nota, conCal){
@@ -777,25 +765,6 @@ function fScheda(e){
       <div class="fonte${man?' attenzione':''}">${x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
       ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
-  } else if(e.tipo==='pratica'){
-    testa = `<div class="riga-titolo"><div class="pill-row">${x.etichetta?`<span class="pillola dot" style="--pp:var(--clay);--pb:var(--clay-tenue);--pt:var(--clay-ink)">${esc(tr(x.etichetta))}</span>`:''}${pillTema(e)}</div>${chiudiBtn()}</div>
-      <div class="scheda-testa">${forma('pratica',e.strato,40)}<div><div class="eyebrow" style="color:var(--clay-ink)">${tr('Evento Pratica · {p}',{p:esc(x.progetto||'')})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
-    corpo = `<div class="fatti">${quando(e)}
-        <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${x.addrNum?`<span class="meta">${esc(x.addrNum)}</span>`:''}</div></div>
-        ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}</div>
-      ${descrizione(e)}
-      <p class="meta">${tr('È un appuntamento di un progetto: lo cura chi porta avanti il progetto, non {nome}.')}</p>${boxAdmin(e)}`;
-  } else if(e.tipo==='istanza'){
-    testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--ic);--pb:var(--it);--pt:var(--ic)">${tr('Istanza · {i}',{i:esc(x.istanza||'')})}</span>${pillTema(e)}</div>${chiudiBtn()}</div>
-      <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
-    corpo = `${x.obiettivo?`<div class="richiamo">${BERSAGLIO(18)}<div class="stack-s" style="gap:2px"><span class="meta">${x.restituzione?tr('Obiettivo raggiunto: la proposta è consegnata'):tr('Obiettivo dell’istanza')}</span><span style="font-weight:600">${esc(x.obiettivo)}</span></div></div>`:''}
-      <div class="fatti">${quando(e)}
-        <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${e.citta?`<span class="meta">${esc(e.citta)}</span>`:''}</div></div>
-        ${x.soggetti?`<div class="dato">${icoPersone}<div><span class="t">${x.restituzione?tr('Chi la cura'):tr('Al tavolo')}</span><span class="meta">${esc(x.soggetti)}</span></div></div>`:''}</div>
-      ${descrizione(e)}
-      <div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Chi può venire')}:</strong> ${x.restituzione ? tr('tutte e tutti. È l’incontro in cui l’istanza racconta alla città la proposta consegnata.') : tr('[DA DECIDERE]. È un incontro di lavoro del tavolo; dopo, il tavolo pubblica il rendiconto nell’Agorà.')}</span></div>${boxAdmin(e)}`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(safeUrl).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';
@@ -811,7 +780,7 @@ function fScheda(e){
       <div class="tasti"><button class="tasto sec" data-modifica="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina="${esc(e.id)}">${tr('Elimina')}</button></div>
       <div class="og-box">${GLIFO_OG}<span class="meta" style="color:var(--testo)">${tr('Vive solo nella memoria di questo telefono: non passa da nessun server. È già nel tuo calendario e sparisce dalla mappa tre ore dopo la fine; nel calendario resta per tre mesi.')}</span></div>`;
   }
-  return foglio('forte medio'+(e.tipo==='istanza' ? ' c-'+e.ist : ''), testa, corpo);
+  return foglio('forte medio', testa, corpo);
 }
 
 /* ======================= Calendario: Giornata · Mese · Agenda (OG 1.3–1.4) ======================= */
@@ -1081,7 +1050,7 @@ function chiediSuggerimenti(testo, dove, box){
 /* ======================= Cerca ======================= */
 function risultatiEventi(){
   const q = norm(st.q); if(q.length<2) return '';
-  const ev = EV.filter(e => e.suMappa && !sparito(e) && nascostoOk(e) && serieOk(e) && norm([e.titolo, e.luogo, e.desc, e.sub, nomeStrato(e.strato), e.raw.progetto, e.raw.istanza, e.raw.tema].join(' ')).includes(q)).sort((a,b) => a.a-b.a);
+  const ev = EV.filter(e => e.suMappa && !sparito(e) && nascostoOk(e) && serieOk(e) && norm([e.titolo, e.luogo, e.desc, e.sub, nomeStrato(e.strato), e.raw.tema].join(' ')).includes(q)).sort((a,b) => a.a-b.a);
   return ev.length ? `<div class="giorno">${tr('Eventi · {n}',{n:ev.length})}</div><div class="lista">${ev.slice(0,12).map(rigaEv).join('')}</div>` : `<p class="meta">${tr('Nessun evento con «{q}».',{q:esc(st.q)})}</p>`;
 }
 function fCerca(){
@@ -1631,7 +1600,7 @@ function salvaAdmin(){
 
 /* ======================= Guida alla prima apertura ======================= */
 const GUIDA = () => [
-  {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
+  {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
   {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'}
 ];
@@ -1686,11 +1655,7 @@ function apriCalendario(vista, giorno){
   st.sel = null; apri('calendario'); requestAnimationFrame(() => { if(modoGiornata()) inquadraTutti(giornata(st.cal.giorno).vive); });
 }
 
-/* ======================= Sezioni (Progetti, Agorà, Temi arrivano nei prossimi passi) ======================= */
-function paginaVuota(k){
-  const T = {progetti:[tr('Progetti'), tr('Le pratiche collettive della città, con le loro bacheche.')], agora:[tr('Agorà'), tr('Le istanze dal basso, con i loro tavoli.')], temi:[tr('Temi'), tr('Le passerelle tra le sezioni: strati, temi e lenti.')]}[k];
-  return `${k!=='temi'?`<div class="anteprima" role="note"><b>${tr('Anteprima')}</b><span>${tr('Iscrizioni non ancora aperte: i contenuti sono d’esempio.')}</span></div>`:''}<div class="pagina-vuota"><h1>${T[0]}</h1><p class="meta">${T[1]}</p><p class="meta">${tr('Questa sezione arriva nei prossimi passi del restyling.')}</p></div>`;
-}
+/* ======================= Sezioni ======================= */
 function vaiSezione(s, daNav){
   if(st.pieno) return;
   const stessa = st.sezione===s;
@@ -1781,7 +1746,7 @@ function caricaLenti(){
   return Array.isArray(a) && a.length===3 ? a.map(conv) : [null,null,null];
 }
 function salvaLenti(){ LS.set('agorapp_temi_slots', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }
-const TM = {vista:'esplora', scelti:[], tipo:'tutti', mostrati:6, mappaOn:true, q:'', strumenti:{terminati:false, nascosti:false}, lenti:caricaLenti(), lenteNome:null, lenteAg:null, salva:null, foglio:null};
+const TM = {vista:'esplora', scelti:[], mostrati:6, mappaOn:true, q:'', strumenti:{terminati:false, nascosti:false}, lenti:caricaLenti(), lenteNome:null, lenteAg:null, salva:null, foglio:null};
 const lenteAg = id => LENTI_AG.find(l => l.id===id);
 const nomeLenteAg = l => tr(l.nome);
 
@@ -1796,8 +1761,14 @@ function trovati(){
     .filter(e => colpisce(tagsEv(e)))
     .sort((a,b) => (finito(a)-finito(b)) || (a.a-b.a));
 }
-/* progetti e istanze d'esempio di Agorà e Progetti che portano i temi scelti (T-015) */
-function nelleSezioni(){ return {prog:[], ist:[]}; }
+/* progetti e istanze d'esempio di Agorà e Progetti che portano i temi scelti, segnati «Demo» (T-015; decisione del 18/11/2026).
+   I contenuti arrivano con il file della lingua: se non c'è ancora, lo chiede e ridisegna quando arriva. */
+function nelleSezioni(){
+  const X = window.AGR.anteprime, D = X && X.dati();
+  if(!D){ if(X && !X.errore()) X.carica().then(d => { if(d && st.sezione==='temi') disegnaTemi(); }); return {prog:[], ist:[]}; }
+  const tocca = x => colpisce([...x.strati.map(s => 's:'+s), ...(x.temi||[]).map(t => 't:'+t)]);
+  return {prog:D.progetti.progetti.filter(tocca), ist:D.agora.istanze.filter(tocca)};
+}
 
 /* pezzi */
 function ovale(u, attr, piccolo){ const on = TM.scelti.includes(u.k); return `<button class="ovale${on?' sel':''}${piccolo?' p':''}" ${attr}="${esc(u.k)}" aria-pressed="${on}" style="--dot:${u.dot}"><span class="pallino"></span>${esc(u.label)}</button>`; }
@@ -1843,44 +1814,37 @@ function miniMappa(lista){
   const X = ln => (((ln-cx)*cosl)/w + .5)*W, Y = la => (.5 - (la-cy)/h)*H;
   const fondo = citta==='torino' ? QUARTIERI.map(q => `<rect x="${X(q.ln[0]).toFixed(1)}" y="${Y(q.la[1]).toFixed(1)}" width="${(X(q.ln[1])-X(q.ln[0])).toFixed(1)}" height="${(Y(q.la[0])-Y(q.la[1])).toFixed(1)}" rx="6" fill="var(--mappa-edificio)" opacity=".55"/>`).join('') : '';
   const segni = pts.map(e => { const x = X(e.lng).toFixed(1), y = Y(e.lat).toFixed(1);
-    if(e.tipo==='pratica') return `<circle cx="${x}" cy="${y}" r="7" fill="var(--superficie)" stroke="var(--clay)" stroke-width="2.4"/><circle cx="${x}" cy="${y}" r="3" fill="var(--clay)"/>`;
-    if(e.tipo==='istanza') return `<rect x="${x-6.5}" y="${y-6.5}" width="13" height="13" rx="4" fill="${coloreIst(e.ist)}" stroke="var(--superficie)" stroke-width="2"/>`;
     return `<circle cx="${x}" cy="${y}" r="6.5" fill="${(S[e.strato]||{pin:'#888'}).pin}" stroke="var(--superficie)" stroke-width="2"/>`; }).join('');
   return `<div class="t-mappa"><button class="t-mappa-svg" data-tz="sulla-mappa" aria-label="${esc(tr('Apri questi {n} punti sulla mappa',{n:pts.length}))}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${fondo}<g>${segni}</g></svg></button>
     <span class="t-mappa-lbl">${tr('{n} sulla mappa',{n:pts.length})}${fuori?' · '+tr('{n} in altre città',{n:fuori}):''}</span>
     <button class="t-mappa-x" data-tz="mappa-off" aria-label="${esc(tr('Nascondi la mappa'))}">${ICT.occhio}</button></div>`;
 }
 function cartaRisultato(e){
-  const fin = finito(e), nome = {evento:tr('Evento'), pratica:tr('Pratica'), istanza:tr('Istanza')}[e.tipo];
-  const chi = e.tipo==='pratica' ? e.raw.progetto : e.tipo==='istanza' ? e.raw.istanza : '';
+  const fin = finito(e);
   const d = dIso(e.giorno).toLocaleDateString(dloc(), {weekday:'short', day:'numeric', month:'long'});
-  return `<button class="t-card${fin?' fin':''}" data-tev="${esc(e.id)}"><span class="t-angolo ${e.tipo}"${e.tipo==='istanza'?` style="--ic:${coloreIst(e.ist)}"`:''}>${nome}</span>
-    <div class="t-quando">${forma(e.tipo,e.strato,18,e.ist)}${ICT.ora} ${fin?tr('appena finito'):esc(d+' · '+e.inizio)}${!e.suMappa&&e.citta?' · '+esc(e.citta):''}</div>
-    <h3>${esc(e.titolo)}</h3>${chi?`<div class="meta">${esc(chi)}</div>`:''}
+  return `<button class="t-card${fin?' fin':''}" data-tev="${esc(e.id)}"><span class="t-angolo evento">${tr('Evento')}</span>
+    <div class="t-quando">${forma(e.tipo,e.strato,18)}${ICT.ora} ${fin?tr('appena finito'):esc(d+' · '+e.inizio)}${!e.suMappa&&e.citta?' · '+esc(e.citta):''}</div>
+    <h3>${esc(e.titolo)}</h3>
     <p class="t-desc">${esc(e.desc.slice(0,90))}${e.desc.length>90?'…':''}</p>
     <div class="t-etich">${tagsEv(e).map(etichettaTema).join('')}</div></button>`;
 }
 function vRisultati(){
-  const tutti = trovati(), c = {tutti:tutti.length, evento:0, pratica:0, istanza:0};
-  tutti.forEach(e => c[e.tipo]++);
-  const lista = TM.tipo==='tutti' ? tutti : tutti.filter(e => e.tipo===TM.tipo), vis = lista.slice(0, TM.mostrati);
+  const lista = trovati(), vis = lista.slice(0, TM.mostrati);
   const sez = nelleSezioni(), ag = lenteAg(TM.lenteAg);
   const titolo = TM.lenteNome || (TM.scelti.length===1 ? byK(TM.scelti[0]).label : tr('{n} strati e temi insieme',{n:TM.scelti.length}));
-  const seg = [['tutti',tr('Tutti')],['evento',tr('Eventi')],['pratica',tr('Pratiche')],['istanza',tr('Istanze')]].map(([k,l]) => `<button data-ttipo="${k}" aria-pressed="${TM.tipo===k}">${l} ${c[k]}</button>`).join('');
   return `${testataTemi()}
   <button class="indietro" data-tz="esplora">${frecciaSx}${tr('Cambia la scelta')}</button>
   ${ag?`<section class="t-lente-testa" style="--lc:${ag.col}"><span class="t-lente-g">${glifo(ag.id,24)}</span><div class="stack-s"><div class="t-gruppo">${tr('Lente di {nome}')}</div><h1>${esc(nomeLenteAg(ag))}</h1><p class="t-lente-motto">${esc(tr(ag.motto))}</p><p>${esc(tr(ag.testo))}</p></div></section>`:''}
   <section class="stack-s">${ag?`<div class="t-gruppo">${tr('Cosa guarda')}</div>`:`<h1>${esc(titolo)}</h1>`}
     <div class="ovali">${TM.scelti.map(k => { const u = byK(k); return `<button class="ovale sel p" data-togli="${esc(k)}" style="--dot:${u.dot}" aria-label="${esc(tr('Togli {t}',{t:u.label}))}"><span class="pallino"></span>${esc(u.label)}${ICT.croce}</button>`; }).join('')}</div>
     <div class="t-azioni"><button class="link" data-tz="salva">${ICT.segno}${ag?tr('Fanne una tua lente'):tr('Salva come lente')}</button><button class="link" data-tz="esplora">${tr('Aggiungi altri')}</button></div></section>
-  <div class="seg" role="group">${seg}</div>
   ${miniMappa(lista)}
   <button class="tasto pri pieno" data-tz="sulla-mappa">${tr('Apri sulla mappa')} ${freccia}</button>
   ${sez.prog.length||sez.ist.length?`<section class="stack-s"><div class="t-gruppo">${tr('Nelle sezioni')}</div><div class="t-sezioni">
-      ${sez.prog.map(p => `<button class="t-sez prog" data-tprog="${esc(p.id)}"><span class="t-sez-k">${tr('Progetto')}</span><span class="t">${esc(p.titolo)}</span></button>`).join('')}
-      ${sez.ist.map(a => `<button class="t-sez c-${esc(a.id)}" data-tist="${esc(a.id)}"><span class="t-sez-k">${tr('Istanza')}</span><span class="t">${esc(a.titolo)}</span></button>`).join('')}</div></section>`:''}
+      ${sez.prog.map(p => `<button class="t-sez prog" data-tprog="${esc(p.id)}"><span class="t-sez-k">${tr('Progetto')} <span class="t-sez-demo">${tr('Demo')}</span></span><span class="t">${esc(p.titolo)}</span></button>`).join('')}
+      ${sez.ist.map(a => `<button class="t-sez c-${esc(a.id)}" data-tist="${esc(a.id)}"><span class="t-sez-k">${tr('Istanza')} <span class="t-sez-demo">${tr('Demo')}</span></span><span class="t">${esc(a.titolo)}</span></button>`).join('')}</div></section>`:''}
   <section class="stack-s"><div class="meta">${lista.length===1?tr('1 elemento'):tr('{n} elementi',{n:lista.length})} · ${tr('in ordine di tempo, non di popolarità')}</div>
-    ${vis.length ? vis.map(cartaRisultato).join('') : `<div class="t-vuoto">${TM.tipo!=='tutti'?tr('Niente con questi temi e questo tipo, per ora.'):tr('Niente con questi temi, per ora.')}</div>`}
+    ${vis.length ? vis.map(cartaRisultato).join('') : `<div class="t-vuoto">${tr('Niente con questi temi, per ora.')}</div>`}
     ${lista.length>TM.mostrati?`<button class="tasto sec pieno" data-tz="altri">${tr('Mostra altri {n}',{n:Math.min(6,lista.length-TM.mostrati)})}</button>`:''}</section>`;
 }
 /* fogli Lente e Strumenti */
@@ -1923,34 +1887,33 @@ function disegnaTemi(){
 }
 function cambiaTemi(){ disegnaTemi(); if(TM.foglio){ if(TM.foglio==='lente' && $('tz-lente')) $('tz-lente').innerHTML = lenteDentro(); else disegnaFoglio(); } }
 function apriFoglioTemi(q){ TM.foglio = q; st.foglio = 'temi'; ultimoFoglio = null; disegnaFoglio(); setTimeout(() => { const i = $(q==='lente'?'tz-q':'tz-nome'); if(i && (q==='lente' || (TM.salva && TM.salva.fase==='nome'))){ i.focus(); } }, 40); }
-function lenteCorrente(){ return {strati:TM.scelti.filter(k => k.startsWith('s:')).map(k => k.slice(2)), temi:TM.scelti.filter(k => k.startsWith('t:')).map(k => k.slice(2)), nome:TM.lenteNome || (TM.scelti.length===1 ? byK(TM.scelti[0]).label : tr('{n} temi',{n:TM.scelti.length})), tipo:TM.tipo, terminati:TM.strumenti.terminati, nascosti:TM.strumenti.nascosti}; }
+function lenteCorrente(){ return {strati:TM.scelti.filter(k => k.startsWith('s:')).map(k => k.slice(2)), temi:TM.scelti.filter(k => k.startsWith('t:')).map(k => k.slice(2)), nome:TM.lenteNome || (TM.scelti.length===1 ? byK(TM.scelti[0]).label : tr('{n} temi',{n:TM.scelti.length})), terminati:TM.strumenti.terminati, nascosti:TM.strumenti.nascosti}; }
 /* una scelta vale anche come filtro della Mappa (la «lente»): chip col nome e ✕ */
 function applicaLente(l, idSel){
   st.lente = l; st.tempo = 'tutto'; st.strati = new Set(LAYERS.map(s => s.id)); st.subOff.clear(); st.preset = 0;
-  const tutti = l.tipo==='tutti'; st.tipi = {evento:tutti||l.tipo==='evento', pratica:tutti||l.tipo==='pratica', istanza:tutti||l.tipo==='istanza', og:tutti};
+  st.tipi = {evento:true, og:false};
   st.prezzo = 'tutti'; st.salvatiSolo = false; st.finiti = !!l.terminati; if(l.nascosti) st.nascostiOn = true;
   TM.foglio = null; vaiSezione('mappa'); chiudi(); tutto();
   if(idSel){ selezionaEv(idSel); return; }
   requestAnimationFrame(() => inquadraTutti(visibili()));
 }
-function apriTemi(keys){ TM.scelti = keys.slice(); TM.lenteNome = null; TM.lenteAg = null; TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; vaiSezione('temi'); $('pagina-temi').scrollTop = 0; }
+function apriTemi(keys){ TM.scelti = keys.slice(); TM.lenteNome = null; TM.lenteAg = null; TM.vista = 'risultati'; TM.mostrati = 6; vaiSezione('temi'); $('pagina-temi').scrollTop = 0; }
 function clickTemi(b){
   const d = b.dataset;
   if(d.scegli){ const i = TM.scelti.indexOf(d.scegli); if(i>=0) TM.scelti.splice(i,1); else TM.scelti.push(d.scegli); TM.lenteNome = null; TM.lenteAg = null; cambiaTemi(); return true; }
   if(d.togli){ TM.scelti = TM.scelti.filter(k => k!==d.togli); TM.lenteNome = null; TM.lenteAg = null; TM.mostrati = 6; cambiaTemi(); return true; }
-  if(d.tzAg){ const l = lenteAg(d.tzAg); TM.scelti = l.k.slice(); TM.lenteNome = nomeLenteAg(l); TM.lenteAg = l.id; TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
-  if(d.ttipo){ TM.tipo = d.ttipo; TM.mostrati = 6; disegnaTemi(); return true; }
-  if(d.tev){ const e = byId(d.tev); if(!e) return true; if(!e.suMappa){ vaiSezione('mappa'); apriCalendario('giornata', e.giorno); return true; } applicaLente(Object.assign(lenteCorrente(), {tipo:'tutti', terminati:finito(e)||TM.strumenti.terminati}), d.tev); return true; }
+  if(d.tzAg){ const l = lenteAg(d.tzAg); TM.scelti = l.k.slice(); TM.lenteNome = nomeLenteAg(l); TM.lenteAg = l.id; TM.vista = 'risultati'; TM.mostrati = 6; disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
+  if(d.tev){ const e = byId(d.tev); if(!e) return true; if(!e.suMappa){ vaiSezione('mappa'); apriCalendario('giornata', e.giorno); return true; } applicaLente(Object.assign(lenteCorrente(), {terminati:finito(e)||TM.strumenti.terminati}), d.tev); return true; }
   if(d.tprog){ window.AGR.progetti.apri(d.tprog); return true; }
   if(d.tist){ window.AGR.agora.apriIstanza(d.tist); return true; }
-  if(d.tzLente){ const l = TM.lenti[+d.tzLente]; TM.scelti = l.k.slice(); TM.lenteNome = l.nome; TM.lenteAg = null; TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; TM.foglio = null; chiudi(); disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
+  if(d.tzLente){ const l = TM.lenti[+d.tzLente]; TM.scelti = l.k.slice(); TM.lenteNome = l.nome; TM.lenteAg = null; TM.vista = 'risultati'; TM.mostrati = 6; TM.foglio = null; chiudi(); disegnaTemi(); $('pagina-temi').scrollTop = 0; return true; }
   if(d.tzVia){ TM.lenti[+d.tzVia] = null; salvaLenti(); cambiaTemi(); return true; }
   if(d.tzTool){ TM.strumenti[d.tzTool] = !TM.strumenti[d.tzTool]; cambiaTemi(); return true; }
   if(d.tzSlot){ if(!TM.scelti.length) return true; TM.salva = {fase:'nome', i:+d.tzSlot}; apriFoglioTemi('strumenti'); return true; }
   const z = d.tz; if(!z) return false;
   if(z==='lente' || z==='strumenti'){ TM.salva = null; apriFoglioTemi(z); }
   else if(z==='pulisci'){ TM.scelti = []; TM.lenteNome = null; TM.lenteAg = null; TM.vista = 'esplora'; cambiaTemi(); }
-  else if(z==='mostra'){ TM.vista = 'risultati'; TM.tipo = 'tutti'; TM.mostrati = 6; if(TM.foglio){ TM.foglio = null; chiudi(); } disegnaTemi(); $('pagina-temi').scrollTop = 0; }
+  else if(z==='mostra'){ TM.vista = 'risultati'; TM.mostrati = 6; if(TM.foglio){ TM.foglio = null; chiudi(); } disegnaTemi(); $('pagina-temi').scrollTop = 0; }
   else if(z==='esplora'){ TM.vista = 'esplora'; disegnaTemi(); $('pagina-temi').scrollTop = 0; }
   else if(z==='altri'){ TM.mostrati += 6; disegnaTemi(); }
   else if(z==='mappa-on' || z==='mappa-off'){ TM.mappaOn = z==='mappa-on'; disegnaTemi(); }
@@ -2817,15 +2780,12 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
     aggiorna(){ disegnaChips(); disegnaPeek(); },
     vaiSezione,
     vaiMappa(id){ vaiSezione('mappa'); selezionaEv(id); },
-    passerellaStrato(id){ st.strati = new Set([id]); st.subOff.clear(); st.preset = -1; st.tempo = 'tutto'; st.lente = null; st.tipi = {evento:true, pratica:true, istanza:true, og:true}; vaiSezione('mappa'); tutto(); requestAnimationFrame(() => inquadraTutti(visibili())); },
-    prossimaPratica(titolo){ return EV.filter(e => e.tipo==='pratica' && e.raw.progetto===titolo && !finito(e)).sort((a,b) => a.a-b.a)[0]; },
-    quando(e){ return maiusc(titoloGiorno(e.giorno))+', '+e.inizio+(e.fine?'–'+e.fine:''); },
-    breve(e){ return dIso(e.giorno).toLocaleDateString(dloc(), {weekday:'short', day:'numeric', month:'long'}); },
+    passerellaStrato(id){ st.strati = new Set([id]); st.subOff.clear(); st.preset = -1; st.tempo = 'tutto'; st.lente = null; st.tipi = {evento:true, og:true}; vaiSezione('mappa'); tutto(); requestAnimationFrame(() => inquadraTutti(visibili())); },
     dati:{strati:LAYERS.map(l => ({id:l.id, label:l.label, pin:l.pin})), temaCol, temiVoc:TEMI_VOC}
   });
   /* «Scarica il PDF» nei fogli di Progetti e Agorà: stampa la carta in anteprima */
   document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('[data-stampa-carta]'); if(!b) return; const c = b.closest('.corpo') && b.closest('.corpo').querySelector('.carta'); if(!c) return;
-    const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>${esc(NOME)}</title><style>body{font-family:Helvetica,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1c1712;font-size:13px;line-height:19px}.cm{text-transform:uppercase;letter-spacing:.06em;font-size:11px;color:#5c5246;font-weight:600}.ct{font-family:Georgia,serif;font-size:24px;line-height:30px;margin:4px 0}.pr{display:grid;grid-template-columns:96px 1fr;gap:8px;border-top:1px solid #ddd;padding:6px 0}.cp,.cr{font-size:11px;color:#5c5246;border-top:1px solid #ddd;padding-top:8px;margin-top:6px}svg{max-width:22px}</style></head><body>${c.innerHTML}</body></html>`;
+    const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>${esc(NOME)}</title><style>body{font-family:Helvetica,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1c1712;font-size:13px;line-height:19px}.cm{text-transform:uppercase;letter-spacing:.06em;font-size:11px;color:#5c5246;font-weight:600}.ct{font-family:Georgia,serif;font-size:24px;line-height:30px;margin:4px 0}.pr{display:grid;grid-template-columns:96px 1fr;gap:8px;border-top:1px solid #ddd;padding:6px 0}.cp,.cr{font-size:11px;color:#5c5246;border-top:1px solid #ddd;padding-top:8px;margin-top:6px}.cs{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5c5246;border:1px dashed #5c5246;border-radius:6px;padding:2px 8px;margin-bottom:8px}svg{max-width:22px}</style></head><body>${c.innerHTML}</body></html>`;
     const url = URL.createObjectURL(new Blob([html], {type:'text/html'})), w = window.open(url, '_blank'); if(w) setTimeout(() => { try{ w.print(); }catch(e){} }, 700); setTimeout(() => URL.revokeObjectURL(url), 60000); });
 })();
 })();
