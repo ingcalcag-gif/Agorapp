@@ -87,7 +87,7 @@ const spunta = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria
 const icoPdf = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1.5v8M3.8 6.3 7 9.5l3.2-3.2M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 /* ---- date ---- */
-const maiu = s => s.charAt(0).toUpperCase()+s.slice(1), minu = s => IT() ? s.charAt(0).toLowerCase()+s.slice(1) : s;
+const maiu = s => s.charAt(0).toUpperCase()+s.slice(1), minu = s => ["it","es","fr"].includes(A.lingua()) ? s.charAt(0).toLowerCase()+s.slice(1) : s;   /* a metà frase il giorno va minuscolo; in inglese no */
 const dIso = S_.daIso;
 const loc = () => A.dloc();
 const dataLunga = iso => maiu(dIso(iso).toLocaleDateString(loc(), {weekday:"long", day:"numeric", month:"long"}));
