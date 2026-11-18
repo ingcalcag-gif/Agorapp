@@ -11,7 +11,7 @@ Il montaggio legge soltanto i file di `sorgenti/` e scrive due uscite:
 - `dist/pubblica/`: l'app pubblica, la sola cartella che il sito pubblica;
 - `dist/redazione/`: l'app della redazione. Fino al blocco 8 del piano di adeguamento è uguale alla pubblica.
 
-Il sito pubblica soltanto `dist/pubblica/` (lo dice `netlify.toml`). Versioni archiviate (`versioni/`), demo, sorgenti e strumenti restano nel repository ma non vanno sul sito: un file che l'app deve scaricare dal sito va montato dentro `dist/pubblica/`.
+Il sito pubblica soltanto `dist/pubblica/` (lo dice `netlify.toml`). Versioni archiviate (`versioni/`), sorgenti e strumenti restano nel repository ma non vanno sul sito: un file che l'app deve scaricare dal sito va montato dentro `dist/pubblica/`.
 
 In ogni uscita la pagina `index.html` richiama file propri: `config.js`, `app.css`, `traduzioni.js`, `app.js`, `sezioni.js`. Nessun codice JavaScript e nessun foglio di stile stanno dentro la pagina, così le intestazioni di sicurezza potranno accettare soltanto file dello stesso indirizzo. Ogni collegamento porta un numero di versione ricavato dal contenuto (`app.js?v=…`), perché il telefono non tenga copie vecchie.
 
@@ -50,7 +50,7 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
   - app2: icone, mappa MapLibre, segnaposto;
   - app3: fogli (Strati, Elenco, schede, Calendario, PDF);
   - app4: Cerca, Scegli i giorni, Off-Grid, conferme;
-  - app5: impostazioni, demo, amministrazione, Excel, guida;
+  - app5: impostazioni, amministrazione, Excel, guida;
   - app7: Temi;
   - misure, misure_kpi, storico: Misure e storico nell'amministrazione;
   - app6: tocchi (`data-az`), tastiera, avvio.

@@ -187,21 +187,18 @@ function fScheda(e){
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
       ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
   } else if(e.tipo==='pratica'){
-    const b = DEMO && DEMO.progetti && DEMO.progetti.bacheche && DEMO.progetti.bacheche[x.parentId];
-    const liberi = b ? b.mano.posti.filter(p => !p.coperto).length : 0;
     testa = `<div class="riga-titolo"><div class="pill-row">${x.etichetta?`<span class="pillola dot" style="--pp:var(--clay);--pb:var(--clay-tenue);--pt:var(--clay-ink)">${esc(tr(x.etichetta))}</span>`:''}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa">${forma('pratica',e.strato,40)}<div><div class="eyebrow" style="color:var(--clay-ink)">${tr('Evento Pratica · {p}',{p:esc(x.progetto||'')})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${b?`<button class="tasto sec" data-progetto="${esc(x.parentId)}">${tr('Bacheca')} ${freccia}</button>`:tastoMappe(e)}</div>`;
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
     corpo = `<div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${x.addrNum?`<span class="meta">${esc(x.addrNum)}</span>`:''}</div></div>
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      ${b?`<div class="pratica-box">${MANO(34)}<div><span style="font-weight:600">${tr('Vuoi dare una mano?')}</span><span class="meta">${liberi===1 ? tr('1 posto libero per {g}',{g:nomeSettimana(e.giorno)}) : tr('{n} posti liberi per {g}',{n:liberi, g:nomeSettimana(e.giorno)})}</span></div></div>`:''}
       <p class="meta">${tr('È un appuntamento di un progetto: lo cura chi porta avanti il progetto, non {nome}.')}</p>${boxAdmin(e)}`;
   } else if(e.tipo==='istanza'){
     testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--ic);--pb:var(--it);--pt:var(--ic)">${tr('Istanza · {i}',{i:esc(x.istanza||'')})}</span>${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${DEMO?(x.restituzione?`<button class="tasto sec" data-apri-istanza="${esc(x.parentId)}">${tr('L’istanza')} ${freccia}</button>`:`<button class="tasto sec" data-apri-tavolo="${esc(x.parentId)}:${x.tavolo}">${tr('Il tavolo')} ${freccia}</button>`):tastoMappe(e)}</div>`;
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
     corpo = `${x.obiettivo?`<div class="richiamo">${BERSAGLIO(18)}<div class="stack-s" style="gap:2px"><span class="meta">${x.restituzione?tr('Obiettivo raggiunto: la proposta è consegnata'):tr('Obiettivo dell’istanza')}</span><span style="font-weight:600">${esc(x.obiettivo)}</span></div></div>`:''}
       <div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${e.citta?`<span class="meta">${esc(e.citta)}</span>`:''}</div></div>

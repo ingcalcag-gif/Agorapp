@@ -15,7 +15,7 @@ function mz(){
   return MZ;
 }
 function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
-const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', demo:false, filtroCat:'operativo', sezLib:'', vista:{}};
+const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', filtroCat:'operativo', sezLib:'', vista:{}};
 
 /* ---------- Libreria delle misure: ogni domanda del catalogo ha uno stato e, se operativa, si accende e spegne ----------
    stati: operativo (si vede nella sua sezione se è accesa) · studio · sospeso · eliminato */
@@ -40,7 +40,7 @@ function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.
 
 /* ---------- quale evento conta ---------- */
 const mzReale = e => e && typeof e==='object' && !e.personal && !e.offgrid && e.datetime && isFinite(+e.lat) && isFinite(+e.lng);
-function mzEventi(){ return events.filter(e => mzReale(e) && (MS.demo || !e.demo)).filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
+function mzEventi(){ return events.filter(e => mzReale(e)).filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
 function cittaDi(e){
   let best = 'altro', bd = 1e9; const la = +e.lat, ln = +e.lng;
   CITTA.forEach(c => {
@@ -65,7 +65,7 @@ const fasciaDi = h => (FASCE_MZ.find(f => (h>=f[2] && h<f[3]) || (h+24>=f[2] && 
 
 /* ---------- la fotografia del giorno: solo totali ---------- */
 function mzFotografa(){
-  const m = mz(), g = oggi(), L = events.filter(e => mzReale(e) && !e.demo);
+  const m = mz(), g = oggi(), L = events.filter(e => mzReale(e));
   const per = f => { const o = {}; L.forEach(e => { const k = f(e); if(k!=null) o[k] = (o[k]||0)+1; }); return o; };
   m.giorni[g] = {tot:L.length, citta:per(cittaDi), strati:per(e => e.category||'?'), prov:per(e => e.provenienza||'nd'), imp:L.filter(e => e.importato).length, grat:L.filter(gratuitoMz).length};
   L.forEach(e => { if(m.visti[e.id]) return; const c = creatoDi(e), gc = c ? ymd(new Date(c)) : g; m.visti[e.id] = gc; m.creati[gc] = (m.creati[gc]||0)+1; });
@@ -103,7 +103,7 @@ function mzStato(){
   const ric = gP.map(g => m.richieste[g]).filter(v => v!=null);
   return {L, zone, sotto, prov, anticipo, nuovi7, nuoviP, corr, ric, mediaRic: ric.length ? Math.round(ric.reduce((a,b)=>a+b,0)/ric.length) : null,
     qualita: nuoviP ? corr/nuoviP*100 : null, segn: somma(m.segnalazioni, gP), grat: L.length ? Math.round(L.filter(gratuitoMz).length/L.length*100) : null,
-    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, events.filter(e => mzReale(e) && (MS.demo || !e.demo) && cittaDi(e)===c.id).length])};
+    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, events.filter(e => mzReale(e) && cittaDi(e)===c.id).length])};
 }
 function effettoAzione(a){
   const m = mz(), media = arr => { const v = arr.filter(x => x!=null); return v.length>=2 ? v.reduce((p,q)=>p+q,0)/v.length : null; };
@@ -119,7 +119,7 @@ function decisioniMz(S){
     tit: S.sotto.length===1 ? tr('Una zona di Torino resta sotto {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}) : tr('{n} zone di Torino restano sotto {s} eventi nei prossimi 7 giorni',{n:S.sotto.length, s:m.soglie.zona}),
     perche: S.sotto.slice(0,8).map(q => q.n+' ('+S.zone[q.n]+')').join(', ')+(S.sotto.length>8?'…':'')+'. '+tr('Lì la mappa sembra vuota: è l’asimmetria informativa che {nome} vuole ridurre.'),
     azione: tr('Cerca fonti in quelle zone: biblioteche, circoli, parrocchie, spazi associativi.'), kpi:[5,12]});
-  const vuote = CITTA.filter(c => !events.some(e => mzReale(e) && !e.demo && cittaDi(e)===c.id));
+  const vuote = CITTA.filter(c => !events.some(e => mzReale(e) && cittaDi(e)===c.id));
   if(vuote.length) out.push({id:firma('citta', vuote.map(c=>c.id).join(',')), liv:'warn', st:tr('Da valutare'), tit: tr('Città senza eventi: {c}',{c:vuote.map(c=>c.n).join(', ')}),
     perche: tr('Chi sceglie una di queste città trova la mappa vuota.'), azione: tr('Scegli la prossima città da riempire, anche con l’import dai siti dei Comuni.'), kpi:[3,10]});
   if(S.nuovi7 < m.soglie.nuovi) out.push({id:firma('ritmo', oggi()), liv:'warn', st:tr('Sotto obiettivo'), tit: tr('{n} eventi nuovi negli ultimi 7 giorni (obiettivo {o})',{n:S.nuovi7, o:m.soglie.nuovi}),
@@ -218,7 +218,6 @@ function disegnaMisure(){
   const y = el.scrollTop;
   const conFiltri = MS.scheda!=='libreria';
   const ambito = MS.ambito==='tutte' ? tr('Tutte le città') : nomeCitta(citta);
-  const soloDemo = !events.some(e => mzReale(e) && !e.demo) && events.some(e => mzReale(e) && e.demo);
   el.innerHTML = `<div class="mz-testa">
       <div class="mz-barra-t"><button class="mz-icona" data-mz="esci" aria-label="${esc(tr('Torna all’admin'))}">${mzIco.indietro}</button><h1>${tr('Misure')}</h1>
         <button class="mz-chip" data-mz="ambito" aria-label="${esc(tr('Cambia ambito: {a}',{a:ambito}))}"><span>${esc(ambito)}</span></button>
@@ -227,7 +226,6 @@ function disegnaMisure(){
       <nav class="mz-schede" aria-label="${esc(tr('Sezioni delle misure'))}">${SCHEDE_MZ.map(([k,t]) => `<button data-mz="scheda" data-v="${k}" aria-pressed="${MS.scheda===k}"><span>${tr(t)}</span></button>`).join('')}</nav>
     </div>
     <div class="mz-corpo">
-      ${soloDemo || MS.demo ? `<div class="mz-avviso">${mzIco.avviso}<p>${MS.demo ? tr('Stai guardando anche gli eventi della demo: i numeri di oggi li includono, gli andamenti nel tempo no.') : tr('Su questo telefono ci sono solo eventi della demo, e le misure contano solo gli eventi veri.')} <button class="link" data-mz="demo">${MS.demo?tr('Togli la demo dalle misure'):tr('Guarda la demo nelle misure')}</button></p></div>` : ''}
       ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, libreria:vLibreriaMz})[MS.scheda]()}
       <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave agorapp_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
       <button class="tasto sec pieno" data-mz="esporta">${tr('Esporta le misure in Excel')}</button>
@@ -486,7 +484,7 @@ function esportaMisure(){
 }
 
 /* ---------- apertura e interazioni ---------- */
-function apriMisure(){ mzFotografa(); MS.demo = false; vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
+function apriMisure(){ mzFotografa(); vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
 function salvaAppuntiMz(n){ const ta = $('mz-app-'+n), x = (mz().lib||{})[n]||{}; if(ta && ta.value.trim()!==(x.appunti||'')) libSet(n, {appunti:ta.value.trim(), appuntiD:oggi()}); }
 function clickMisure(t){
   const d = t.dataset, m = mz(), a = d.mz; if(!a) return false;
@@ -496,7 +494,6 @@ function clickMisure(t){
     case 'scheda': MS.scheda = d.v; if(d.f) MS.filtroCat = d.f; MS.sezLib = d.sez||''; chiudi(); disegnaMisure(); $('pagina-misure').scrollTop = 0; break;
     case 'periodo': MS.periodo = +d.v; disegnaMisure(); break;
     case 'ambito': MS.ambito = MS.ambito==='tutte' ? 'citta' : 'tutte'; disegnaMisure(); break;
-    case 'demo': MS.demo = !MS.demo; disegnaMisure(); break;
     case 'fonti': foglioFontiMz(); break;
     case 'soglie': foglioSoglieMz(); break;
     case 'vista': MS.vista[d.v] = MS.vista[d.v]==='tab' ? 'g' : 'tab'; disegnaMisure(); break;

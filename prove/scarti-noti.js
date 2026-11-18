@@ -1,7 +1,7 @@
 /* Scarti noti: casi che le prove trovano oggi e che una voce successiva del piano di adeguamento chiude.
    Ogni riga dice quale prova, che cosa (chiave), dove, quante volte, quale voce lo chiude e perché.
    Una prova fallisce se trova un caso che qui non c'è, se il numero dei casi cambia, o se uno scarto non si
-   trova più: in quel caso la voce l'ha chiuso e la riga va tolta. Elenco del 17/11/2026 (blocchi 1 e 2). */
+   trova più: in quel caso la voce l'ha chiuso e la riga va tolta. Elenco del 18/11/2026 (blocchi 1 e 2). */
 'use strict';
 
 const s = (prova, chiave, dove, volte, voce, motivo) => ({ prova, chiave, dove, volte, voce, motivo });
@@ -10,21 +10,9 @@ module.exports = [
   /* ---------- Nome fuori dalla configurazione (prove/nome.js) ---------- */
   s('nome', 'agorapp2024', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
   s('nome', 'agorapp2024', 'Nomeprova/app.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
-  s('nome', 'agorapp', 'sorgenti/parti/app1.js', 1, 'T-015', "identificativo di un'istanza d'esempio di Agorà"),
-  s('nome', 'agorapp', 'sorgenti/parti/app7.js', 1, 'T-015', "identificativo di un'istanza d'esempio di Agorà"),
-  s('nome', 'agorapp', 'Nomeprova/app.js', 2, 'T-015', "identificativo di un'istanza d'esempio di Agorà"),
-  s('nome', 'agorapp-critica', 'sorgenti/parti/app1.js', 1, 'T-015', "temi dell'istanza d'esempio"),
-  s('nome', 'agorapp-critica', 'sorgenti/parti/app7.js', 1, 'T-015', "temi dell'istanza d'esempio"),
-  s('nome', 'agorapp-critica', 'Nomeprova/app.js', 2, 'T-015', "temi dell'istanza d'esempio"),
   s('nome', '.c-agorapp', 'sorgenti/parti/style2.css', 3, 'T-015', "colori dell'istanza d'esempio"),
   s('nome', '.c-agorapp', 'sorgenti/parti/style_sezioni.css', 3, 'T-015', "colori dell'istanza d'esempio"),
   s('nome', '.c-agorapp', 'Nomeprova/app.css', 6, 'T-015', "colori dell'istanza d'esempio"),
-  s('nome', 'agorapp-demo.json', 'sorgenti/parti/app5.js', 3, 'T-015', 'file della demo, scritto anche nel messaggio di errore'),
-  s('nome', 'agorapp-demo.json', 'sorgenti/parti/traduzioni.js', 8, 'T-015', 'messaggio di errore della demo'),
-  s('nome', 'agorapp-demo.json', 'Nomeprova/app.js', 3, 'T-015', 'file della demo, scritto anche nel messaggio di errore'),
-  s('nome', 'agorapp-demo.json', 'Nomeprova/traduzioni.js', 8, 'T-015', 'messaggio di errore della demo'),
-  s('nome', 'agorapp-demo', 'sorgenti/parti/app5.js', 1, 'T-015', 'formato del file della demo'),
-  s('nome', 'agorapp-demo', 'Nomeprova/app.js', 1, 'T-015', 'formato del file della demo'),
 
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
   s('indirizzi', 'basemaps.cartocdn.com/gl', 'app.js', 1, 'T-017', 'stile e tasselli della mappa CARTO'),
@@ -44,8 +32,6 @@ module.exports = [
   s('chiavi', 'segreto assegnato a un testo: ADMIN_PW', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione nel codice'),
 
   /* ---------- Parole vietate (prove/parole.js): rivisti con T-013; gli usi innocui sono nell'elenco AMMESSI della prova ---------- */
-  s('parole', 'es: todos los eventos', 'traduzioni.js:es', 1, 'T-015', 'guida della demo («Todos los eventos de la demo»)'),
-  s('parole', 'fr: tous les événements', 'traduzioni.js:fr', 1, 'T-015', 'guida della demo («Tous les événements de la démo»)'),
 
   /* ---------- Accessibilità (prove/browser/accessibilita.js): regole di axe-core ---------- */
   s('accessibilita', 'label-content-name-mismatch', 'mappa', 2, 'T-057', 'il nome letto dal lettore di schermo non contiene il testo visibile (città, calendario)'),

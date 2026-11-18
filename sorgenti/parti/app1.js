@@ -34,6 +34,7 @@ const LS = {
 const CHIAVI_TOLTE = [
   'agorapp_interesse',   // pulsanti volontari «Mi interessa» e «Vorrei … qui» (T-010)
   'agorapp_fate', 'agorapp_fate_io', 'agorapp_fate_strato', 'agorapp_fate_chi',   // Ordine delle Fate (T-014)
+  'agorapp_demo',        // demo degli eventi, con progetti e istanze d'esempio (T-015)
 ];
 CHIAVI_TOLTE.forEach(k => LS.del(k));
 
@@ -66,17 +67,21 @@ const IDS_TOLTI = (function pulizia(){
   events = events.filter(e => !(e && typeof e==='object' && e.fata));
   /* gli eventi demo che l'app online rimetteva da sola non ci sono più: l'app parte vuota */
   events = events.filter(e => e && typeof e==='object' && !e.isDemo);
+  /* demo degli eventi, tolta con T-015: i suoi eventi e Off-Grid d'esempio si cancellano, anche dal calendario */
+  const demo = events.filter(e => e.demo || /^demo-/.test(String(e.id))).map(e => e.id);
+  events = events.filter(e => !(e.demo || /^demo-/.test(String(e.id))));
   /* niente contatori «Ci vado / Sono qui» */
   let tolti = false; events.forEach(e => { if('going' in e || 'here' in e){ delete e.going; delete e.here; tolti = true; } });
   /* nessuna immagine negli eventi (T-011; libro mastro, § 6.2): il campo si toglie dai dati */
   events.forEach(e => { if('image' in e){ delete e.image; tolti = true; } });
   if(events.length!==n || tolti) LS.set('agorapp_events', events);
   try{ sessionStorage.removeItem('agorapp_votes'); }catch(e){}
-  return fate;
+  return fate.concat(demo);
 })();
 let calEvents = LS.get('agorapp_cal', {}); if(!calEvents || typeof calEvents!=='object') calEvents = {};
-if(IDS_TOLTI.some(id => id in calEvents)){ IDS_TOLTI.forEach(id => delete calEvents[id]); LS.set('agorapp_cal', calEvents); }
-let DEMO = LS.get('agorapp_demo', null);
+/* dal calendario escono gli eventi tolti qui sopra e ogni voce d'esempio della demo (demo-…), anche senza evento */
+(function(){ const via = Object.keys(calEvents).filter(id => IDS_TOLTI.includes(id) || /^demo-/.test(id));
+  if(via.length){ via.forEach(id => delete calEvents[id]); LS.set('agorapp_cal', calEvents); } })();
 function saveEvents(){ if(!LS.set('agorapp_events', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
 function saveCal(){ LS.set('agorapp_cal', calEvents); }
 const inCal = id => !!calEvents[id];
@@ -148,7 +153,7 @@ const st = {
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
-  admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, demoMsg:null, lente:null, vuoti:false
+  admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, msgAdmin:null, lente:null, vuoti:false
 };
 (function(){ const m = LS.s('agorapp_day_mode','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = LS.s('agorapp_simple','0')==='1';
@@ -215,12 +220,7 @@ function nelPrezzo(e){ if(e.tipo==='og' || st.prezzo==='tutti' || !e.prezzo) ret
 function nascostoOk(e){ return !e.nascosto || (st.sbloccati.has(e.raw.hiddenPassword) && st.nascostiOn); }
 function serieOk(e){ if(!e.serie) return true; return !EV.some(x => x.serie===e.serie && x.id!==e.id && !sparito(x) && x.a < e.a); }
 function temaOk(e){ if(!st.lente) return true; const L = st.lente; return (L.strati||[]).includes(e.strato) || temiDi(e).some(t => (L.temi||[]).includes(t)); }
-function temiDi(e){
-  const T = (DEMO && DEMO.temi && DEMO.temi.perOggetto) || {};
-  let l = e.tipo==='pratica' ? (T[e.raw.parentId]||[]) : e.tipo==='istanza' ? (T[e.raw.parentId==='agorapp'?'agorapp-critica':e.raw.parentId]||[]) : [];
-  if(e.raw.tema && !l.includes(e.raw.tema)) l = l.concat([e.raw.tema]);
-  return l;
-}
+function temiDi(e){ return e.raw.tema ? [e.raw.tema] : []; }
 const base = e => e.suMappa && temaOk(e) && nelTempo(e) && nelPrezzo(e) && nascostoOk(e) && serieOk(e) && (!st.salvatiSolo || inCal(e.id) || e.tipo==='og');
 const visibile = e => base(e) && st.tipi[e.tipo] && nelloStrato(e);
 const visibili = () => EV.filter(visibile).sort((x,y) => x.a-y.a);

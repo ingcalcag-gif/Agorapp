@@ -34,6 +34,7 @@ const LS = {
 const CHIAVI_TOLTE = [
   'agorapp_interesse',   // pulsanti volontari «Mi interessa» e «Vorrei … qui» (T-010)
   'agorapp_fate', 'agorapp_fate_io', 'agorapp_fate_strato', 'agorapp_fate_chi',   // Ordine delle Fate (T-014)
+  'agorapp_demo',        // demo degli eventi, con progetti e istanze d'esempio (T-015)
 ];
 CHIAVI_TOLTE.forEach(k => LS.del(k));
 
@@ -95,17 +96,21 @@ const IDS_TOLTI = (function pulizia(){
   events = events.filter(e => !(e && typeof e==='object' && e.fata));
   /* gli eventi demo che l'app online rimetteva da sola non ci sono più: l'app parte vuota */
   events = events.filter(e => e && typeof e==='object' && !e.isDemo);
+  /* demo degli eventi, tolta con T-015: i suoi eventi e Off-Grid d'esempio si cancellano, anche dal calendario */
+  const demo = events.filter(e => e.demo || /^demo-/.test(String(e.id))).map(e => e.id);
+  events = events.filter(e => !(e.demo || /^demo-/.test(String(e.id))));
   /* niente contatori «Ci vado / Sono qui» */
   let tolti = false; events.forEach(e => { if('going' in e || 'here' in e){ delete e.going; delete e.here; tolti = true; } });
   /* nessuna immagine negli eventi (T-011; libro mastro, § 6.2): il campo si toglie dai dati */
   events.forEach(e => { if('image' in e){ delete e.image; tolti = true; } });
   if(events.length!==n || tolti) LS.set('agorapp_events', events);
   try{ sessionStorage.removeItem('agorapp_votes'); }catch(e){}
-  return fate;
+  return fate.concat(demo);
 })();
 let calEvents = LS.get('agorapp_cal', {}); if(!calEvents || typeof calEvents!=='object') calEvents = {};
-if(IDS_TOLTI.some(id => id in calEvents)){ IDS_TOLTI.forEach(id => delete calEvents[id]); LS.set('agorapp_cal', calEvents); }
-let DEMO = LS.get('agorapp_demo', null);
+/* dal calendario escono gli eventi tolti qui sopra e ogni voce d'esempio della demo (demo-…), anche senza evento */
+(function(){ const via = Object.keys(calEvents).filter(id => IDS_TOLTI.includes(id) || /^demo-/.test(id));
+  if(via.length){ via.forEach(id => delete calEvents[id]); LS.set('agorapp_cal', calEvents); } })();
 function saveEvents(){ if(!LS.set('agorapp_events', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
 function saveCal(){ LS.set('agorapp_cal', calEvents); }
 const inCal = id => !!calEvents[id];
@@ -177,7 +182,7 @@ const st = {
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
-  admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, demoMsg:null, lente:null, vuoti:false
+  admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, msgAdmin:null, lente:null, vuoti:false
 };
 (function(){ const m = LS.s('agorapp_day_mode','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = LS.s('agorapp_simple','0')==='1';
@@ -244,12 +249,7 @@ function nelPrezzo(e){ if(e.tipo==='og' || st.prezzo==='tutti' || !e.prezzo) ret
 function nascostoOk(e){ return !e.nascosto || (st.sbloccati.has(e.raw.hiddenPassword) && st.nascostiOn); }
 function serieOk(e){ if(!e.serie) return true; return !EV.some(x => x.serie===e.serie && x.id!==e.id && !sparito(x) && x.a < e.a); }
 function temaOk(e){ if(!st.lente) return true; const L = st.lente; return (L.strati||[]).includes(e.strato) || temiDi(e).some(t => (L.temi||[]).includes(t)); }
-function temiDi(e){
-  const T = (DEMO && DEMO.temi && DEMO.temi.perOggetto) || {};
-  let l = e.tipo==='pratica' ? (T[e.raw.parentId]||[]) : e.tipo==='istanza' ? (T[e.raw.parentId==='agorapp'?'agorapp-critica':e.raw.parentId]||[]) : [];
-  if(e.raw.tema && !l.includes(e.raw.tema)) l = l.concat([e.raw.tema]);
-  return l;
-}
+function temiDi(e){ return e.raw.tema ? [e.raw.tema] : []; }
 const base = e => e.suMappa && temaOk(e) && nelTempo(e) && nelPrezzo(e) && nascostoOk(e) && serieOk(e) && (!st.salvatiSolo || inCal(e.id) || e.tipo==='og');
 const visibile = e => base(e) && st.tipi[e.tipo] && nelloStrato(e);
 const visibili = () => EV.filter(visibile).sort((x,y) => x.a-y.a);
@@ -260,7 +260,6 @@ const miei = () => EV.filter(e => e.tipo==='og' || inCal(e.id));
 /* ---------- Icone (dal mockup) ---------- */
 const GLIFO_OG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.2" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="8" r="1.9" fill="currentColor"/></svg>';
 const ICO_ABITATIVO = '<svg viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="24" y="6" width="3.6" height="8" rx=".6" fill="#A93226"/><polygon points="3,17.5 18,5 33,17.5" fill="#C0392B"/><rect x="7" y="16" width="22" height="16" rx="1.6" fill="#F1948A"/><rect x="15" y="22" width="6" height="10" rx="1" fill="#C0392B"/><rect x="9.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/><rect x="22.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/></svg>';
-const MANO = s => `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="9.2" y="5.5" width="3.6" height="13" rx="1.8" fill="var(--clay)"/><rect x="13.4" y="3" width="3.6" height="15" rx="1.8" fill="var(--clay)"/><rect x="17.6" y="4" width="3.6" height="14" rx="1.8" fill="var(--clay)"/><rect x="21.8" y="7" width="3.4" height="11.5" rx="1.7" fill="var(--clay)"/><rect x="3.6" y="13.6" width="3.6" height="10" rx="1.8" transform="rotate(-38 5.4 18.6)" fill="var(--clay)"/><path d="M9.2 15h16v4.5c0 5.2-3.9 9.5-8.8 9.5h-.8c-3.6 0-6.4-2.4-7.6-5.6L6.6 18.3 9.2 15Z" fill="var(--clay)"/></svg>`;
 const BERSAGLIO = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="6" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="var(--ic)"/></svg>`;
 const freccia = '<svg class="freccia-dir" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3 9.5 7l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const frecciaSx = '<svg class="freccia-dir" width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -289,11 +288,10 @@ const icoRipeti = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" a
 const icoNote = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.5h10v11H3zM5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoImporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2v7M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoEsporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 9V2M4 5l3-3 3 3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const icoDemo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 6h6M5 8.5h6M5 11h3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 
-/* istanze: icona e colore dalla demo (Agorà) */
-const icoIst = id => (DEMO && DEMO.istanze && DEMO.istanze.icone && DEMO.istanze.icone[id]) || ICO_ABITATIVO;
-const coloreIst = id => (DEMO && DEMO.istanze && DEMO.istanze.colori && DEMO.istanze.colori[id]) || 'var(--ic)';
+/* istanze: icona e colore comuni (le icone delle istanze d'esempio restano nell'anteprima di Agorà) */
+const icoIst = () => ICO_ABITATIVO;
+const coloreIst = () => 'var(--ic)';
 const interno = svg => svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
 function colorePin(e){ return e.tipo==='evento' ? (S[e.strato]||{pin:'#888'}).pin : e.tipo==='pratica' ? 'var(--clay)' : e.tipo==='istanza' ? coloreIst(e.ist) : 'var(--verde)'; }
 function contenutoPin(e){ return e.tipo==='og' ? GLIFO_OG : e.tipo==='istanza' ? icoIst(e.ist) : icoPin(e.strato); }
@@ -780,21 +778,18 @@ function fScheda(e){
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
       ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
   } else if(e.tipo==='pratica'){
-    const b = DEMO && DEMO.progetti && DEMO.progetti.bacheche && DEMO.progetti.bacheche[x.parentId];
-    const liberi = b ? b.mano.posti.filter(p => !p.coperto).length : 0;
     testa = `<div class="riga-titolo"><div class="pill-row">${x.etichetta?`<span class="pillola dot" style="--pp:var(--clay);--pb:var(--clay-tenue);--pt:var(--clay-ink)">${esc(tr(x.etichetta))}</span>`:''}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa">${forma('pratica',e.strato,40)}<div><div class="eyebrow" style="color:var(--clay-ink)">${tr('Evento Pratica · {p}',{p:esc(x.progetto||'')})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${b?`<button class="tasto sec" data-progetto="${esc(x.parentId)}">${tr('Bacheca')} ${freccia}</button>`:tastoMappe(e)}</div>`;
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
     corpo = `<div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${x.addrNum?`<span class="meta">${esc(x.addrNum)}</span>`:''}</div></div>
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      ${b?`<div class="pratica-box">${MANO(34)}<div><span style="font-weight:600">${tr('Vuoi dare una mano?')}</span><span class="meta">${liberi===1 ? tr('1 posto libero per {g}',{g:nomeSettimana(e.giorno)}) : tr('{n} posti liberi per {g}',{n:liberi, g:nomeSettimana(e.giorno)})}</span></div></div>`:''}
       <p class="meta">${tr('È un appuntamento di un progetto: lo cura chi porta avanti il progetto, non {nome}.')}</p>${boxAdmin(e)}`;
   } else if(e.tipo==='istanza'){
     testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--ic);--pb:var(--it);--pt:var(--ic)">${tr('Istanza · {i}',{i:esc(x.istanza||'')})}</span>${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa">${forma('istanza',null,40,e.ist)}<div><div class="eyebrow" style="color:var(--ic)">${x.restituzione ? tr('Evento Istanza · restituzione') : tr('Evento Istanza · passo {n}',{n:x.passo||1})}</div><h2>${esc(e.titolo)}</h2></div></div>
-      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${DEMO?(x.restituzione?`<button class="tasto sec" data-apri-istanza="${esc(x.parentId)}">${tr('L’istanza')} ${freccia}</button>`:`<button class="tasto sec" data-apri-tavolo="${esc(x.parentId)}:${x.tavolo}">${tr('Il tavolo')} ${freccia}</button>`):tastoMappe(e)}</div>`;
+      <div class="tasti tasti-testa">${finito(e)?'':tastoSalva(e)}${tastoMappe(e)}</div>`;
     corpo = `${x.obiettivo?`<div class="richiamo">${BERSAGLIO(18)}<div class="stack-s" style="gap:2px"><span class="meta">${x.restituzione?tr('Obiettivo raggiunto: la proposta è consegnata'):tr('Obiettivo dell’istanza')}</span><span style="font-weight:600">${esc(x.obiettivo)}</span></div></div>`:''}
       <div class="fatti">${quando(e)}
         <div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span>${e.citta?`<span class="meta">${esc(e.citta)}</span>`:''}</div></div>
@@ -1338,7 +1333,6 @@ function fImpostazioni(){
   const corpo = `
     <section class="sezione"><div class="tipo">${tr('Aspetto')}</div><div class="seg" role="group"><button data-tema-set="light" aria-pressed="${!scuro}">${tr('Chiaro')}</button><button data-tema-set="dark" aria-pressed="${scuro}">${tr('Scuro')}</button></div>
       <button class="riga-int" data-az="semplice" aria-pressed="${st.semplice}"><div><span class="t">${tr('Modalità semplice')}</span><span class="meta">${tr('Testi più grandi e meno comandi: niente sottocategorie e combinazioni.')}</span></div><span class="interr" aria-hidden="true"></span></button></section>
-    <section class="sezione" id="sez-demo"><div class="tipo">${tr('Prova {nome}')}</div>${bloccoDemo()}</section>
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
     <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
@@ -1381,60 +1375,20 @@ function fAdmin(){
       <button class="menu-r" data-az="admin-ongrid">${icoCal()}<div><span class="t">${tr('Nuovo evento on-grid')}</span><span class="meta">${tr('Form completo, con strato, sottocategoria, prezzo e indirizzo')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono, senza la demo')}</span></div>${freccia}</button></div>
+      <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono')}</span></div>${freccia}</button></div>
     <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo telefono') : tr('{n} operazioni registrate su questo telefono',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo telefono'))(storico().length)}</span></div>${freccia}</button>
     <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
-    <p class="meta">${tr('La demo ora è per tutti: Impostazioni → Prova {nome}.')}</p>
-    ${st.demoMsg?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.demoMsg)}</p>`:''}
+    ${st.msgAdmin?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.msgAdmin)}</p>`:''}
     ${st.eliminati.length?`<p class="meta">${tr('Eliminati in questa sessione: {n}.',{n:st.eliminati.length})} <button class="link" style="min-height:32px" data-az="ripristina">${tr('Ripristina')}</button></p>`:''}
     <p class="meta">${tr('In modalità admin ogni scheda evento ha «Modifica» ed «Elimina».')}</p>
     <button class="tasto sec pieno" data-az="esci-admin">${tr('Esci dalla modalità admin')}</button>`;
   return foglio('forte alto', testa, corpo);
 }
-/* Carica Demo: il file demo/agorapp-demo.json, con le date spostate di settimane intere vicino a oggi */
-async function caricaDemo(){
-  st.demoMsg = tr('Carico la demo…'); disegnaFoglio();
-  let d;
-  try{ const r = await fetch('demo/agorapp-demo.json', {cache:'no-store'}); if(!r.ok) throw 0; d = await r.json(); if(d.formato!=='agorapp-demo') throw 0; }
-  catch(e){ st.demoMsg = tr('Non trovo il file della demo (demo/agorapp-demo.json).'); disegnaFoglio(); return; }
-  togliDemo(true);
-  const anc = dIso(d.ancora.slice(0,10)), g = dIso(oggi());
-  const giorni = Math.round((g - anc)/(7*864e5))*7;
-  const sposta = s => { const t = s.indexOf('T'); const dd = t<0 ? s : s.slice(0,t); return piuGiorni(dd, giorni) + (t<0 ? '' : s.slice(t)); };
-  const dd = JSON.parse(JSON.stringify(d), (k,v) => (typeof v==='string' && /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(v)) ? sposta(v) : v);
-  const nuovi = dd.eventi.concat(dd.offgrid).filter(e => !events.some(x => x.id===e.id));
-  events = events.concat(nuovi);
-  (dd.calendario||[]).concat(dd.offgrid.map(e => e.id)).forEach(id => { calEvents[id] = true; });
-  DEMO = {caricata:new Date().toISOString(), giorni, progetti:dd.progetti, istanze:dd.istanze, temi:dd.temi, collegamenti:dd.collegamenti};
-  if(!LS.set('agorapp_demo', DEMO)) { /* se manca spazio, la demo resta per questa sessione */ }
-  purgeExpired(); saveEvents(); saveCal(); ricostruisci();
-  /* con la demo si vede qualcosa: se gli strati sono tutti spenti, si accendono */
-  if(!st.strati.size){ LAYERS.forEach(l => st.strati.add(l.id)); st.preset = -1; salvaStrati(); }
-  st.demoMsg = tr('Demo caricata: {n} eventi e {o} Off-Grid. Date spostate di {g} giorni.',{n:dd.eventi.length, o:dd.offgrid.length, g:giorni});
-  tutto(); disegnaFoglio(); ridisegnaSezioni();
-}
-function ridisegnaSezioni(){
-  const mod = st.sezione==='agora' ? window.AGR.agora : st.sezione==='progetti' ? window.AGR.progetti : null;
-  if(mod) mod.ridisegna(); if(st.sezione==='temi') disegnaTemi();
-}
-/* il blocco della demo nelle Impostazioni: un solo tasto, Carica o Togli */
-function bloccoDemo(){
-  const nDemo = events.filter(e => e.demo).length, on = !!(DEMO || nDemo);
-  return `<p class="meta">${on ? tr('{n} eventi d’esempio su questo telefono, con progetti e istanze. I tuoi eventi restano.',{n:nDemo}) : tr('Eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: per vedere come funziona {nome}. Restano solo su questo telefono.')}</p>
-    <button class="tasto ${on?'sec':'pri'} pieno" data-az="demo">${on ? croce + tr('Togli la demo') : icoDemo + tr('Carica la demo')}</button>
-    ${st.demoMsg?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.demoMsg)}</p>`:''}`;
-}
-function togliDemo(silenzio){
-  const ids = new Set(events.filter(e => e.demo).map(e => e.id));
-  events = events.filter(e => !e.demo); ids.forEach(id => delete calEvents[id]);
-  LS.del('agorapp_demo'); DEMO = null; saveEvents(); saveCal(); ricostruisci();
-  if(!silenzio){ st.demoMsg = tr('Demo tolta: {n} eventi d’esempio cancellati.',{n:ids.size}); tutto(); disegnaFoglio(); ridisegnaSezioni(); }
-}
 function esporta(){
-  const dati = events.filter(e => !e.demo);
+  const dati = events;
   const blob = new Blob([JSON.stringify({events:dati, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nomeFile()+'_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
-  st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
+  st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
 }
 /* ======================= Excel: importa, modello, esporta ======================= */
 /* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers.
@@ -1495,7 +1449,7 @@ function leggiImport(file){
     const ws = wb.Sheets[wb.SheetNames.find(n => normT(n)==='eventi') || wb.SheetNames[0]];
     const righe = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
     const iTesta = righe.findIndex(r => r.filter(c => chiaveColonna(c)).length >= 3);
-    if(iTesta<0){ st.importa = null; st.demoMsg = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
+    if(iTesta<0){ st.importa = null; st.msgAdmin = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
     const mappa = righe[iTesta].map(chiaveColonna);
     const dati = righe.slice(iTesta+1).map((r, k) => { const o = {riga:iTesta+k+2}; mappa.forEach((c, j) => { if(c) o[c] = r[j]; }); return o; })
       .filter(o => COLONNE.concat(COLONNE_RIFIUTATE).some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
@@ -1542,7 +1496,7 @@ function leggiImport(file){
       if(st.importa!==I) return;
       I.fase = 'pronto'; I.scarti.sort((a,b) => a.riga-b.riga); if(st.foglio==='importa') disegnaFoglio();
     })();
-  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.demoMsg = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
+  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
 }
 function leggiImportJson(file){
   const r = new FileReader();
@@ -1553,7 +1507,7 @@ function leggiImportJson(file){
       const ok = imp.filter(x => x && !conImmagine(x) && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime)
         .map(x => { const y = Object.assign({}, x); delete y.image; return y; });
       st.importa = {fase:'pronto', tot:imp.length, ok, scarti, avvisi:[], json:true}; apri('importa');
-    }catch(err){ st.demoMsg = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
+    }catch(err){ st.msgAdmin = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
   };
   r.readAsText(file);
 }
@@ -1602,16 +1556,16 @@ function scaricaModello(){
     ['Gli eventi già passati, o che ci sono già, non vengono importati.'],
     ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx.']];
   fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], nomeFile()+'-modello-eventi.xlsx')
-    .then(() => { st.demoMsg = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
-    .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+    .then(() => { st.msgAdmin = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
+    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 function esportaExcel(){
-  const dati = events.filter(e => !e.demo && !e.personal && !e.offgrid);
+  const dati = events.filter(e => !e.personal && !e.offgrid);
   const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
     return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
   fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-excel', {n:dati.length}); st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
-    .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+    .then(() => { registra('esporta-excel', {n:dati.length}); st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
+    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 /* form on-grid dell'admin (stessi campi e controlli dell'app online) */
 const maxDt = () => { const d = new Date(); d.setMonth(d.getMonth()+20); return d; };
@@ -1679,16 +1633,8 @@ function salvaAdmin(){
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
-  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'},
-  {t:tr('Prova la demo'), d:tr('La demo riempie {nome} di eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: serve a vedere come funziona. Gli eventi della demo sono tutti a Torino. Restano solo su questo telefono e i tuoi eventi non si toccano.')+' '+tr('Si accende e si spegne quando vuoi da Impostazioni → Prova {nome}.'), el:'btnImpo', demo:true}
+  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'}
 ];
-/* ultimo cartellino: la demo, con la scelta subito */
-function tastiGuidaDemo(){
-  const on = !!(DEMO || events.some(e => e.demo));
-  return on
-    ? `<button class="tasto sec" data-az="guida-demo-togli">${tr('Spegni la demo')}</button><button class="tasto pri" data-az="guida-salta">${tr('Tienila accesa')}</button>`
-    : `<button class="tasto sec" data-az="guida-salta">${tr('No, grazie')}</button><button class="tasto pri" data-az="guida-demo">${tr('Accendi la demo')}</button>`;
-}
 /* ombra su tutto tranne la parte di cui parla il cartellino: un buco con un'ombra enorme intorno */
 function ombraGuida(){
   const o = $('guidaOmbra'); if(!o) return;
@@ -1705,7 +1651,7 @@ function disegnaGuida(){
   const G = GUIDA(), g = G[st.guida];
   if(g.el && $(g.el)) $(g.el).classList.add('evidenzia');
   slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
-    <div class="tasti">${g.demo ? tastiGuidaDemo() : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
+    <div class="tasti">${st.guida===G.length-1 ? `<button class="tasto pri" data-az="guida-salta">${tr('Inizia')}</button>` : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
   ombraGuida();
 }
 
@@ -1723,7 +1669,7 @@ function tutto(){ disegnaChips(); disegnaPins(); disegnaPeek(); if(st.foglio && 
 function selezionaEv(id){
   const e = byId(id); if(!e) return;
   if(st.sezione!=='mappa') vaiSezione('mappa');
-  if(!e.suMappa){ if(e.tipo==='istanza' && window.AGR.agora && DEMO) window.AGR.agora.apriTavolo(e.raw.parentId, e.raw.tavolo); else apriCalendario('giornata', e.giorno); return; }
+  if(!e.suMappa){ apriCalendario('giornata', e.giorno); return; }
   if(!visibile(e) && !modoGiornata()){
     if(!finito(e)) st.tempo = 'tutto'; else st.finiti = true; st.salvatiSolo = false; st.tipi[e.tipo] = true;
     if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); st.preset = -1; st.prezzo = 'tutti'; st.lente = null;
@@ -1850,13 +1796,8 @@ function trovati(){
     .filter(e => colpisce(tagsEv(e)))
     .sort((a,b) => (finito(a)-finito(b)) || (a.a-b.a));
 }
-function nelleSezioni(){
-  if(!DEMO) return {prog:[], ist:[]};
-  const TAG = (DEMO.temi && DEMO.temi.perOggetto) || {};
-  const prog = ((DEMO.progetti && DEMO.progetti.elenco) || []).filter(p => colpisce([...p.strati.map(s => 's:'+s), ...(TAG[p.id]||[]).map(t => 't:'+t)]));
-  const ist = ((DEMO.istanze && DEMO.istanze.lista) || []).filter(a => colpisce([...a.strati.map(s => 's:'+s), ...(TAG[a.id==='agorapp'?'agorapp-critica':a.id]||[]).map(t => 't:'+t)]));
-  return {prog, ist};
-}
+/* progetti e istanze d'esempio di Agorà e Progetti che portano i temi scelti (T-015) */
+function nelleSezioni(){ return {prog:[], ist:[]}; }
 
 /* pezzi */
 function ovale(u, attr, piccolo){ const on = TM.scelti.includes(u.k); return `<button class="ovale${on?' sel':''}${piccolo?' p':''}" ${attr}="${esc(u.k)}" aria-pressed="${on}" style="--dot:${u.dot}"><span class="pallino"></span>${esc(u.label)}</button>`; }
@@ -2044,7 +1985,7 @@ function mz(){
   return MZ;
 }
 function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
-const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', demo:false, filtroCat:'operativo', sezLib:'', vista:{}};
+const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', filtroCat:'operativo', sezLib:'', vista:{}};
 
 /* ---------- Libreria delle misure: ogni domanda del catalogo ha uno stato e, se operativa, si accende e spegne ----------
    stati: operativo (si vede nella sua sezione se è accesa) · studio · sospeso · eliminato */
@@ -2069,7 +2010,7 @@ function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.
 
 /* ---------- quale evento conta ---------- */
 const mzReale = e => e && typeof e==='object' && !e.personal && !e.offgrid && e.datetime && isFinite(+e.lat) && isFinite(+e.lng);
-function mzEventi(){ return events.filter(e => mzReale(e) && (MS.demo || !e.demo)).filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
+function mzEventi(){ return events.filter(e => mzReale(e)).filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
 function cittaDi(e){
   let best = 'altro', bd = 1e9; const la = +e.lat, ln = +e.lng;
   CITTA.forEach(c => {
@@ -2094,7 +2035,7 @@ const fasciaDi = h => (FASCE_MZ.find(f => (h>=f[2] && h<f[3]) || (h+24>=f[2] && 
 
 /* ---------- la fotografia del giorno: solo totali ---------- */
 function mzFotografa(){
-  const m = mz(), g = oggi(), L = events.filter(e => mzReale(e) && !e.demo);
+  const m = mz(), g = oggi(), L = events.filter(e => mzReale(e));
   const per = f => { const o = {}; L.forEach(e => { const k = f(e); if(k!=null) o[k] = (o[k]||0)+1; }); return o; };
   m.giorni[g] = {tot:L.length, citta:per(cittaDi), strati:per(e => e.category||'?'), prov:per(e => e.provenienza||'nd'), imp:L.filter(e => e.importato).length, grat:L.filter(gratuitoMz).length};
   L.forEach(e => { if(m.visti[e.id]) return; const c = creatoDi(e), gc = c ? ymd(new Date(c)) : g; m.visti[e.id] = gc; m.creati[gc] = (m.creati[gc]||0)+1; });
@@ -2132,7 +2073,7 @@ function mzStato(){
   const ric = gP.map(g => m.richieste[g]).filter(v => v!=null);
   return {L, zone, sotto, prov, anticipo, nuovi7, nuoviP, corr, ric, mediaRic: ric.length ? Math.round(ric.reduce((a,b)=>a+b,0)/ric.length) : null,
     qualita: nuoviP ? corr/nuoviP*100 : null, segn: somma(m.segnalazioni, gP), grat: L.length ? Math.round(L.filter(gratuitoMz).length/L.length*100) : null,
-    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, events.filter(e => mzReale(e) && (MS.demo || !e.demo) && cittaDi(e)===c.id).length])};
+    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, events.filter(e => mzReale(e) && cittaDi(e)===c.id).length])};
 }
 function effettoAzione(a){
   const m = mz(), media = arr => { const v = arr.filter(x => x!=null); return v.length>=2 ? v.reduce((p,q)=>p+q,0)/v.length : null; };
@@ -2148,7 +2089,7 @@ function decisioniMz(S){
     tit: S.sotto.length===1 ? tr('Una zona di Torino resta sotto {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}) : tr('{n} zone di Torino restano sotto {s} eventi nei prossimi 7 giorni',{n:S.sotto.length, s:m.soglie.zona}),
     perche: S.sotto.slice(0,8).map(q => q.n+' ('+S.zone[q.n]+')').join(', ')+(S.sotto.length>8?'…':'')+'. '+tr('Lì la mappa sembra vuota: è l’asimmetria informativa che {nome} vuole ridurre.'),
     azione: tr('Cerca fonti in quelle zone: biblioteche, circoli, parrocchie, spazi associativi.'), kpi:[5,12]});
-  const vuote = CITTA.filter(c => !events.some(e => mzReale(e) && !e.demo && cittaDi(e)===c.id));
+  const vuote = CITTA.filter(c => !events.some(e => mzReale(e) && cittaDi(e)===c.id));
   if(vuote.length) out.push({id:firma('citta', vuote.map(c=>c.id).join(',')), liv:'warn', st:tr('Da valutare'), tit: tr('Città senza eventi: {c}',{c:vuote.map(c=>c.n).join(', ')}),
     perche: tr('Chi sceglie una di queste città trova la mappa vuota.'), azione: tr('Scegli la prossima città da riempire, anche con l’import dai siti dei Comuni.'), kpi:[3,10]});
   if(S.nuovi7 < m.soglie.nuovi) out.push({id:firma('ritmo', oggi()), liv:'warn', st:tr('Sotto obiettivo'), tit: tr('{n} eventi nuovi negli ultimi 7 giorni (obiettivo {o})',{n:S.nuovi7, o:m.soglie.nuovi}),
@@ -2247,7 +2188,6 @@ function disegnaMisure(){
   const y = el.scrollTop;
   const conFiltri = MS.scheda!=='libreria';
   const ambito = MS.ambito==='tutte' ? tr('Tutte le città') : nomeCitta(citta);
-  const soloDemo = !events.some(e => mzReale(e) && !e.demo) && events.some(e => mzReale(e) && e.demo);
   el.innerHTML = `<div class="mz-testa">
       <div class="mz-barra-t"><button class="mz-icona" data-mz="esci" aria-label="${esc(tr('Torna all’admin'))}">${mzIco.indietro}</button><h1>${tr('Misure')}</h1>
         <button class="mz-chip" data-mz="ambito" aria-label="${esc(tr('Cambia ambito: {a}',{a:ambito}))}"><span>${esc(ambito)}</span></button>
@@ -2256,7 +2196,6 @@ function disegnaMisure(){
       <nav class="mz-schede" aria-label="${esc(tr('Sezioni delle misure'))}">${SCHEDE_MZ.map(([k,t]) => `<button data-mz="scheda" data-v="${k}" aria-pressed="${MS.scheda===k}"><span>${tr(t)}</span></button>`).join('')}</nav>
     </div>
     <div class="mz-corpo">
-      ${soloDemo || MS.demo ? `<div class="mz-avviso">${mzIco.avviso}<p>${MS.demo ? tr('Stai guardando anche gli eventi della demo: i numeri di oggi li includono, gli andamenti nel tempo no.') : tr('Su questo telefono ci sono solo eventi della demo, e le misure contano solo gli eventi veri.')} <button class="link" data-mz="demo">${MS.demo?tr('Togli la demo dalle misure'):tr('Guarda la demo nelle misure')}</button></p></div>` : ''}
       ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, libreria:vLibreriaMz})[MS.scheda]()}
       <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave agorapp_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
       <button class="tasto sec pieno" data-mz="esporta">${tr('Esporta le misure in Excel')}</button>
@@ -2515,7 +2454,7 @@ function esportaMisure(){
 }
 
 /* ---------- apertura e interazioni ---------- */
-function apriMisure(){ mzFotografa(); MS.demo = false; vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
+function apriMisure(){ mzFotografa(); vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
 function salvaAppuntiMz(n){ const ta = $('mz-app-'+n), x = (mz().lib||{})[n]||{}; if(ta && ta.value.trim()!==(x.appunti||'')) libSet(n, {appunti:ta.value.trim(), appuntiD:oggi()}); }
 function clickMisure(t){
   const d = t.dataset, m = mz(), a = d.mz; if(!a) return false;
@@ -2525,7 +2464,6 @@ function clickMisure(t){
     case 'scheda': MS.scheda = d.v; if(d.f) MS.filtroCat = d.f; MS.sezLib = d.sez||''; chiudi(); disegnaMisure(); $('pagina-misure').scrollTop = 0; break;
     case 'periodo': MS.periodo = +d.v; disegnaMisure(); break;
     case 'ambito': MS.ambito = MS.ambito==='tutte' ? 'citta' : 'tutte'; disegnaMisure(); break;
-    case 'demo': MS.demo = !MS.demo; disegnaMisure(); break;
     case 'fonti': foglioFontiMz(); break;
     case 'soglie': foglioSoglieMz(); break;
     case 'vista': MS.vista[d.v] = MS.vista[d.v]==='tab' ? 'g' : 'tab'; disegnaMisure(); break;
@@ -2689,9 +2627,6 @@ $('app').addEventListener('click', ev => {
   const d = t.dataset;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
   if(d.sez){ vaiSezione(d.sez, true); return; }
-  if(d.progetto){ window.AGR.progetti.apri(d.progetto); return; }
-  if(d.apriTavolo){ const [i,n] = d.apriTavolo.split(':'); window.AGR.agora.apriTavolo(i, +n); return; }
-  if(d.apriIstanza){ window.AGR.agora.apriIstanza(d.apriIstanza); return; }
   if(d.ev){ if(st.foglio==='calendario' && !modoGiornata()) st.foglio = null; selezionaEv(d.ev); return; }
   if(d.gruppo){ st.sel = null; apri('gruppo', {gruppo:d.gruppo.split(',')}); const e = byId(st.gruppo[0]); if(e) requestAnimationFrame(() => inquadra(e.lat, e.lng)); return; }
   if(d.tempo){ st.tempo = d.tempo; if(['scheda','gruppo'].includes(st.foglio)){ st.foglio = null; st.sel = null; } tutto(); disegnaFoglio(); return; }
@@ -2776,30 +2711,25 @@ $('app').addEventListener('click', ev => {
     case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
       if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
     case 'citta': apri('citta'); break;
-    case 'impostazioni': st.sel = null; st.demoMsg = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
+    case 'impostazioni': st.sel = null; st.msgAdmin = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
     case 'semplice': st.semplice = !st.semplice; LS.set('agorapp_simple', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;
     case 'guida-salta': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); break;
-    case 'guida-demo': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); caricaDemo(); break;
-    case 'guida-demo-togli': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); togliDemo(); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
-    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.demoMsg = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
+    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
     case 'admin': st.importa = null; st.aform = null; apri('admin'); break;
     case 'admin-misure': apriMisure(); break;
-    case 'esci-admin': registra('esci'); st.admin = false; st.demoMsg = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
-    case 'carica-demo': caricaDemo(); break;
-    case 'demo': if(DEMO || events.some(e => e.demo)) togliDemo(); else caricaDemo(); break;
+    case 'esci-admin': registra('esci'); st.admin = false; st.msgAdmin = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
     case 'admin-modello': scaricaModello(); break;
     case 'admin-esporta-json': esporta(); registra('esporta-json'); break;
     case 'admin-storico': SH.filtro = 'tutte'; SH.mostrati = 60; SH.conferma = false; foglioStorico(); break;
-    case 'togli-demo': togliDemo(); break;
     case 'admin-ongrid': apriAdminForm(null); break;
     case 'admin-importa': $('fileImporta').click(); break;
     case 'importa-annulla': st.importa = null; apri('admin'); break;
-    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; registra('importa', {n}); events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.demoMsg = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
+    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; registra('importa', {n}); events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.msgAdmin = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
     case 'admin-esporta': esportaExcel(); break;
     case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
     case 'a-salva': salvaAdmin(); break;
@@ -2880,9 +2810,7 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   if(LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
-    demo:() => DEMO,
     tr, dloc, lingua:() => lang,
-    caricaDemo(){ return caricaDemo(); },
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },
     chiudi(){ chiudi(); },

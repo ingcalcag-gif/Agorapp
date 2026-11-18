@@ -95,12 +95,10 @@ a.tasto.sec{color:var(--testo)}
 /* ===== PDF del calendario: con il segno del condividi ===== */
 .tasto-pdf{display:flex;align-items:center;gap:6px}
 
-/* ===== Progetti e Agorà: avviso sulle proposte, invito alla demo ===== */
+/* ===== Progetti e Agorà: avviso sulle proposte ===== */
 .avviso-proposte{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--linea-forte);border-radius:14px;padding:10px 12px;font-size:13px;line-height:19px;color:var(--testo-2);background:color-mix(in srgb,var(--superficie) 60%,transparent)}
 .avviso-proposte svg{flex-shrink:0;margin-top:2px;color:var(--testo-2)}
 .avviso-proposte+.proponi{margin-top:-4px}
-.invito-demo{display:flex;flex-direction:column;gap:10px;border:1px solid var(--linea);border-radius:16px;padding:14px;background:var(--superficie)}
-.invito-demo .tasto{align-self:flex-start}
 
 /* ===== Import da Excel ===== */
 .imp-righe{display:flex;flex-direction:column;gap:4px;font-size:13px;line-height:18px;max-height:220px;overflow:auto;border:1px solid var(--linea);border-radius:12px;padding:8px 10px}

@@ -1,17 +1,13 @@
-/* ===== Progetti, Agorà e Proposte in anteprima: dal mockup unico, dati dalla demo ===== */
+/* ===== Progetti, Agorà e Proposte in anteprima (T-015): la demo degli eventi è tolta; i contenuti d'esempio arrivano dai file delle anteprime ===== */
 (function(){
 'use strict';
 const T = (s,v) => window.AGR.tr(s,v), IT = () => window.AGR.lingua()==="it";
 const CFG = window.AGR_CONFIG || {}, NOME = CFG.nome || "", CASELLA = (CFG.caselle || {}).contatto || "";
 const icoInfo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4M8 4.8v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-/* Lorenzo, 4 ottobre: senza demo la sezione non deve sembrare un buco. Invito alla demo, poi l'avviso sulle proposte e il tasto Proponi */
-function vuotoDemo(cosa, proponi){ return `<section class="stack" style="padding-top:12px"><div class="tipo">${cosa}</div><h1>${T("Ancora niente qui")}</h1>
-  <p>${T("Questa sezione si riempie quando aprono le iscrizioni.")}</p>
-  <div class="invito-demo"><div style="font-weight:600">${T("Vuoi vedere come funziona?")}</div><p class="meta" style="color:var(--testo)">${T("Carica la demo: progetti, istanze, tavoli ed eventi d’esempio, anche sulla mappa. Resta solo su questo telefono e la togli quando vuoi dalle Impostazioni.")}</p>
-    <button class="tasto pri" data-az="carica-demo-sez">${T("Carica la demo")}</button><p class="meta" id="msg-demo-sez" role="status"></p></div></section>
+function vuoto(cosa, proponi){ return `<section class="stack" style="padding-top:12px"><div class="tipo">${cosa}</div><h1>${T("Ancora niente qui")}</h1>
+  <p>${T("Questa sezione si riempie quando aprono le iscrizioni.")}</p></section>
   ${proponi}`; }
 function avvisoProposte(){ return `<div class="avviso-proposte" role="note">${icoInfo}<span>${T("Stiamo lavorando alla ricezione delle proposte: è prevista per la prima metà del 2027. Intanto puoi vedere com’è fatto il modulo.")}</span></div>`; }
-function caricaDemoSez(b){ b.disabled = true; b.textContent = T("Carico la demo…"); window.AGR.caricaDemo(); }
 (function(){
 /* ===== Agorà: tutte le istanze con la struttura di «Diritto abitativo» (dati in window.IST) ===== */
 const STRATI = {
@@ -44,7 +40,7 @@ const piu = (iso,n) => { const d = dIso(iso); d.setDate(d.getDate()+n); return d
 /* ---- dati: passi, date e firme dei rendiconti si calcolano ---- */
 let ISTANZE = [], _pronto = null;
 function prepara(){
-  const D = A.demo(); if(!D || !D.istanze){ ISTANZE = []; _pronto = null; return false; }
+  const D = null; if(!D || !D.istanze){ ISTANZE = []; _pronto = null; return false; }
   if(_pronto===D.caricata+window.AGR.lingua()) return true; _pronto = D.caricata+window.AGR.lingua();
   const IST = JSON.parse(JSON.stringify(D.istanze)); ICONE = IST.icone;
   ISTANZE = IST.lista.slice().sort((x,y)=>x.da.localeCompare(y.da));
@@ -332,7 +328,7 @@ function foglioAnteprima(){
 }
 
 function disegna(){
-  if(!prepara()){ $s.innerHTML = vuotoDemo(T("Agorà"), tastoProponi()); return; }
+  if(!prepara()){ $s.innerHTML = vuoto(T("Agorà"), tastoProponi()); return; }
   if(stato.id) usa(stato.id);
   $p.classList.remove(...[...$p.classList].filter(c=>c.startsWith("c-")));
   $p.classList.add("c-"+(stato.v==="tutte" ? "abitativo" : IS.id));
@@ -358,7 +354,6 @@ document.addEventListener("click", e => {
   if(b.dataset.strato){ A.passerellaStrato(b.dataset.strato); return; }
   const az = b.dataset.az;
   if(az==="proponi"){ A.proponi("istanza"); return; }
-  if(az==="carica-demo-sez"){ caricaDemoSez(b); return; }
   if(az==="anteprima"){ foglio(foglioAnteprima()); return; }
   if(az==="indietro"){ indietro(); return; }
   if(az==="tutte"){ vai({v:"tutte"}); return; }
@@ -381,13 +376,10 @@ A.agora = {
 const T = (s,v) => window.AGR.tr(s,v), IT = () => window.AGR.lingua()==="it";
 const CFG = window.AGR_CONFIG || {}, NOME = CFG.nome || "", CASELLA = (CFG.caselle || {}).contatto || "";
 const icoInfo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4M8 4.8v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-function vuotoDemo(cosa, proponi){ return `<section class="stack" style="padding-top:12px"><div class="tipo">${cosa}</div><h1>${T("Ancora niente qui")}</h1>
-  <p>${T("Questa sezione si riempie quando aprono le iscrizioni.")}</p>
-  <div class="invito-demo"><div style="font-weight:600">${T("Vuoi vedere come funziona?")}</div><p class="meta" style="color:var(--testo)">${T("Carica la demo: progetti, istanze, tavoli ed eventi d’esempio, anche sulla mappa. Resta solo su questo telefono e la togli quando vuoi dalle Impostazioni.")}</p>
-    <button class="tasto pri" data-az="carica-demo-sez">${T("Carica la demo")}</button><p class="meta" id="msg-demo-sez" role="status"></p></div></section>
+function vuoto(cosa, proponi){ return `<section class="stack" style="padding-top:12px"><div class="tipo">${cosa}</div><h1>${T("Ancora niente qui")}</h1>
+  <p>${T("Questa sezione si riempie quando aprono le iscrizioni.")}</p></section>
   ${proponi}`; }
 function avvisoProposte(){ return `<div class="avviso-proposte" role="note">${icoInfo}<span>${T("Stiamo lavorando alla ricezione delle proposte: è prevista per la prima metà del 2027. Intanto puoi vedere com’è fatto il modulo.")}</span></div>`; }
-function caricaDemoSez(b){ b.disabled = true; b.textContent = T("Carico la demo…"); window.AGR.caricaDemo(); }
 /* ===== Progetti ===== */
 
 (function(){
@@ -408,7 +400,7 @@ const STRATI = {
 /* Le tre etichette di presenza dell'app, con i colori dell'app online */
 let TIPO = {}, PROGETTI = [], BACHECHE = {}, _pronto = null;
 function prepara(){
-  const D = window.AGR.demo(); if(!D || !D.progetti){ PROGETTI = []; _pronto = null; return false; }
+  const D = null; if(!D || !D.progetti){ PROGETTI = []; _pronto = null; return false; }
   if(_pronto===D.caricata) return true; _pronto = D.caricata;
   TIPO = D.progetti.tipi; PROGETTI = D.progetti.elenco; BACHECHE = D.progetti.bacheche;
   usa(PROGETTI.some(p=>p.id==="cortile") ? "cortile" : PROGETTI[0].id); return true;
@@ -616,7 +608,7 @@ function vLeggera(id){
 }
 
 function disegna(){
-  if(!prepara()){ $s.innerHTML = vuotoDemo(T("Progetti"), tastoProponi()); return; }
+  if(!prepara()){ $s.innerHTML = vuoto(T("Progetti"), tastoProponi()); return; }
   syncCal();
   $s.innerHTML = stato.v==="bacheca" ? (usa(stato.id||"cortile"), syncCal(), vBacheca()) : vTutti();
   $s.style.animation = "none"; void $s.offsetWidth; $s.style.animation = "";
@@ -724,7 +716,6 @@ document.addEventListener("click", e => {
   if(b.dataset.filtro){ filtro = b.dataset.filtro; mostrati = 10; disegna(); return; }
   if(b.dataset.az==="carica"){ mostrati += 10; disegna(); return; }
   if(b.dataset.az==="proponi"){ window.AGR.proponi("progetto"); return; }
-  if(b.dataset.az==="carica-demo-sez"){ caricaDemoSez(b); return; }
   const az = b.dataset.az;
   if(az==="indietro"){ indietro(); return; }
   if(az==="tutti"){ vai({v:"tutti"}); return; }

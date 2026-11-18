@@ -7,7 +7,6 @@ function fImpostazioni(){
   const corpo = `
     <section class="sezione"><div class="tipo">${tr('Aspetto')}</div><div class="seg" role="group"><button data-tema-set="light" aria-pressed="${!scuro}">${tr('Chiaro')}</button><button data-tema-set="dark" aria-pressed="${scuro}">${tr('Scuro')}</button></div>
       <button class="riga-int" data-az="semplice" aria-pressed="${st.semplice}"><div><span class="t">${tr('Modalità semplice')}</span><span class="meta">${tr('Testi più grandi e meno comandi: niente sottocategorie e combinazioni.')}</span></div><span class="interr" aria-hidden="true"></span></button></section>
-    <section class="sezione" id="sez-demo"><div class="tipo">${tr('Prova {nome}')}</div>${bloccoDemo()}</section>
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
     <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
@@ -50,60 +49,20 @@ function fAdmin(){
       <button class="menu-r" data-az="admin-ongrid">${icoCal()}<div><span class="t">${tr('Nuovo evento on-grid')}</span><span class="meta">${tr('Form completo, con strato, sottocategoria, prezzo e indirizzo')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono, senza la demo')}</span></div>${freccia}</button></div>
+      <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono')}</span></div>${freccia}</button></div>
     <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo telefono') : tr('{n} operazioni registrate su questo telefono',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo telefono'))(storico().length)}</span></div>${freccia}</button>
     <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
-    <p class="meta">${tr('La demo ora è per tutti: Impostazioni → Prova {nome}.')}</p>
-    ${st.demoMsg?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.demoMsg)}</p>`:''}
+    ${st.msgAdmin?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.msgAdmin)}</p>`:''}
     ${st.eliminati.length?`<p class="meta">${tr('Eliminati in questa sessione: {n}.',{n:st.eliminati.length})} <button class="link" style="min-height:32px" data-az="ripristina">${tr('Ripristina')}</button></p>`:''}
     <p class="meta">${tr('In modalità admin ogni scheda evento ha «Modifica» ed «Elimina».')}</p>
     <button class="tasto sec pieno" data-az="esci-admin">${tr('Esci dalla modalità admin')}</button>`;
   return foglio('forte alto', testa, corpo);
 }
-/* Carica Demo: il file demo/agorapp-demo.json, con le date spostate di settimane intere vicino a oggi */
-async function caricaDemo(){
-  st.demoMsg = tr('Carico la demo…'); disegnaFoglio();
-  let d;
-  try{ const r = await fetch('demo/agorapp-demo.json', {cache:'no-store'}); if(!r.ok) throw 0; d = await r.json(); if(d.formato!=='agorapp-demo') throw 0; }
-  catch(e){ st.demoMsg = tr('Non trovo il file della demo (demo/agorapp-demo.json).'); disegnaFoglio(); return; }
-  togliDemo(true);
-  const anc = dIso(d.ancora.slice(0,10)), g = dIso(oggi());
-  const giorni = Math.round((g - anc)/(7*864e5))*7;
-  const sposta = s => { const t = s.indexOf('T'); const dd = t<0 ? s : s.slice(0,t); return piuGiorni(dd, giorni) + (t<0 ? '' : s.slice(t)); };
-  const dd = JSON.parse(JSON.stringify(d), (k,v) => (typeof v==='string' && /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(v)) ? sposta(v) : v);
-  const nuovi = dd.eventi.concat(dd.offgrid).filter(e => !events.some(x => x.id===e.id));
-  events = events.concat(nuovi);
-  (dd.calendario||[]).concat(dd.offgrid.map(e => e.id)).forEach(id => { calEvents[id] = true; });
-  DEMO = {caricata:new Date().toISOString(), giorni, progetti:dd.progetti, istanze:dd.istanze, temi:dd.temi, collegamenti:dd.collegamenti};
-  if(!LS.set('agorapp_demo', DEMO)) { /* se manca spazio, la demo resta per questa sessione */ }
-  purgeExpired(); saveEvents(); saveCal(); ricostruisci();
-  /* con la demo si vede qualcosa: se gli strati sono tutti spenti, si accendono */
-  if(!st.strati.size){ LAYERS.forEach(l => st.strati.add(l.id)); st.preset = -1; salvaStrati(); }
-  st.demoMsg = tr('Demo caricata: {n} eventi e {o} Off-Grid. Date spostate di {g} giorni.',{n:dd.eventi.length, o:dd.offgrid.length, g:giorni});
-  tutto(); disegnaFoglio(); ridisegnaSezioni();
-}
-function ridisegnaSezioni(){
-  const mod = st.sezione==='agora' ? window.AGR.agora : st.sezione==='progetti' ? window.AGR.progetti : null;
-  if(mod) mod.ridisegna(); if(st.sezione==='temi') disegnaTemi();
-}
-/* il blocco della demo nelle Impostazioni: un solo tasto, Carica o Togli */
-function bloccoDemo(){
-  const nDemo = events.filter(e => e.demo).length, on = !!(DEMO || nDemo);
-  return `<p class="meta">${on ? tr('{n} eventi d’esempio su questo telefono, con progetti e istanze. I tuoi eventi restano.',{n:nDemo}) : tr('Eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: per vedere come funziona {nome}. Restano solo su questo telefono.')}</p>
-    <button class="tasto ${on?'sec':'pri'} pieno" data-az="demo">${on ? croce + tr('Togli la demo') : icoDemo + tr('Carica la demo')}</button>
-    ${st.demoMsg?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.demoMsg)}</p>`:''}`;
-}
-function togliDemo(silenzio){
-  const ids = new Set(events.filter(e => e.demo).map(e => e.id));
-  events = events.filter(e => !e.demo); ids.forEach(id => delete calEvents[id]);
-  LS.del('agorapp_demo'); DEMO = null; saveEvents(); saveCal(); ricostruisci();
-  if(!silenzio){ st.demoMsg = tr('Demo tolta: {n} eventi d’esempio cancellati.',{n:ids.size}); tutto(); disegnaFoglio(); ridisegnaSezioni(); }
-}
 function esporta(){
-  const dati = events.filter(e => !e.demo);
+  const dati = events;
   const blob = new Blob([JSON.stringify({events:dati, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nomeFile()+'_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
-  st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
+  st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
 }
 /* ======================= Excel: importa, modello, esporta ======================= */
 /* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers.
@@ -164,7 +123,7 @@ function leggiImport(file){
     const ws = wb.Sheets[wb.SheetNames.find(n => normT(n)==='eventi') || wb.SheetNames[0]];
     const righe = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
     const iTesta = righe.findIndex(r => r.filter(c => chiaveColonna(c)).length >= 3);
-    if(iTesta<0){ st.importa = null; st.demoMsg = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
+    if(iTesta<0){ st.importa = null; st.msgAdmin = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
     const mappa = righe[iTesta].map(chiaveColonna);
     const dati = righe.slice(iTesta+1).map((r, k) => { const o = {riga:iTesta+k+2}; mappa.forEach((c, j) => { if(c) o[c] = r[j]; }); return o; })
       .filter(o => COLONNE.concat(COLONNE_RIFIUTATE).some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
@@ -211,7 +170,7 @@ function leggiImport(file){
       if(st.importa!==I) return;
       I.fase = 'pronto'; I.scarti.sort((a,b) => a.riga-b.riga); if(st.foglio==='importa') disegnaFoglio();
     })();
-  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.demoMsg = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
+  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
 }
 function leggiImportJson(file){
   const r = new FileReader();
@@ -222,7 +181,7 @@ function leggiImportJson(file){
       const ok = imp.filter(x => x && !conImmagine(x) && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime)
         .map(x => { const y = Object.assign({}, x); delete y.image; return y; });
       st.importa = {fase:'pronto', tot:imp.length, ok, scarti, avvisi:[], json:true}; apri('importa');
-    }catch(err){ st.demoMsg = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
+    }catch(err){ st.msgAdmin = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
   };
   r.readAsText(file);
 }
@@ -271,16 +230,16 @@ function scaricaModello(){
     ['Gli eventi già passati, o che ci sono già, non vengono importati.'],
     ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx.']];
   fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], nomeFile()+'-modello-eventi.xlsx')
-    .then(() => { st.demoMsg = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
-    .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+    .then(() => { st.msgAdmin = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
+    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 function esportaExcel(){
-  const dati = events.filter(e => !e.demo && !e.personal && !e.offgrid);
+  const dati = events.filter(e => !e.personal && !e.offgrid);
   const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
     return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
   fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-excel', {n:dati.length}); st.demoMsg = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
-    .catch(() => { st.demoMsg = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+    .then(() => { registra('esporta-excel', {n:dati.length}); st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
+    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 /* form on-grid dell'admin (stessi campi e controlli dell'app online) */
 const maxDt = () => { const d = new Date(); d.setMonth(d.getMonth()+20); return d; };
@@ -348,16 +307,8 @@ function salvaAdmin(){
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il doppio cerchio una pratica, il quadrato un incontro di un’istanza, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
-  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'},
-  {t:tr('Prova la demo'), d:tr('La demo riempie {nome} di eventi, pratiche, istanze, progetti e Off-Grid d’esempio, con le date spostate a oggi: serve a vedere come funziona. Gli eventi della demo sono tutti a Torino. Restano solo su questo telefono e i tuoi eventi non si toccano.')+' '+tr('Si accende e si spegne quando vuoi da Impostazioni → Prova {nome}.'), el:'btnImpo', demo:true}
+  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'}
 ];
-/* ultimo cartellino: la demo, con la scelta subito */
-function tastiGuidaDemo(){
-  const on = !!(DEMO || events.some(e => e.demo));
-  return on
-    ? `<button class="tasto sec" data-az="guida-demo-togli">${tr('Spegni la demo')}</button><button class="tasto pri" data-az="guida-salta">${tr('Tienila accesa')}</button>`
-    : `<button class="tasto sec" data-az="guida-salta">${tr('No, grazie')}</button><button class="tasto pri" data-az="guida-demo">${tr('Accendi la demo')}</button>`;
-}
 /* ombra su tutto tranne la parte di cui parla il cartellino: un buco con un'ombra enorme intorno */
 function ombraGuida(){
   const o = $('guidaOmbra'); if(!o) return;
@@ -374,7 +325,7 @@ function disegnaGuida(){
   const G = GUIDA(), g = G[st.guida];
   if(g.el && $(g.el)) $(g.el).classList.add('evidenzia');
   slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
-    <div class="tasti">${g.demo ? tastiGuidaDemo() : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
+    <div class="tasti">${st.guida===G.length-1 ? `<button class="tasto pri" data-az="guida-salta">${tr('Inizia')}</button>` : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
   ombraGuida();
 }
 
@@ -392,7 +343,7 @@ function tutto(){ disegnaChips(); disegnaPins(); disegnaPeek(); if(st.foglio && 
 function selezionaEv(id){
   const e = byId(id); if(!e) return;
   if(st.sezione!=='mappa') vaiSezione('mappa');
-  if(!e.suMappa){ if(e.tipo==='istanza' && window.AGR.agora && DEMO) window.AGR.agora.apriTavolo(e.raw.parentId, e.raw.tavolo); else apriCalendario('giornata', e.giorno); return; }
+  if(!e.suMappa){ apriCalendario('giornata', e.giorno); return; }
   if(!visibile(e) && !modoGiornata()){
     if(!finito(e)) st.tempo = 'tutto'; else st.finiti = true; st.salvatiSolo = false; st.tipi[e.tipo] = true;
     if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); st.preset = -1; st.prezzo = 'tutti'; st.lente = null;

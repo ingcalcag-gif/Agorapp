@@ -62,13 +62,8 @@ function trovati(){
     .filter(e => colpisce(tagsEv(e)))
     .sort((a,b) => (finito(a)-finito(b)) || (a.a-b.a));
 }
-function nelleSezioni(){
-  if(!DEMO) return {prog:[], ist:[]};
-  const TAG = (DEMO.temi && DEMO.temi.perOggetto) || {};
-  const prog = ((DEMO.progetti && DEMO.progetti.elenco) || []).filter(p => colpisce([...p.strati.map(s => 's:'+s), ...(TAG[p.id]||[]).map(t => 't:'+t)]));
-  const ist = ((DEMO.istanze && DEMO.istanze.lista) || []).filter(a => colpisce([...a.strati.map(s => 's:'+s), ...(TAG[a.id==='agorapp'?'agorapp-critica':a.id]||[]).map(t => 't:'+t)]));
-  return {prog, ist};
-}
+/* progetti e istanze d'esempio di Agorà e Progetti che portano i temi scelti (T-015) */
+function nelleSezioni(){ return {prog:[], ist:[]}; }
 
 /* pezzi */
 function ovale(u, attr, piccolo){ const on = TM.scelti.includes(u.k); return `<button class="ovale${on?' sel':''}${piccolo?' p':''}" ${attr}="${esc(u.k)}" aria-pressed="${on}" style="--dot:${u.dot}"><span class="pallino"></span>${esc(u.label)}</button>`; }

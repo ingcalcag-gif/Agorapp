@@ -2,7 +2,6 @@
 /* ---------- Icone (dal mockup) ---------- */
 const GLIFO_OG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.2" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="8" r="1.9" fill="currentColor"/></svg>';
 const ICO_ABITATIVO = '<svg viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="24" y="6" width="3.6" height="8" rx=".6" fill="#A93226"/><polygon points="3,17.5 18,5 33,17.5" fill="#C0392B"/><rect x="7" y="16" width="22" height="16" rx="1.6" fill="#F1948A"/><rect x="15" y="22" width="6" height="10" rx="1" fill="#C0392B"/><rect x="9.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/><rect x="22.5" y="19.5" width="4" height="4" rx=".6" fill="#FDFAF4"/></svg>';
-const MANO = s => `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="9.2" y="5.5" width="3.6" height="13" rx="1.8" fill="var(--clay)"/><rect x="13.4" y="3" width="3.6" height="15" rx="1.8" fill="var(--clay)"/><rect x="17.6" y="4" width="3.6" height="14" rx="1.8" fill="var(--clay)"/><rect x="21.8" y="7" width="3.4" height="11.5" rx="1.7" fill="var(--clay)"/><rect x="3.6" y="13.6" width="3.6" height="10" rx="1.8" transform="rotate(-38 5.4 18.6)" fill="var(--clay)"/><path d="M9.2 15h16v4.5c0 5.2-3.9 9.5-8.8 9.5h-.8c-3.6 0-6.4-2.4-7.6-5.6L6.6 18.3 9.2 15Z" fill="var(--clay)"/></svg>`;
 const BERSAGLIO = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="6" stroke="var(--ic)" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="var(--ic)"/></svg>`;
 const freccia = '<svg class="freccia-dir" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 3 9.5 7l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const frecciaSx = '<svg class="freccia-dir" width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -31,11 +30,10 @@ const icoRipeti = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" a
 const icoNote = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.5h10v11H3zM5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoImporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2v7M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoEsporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 9V2M4 5l3-3 3 3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const icoDemo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 6h6M5 8.5h6M5 11h3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 
-/* istanze: icona e colore dalla demo (Agorà) */
-const icoIst = id => (DEMO && DEMO.istanze && DEMO.istanze.icone && DEMO.istanze.icone[id]) || ICO_ABITATIVO;
-const coloreIst = id => (DEMO && DEMO.istanze && DEMO.istanze.colori && DEMO.istanze.colori[id]) || 'var(--ic)';
+/* istanze: icona e colore comuni (le icone delle istanze d'esempio restano nell'anteprima di Agorà) */
+const icoIst = () => ICO_ABITATIVO;
+const coloreIst = () => 'var(--ic)';
 const interno = svg => svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
 function colorePin(e){ return e.tipo==='evento' ? (S[e.strato]||{pin:'#888'}).pin : e.tipo==='pratica' ? 'var(--clay)' : e.tipo==='istanza' ? coloreIst(e.ist) : 'var(--verde)'; }
 function contenutoPin(e){ return e.tipo==='og' ? GLIFO_OG : e.tipo==='istanza' ? icoIst(e.ist) : icoPin(e.strato); }
