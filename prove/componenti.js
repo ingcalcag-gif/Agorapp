@@ -42,7 +42,7 @@ const SERVIZI = [
 const RISORSA_ESTERNA = /https?:\/\/[^\s"'`<>()\\]+?\.(?:m?js|css|woff2?|ttf|otf|pbf|pmtiles|json)(?=[?#"'`\s)\\]|$)|https?:\/\/fonts\.googleapis\.com\/css2?\?[^\s"'`<>]+/g;
 /* File che il montaggio produce da sé, e file di terzi annotati in sorgenti/vendor/elenco.js.
    Ogni altro file nell'uscita è un componente da elencare. */
-const FILE_PROPRI = /^(index\.html|config\.js|app\.css|app\.js|traduzioni\.js|sezioni\.js|licenze\/[a-z0-9.-]+\.(txt|css|html)|lib\/caratteri\/caratteri\.css|anteprime\/(it|en|es|fr|ar)\.json)$/;
+const FILE_PROPRI = /^(index\.html|config\.js|app\.css|app\.js|traduzioni\.js|sezioni\.js|licenze\/[a-z0-9.-]+\.(txt|css|html)|lib\/caratteri\/caratteri\.css|anteprime\/(it|en|es|fr|ar)\.json|mappa\/correzioni\.geojson)$/;
 const FILE_VENDOR = new Set(VENDOR.flatMap(c => Object.keys(c.file).concat(c.nomeLicenza || 'LICENSE.txt').map(f => 'lib/' + c.cartella + '/' + f)));
 
 function prova() {

@@ -7,14 +7,23 @@
    - le vie abbiano il nome anche quando sono pedonali (Via Roma a Torino, dato di OpenStreetMap);
    - i numeri civici non si vedano sulla mappa normale e si vedano solo mentre si sceglie un punto («Scegli sulla mappa»);
    - il cambio di tema cambi colori e icone senza scaricare di nuovo tasselli o glifi;
-   - l'avviso di provenienza dica «© OpenStreetMap» con il collegamento alla pagina dei diritti e «Protomaps», senza CARTO.
+   - l'avviso di provenienza dica «© OpenStreetMap» con il collegamento alla pagina dei diritti e «Protomaps», senza CARTO;
+   - lo strato delle correzioni (T-018), con un file di correzioni inventato, nasconda l'oggetto indicato (qui Via Roma),
+     disegni l'aggiunta con il suo nome e faccia comparire nell'avviso «correzioni di» con il nome del servizio;
+     con il file vero, oggi vuoto, l'avviso delle correzioni non compare.
    Serve WebGL: Chromium lo fa in software (SwiftShader), qui e su GitHub Actions. */
 'use strict';
 const { playwright, server, apri, pausa } = require('./comune.js');
-const { esito, eseguiDaSola } = require('../comune.js');
+const { esito, eseguiDaSola, config } = require('../comune.js');
 
 // Il punto di Torino da guardare: Via Roma tra piazza San Carlo e piazza Carlo Felice.
 const VIA_ROMA = { centro: [7.6826, 45.0668], zoom: 16.5 };
+// Correzioni inventate per la prova: nascondere i due tratti di Via Roma del file di prova, aggiungere un punto.
+const CORREZIONI_PROVA = { type: 'FeatureCollection', features: [
+  { type: 'Feature', geometry: null, properties: { correzione: 'nascondi', livello: 'roads', id_mappa: 35184394996620, data: '2026-11-19', motivo: 'prova' } },
+  { type: 'Feature', geometry: null, properties: { correzione: 'nascondi', livello: 'roads', id_mappa: 35184691359920, data: '2026-11-19', motivo: 'prova' } },
+  { type: 'Feature', geometry: { type: 'Point', coordinates: [7.6836, 45.0662] }, properties: { correzione: 'aggiunta', nome: 'Punto di prova', data: '2026-11-19', motivo: 'prova' } },
+] };
 
 async function prova() {
   const e = esito('Mappa propria (browser)');
@@ -79,7 +88,22 @@ async function prova() {
     if (!/© OpenStreetMap/.test(avviso.testo) || !avviso.link.includes('https://www.openstreetmap.org/copyright')) e.errori.push('avviso di provenienza senza «© OpenStreetMap» e il collegamento alla pagina dei diritti: ' + avviso.testo);
     if (!/Protomaps/.test(avviso.testo)) e.errori.push('avviso di provenienza senza il riconoscimento di Protomaps');
     if (/CARTO/i.test(avviso.testo)) e.errori.push('l\'avviso nomina ancora CARTO');
+    if (await p.evaluate(() => !document.getElementById('attrib-correzioni').hidden)) e.errori.push('l\'avviso delle correzioni compare anche senza correzioni');
     e.note.push('avviso: ' + avviso.testo);
+
+    // Strato delle correzioni, con il file inventato.
+    await ctx.route(u => u.pathname.endsWith('/dist/pubblica/mappa/correzioni.geojson'), r => r.fulfill({ contentType: 'application/geo+json', body: JSON.stringify(CORREZIONI_PROVA) }));
+    const p2 = await ctx.newPage();
+    await p2.goto(s.url + 'index.html');
+    await p2.waitForFunction(() => { const m = window.__mappaProva; return m && m.getSource('protomaps') && m.isStyleLoaded() && m.areTilesLoaded(); }, null, { timeout: 30000 });
+    await p2.evaluate(v => window.__mappaProva.jumpTo({ center: v.centro, zoom: v.zoom }), VIA_ROMA);
+    const viste = await p2.evaluate(() => new Promise(ok => window.__mappaProva.once('idle', () => { const f = window.__mappaProva.queryRenderedFeatures();
+      ok({ strade: f.filter(x => /^roads_labels/.test(x.layer.id)).map(x => x.properties.name), aggiunte: f.filter(x => x.layer.id === 'agr-correzioni-nomi').map(x => x.properties.nome),
+        avviso: document.getElementById('attrib').textContent.replace(/\s+/g, ' ').trim() }); })));
+    if (viste.strade.includes('Via Roma')) e.errori.push('con la correzione «nascondi» Via Roma ha ancora il nome');
+    if (!viste.aggiunte.includes('Punto di prova')) e.errori.push('l\'aggiunta dello strato delle correzioni non si vede');
+    if (!viste.avviso.includes('correzioni di ' + config().nome)) e.errori.push('con le correzioni l\'avviso non dice «correzioni di ' + config().nome + '»: ' + viste.avviso);
+    e.note.push('con le correzioni di prova: ' + viste.avviso);
   } finally {
     await browser.close(); await s.chiudi();
   }

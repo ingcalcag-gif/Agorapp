@@ -15,7 +15,7 @@ function playwright() {
   try { return require('playwright'); } catch (e) { return null; }
 }
 
-const TIPI = { '.pbf': 'application/x-protobuf', '.pmtiles': 'application/octet-stream', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+const TIPI = { '.geojson': 'application/geo+json', '.pbf': 'application/x-protobuf', '.pmtiles': 'application/octet-stream', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
 /* Server statico con la stessa disposizione del repository che githack serve: l'app sta in /dist/<uscita>/ e la mappa di

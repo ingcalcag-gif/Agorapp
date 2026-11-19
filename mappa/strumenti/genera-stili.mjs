@@ -12,9 +12,12 @@
 // - i numeri civici (livello «address_label») sono spenti: l'app li accende soltanto mentre si sceglie sulla mappa
 //   il punto di un Off-Grid (decisione di Lorenzo del 19/11/2026);
 // - i nomi: quelli locali (il campo «name» di OpenStreetMap), non le traduzioni (piano, sezione 7);
-// - i caratteri: DM Sans al posto di Noto Sans (glifi in sorgenti/vendor/caratteri-mappa/dm-sans-v17/).
+// - i caratteri: DM Sans al posto di Noto Sans (glifi in sorgenti/vendor/caratteri-mappa/dm-sans-v17/);
+// - i filtri: tutti nella forma delle espressioni (convertiti con @maplibre/maplibre-gl-style-spec, la versione che
+//   usa MapLibre 5.24.0), così l'app può aggiungere a ogni livello la regola dello strato delle correzioni (T-018).
 // Il disegno degli stili di Protomaps è CC0, il codice BSD a tre clausole (licenze/protomaps-basemaps.txt).
 import { layers, namedFlavor } from '@protomaps/basemaps';
+import { convertFilter, validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -57,14 +60,31 @@ const ritocca = s => s
   .replace(/Noto Sans Medium/g, 'DM Sans Medium').replace(/Noto Sans Italic/g, 'DM Sans Italic')
   .replace(/"name:it"/g, '"name"');
 
+// Come in MapLibre (feature_filter): vero se il filtro è già un'espressione.
+function espressione(f){
+  if (f === true || f === false) return true;
+  if (!Array.isArray(f) || !f.length) return false;
+  switch (f[0]) {
+    case 'has': return f.length >= 2 && f[1] !== '$id' && f[1] !== '$type';
+    case 'in': return f.length >= 3 && (typeof f[1] !== 'string' || Array.isArray(f[2]));
+    case '!in': case '!has': case 'none': return false;
+    case '==': case '!=': case '>': case '>=': case '<': case '<=': return f.length !== 3 || Array.isArray(f[1]) || Array.isArray(f[2]);
+    case 'any': case 'all': return f.slice(1).every(x => typeof x === 'boolean' || espressione(x));
+    default: return true;
+  }
+}
+
 function stile(gusto){
   const livelli = JSON.parse(ritocca(JSON.stringify(layers('protomaps', gusto, {lang:'it'}))));
   for (const l of livelli) {
+    if (l.filter !== undefined && !espressione(l.filter)) l.filter = convertFilter(l.filter);
     if (l.id === 'pois') l.filter = ['all', ['in', ['get','kind'], ['literal', OGGETTI_VISIBILI]], ['>=', ['zoom'], ['get','min_zoom']]];
     if (l.id === 'address_label') l.layout = Object.assign({}, l.layout, {visibility:'none'});
   }
   if (!livelli.some(l => l.id === 'address_label')) throw new Error('manca il livello address_label: controlla la versione di @protomaps/basemaps');
   if (livelli.some(l => JSON.stringify(l).includes('Noto'))) throw new Error('è rimasto un carattere Noto');
+  const errori = validateStyleMin({version:8, glyphs:'https://x/{fontstack}/{range}.pbf', sprite:'https://x/s', sources:{protomaps:{type:'vector', url:'https://x/t.json'}}, layers:livelli});
+  if (errori.length) throw new Error('stile non valido: ' + errori.map(e => e.message).join('; '));
   return livelli;
 }
 

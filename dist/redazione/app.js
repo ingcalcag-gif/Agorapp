@@ -361,14 +361,62 @@ async function stileMappa(t){
   if(!MAPPA.stili[n]){ const r = await fetch(MAPPA_LIB.stili+'stile-carta-'+n+'.json'); if(!r.ok) throw new Error('stile '+r.status); MAPPA.stili[n] = await r.json(); }
   return MAPPA.stili[n];
 }
+/* ---------- Strato delle correzioni e delle aggiunte (T-018; libro mastro § 6.6, regola e tabella; § 2.4) ----------
+   I dati di OpenStreetMap non si modificano: correzioni e aggiunte stanno in mappa/correzioni.geojson, che viaggia con l'app.
+   «nascondi»: un oggetto sbagliato, indicato dal livello del file della mappa e dal suo numero (id_mappa), non si disegna;
+   «aggiunta»: un punto con il nome, disegnato sopra la mappa in corsivo. Quando ce n'è almeno una, l'avviso di provenienza
+   aggiunge «correzioni di {nome}»: i contenuti del servizio restano distinti da quelli di OpenStreetMap. Formato in mappa/LEGGIMI.md. */
+const LIVELLI_MAPPA = ['earth','landcover','landuse','water','roads','transit','buildings','pois','places','boundaries'];
+const CORREZIONI = {pronte:null, nascondi:{}, aggiunte:[]};
+function caricaCorrezioni(){
+  if(CORREZIONI.pronte) return CORREZIONI.pronte;
+  return CORREZIONI.pronte = fetch('mappa/correzioni.geojson', {cache:'no-cache'}).then(r => r.ok ? r.json() : null).then(j => {
+    if(!j || j.type!=='FeatureCollection' || !Array.isArray(j.features)) return;
+    for(const f of j.features){
+      const p = (f && f.properties) || {}, g = f && f.geometry;
+      if(p.correzione==='nascondi' && LIVELLI_MAPPA.includes(p.livello) && Number.isSafeInteger(p.id_mappa)) (CORREZIONI.nascondi[p.livello] = CORREZIONI.nascondi[p.livello] || []).push(p.id_mappa);
+      else if(p.correzione==='aggiunta' && g && g.type==='Point' && Array.isArray(g.coordinates) && g.coordinates.slice(0,2).every(Number.isFinite) && typeof p.nome==='string' && p.nome.trim())
+        CORREZIONI.aggiunte.push({type:'Feature', geometry:{type:'Point', coordinates:g.coordinates.slice(0,2)}, properties:{nome:p.nome.trim().slice(0,80)}});
+    }
+  }).catch(() => {}).then(avvisoCorrezioni);
+}
+const quanteCorrezioni = () => CORREZIONI.aggiunte.length + Object.values(CORREZIONI.nascondi).reduce((n,a) => n+a.length, 0);
+function conCorrezioni(livelli){
+  return livelli.map(l => {
+    const ids = CORREZIONI.nascondi[l['source-layer']]; if(!ids || !ids.length) return l;
+    const via = ['!', ['in', ['id'], ['literal', ids]]];
+    return Object.assign({}, l, {filter: l.filter===undefined ? via : ['all', l.filter, via]});
+  });
+}
+const COLORI_AGGIUNTE = {light:{testo:'#2D5A3D', alone:'#F3EEE4'}, dark:{testo:'#9CC8A8', alone:'#16130F'}};
+function aggiungiCorrezioni(){
+  if(!CORREZIONI.aggiunte.length || map.getSource('agr-correzioni')) return;
+  const C = COLORI_AGGIUNTE[temaAttuale()];
+  try{
+    map.addSource('agr-correzioni', {type:'geojson', data:{type:'FeatureCollection', features:CORREZIONI.aggiunte}});
+    map.addLayer({id:'agr-correzioni-punti', type:'circle', source:'agr-correzioni', minzoom:13, paint:{'circle-radius':3.5, 'circle-color':C.testo, 'circle-stroke-color':C.alone, 'circle-stroke-width':1.5}});
+    map.addLayer({id:'agr-correzioni-nomi', type:'symbol', source:'agr-correzioni', minzoom:15,
+      layout:{'text-field':['get','nome'], 'text-font':['DM Sans Italic'], 'text-size':12, 'text-anchor':'top', 'text-offset':[0,0.6], 'text-max-width':9},
+      paint:{'text-color':C.testo, 'text-halo-color':C.alone, 'text-halo-width':1.2}});
+  }catch(e){}
+}
+function tingiCorrezioni(){
+  const C = COLORI_AGGIUNTE[temaAttuale()];
+  try{ if(map.getLayer('agr-correzioni-punti')){ map.setPaintProperty('agr-correzioni-punti','circle-color',C.testo); map.setPaintProperty('agr-correzioni-punti','circle-stroke-color',C.alone); map.setPaintProperty('agr-correzioni-nomi','text-color',C.testo); map.setPaintProperty('agr-correzioni-nomi','text-halo-color',C.alone); } }catch(e){}
+}
+function avvisoCorrezioni(){
+  const a = $('attrib-correzioni'); if(!a) return;
+  const n = quanteCorrezioni(); a.hidden = !n; a.textContent = n ? ' · ' + tr('correzioni di {nome}') : '';
+}
+
 async function caricaMappa(){
   if(!map) return;
   try{
-    await indiceMappa(); preparaPmtiles();
+    await Promise.all([indiceMappa(), caricaCorrezioni()]); preparaPmtiles();
     const t = temaAttuale(), livelli = await stileMappa(t);
     MAPPA.tema = t;
     map.setStyle({version:8, glyphs:MAPPA_LIB.glifi+'{fontstack}/{range}.pbf', sprite:MAPPA_LIB.icone+(t==='dark'?'dark':'light'),
-      sources:{protomaps:fonteMappa()}, layers:livelli}, {diff:false});
+      sources:{protomaps:fonteMappa()}, layers:conCorrezioni(livelli)}, {diff:false});
   }catch(e){}
 }
 /* Cambio di tema: solo i colori e le icone, senza ricaricare la mappa (i tasselli restano). */
@@ -379,6 +427,7 @@ async function tingiMappa(){
   if(temaAttuale()!==t || !mappaOk) return; MAPPA.tema = t;
   for(const l of livelli){ if(!map.getLayer(l.id)) continue; for(const [k,v] of Object.entries(l.paint||{})) try{ map.setPaintProperty(l.id, k, v); }catch(e){} }
   try{ map.setSprite(MAPPA_LIB.icone+(t==='dark'?'dark':'light')); }catch(e){}
+  tingiCorrezioni();
 }
 /* Numeri civici: accesi solo mentre si sceglie un punto sulla mappa («Scegli sulla mappa»). */
 function civiciMappa(){
@@ -435,7 +484,7 @@ function initMappa(){
   }catch(e){ $('map').innerHTML = `<p class="meta" style="padding:120px 24px;text-align:center">${tr('Questo browser non riesce a disegnare la mappa.')}</p>`; return; }
   if(c.bounds) try{ map.fitBounds(c.bounds, {padding:40, duration:0}); }catch(e){}
   try{ map.touchZoomRotate.disableRotation(); map.keyboard.disableRotation(); }catch(e){}
-  map.on('style.load', () => { if(!map.getSource('protomaps')) return; aggiungiLivelli(); mappaOk = true; civiciMappa(); tingiMappa(); disegnaPins(); });
+  map.on('style.load', () => { if(!map.getSource('protomaps')) return; aggiungiCorrezioni(); aggiungiLivelli(); mappaOk = true; civiciMappa(); tingiMappa(); disegnaPins(); });
   map.on('error', ev => {
     /* il file unico non si legge a pezzi su questo server: si passa alla cartella di tasselli */
     if(MAPPA.fonte==='file' && ev && ev.sourceId==='protomaps'){ MAPPA.fonte = 'tasselli'; caricaMappa(); }
@@ -1732,6 +1781,7 @@ function testiFissi(){
   $('zPiu').setAttribute('aria-label', tr('Avvicina')); $('zMeno').setAttribute('aria-label', tr('Allontana'));
   $('chips').setAttribute('aria-label', tr('Quando')); $('chipsAvanti').setAttribute('aria-label', tr('Altri tempi')); $('tipiMappa').setAttribute('aria-label', tr('Che cosa vedi sulla mappa'));
   $('navBassa').setAttribute('aria-label', tr('Navigazione principale'));
+  avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
 function applicaLingua(l){ lang = l; LS.set('agorapp_lang', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }

@@ -398,6 +398,7 @@ function testiFissi(){
   $('zPiu').setAttribute('aria-label', tr('Avvicina')); $('zMeno').setAttribute('aria-label', tr('Allontana'));
   $('chips').setAttribute('aria-label', tr('Quando')); $('chipsAvanti').setAttribute('aria-label', tr('Altri tempi')); $('tipiMappa').setAttribute('aria-label', tr('Che cosa vedi sulla mappa'));
   $('navBassa').setAttribute('aria-label', tr('Navigazione principale'));
+  avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
 function applicaLingua(l){ lang = l; LS.set('agorapp_lang', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }

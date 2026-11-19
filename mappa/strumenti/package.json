@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
+    "@maplibre/maplibre-gl-style-spec": "24.10.0",
     "@protomaps/basemaps": "5.7.2",
     "fontnik": "0.7.7",
     "pmtiles": "4.5.0"

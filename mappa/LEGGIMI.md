@@ -25,6 +25,20 @@ Accanto al file della mappa sta un piccolo file che dice all'app quale mappa usa
 
 Sulla mappa si vedono solo le categorie di oggetti dell'elenco `OGGETTI_VISIBILI` in `strumenti/genera-stili.mjs`: tutte le attività commerciali sono escluse, e lo resta ogni categoria nuova che comparisse nei dati. L'elenco definitivo è «decisione aperta» della Direzione (§ 2.4): si cambia lì, si rigenera, si aggiornano le impronte in `sorgenti/vendor/elenco.js` e si rimonta. I numeri civici sono spenti nello stile e l'app li accende solo mentre si sceglie un punto sulla mappa (decisione di Lorenzo del 19/11/2026). I nomi sono quelli locali di OpenStreetMap.
 
+## Lo strato delle correzioni e delle aggiunte
+
+I dati di OpenStreetMap non si modificano nel file della mappa (libro mastro, § 6.6): correzioni e aggiunte stanno in `correzioni.geojson` (T-018), una raccolta GeoJSON che viaggia con l'app e che oggi è vuota. Ogni voce è una `Feature` con queste proprietà:
+
+| Proprietà | Valori |
+| --- | --- |
+| `correzione` | `nascondi` (un oggetto sbagliato della mappa non si disegna) oppure `aggiunta` (un punto con il nome, disegnato sopra la mappa in corsivo) |
+| `livello` | Solo per `nascondi`: il livello del file della mappa (`earth`, `landcover`, `landuse`, `water`, `roads`, `transit`, `buildings`, `pois`, `places`, `boundaries`) |
+| `id_mappa` | Solo per `nascondi`: il numero dell'oggetto nel file della mappa (ricavato da OpenStreetMap e stabile tra le ricostruzioni); la geometria può essere `null` |
+| `nome` | Solo per `aggiunta`: il nome da scrivere; la geometria è un punto (`Point`, longitudine e latitudine) |
+| `data`, `motivo` | Sempre: quando e perché (AAAA-MM-GG; una frase) |
+
+Il montaggio rifiuta un file con voci incomplete. Quando c'è almeno una voce, l'avviso di provenienza aggiunge «correzioni di» con il nome del servizio, preso dalla configurazione: i contenuti del servizio restano distinti da quelli di OpenStreetMap. Lo strato contiene solo dati propri, creati senza estrarli da OpenStreetMap; se un giorno si copiassero dati da OpenStreetMap, varrebbe la licenza ODbL (§ 6.6, «da verificare»). La prova `prove/browser/mappa.js` lo controlla con correzioni inventate.
+
 ## Rigenerare stili e glifi
 
 Dalla cartella `strumenti/`: `npm ci`, poi `node genera-stili.mjs`; per i glifi serve anche fontTools (`pip install fonttools==4.67.0 brotli`), poi `node genera-caratteri.mjs`. La rigenerazione dà file identici; se un file cambia, la prova dei componenti lo segnala finché non si aggiorna la sua impronta. Licenze: `LICENZE.md`.

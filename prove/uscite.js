@@ -38,7 +38,7 @@ function prova() {
   const pub = (toml.match(/^\s*publish\s*=\s*"([^"]*)"/m) || [])[1];
   if (pub !== 'dist/pubblica') e.errori.push(`netlify.toml pubblica «${pub}» invece di «dist/pubblica»`);
   for (const f of Object.keys(leggiUscita('pubblica')))
-    if (/^(versioni|demo|dati|sorgenti|prove|netlify|licenze\/.*\.md)\b/.test(f) || /\.(md|xlsx?|csv|geojson)$/.test(f)) e.errori.push(`dist/pubblica/${f}: non deve andare sul sito`);
+    if (/^(versioni|demo|dati|sorgenti|prove|netlify|licenze\/.*\.md)\b/.test(f) || /\.(md|xlsx?|csv|geojson)$/.test(f) && f !== 'mappa/correzioni.geojson') e.errori.push(`dist/pubblica/${f}: non deve andare sul sito`); // lo strato delle correzioni (T-018) sì
   return e;
 }
 

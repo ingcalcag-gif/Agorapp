@@ -49,8 +49,8 @@ module.exports = [
   {
     cartella: 'protomaps-basemaps-5.7.2', licenza: 'protomaps-basemaps.txt',
     file: {
-      'stile-carta-chiaro.json': '4199dbb977282c83ca1b35053a7d254cb4baf3f2a57a3459c0553ace9d80a44d',
-      'stile-carta-scuro.json': '5a3f4f46e089e8318c5adf0c785c11080c75f6f8f7a70b70aac189c7fde00107',
+      'stile-carta-chiaro.json': '4ef612ad7c540ee36890a1dfe5662c5f380e3f8a5aee410b458a9e37cb97398c',
+      'stile-carta-scuro.json': 'de3d6ddb2d80147bd8c42744140e5cf935b6ccd711faa849c5e6e03aaf953877',
     },
   },
   {

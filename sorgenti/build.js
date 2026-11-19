@@ -111,6 +111,26 @@ function mappaLib() {
   return 'const MAPPA_LIB = Object.fromEntries(Object.entries(' + JSON.stringify(m) + ').map(([k, v]) => [k, new URL(v, location.href).href]));';
 }
 
+// Strato delle correzioni e delle aggiunte della mappa (T-018): mappa/correzioni.geojson, controllato prima di montare.
+// Ogni voce dice che cosa fa (nascondi | aggiunta), quando (data) e perché (motivo); il formato è in mappa/LEGGIMI.md.
+const LIVELLI_MAPPA = ['earth', 'landcover', 'landuse', 'water', 'roads', 'transit', 'buildings', 'pois', 'places', 'boundaries'];
+function correzioniMappa() {
+  const testo = fs.readFileSync(path.join(RADICE, 'mappa', 'correzioni.geojson'), 'utf8');
+  const j = JSON.parse(testo), no = m => { throw new Error('mappa/correzioni.geojson: ' + m); };
+  if (j.type !== 'FeatureCollection' || !Array.isArray(j.features)) no('serve una FeatureCollection con features');
+  j.features.forEach((f, i) => {
+    const p = (f && f.properties) || {}, g = f && f.geometry, n = 'voce ' + (i + 1) + ': ';
+    if (!f || f.type !== 'Feature') no(n + 'non è una Feature');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(p.data || '') || !String(p.motivo || '').trim()) no(n + 'servono data (AAAA-MM-GG) e motivo');
+    if (p.correzione === 'nascondi') {
+      if (!LIVELLI_MAPPA.includes(p.livello) || !Number.isSafeInteger(p.id_mappa)) no(n + '«nascondi» vuole livello (' + LIVELLI_MAPPA.join(', ') + ') e id_mappa numerico');
+    } else if (p.correzione === 'aggiunta') {
+      if (!g || g.type !== 'Point' || !Array.isArray(g.coordinates) || !g.coordinates.slice(0, 2).every(Number.isFinite) || !String(p.nome || '').trim()) no(n + '«aggiunta» vuole un punto e il nome');
+    } else no(n + 'correzione deve essere «nascondi» o «aggiunta»');
+  });
+  return testo;
+}
+
 /* ---------- Ordine dei pezzi ---------- */
 // Un solo modulo JavaScript: app1 apre, app6 chiude.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js',
@@ -170,6 +190,7 @@ ${legaliIt}
 </body>
 </html>
 `;
+  file['mappa/correzioni.geojson'] = correzioniMappa();
   // Contenuti d'esempio di Agorà e Progetti, un file per lingua (T-015): l'app li scarica quando servono.
   Object.assign(file, fileAnteprime(cfg));
   return file;
