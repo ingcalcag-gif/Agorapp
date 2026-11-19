@@ -1,0 +1,90 @@
+/* Prova nel browser: la mappa propria (voci T-017 e T-018; libro mastro § 2.4, «La mappa»; § 6.6; § 31.1).
+
+   Apre l'app con la mappa di prova di Torino del repository e controlla che:
+   - stile, icone, glifi e lettore arrivino dall'app (lib/) e i tasselli dalla zona della mappa (mappa/prova/),
+     senza nessun servizio di mappe esterno; il server di prova, come githack, non accetta le richieste a pezzi:
+     l'app deve passare da sé dal file unico alla cartella di tasselli;
+   - le vie abbiano il nome anche quando sono pedonali (Via Roma a Torino, dato di OpenStreetMap);
+   - i numeri civici non si vedano sulla mappa normale e si vedano solo mentre si sceglie un punto («Scegli sulla mappa»);
+   - il cambio di tema cambi colori e icone senza scaricare di nuovo tasselli o glifi;
+   - l'avviso di provenienza dica «© OpenStreetMap» con il collegamento alla pagina dei diritti e «Protomaps», senza CARTO.
+   Serve WebGL: Chromium lo fa in software (SwiftShader), qui e su GitHub Actions. */
+'use strict';
+const { playwright, server, apri, pausa } = require('./comune.js');
+const { esito, eseguiDaSola } = require('../comune.js');
+
+// Il punto di Torino da guardare: Via Roma tra piazza San Carlo e piazza Carlo Felice.
+const VIA_ROMA = { centro: [7.6826, 45.0668], zoom: 16.5 };
+
+async function prova() {
+  const e = esito('Mappa propria (browser)');
+  const pw = playwright();
+  if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
+  const s = await server('pubblica');
+  const { browser, ctx } = await apri(pw, { agorapp_guida: '1' });
+  // La mappa vive dentro l'app: per guardarla dall'esterno si tiene da parte l'oggetto che MapLibre crea.
+  await ctx.addInitScript(() => {
+    let ml; Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return ml; },
+      set(v) { const M = v.Map; v.Map = function (...a) { const m = new M(...a); window.__mappaProva = m; return m; }; v.Map.prototype = M.prototype; ml = v; } });
+  });
+  const zonaMappa = new URL('../../mappa/prova/', s.url).href;
+  const richieste = [];
+  try {
+    const p = await ctx.newPage();
+    p.on('request', r => richieste.push(r.url()));
+    const pronta = () => p.waitForFunction(() => { const m = window.__mappaProva; return m && m.getSource('protomaps') && m.isStyleLoaded() && m.areTilesLoaded(); }, null, { timeout: 30000 });
+    await p.goto(s.url + 'index.html');
+    try { await pronta(); } catch (x) { e.errori.push('la mappa non si carica entro 30 secondi'); return e; }
+
+    // Da dove arrivano le parti della mappa.
+    const fonte = await p.evaluate(() => window.__mappaProva.getStyle().sources.protomaps);
+    if (!fonte.tiles || !String(fonte.tiles[0]).startsWith(zonaMappa + 'torino/')) e.errori.push('la mappa non è passata alla cartella di tasselli della prova: ' + JSON.stringify(fonte).slice(0, 160));
+    if (!richieste.some(u => u === zonaMappa + 'torino.pmtiles')) e.errori.push('l\'app non ha provato prima il file unico torino.pmtiles');
+    for (const [parte, re] of [['stile', /lib\/protomaps-basemaps-[\d.]+\/stile-carta-chiaro\.json$/], ['icone', /lib\/protomaps-icone-v\d+\/light(@2x)?\.png$/],
+      ['glifi', /lib\/caratteri-mappa\/dm-sans-v\d+\/DM%20Sans%20Regular\/\d+-\d+\.pbf$/], ['lettore', /lib\/pmtiles-[\d.]+\/pmtiles\.js$/], ['indice', /mappa\/prova\/mappa\.json$/]])
+      if (!richieste.some(u => re.test(u))) e.errori.push(`mappa: ${parte} non caricato dall'app`);
+    const altrove = richieste.filter(u => !u.startsWith(s.url) && !u.startsWith(zonaMappa) && !/^(blob|data):/.test(u));
+    if (altrove.length) e.errori.push('richieste fuori dall\'app e dalla zona della mappa: ' + altrove.slice(0, 5).join(', '));
+
+    // Via Roma, via pedonale, ha il suo nome.
+    await p.evaluate(v => window.__mappaProva.jumpTo({ center: v.centro, zoom: v.zoom }), VIA_ROMA); await pronta().catch(() => {}); await pausa(600);
+    const nomi = await p.evaluate(() => window.__mappaProva.queryRenderedFeatures().filter(f => /^roads_labels/.test(f.layer.id)).map(f => f.properties.name));
+    if (!nomi.includes('Via Roma')) e.errori.push('a zoom 16,5 su Via Roma la mappa non scrive «Via Roma» (vie con il nome: ' + [...new Set(nomi)].join(', ') + ')');
+
+    // Numeri civici: mai sulla mappa normale, solo durante «Scegli sulla mappa».
+    const civici = () => p.evaluate(() => { const m = window.__mappaProva; m.jumpTo({ center: [7.6826, 45.0668], zoom: 18.5 }); return new Promise(ok => m.once('idle', () => ok(m.queryRenderedFeatures().filter(f => f.layer.id === 'address_label').length))); });
+    const prima = await civici();
+    if (prima) e.errori.push(`numeri civici sulla mappa normale: ${prima}`);
+    await p.click('#btnNuovo'); await pausa(400);
+    await p.click('[data-az="scegli-mappa"]'); await pausa(400);
+    const durante = await civici();
+    if (!durante) e.errori.push('nessun numero civico mentre si sceglie il punto sulla mappa');
+    await p.click('[data-az="posa-annulla"]'); await pausa(300);
+    const dopo = await p.evaluate(() => window.__mappaProva.getLayoutProperty('address_label', 'visibility'));
+    if (dopo !== 'none') e.errori.push('i numeri civici restano accesi dopo «Annulla»');
+    e.note.push(`numeri civici a zoom 18,5: mappa normale ${prima}, durante la scelta del punto ${durante}`);
+
+    // Cambio di tema: colori e icone, nessun tassello o glifo scaricato di nuovo.
+    await p.goto(s.url + 'index.html'); await pronta();
+    const pesanti = () => richieste.filter(u => /\.pbf$|\.pmtiles$/.test(u)).length;
+    const n0 = pesanti();
+    await p.click('[data-az="impostazioni"]'); await pausa(300); await p.click('[data-tema-set="dark"]'); await pausa(1200);
+    const scuro = await p.evaluate(() => { const m = window.__mappaProva; return { fondo: m.getPaintProperty('background', 'background-color'), icone: String(m.getStyle().sprite) }; });
+    if (!/^#1C1915$/i.test(scuro.fondo)) e.errori.push('dopo il tema scuro il fondo della mappa è ' + scuro.fondo);
+    if (!/protomaps-icone-v\d+\/dark$/.test(scuro.icone)) e.errori.push('dopo il tema scuro le icone non sono quelle scure: ' + scuro.icone);
+    if (pesanti() !== n0) e.errori.push(`il cambio di tema ha scaricato di nuovo ${pesanti() - n0} tasselli o glifi`);
+
+    // Avviso di provenienza.
+    const avviso = await p.evaluate(() => { const a = document.getElementById('attrib'); return { testo: a.textContent.replace(/\s+/g, ' ').trim(), link: [...a.querySelectorAll('a')].map(x => x.href) }; });
+    if (!/© OpenStreetMap/.test(avviso.testo) || !avviso.link.includes('https://www.openstreetmap.org/copyright')) e.errori.push('avviso di provenienza senza «© OpenStreetMap» e il collegamento alla pagina dei diritti: ' + avviso.testo);
+    if (!/Protomaps/.test(avviso.testo)) e.errori.push('avviso di provenienza senza il riconoscimento di Protomaps');
+    if (/CARTO/i.test(avviso.testo)) e.errori.push('l\'avviso nomina ancora CARTO');
+    e.note.push('avviso: ' + avviso.testo);
+  } finally {
+    await browser.close(); await s.chiudi();
+  }
+  return e;
+}
+
+module.exports = { prova };
+eseguiDaSola(module, prova);

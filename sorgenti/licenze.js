@@ -31,7 +31,7 @@ function tabella(md, titolo) {
     if (righe[i].trim().startsWith('|')) tab.push(celle(righe[i]));
     else if (tab.length) break;
   }
-  if (tab.length < 3) throw new Error('COMPONENTI_DI_TERZI.md: la tabella «' + titolo + '» è vuota');
+  if (tab.length < 2) throw new Error('COMPONENTI_DI_TERZI.md: la tabella «' + titolo + '» non ha intestazione'); // senza righe è ammessa (servizi, dal blocco 3)
   const [testa, , ...corpo] = tab;
   return corpo.map((c, n) => {
     if (c.length !== testa.length) throw new Error('COMPONENTI_DI_TERZI.md, «' + titolo + '», riga ' + (n + 1) + ': ' + c.length + ' celle invece di ' + testa.length);

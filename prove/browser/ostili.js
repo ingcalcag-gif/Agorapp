@@ -57,10 +57,11 @@ async function prova() {
     await avvia(); await controlla('avvio');
     if (await tocca('[data-az="elenco"]', 'elenco')) {
       await controlla('elenco');
-      if (await tocca('[data-ev="prova-ostile-1"]', 'scheda evento')) await controlla('scheda evento');
+      // dall'elenco: dal blocco 3 la mappa si carica e lo stesso evento ha anche il segnaposto, coperto dal foglio
+      if (await tocca('#foglio-slot [data-ev="prova-ostile-1"]', 'scheda evento')) await controlla('scheda evento');
     }
     await avvia();
-    if (await tocca('[data-az="elenco"]', 'elenco') && await tocca('[data-ev="prova-ostile-og"]', 'scheda Off-Grid')) await controlla('scheda Off-Grid');
+    if (await tocca('[data-az="elenco"]', 'elenco') && await tocca('#foglio-slot [data-ev="prova-ostile-og"]', 'scheda Off-Grid')) await controlla('scheda Off-Grid');
     await avvia();
     if (await tocca('[data-az="calendario"]', 'calendario') && await tocca('[data-vista="agenda"]', 'calendario, agenda')) await controlla('calendario, agenda');
     await avvia();

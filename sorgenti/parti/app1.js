@@ -3,7 +3,7 @@
 /* =====================================================================
    App della mappa degli eventi — restyling (ramo restyling-app)
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
-   Funzioni vere dall'app online OG 1.7: mappa CARTO, indirizzi Photon,
+   Funzioni vere dall'app online OG 1.7: mappa (dal blocco 3 la mappa propria, T-017), indirizzi Photon,
    GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
    5 lingue, testi legali v1.2. Stessi dati sul telefono (chiavi agorapp_*).
    ===================================================================== */

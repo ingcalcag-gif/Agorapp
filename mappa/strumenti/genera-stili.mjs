@@ -1,0 +1,76 @@
+// Genera i due stili della mappa (tinta carta, chiaro e scuro) da @protomaps/basemaps (voce T-017).
+//
+// Uso, dalla cartella mappa/strumenti:  npm ci  →  node genera-stili.mjs
+// Scrive sorgenti/vendor/protomaps-basemaps-5.7.2/stile-carta-chiaro.json e stile-carta-scuro.json;
+// dopo ogni rigenerazione si aggiornano le impronte in sorgenti/vendor/elenco.js (lo dice la prova dei componenti).
+//
+// Che cosa cambia rispetto agli stili di Protomaps (libro mastro § 2.4, «La mappa»; § 6.6):
+// - i colori: la tinta carta dell'app, la stessa che prima si dava agli stili di CARTO;
+// - gli oggetti della mappa (punti d'interesse): si vedono SOLO le categorie di OGGETTI_VISIBILI; tutto il resto,
+//   attività commerciali comprese e qualunque categoria nuova nei dati, resta nascosto. L'elenco definitivo è
+//   «decisione aperta» della Direzione (§ 2.4): si cambia qui, si rigenera e si rimonta. I dati non si toccano;
+// - i numeri civici (livello «address_label») sono spenti: l'app li accende soltanto mentre si sceglie sulla mappa
+//   il punto di un Off-Grid (decisione di Lorenzo del 19/11/2026);
+// - i nomi: quelli locali (il campo «name» di OpenStreetMap), non le traduzioni (piano, sezione 7);
+// - i caratteri: DM Sans al posto di Noto Sans (glifi in sorgenti/vendor/caratteri-mappa/dm-sans-v17/).
+// Il disegno degli stili di Protomaps è CC0, il codice BSD a tre clausole (licenze/protomaps-basemaps.txt).
+import { layers, namedFlavor } from '@protomaps/basemaps';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const QUI = path.dirname(fileURLToPath(import.meta.url));
+const USCITA = path.resolve(QUI, '../../sorgenti/vendor/protomaps-basemaps-5.7.2');
+
+// I colori carta dell'app.
+const PALETTE = {
+  chiaro: {terra:'#ECE6D9', terra2:'#E5DECF', strada:'#FBF8F1', bordo:'#D9CFBD', edificio:'#E0D8C8', acqua:'#C9DCE4', acquaT:'#5E7E8A', parco:'#D2E2C8', testo:'#5C5246', alone:'#F3EEE4', confine:'#A89F90', ferrovia:'#CFC6B4'},
+  scuro:  {terra:'#1C1915', terra2:'#211D18', strada:'#36302A', bordo:'#2A251F', edificio:'#28231D', acqua:'#1D2E36', acquaT:'#86A9B5', parco:'#1F2C1E', testo:'#B5A998', alone:'#16130F', confine:'#6A6054', ferrovia:'#3A342C'},
+};
+
+// Categorie degli oggetti della mappa che si vedono (elenco del ramo mappa-protomaps, 12/10/2026).
+export const OGGETTI_VISIBILI = ['park','garden','forest','beach','marina','peak','zoo','animal','station','bus_stop','ferry_terminal','aerodrome',
+  'stadium','university','library','school','townhall','post_office','museum','theatre','attraction','artwork','building',
+  'toilets','drinking_water','bench'];
+
+function carta(base, C){
+  const f = structuredClone(namedFlavor(base));
+  for (const k of Object.keys(f)) {
+    if (typeof f[k] !== 'string') continue;
+    if (/_halo$/.test(k)) f[k] = C.alone;
+    else if (/label/.test(k)) f[k] = k==='ocean_label' ? C.acquaT : C.testo;
+    else if (/casing/.test(k)) f[k] = C.bordo;
+    else if (/^tunnel_/.test(k)) f[k] = C.terra2;
+    else if (/^(park|wood|scrub)_|^zoo$/.test(k)) f[k] = C.parco;
+    else if (/^(other|minor|link|major|highway|bridges_|runway)/.test(k)) f[k] = C.strada;
+  }
+  Object.assign(f, {background:C.terra, earth:C.terra, water:C.acqua, buildings:C.edificio, railway:C.ferrovia, boundaries:C.confine,
+    hospital:C.terra2, industrial:C.terra2, school:C.terra2, pedestrian:C.terra2, aerodrome:C.terra2, military:C.terra2,
+    sand:C.terra2, beach:C.terra2, glacier:C.terra, pier:C.terra2});
+  f.landcover = {grassland:C.parco, farmland:C.parco, scrub:C.parco, forest:C.parco, barren:C.terra2, urban_area:C.terra2, glacier:C.terra};
+  return f;
+}
+
+// Caratteri: Noto Sans di Protomaps → DM Sans; nomi: traduzione italiana → nome locale.
+const ritocca = s => s
+  .replace(/Noto Sans Devanagari Regular v1|Noto Sans Regular/g, 'DM Sans Regular')
+  .replace(/Noto Sans Medium/g, 'DM Sans Medium').replace(/Noto Sans Italic/g, 'DM Sans Italic')
+  .replace(/"name:it"/g, '"name"');
+
+function stile(gusto){
+  const livelli = JSON.parse(ritocca(JSON.stringify(layers('protomaps', gusto, {lang:'it'}))));
+  for (const l of livelli) {
+    if (l.id === 'pois') l.filter = ['all', ['in', ['get','kind'], ['literal', OGGETTI_VISIBILI]], ['>=', ['zoom'], ['get','min_zoom']]];
+    if (l.id === 'address_label') l.layout = Object.assign({}, l.layout, {visibility:'none'});
+  }
+  if (!livelli.some(l => l.id === 'address_label')) throw new Error('manca il livello address_label: controlla la versione di @protomaps/basemaps');
+  if (livelli.some(l => JSON.stringify(l).includes('Noto'))) throw new Error('è rimasto un carattere Noto');
+  return livelli;
+}
+
+fs.mkdirSync(USCITA, {recursive:true});
+for (const [nome, base, C] of [['carta-chiaro','light',PALETTE.chiaro], ['carta-scuro','dark',PALETTE.scuro]]) {
+  const f = path.join(USCITA, `stile-${nome}.json`);
+  fs.writeFileSync(f, JSON.stringify(stile(carta(base, C))) + '\n');
+  console.log(path.relative(process.cwd(), f));
+}

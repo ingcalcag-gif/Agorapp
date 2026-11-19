@@ -1,0 +1,12 @@
+{
+  "name": "agorapp-strumenti-mappa",
+  "private": true,
+  "description": "Strumenti per gli stili e i glifi della mappa (T-017) e per il lettore PMTiles: non vanno nell'app. Vedi mappa/LEGGIMI.md.",
+  "type": "module",
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "5.3.0",
+    "@protomaps/basemaps": "5.7.2",
+    "fontnik": "0.7.7",
+    "pmtiles": "4.5.0"
+  }
+}

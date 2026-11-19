@@ -7,7 +7,8 @@
    In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina.
    Ogni uscita contiene anche licenze/: titolari, licenze e testi integrali dei componenti di terzi
    (sorgenti/licenze.js, da COMPONENTI_DI_TERZI.md e licenze/), e lib/: librerie e caratteri di terzi
-   a versione fissa, copiati da sorgenti/vendor/ con accanto il testo della loro licenza (T-007), e anteprime/:
+   a versione fissa, copiati da sorgenti/vendor/ con accanto il testo della loro licenza (T-007; dal blocco 3 anche
+   lettore PMTiles, stili, icone e glifi della mappa, T-017), e anteprime/:
    i contenuti d'esempio di Agorà e Progetti, un file per lingua (sorgenti/contenuti_esempio.js, T-015).
    Alla fine controlla la sintassi di ogni file JavaScript prodotto (node --check).
 
@@ -98,6 +99,18 @@ function lib(nome) {
   return 'lib/' + c.cartella + '/' + nome;
 }
 
+// Percorso di una cartella di terzi nell'uscita, a partire dall'inizio del suo nome (es. «pmtiles-»).
+function cartellaLib(inizio) {
+  const c = VENDOR.filter(x => x.cartella.startsWith(inizio));
+  if (c.length !== 1) throw new Error('vendor/elenco.js: serve una sola cartella che comincia con ' + inizio);
+  return 'lib/' + c[0].cartella + '/';
+}
+// Percorsi di stili, icone e glifi della mappa (T-017), resi assoluti nel browser: MapLibre li vuole così.
+function mappaLib() {
+  const m = { stili: cartellaLib('protomaps-basemaps-'), icone: cartellaLib('protomaps-icone-'), glifi: cartellaLib('caratteri-mappa/') };
+  return 'const MAPPA_LIB = Object.fromEntries(Object.entries(' + JSON.stringify(m) + ').map(([k, v]) => [k, new URL(v, location.href).href]));';
+}
+
 /* ---------- Ordine dei pezzi ---------- */
 // Un solo modulo JavaScript: app1 apre, app6 chiude.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js',
@@ -114,8 +127,8 @@ function monta(cfg) {
   const legaliIt = riempi(leggi(PARTI, 'legali_it.html').replace(/\n$/, ''), cfg, 'it');
 
   let app = JS_APP.map(f => leggi(PARTI, f)).join('\n');
-  if (!app.includes('/*@@LAYERS@@*/') || !app.includes('/*@@LEGALI@@*/')) throw new Error('Segnaposto LAYERS o LEGALI mancante nei pezzi JavaScript');
-  app = app.replace('/*@@LAYERS@@*/', () => strati).replace('/*@@LEGALI@@*/', () => legali);
+  for (const k of ['LAYERS', 'LEGALI', 'MAPPA_LIB']) if (!app.includes('/*@@' + k + '@@*/')) throw new Error('Segnaposto ' + k + ' mancante nei pezzi JavaScript');
+  app = app.replace('/*@@LAYERS@@*/', () => strati).replace('/*@@LEGALI@@*/', () => legali).replace('/*@@MAPPA_LIB@@*/', () => mappaLib());
 
   const traduzioni = fs.existsSync(path.join(PARTI, 'traduzioni.js')) ? leggi(PARTI, 'traduzioni.js') : 'window.AGR_TR={};';
   const css = CSS.map(f => leggi(PARTI, f)).join('\n');
@@ -149,6 +162,7 @@ ${riempi(leggi(PARTI, 'body.html'), cfg, 'it')}
 <!-- Testi legali: quelli dell'app online OG 1.7 (v1.2), invariati -->
 ${legaliIt}
 <script src="${lib('maplibre-gl.js')}"></script>
+<script src="${lib('pmtiles.js')}"></script>
 <script src="config.js?v=${v('config.js')}"></script>
 <script src="traduzioni.js?v=${v('traduzioni.js')}"></script>
 <script src="app.js?v=${v('app.js')}"></script>

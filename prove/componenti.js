@@ -25,13 +25,18 @@ const COMPONENTI = [
   { nome: 'DM Sans', re: /lib\/caratteri\/dm-sans-(v\d+)\//g, versione: true },
   { nome: 'DM Serif Display', re: /lib\/caratteri\/dm-serif-display-(v\d+)\//g, versione: true },
   { nome: 'Dati di OpenStreetMap', re: /openstreetmap\.org\/copyright/g, versione: false },
+  /* Mappa propria (T-017): lettore del file unico, stili, icone e glifi della mappa. */
+  { nome: 'PMTiles, lettore JavaScript', re: /lib\/pmtiles-(\d+\.\d+\.\d+)\//g, versione: true },
+  { nome: 'Protomaps basemaps: stili della mappa', re: /lib\/protomaps-basemaps-(\d+\.\d+\.\d+)\//g, versione: true },
+  { nome: 'Protomaps basemaps-assets: icone della mappa', re: /lib\/protomaps-icone-(v\d+)\//g, versione: true },
+  { nome: 'DM Sans, glifi della mappa', re: /lib\/caratteri-mappa\/dm-sans-(v\d+)\//g, versione: true },
 ];
 /* Servizi che oggi consegnano parti dell'app al telefono (tabella «Servizi che oggi forniscono parti dell'app»). */
 const SERVIZI = [
   { nome: 'Google Fonts', re: /fonts\.(?:googleapis|gstatic)\.com/g },
   { nome: 'unpkg.com', re: /unpkg\.com\//g },
   { nome: 'cdnjs.cloudflare.com', re: /cdnjs\.cloudflare\.com\//g },
-  { nome: 'CARTO (basemaps.cartocdn.com)', re: /basemaps\.cartocdn\.com/g },
+  { nome: 'CARTO (basemaps.cartocdn.com)', re: /basemaps\.cartocdn\.com/g }, // uscito con T-017: resta per accorgersi di un ritorno
 ];
 /* Qualunque indirizzo esterno di un file di programma, di stile, di caratteri o di mappa. */
 const RISORSA_ESTERNA = /https?:\/\/[^\s"'`<>()\\]+?\.(?:m?js|css|woff2?|ttf|otf|pbf|pmtiles|json)(?=[?#"'`\s)\\]|$)|https?:\/\/fonts\.googleapis\.com\/css2?\?[^\s"'`<>]+/g;
@@ -75,8 +80,7 @@ function prova() {
 
     for (const m of testo.matchAll(RISORSA_ESTERNA)) {
       const url = m[0];
-      const noto = COMPONENTI.some(c => { c.re.lastIndex = 0; const ok = c.re.test(url); c.re.lastIndex = 0; return ok; })
-        || /basemaps\.cartocdn\.com\/gl\/[a-z-]+\/style\.json$/.test(url);
+      const noto = COMPONENTI.some(c => { c.re.lastIndex = 0; const ok = c.re.test(url); c.re.lastIndex = 0; return ok; });
       if (!noto) e.errori.push(`dist/${u}: risorsa esterna non riconosciuta ${url}: aggiungi il componente all'elenco e il riconoscimento in prove/componenti.js`);
     }
 

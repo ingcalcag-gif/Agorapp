@@ -3,7 +3,7 @@
 /* =====================================================================
    App della mappa degli eventi — restyling (ramo restyling-app)
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
-   Funzioni vere dall'app online OG 1.7: mappa CARTO, indirizzi Photon,
+   Funzioni vere dall'app online OG 1.7: mappa (dal blocco 3 la mappa propria, T-017), indirizzi Photon,
    GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
    5 lingue, testi legali v1.2. Stessi dati sul telefono (chiavi agorapp_*).
    ===================================================================== */
@@ -312,43 +312,78 @@ const CITTA = [
 let citta = (function(){ const c = LS.s('agorapp_city','torino'); return CITTA.find(x=>x.id===c) ? c : 'torino'; })();
 const cittaObj = () => CITTA.find(x => x.id===citta) || CITTA[0];
 
-/* ---------- Mappa vera: CARTO vettoriale con MapLibre, tinta con i colori carta ---------- */
-const STILE_CARTO = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-const PALETTE = {
-  light:{terra:'#ECE6D9', terra2:'#E5DECF', strada:'#FBF8F1', bordo:'#D9CFBD', edificio:'#E0D8C8', acqua:'#C9DCE4', acquaT:'#5E7E8A', parco:'#D2E2C8', testo:'#5C5246', alone:'#F3EEE4', confine:'#A89F90', ferrovia:'#CFC6B4'},
-  dark:{terra:'#1C1915', terra2:'#211D18', strada:'#36302A', bordo:'#2A251F', edificio:'#28231D', acqua:'#1D2E36', acquaT:'#86A9B5', parco:'#1F2C1E', testo:'#B5A998', alone:'#16130F', confine:'#6A6054', ferrovia:'#3A342C'}
-};
+/* ---------- Mappa vera: file nostro (Protomaps) disegnato da MapLibre, tinta carta chiara e scura (T-017) ----------
+   La mappa è un file proprio, costruito con Protomaps dai dati di OpenStreetMap (libro mastro § 2.4, «La mappa»): il telefono
+   ne legge i soli tasselli che servono e non contatta altri servizi di mappe.
+   Dove sta: all'indirizzo della mappa nella configurazione (indirizzi.mappa, su Bunny con T-065); finché è vuoto, l'app aperta
+   dal repository (githack, prove automatiche) usa la mappa di prova di Torino in mappa/prova/; altrove resta il solo fondo.
+   Lì il piccolo file mappa.json dice quale file usare (T-019). Il file unico .pmtiles si legge a pezzi; se il server non lo
+   consente, si passa da sé alla cartella di tasselli. Stili, icone e caratteri della mappa viaggiano con l'app, in lib/
+   (percorsi in MAPPA_LIB, scritti dal montaggio da sorgenti/vendor/elenco.js).
+   I numeri civici si vedono solo mentre si sceglie un punto sulla mappa (decisione di Lorenzo del 19/11/2026). */
+const MAPPA_LIB = Object.fromEntries(Object.entries({"stili":"lib/protomaps-basemaps-5.7.2/","icone":"lib/protomaps-icone-v4/","glifi":"lib/caratteri-mappa/dm-sans-v17/"}).map(([k, v]) => [k, new URL(v, location.href).href]));
+const MAPPA_DOVE = (() => {
+  const u = (CFG.indirizzi||{}).mappa;
+  try{ if(u) return new URL(u.replace(/\/?$/,'/'), location.href).href; }catch(e){ return ''; }
+  /* mappa di prova: l'app aperta dal repository (githack, prove automatiche) sta in …/dist/<uscita>/ */
+  const i = location.pathname.lastIndexOf('/dist/');
+  return i>=0 ? location.origin + location.pathname.slice(0, i) + '/mappa/prova/' : '';
+})();
 const temaAttuale = () => document.documentElement.getAttribute('data-theme')==='dark' ? 'dark' : 'light';
 let map = null, mappaOk = false;
-function sp(id, p, v){ try{ map.setPaintProperty(id, p, v); }catch(e){} }
-function tingi(){
-  if(!map) return; let stile; try{ stile = map.getStyle(); }catch(e){ return; } if(!stile || !stile.layers) return;
-  const C = PALETTE[temaAttuale()];
-  stile.layers.forEach(l => {
-    const id = l.id, k = id.toLowerCase(); if(k.startsWith('agr-')) return;
-    if(l.type==='background') return sp(id,'background-color',C.terra);
-    if(l.type==='fill'){
-      if(/water|ocean|sea|lake|river/.test(k)) return sp(id,'fill-color',C.acqua);
-      if(/park|wood|grass|forest|nature|cemetery|garden|green|pitch|landcover|golf|recreation/.test(k)) return sp(id,'fill-color',C.parco);
-      if(/building/.test(k)){ sp(id,'fill-color',C.edificio); return sp(id,'fill-outline-color',C.bordo); }
-      if(/aeroway|runway|taxiway/.test(k)) return sp(id,'fill-color',C.terra2);
-      return sp(id,'fill-color',C.terra2);
-    }
-    if(l.type==='fill-extrusion') return sp(id,'fill-extrusion-color',C.edificio);
-    if(l.type==='line'){
-      if(/water|river|stream|canal|ditch|drain/.test(k)) return sp(id,'line-color',C.acqua);
-      if(/boundary|admin|border/.test(k)) return sp(id,'line-color',C.confine);
-      if(/rail|train|tram|transit/.test(k)) return sp(id,'line-color',C.ferrovia);
-      if(/case|casing|outline/.test(k)) return sp(id,'line-color',C.bordo);
-      if(/road|street|motorway|trunk|primary|secondary|tertiary|minor|service|path|bridge|tunnel|highway|track|aeroway|pedestrian|footway|cycle/.test(k)) return sp(id,'line-color',C.strada);
-      return;
-    }
-    if(l.type==='symbol'){
-      const acq = /water|ocean|sea|lake|river|marine/.test(k);
-      sp(id,'text-color', acq ? C.acquaT : C.testo); sp(id,'text-halo-color', C.alone); sp(id,'text-halo-width', 1.2);
-      if(/poi|icon|shield/.test(k)) sp(id,'icon-opacity', .55);
-    }
-  });
+const MAPPA = {indice:null, fonte:'file', pmtiles:false, stili:{}, tema:null};
+const FONDO_MAPPA = {light:'#ECE6D9', dark:'#1C1915'};
+function stileVuoto(t){ return {version:8, sources:{}, layers:[{id:'sfondo', type:'background', paint:{'background-color':FONDO_MAPPA[t]}}]}; }
+function preparaPmtiles(){
+  if(MAPPA.pmtiles || !window.pmtiles) return;
+  try{ maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile); MAPPA.pmtiles = true; }catch(e){}
+}
+/* mappa.json: {versione, file: "<nome>.pmtiles", tasselli: "<cartella>/", zoom_max, riquadro: [ovest, sud, est, nord]} */
+async function indiceMappa(){
+  if(MAPPA.indice) return MAPPA.indice;
+  if(!MAPPA_DOVE) throw new Error('indirizzo della mappa mancante');
+  const r = await fetch(MAPPA_DOVE+'mappa.json', {cache:'no-cache', credentials:'omit'});
+  if(!r.ok) throw new Error('mappa.json '+r.status);
+  const j = await r.json();
+  if(!/^[\w.-]+\.pmtiles$/.test(j.file||'') || !/^[\w.-]+\/$/.test(j.tasselli||'')) throw new Error('mappa.json non valido');
+  return MAPPA.indice = j;
+}
+function fonteMappa(){
+  const i = MAPPA.indice;
+  if(MAPPA.fonte==='file' && MAPPA.pmtiles) return {type:'vector', url:'pmtiles://'+MAPPA_DOVE+i.file};
+  MAPPA.fonte = 'tasselli';
+  const f = {type:'vector', tiles:[MAPPA_DOVE+i.tasselli+'{z}/{x}/{y}.pbf'], minzoom:0, maxzoom:i.zoom_max||15};
+  if(Array.isArray(i.riquadro) && i.riquadro.length===4) f.bounds = i.riquadro;
+  return f;
+}
+async function stileMappa(t){
+  const n = t==='dark' ? 'scuro' : 'chiaro';
+  if(!MAPPA.stili[n]){ const r = await fetch(MAPPA_LIB.stili+'stile-carta-'+n+'.json'); if(!r.ok) throw new Error('stile '+r.status); MAPPA.stili[n] = await r.json(); }
+  return MAPPA.stili[n];
+}
+async function caricaMappa(){
+  if(!map) return;
+  try{
+    await indiceMappa(); preparaPmtiles();
+    const t = temaAttuale(), livelli = await stileMappa(t);
+    MAPPA.tema = t;
+    map.setStyle({version:8, glyphs:MAPPA_LIB.glifi+'{fontstack}/{range}.pbf', sprite:MAPPA_LIB.icone+(t==='dark'?'dark':'light'),
+      sources:{protomaps:fonteMappa()}, layers:livelli}, {diff:false});
+  }catch(e){}
+}
+/* Cambio di tema: solo i colori e le icone, senza ricaricare la mappa (i tasselli restano). */
+async function tingiMappa(){
+  if(!map || !mappaOk) return;
+  const t = temaAttuale(); if(MAPPA.tema===t) return;
+  let livelli; try{ livelli = await stileMappa(t); }catch(e){ return; }
+  if(temaAttuale()!==t || !mappaOk) return; MAPPA.tema = t;
+  for(const l of livelli){ if(!map.getLayer(l.id)) continue; for(const [k,v] of Object.entries(l.paint||{})) try{ map.setPaintProperty(l.id, k, v); }catch(e){} }
+  try{ map.setSprite(MAPPA_LIB.icone+(t==='dark'?'dark':'light')); }catch(e){}
+}
+/* Numeri civici: accesi solo mentre si sceglie un punto sulla mappa («Scegli sulla mappa»). */
+function civiciMappa(){
+  if(!map || !mappaOk) return;
+  try{ if(map.getLayer('address_label')) map.setLayoutProperty('address_label', 'visibility', st.posa ? 'visible' : 'none'); }catch(e){}
 }
 /* «I vuoti»: i quartieri dove, nel periodo scelto, non succede niente. Per ora rettangoli (come nel mockup), solo a Torino */
 const QUARTIERI = [
@@ -393,15 +428,19 @@ function initMappa(){
   if(!window.maplibregl){ $('map').innerHTML = `<p class="meta" style="padding:120px 24px;text-align:center">${tr('La mappa non si è caricata. Controlla la connessione e riapri la pagina.')}</p>`; return; }
   try{
     map = new maplibregl.Map({
-      container:'map', style:STILE_CARTO, center: c.center ? [c.center[1], c.center[0]] : [7.6869,45.0703], zoom: c.zoom || 12,
+      container:'map', style:stileVuoto(temaAttuale()), center: c.center ? [c.center[1], c.center[0]] : [7.6869,45.0703], zoom: c.zoom || 12,
       attributionControl:false, dragRotate:false, pitchWithRotate:false, touchPitch:false, maxPitch:0, boxZoom:false,
       fadeDuration:0, renderWorldCopies:false, minZoom:4, maxZoom:19, pixelRatio:Math.min(window.devicePixelRatio||1, 2)
     });
   }catch(e){ $('map').innerHTML = `<p class="meta" style="padding:120px 24px;text-align:center">${tr('Questo browser non riesce a disegnare la mappa.')}</p>`; return; }
   if(c.bounds) try{ map.fitBounds(c.bounds, {padding:40, duration:0}); }catch(e){}
   try{ map.touchZoomRotate.disableRotation(); map.keyboard.disableRotation(); }catch(e){}
-  map.on('style.load', () => { tingi(); aggiungiLivelli(); mappaOk = true; disegnaPins(); });
-  map.on('error', () => {});
+  map.on('style.load', () => { if(!map.getSource('protomaps')) return; aggiungiLivelli(); mappaOk = true; civiciMappa(); tingiMappa(); disegnaPins(); });
+  map.on('error', ev => {
+    /* il file unico non si legge a pezzi su questo server: si passa alla cartella di tasselli */
+    if(MAPPA.fonte==='file' && ev && ev.sourceId==='protomaps'){ MAPPA.fonte = 'tasselli'; caricaMappa(); }
+  });
+  caricaMappa();
   map.on('movestart', () => { $('app').classList.add('muove'); annullaLungo(); });
   map.on('moveend', () => { $('app').classList.remove('muove'); aggiornaZoomBtn(); });
   map.on('zoomend', () => { if(!modoGiornata()) disegnaPins(); });
@@ -1271,7 +1310,7 @@ function elimina(id, modo){
 
 /* ======================= Posa del segnaposto (Scegli sulla mappa) ======================= */
 function disegnaPosa(){
-  const slot = $('posa-slot');
+  const slot = $('posa-slot'); civiciMappa();
   if(!st.posa){ slot.innerHTML = ''; return; }
   slot.innerHTML = `<span class="posa-ombra"></span><svg class="posa-croce" width="40" height="52" viewBox="0 0 30 38" aria-hidden="true"><path d="M15 36.5C15 36.5 2 23.5 2 14.2 2 7 7.8 1.5 15 1.5S28 7 28 14.2C28 23.5 15 36.5 15 36.5Z" fill="var(--verde)" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14" r="5.2" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="15" cy="14" r="1.8" fill="#fff"/></svg>
     <div class="vetro posa-testa" role="status"><div style="font-weight:600">${tr('Sposta la mappa sul punto')}</div><div class="meta">${tr('Il segno resta fermo al centro: trascina la mappa sotto.')}</div></div>
@@ -1678,7 +1717,7 @@ function vaiSezione(s, daNav){
 function applicaTema(t){
   document.documentElement.setAttribute('data-theme', t); LS.set('agorapp_theme', t);
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', t==='dark' ? '#211D18' : '#FFFDF8');
-  tingi(); if(map && mappaOk){ try{ map.updateImage('agr-tratteggio', immagineTratteggio()); map.setPaintProperty('agr-vuoti-bordo','line-color', t==='dark'?'#B5A998':'#5C5246'); }catch(e){} }
+  tingiMappa(); if(map && mappaOk){ try{ map.updateImage('agr-tratteggio', immagineTratteggio()); map.setPaintProperty('agr-vuoti-bordo','line-color', t==='dark'?'#B5A998':'#5C5246'); }catch(e){} }
   if(modoGiornata()) disegnaPins();
 }
 function testiFissi(){

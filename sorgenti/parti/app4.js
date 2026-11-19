@@ -326,7 +326,7 @@ function elimina(id, modo){
 
 /* ======================= Posa del segnaposto (Scegli sulla mappa) ======================= */
 function disegnaPosa(){
-  const slot = $('posa-slot');
+  const slot = $('posa-slot'); civiciMappa();
   if(!st.posa){ slot.innerHTML = ''; return; }
   slot.innerHTML = `<span class="posa-ombra"></span><svg class="posa-croce" width="40" height="52" viewBox="0 0 30 38" aria-hidden="true"><path d="M15 36.5C15 36.5 2 23.5 2 14.2 2 7 7.8 1.5 15 1.5S28 7 28 14.2C28 23.5 15 36.5 15 36.5Z" fill="var(--verde)" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14" r="5.2" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="15" cy="14" r="1.8" fill="#fff"/></svg>
     <div class="vetro posa-testa" role="status"><div style="font-weight:600">${tr('Sposta la mappa sul punto')}</div><div class="meta">${tr('Il segno resta fermo al centro: trascina la mappa sotto.')}</div></div>

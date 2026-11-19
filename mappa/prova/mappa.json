@@ -1,0 +1,8 @@
+{
+  "versione": "torino-20261012",
+  "file": "torino.pmtiles",
+  "tasselli": "torino/",
+  "zoom_max": 15,
+  "riquadro": [7.50, 44.95, 7.85, 45.20],
+  "dati": "© OpenStreetMap, licenza ODbL 1.0; Natural Earth (pubblico dominio). Elaborazione Protomaps, schema 4.15.2, dati OpenStreetMap del 12/10/2026."
+}

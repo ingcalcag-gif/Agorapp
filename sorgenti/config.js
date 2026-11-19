@@ -31,7 +31,7 @@ module.exports = {
     app_pubblica: 'https://melodic-custard-8a668b.netlify.app', // oggi Netlify; dominio nuovo con T-074
     app_redazione: '',            // T-033, T-065
     eventi: '',                   // archivio degli eventi su Bunny: T-021, T-065
-    mappa: '',                    // file della mappa su Bunny: T-017, T-065
+    mappa: '',                    // file della mappa e mappa.json su Bunny: T-065. Vuoto = prova di Torino in mappa/prova/ (solo dal repository)
     sportello_pubblicazione: '',  // T-038, T-065
     sportello_segnalazioni: '',   // T-051, T-065
     archivio: '',                 // archivio dei registri: T-053, T-065
