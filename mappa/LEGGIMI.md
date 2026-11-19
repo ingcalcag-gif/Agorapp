@@ -43,6 +43,12 @@ Il montaggio rifiuta un file con voci incomplete. Quando c'è almeno una voce, l
 
 Dalla cartella `strumenti/`: `npm ci`, poi `node genera-stili.mjs`; per i glifi serve anche fontTools (`pip install fonttools==4.67.0 brotli`), poi `node genera-caratteri.mjs`. La rigenerazione dà file identici; se un file cambia, la prova dei componenti lo segnala finché non si aggiorna la sua impronta. Licenze: `LICENZE.md`.
 
+## Il fattorino della mappa
+
+`.github/workflows/mappa.yml` (T-019) costruisce il file d'Italia dalla mappa del mondo di Protomaps, con il nome versionato `mappa-AAAA-MM`, lo controlla con `strumenti/controlla-mappa.mjs` (attribuzione e licenza di OpenStreetMap, nessuna fonte nuova oltre a Natural Earth, schema 4, zoom fino a 15, area coperta, avviso «© OpenStreetMap» nell'app: § 6.6, regola 5), scrive `mappa.json` e, se richiesto, la cartella di tasselli con `strumenti/cartella-tasselli.mjs`. Gira il 2 gennaio e il 2 luglio e a comando (`area`: `italia` o `torino`), ma il calendario e il comando valgono solo quando il file sta su main; fino ad allora gira con `torino` a ogni invio che cambia il lavoro, gli strumenti o le aree.
+
+Il caricamento su Bunny è scritto e spento: parte solo con la variabile del repository `MAPPA_CARICA_SU_BUNNY` = `si`, il segreto `BUNNY_CHIAVE_MAPPA` e le variabili `BUNNY_SPAZIO_MAPPA` e `BUNNY_SERVER_SPAZIO` (T-065). Carica prima il file e la cartella, per ultimo l'indice; le versioni vecchie restano. Finché è spento, con `italia` misura soltanto, senza scaricare i 2,7 GB; con `torino` lascia il file di prova per sette giorni tra i file del lavoro.
+
 ## Altre cartelle
 
 - `aree/`: contorni di Italia, Nord, tre regioni e Piemonte, per ritagliare la mappa del mondo (T-019).

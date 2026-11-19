@@ -1,0 +1,115 @@
+# Fattorino della mappa (voce T-019 del piano di adeguamento; libro mastro § 2.4, «La mappa»; § 2.6; § 6.6, regola 5).
+#
+# Costruisce il file della mappa d'Italia dalla mappa del mondo di Protomaps (dati di OpenStreetMap), con un nome
+# versionato (mappa-AAAA-MM), ne controlla licenza e avviso, scrive l'indice mappa.json che dice all'app quale file
+# usare e, quando sarà acceso, carica tutto su Bunny. Ogni sei mesi e a comando.
+#
+# SCRITTO E SPENTO. Il caricamento su Bunny parte solo quando esistono la chiave (segreto BUNNY_CHIAVE_MAPPA) e la
+# variabile MAPPA_CARICA_SU_BUNNY = si, cioè dopo T-065. Finché è spento:
+# - con «italia» il lavoro misura soltanto il file (senza scaricarlo) e controlla le informazioni della mappa del mondo;
+# - con «torino» costruisce davvero il file di prova di Torino, lo controlla, ne ricava la cartella di tasselli e lo
+#   lascia per sette giorni tra i file del lavoro, da guardare.
+# Il calendario e il comando a mano funzionano solo quando il file sta sul ramo principale (main): fino ad allora il
+# lavoro gira a ogni invio che cambia questo file o gli strumenti della mappa, con «torino».
+# Usa solo dati pubblici di OpenStreetMap: nessun dato di persone o di eventi.
+name: Mappa
+on:
+  schedule:
+    - cron: '17 3 2 1,7 *'   # 2 gennaio e 2 luglio, alle 3:17 (UTC): ogni sei mesi
+  workflow_dispatch:
+    inputs:
+      area:
+        description: 'Area da costruire'
+        type: choice
+        options: [italia, torino]
+        default: italia
+      cartella:
+        description: 'Ricava anche la cartella di tasselli (ripiego, se Bunny non accetta le richieste a pezzi: T-066)'
+        type: boolean
+        default: false
+  push:
+    paths: ['.github/workflows/mappa.yml', 'mappa/strumenti/**', 'mappa/aree/**']
+permissions:
+  contents: read
+concurrency: mappa
+jobs:
+  mappa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      AREA: ${{ github.event_name == 'push' && 'torino' || inputs.area || 'italia' }}
+      CARTELLA: ${{ github.event_name == 'push' || inputs.cartella == true }}
+      ACCESO: ${{ vars.MAPPA_CARICA_SU_BUNNY == 'si' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Strumenti (versioni fissate)
+        run: |
+          go install github.com/protomaps/go-pmtiles@v1.31.2
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          cd mappa/strumenti && npm ci --no-audit --no-fund
+      - name: Ultima mappa del mondo di Protomaps
+        run: |
+          for i in $(seq 0 30); do
+            D=$(date -u -d "-$i day" +%Y%m%d)
+            if curl -sfI "https://build.protomaps.com/$D.pmtiles" >/dev/null; then echo "BUILD=$D" >> "$GITHUB_ENV"; echo "Mappa del mondo del $D"; break; fi
+          done
+          test -n "$(grep '^BUILD=' "$GITHUB_ENV")" || { echo "Nessuna mappa del mondo negli ultimi 30 giorni"; exit 1; }
+      - name: Nome versionato
+        run: |
+          if [ "$AREA" = italia ]; then V="mappa-$(date -u +%Y-%m)"; else V="prova-$AREA-$(date -u +%Y-%m)"; fi
+          echo "VERSIONE=$V" >> "$GITHUB_ENV"; echo "Versione: $V"
+      - name: Misura (senza scaricare)
+        run: |
+          U="https://build.protomaps.com/$BUILD.pmtiles"
+          go-pmtiles show "$U" > /tmp/mondo.txt
+          go-pmtiles extract "$U" /tmp/misura.pmtiles --region=mappa/aree/italia.geojson --maxzoom=15 --dry-run > /tmp/italia.txt 2>&1
+          { echo "## Mappa $VERSIONE"; echo; echo "Fonte: $U"; echo; echo '```'; sed -n 1,40p /tmp/mondo.txt; echo; echo "Italia (z0-15):"; tail -n 8 /tmp/italia.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Costruzione del file
+        if: env.AREA == 'torino' || env.ACCESO == 'true'
+        run: |
+          mkdir -p uscita
+          U="https://build.protomaps.com/$BUILD.pmtiles"
+          if [ "$AREA" = italia ]; then
+            go-pmtiles extract "$U" "uscita/$VERSIONE.pmtiles" --region=mappa/aree/italia.geojson --maxzoom=15
+          else
+            go-pmtiles extract "$U" "uscita/$VERSIONE.pmtiles" --bbox=7.50,44.95,7.85,45.20 --maxzoom=15
+          fi
+          ls -l uscita
+      - name: Controllo della licenza e dell'avviso; indice mappa.json
+        if: env.AREA == 'torino' || env.ACCESO == 'true'
+        run: |
+          A=""; [ "$AREA" = italia ] && A=italia
+          node mappa/strumenti/controlla-mappa.mjs "uscita/$VERSIONE.pmtiles" "$VERSIONE" $A
+          { echo; echo "Controllo di licenza e avviso superato. Indice:"; echo '```json'; cat uscita/mappa.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Cartella di tasselli
+        if: env.CARTELLA == 'true' && (env.AREA == 'torino' || env.ACCESO == 'true')
+        run: node mappa/strumenti/cartella-tasselli.mjs "uscita/$VERSIONE.pmtiles" "uscita/$VERSIONE"
+      - name: File della prova di Torino (sette giorni tra i file del lavoro)
+        if: env.AREA == 'torino'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.VERSIONE }}
+          path: uscita/
+          retention-days: 7
+      # Spento finché non c'è la chiave (T-065). Ordine: prima il file e la cartella, per ultimo l'indice, così l'app
+      # non legge mai un indice che punta a un file che non c'è; le versioni vecchie restano per tornare indietro.
+      - name: Caricamento su Bunny
+        if: env.ACCESO == 'true' && env.AREA == 'italia'
+        env:
+          CHIAVE: ${{ secrets.BUNNY_CHIAVE_MAPPA }}
+          SPAZIO: ${{ vars.BUNNY_SPAZIO_MAPPA }}
+          SERVER: ${{ vars.BUNNY_SERVER_SPAZIO }}
+        run: |
+          test -n "$CHIAVE" && test -n "$SPAZIO" && test -n "$SERVER" || { echo "Chiave o spazio di Bunny mancanti"; exit 1; }
+          carica() { curl -sf --retry 3 -X PUT -H "AccessKey: $CHIAVE" -H "Content-Type: application/octet-stream" --data-binary "@$1" "https://$SERVER/$SPAZIO/$2"; }
+          carica "uscita/$VERSIONE.pmtiles" "$VERSIONE.pmtiles"
+          if [ -d "uscita/$VERSIONE" ]; then (cd uscita && find "$VERSIONE" -name '*.pbf' | while read -r f; do carica "$f" "$f"; done); fi
+          carica uscita/mappa.json mappa.json
+          echo "Caricata la mappa $VERSIONE" >> "$GITHUB_STEP_SUMMARY"
