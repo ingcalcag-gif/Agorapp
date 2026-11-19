@@ -110,6 +110,8 @@ async function prova() {
       await p.click(`#pag-progetti [data-prog="${pr.id}"]`); await pausa(120);
       const t = await testo('#pag-progetti');
       if (!t.includes(pr.bacheca.app.posto) || !(await p.locator('#pag-progetti .prossima').count())) e.errori.push(`Progetti, ${pr.titolo}: la bacheca non ha il prossimo appuntamento`);
+      const titoloApp = ((await p.locator('#pag-progetti .prossima .titolo-app').textContent().catch(() => '')) || '').trim();
+      if (pr.bacheca.app.titolo.includes('{') ? (!titoloApp || titoloApp.includes('{') || !titoloApp.startsWith(pr.bacheca.app.titolo.split('{')[0])) : titoloApp !== pr.bacheca.app.titolo) e.errori.push(`Progetti, ${pr.titolo}: la casella del prossimo appuntamento non mostra il suo titolo`);
       if (/\[[^\]]*\]|undefined|NaN|\{/.test(t)) e.errori.push(`Progetti, ${pr.titolo}: segnaposto o valori mancanti nella bacheca`);
     }
     // l'ultima bacheca aperta: mappa, calendario, scrivere, profili, «Vorrei venire», stampa

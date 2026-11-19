@@ -692,6 +692,7 @@ label.campo:has(#pw){min-width:0}
 .sez-progetti .etichetta:last-child{border-bottom:0}
 .sez-progetti .etichetta p{font-size:13px;line-height:18px;color:var(--testo-2)}
 .sez-progetti .prossima{background:var(--it);border:1.5px solid var(--ib);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.sez-progetti .prossima .titolo-app{font-weight:700;font-size:17px;line-height:22px}
 .sez-progetti .prossima .quando{font-family:var(--serif);font-size:22px;line-height:27px}
 .sez-progetti .stato-volta{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:16px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--superficie);border:1px solid var(--ib);color:var(--ic)}
 .sez-progetti .tasti{display:flex;gap:8px;margin-top:4px}
@@ -759,7 +760,7 @@ label.campo:has(#pw){min-width:0}
 .sez-progetti .scelta[aria-pressed="true"] .casella{background:var(--verde);border-color:var(--verde)}
 .sez-progetti .profilo-testa{display:flex;gap:14px;align-items:center}
 .sez-progetti .profilo-testa>div{min-width:0;display:flex;flex-direction:column;gap:4px}
-.sez-progetti .fatti{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px}
+.sez-progetti .fatti{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px;border:0;border-radius:0;background:none}   /* non la cornice dei .fatti delle schede evento */
 .sez-progetti .recapito{background:var(--incassata);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .sez-progetti .carta{background:var(--carta);color:var(--carta-testo);border:1px solid var(--carta-linea);border-radius:4px;padding:18px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--ombra-card)}
 .sez-progetti .carta .cm{font-size:11px;line-height:15px;color:var(--carta-2);letter-spacing:.06em;text-transform:uppercase;font-weight:600}

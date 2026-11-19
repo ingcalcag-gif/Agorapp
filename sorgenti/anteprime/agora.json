@@ -107,7 +107,7 @@
        "Torino"
       ]
      ],
-     "finale": "In ogni quartiere, verde pubblico usabile entro dieci minuti a piedi da casa. La soglia parte dai 9 metri quadri per abitante che il decreto ministeriale 1444 del 1968 chiede per parchi, gioco e sport, ma si conta quartiere per quartiere e solo dove si può entrare. Dove la soglia non c’è, il quartiere ha la precedenza per i nuovi spazi verdi. Il conteggio si rifà ogni anno e si pubblica.",
+     "finale": "In ogni quartiere, verde pubblico usabile entro dieci minuti a piedi da casa. La soglia parte dagli standard minimi per parchi, gioco e sport che le norme urbanistiche già fissano, ma si conta quartiere per quartiere e solo dove si può entrare. Dove la soglia non c’è, il quartiere ha la precedenza per i nuovi spazi verdi. Il conteggio si rifà ogni anno e si pubblica.",
      "incontri": [
       {
        "iso": "2025-09-26",
@@ -953,7 +953,7 @@
        "ora": "18:30–21:00",
        "di": 1,
        "avanti": "Una scheda comune per raccontare cosa fa uno spazio per il quartiere.",
-       "parlato": "Si è approvata la scheda: chi lo usa, quanti giorni è aperto, cosa offre senza pagare, chi decide e come. A Napoli si è visto come funziona l’uso civico in spazi che la città ha già riconosciuto.",
+       "parlato": "Si è approvata la scheda: chi lo usa, quanti giorni è aperto, cosa offre senza pagare, chi decide e come. In una delle città si è visto come funziona l’uso civico in spazi che il Comune ha già riconosciuto.",
        "aperto": "Quanti spazi raccontare perché la proposta sia credibile.",
        "compiti": [
         [
@@ -1302,7 +1302,7 @@
        "di": 2,
        "presenti": "4 su 5",
        "avanti": "Le fonti in fila: cosa si trova già e cosa va contato a mano.",
-       "parlato": "Si sono messi in fila i dati disponibili in ogni città: registri comunali delle locazioni turistiche dove esistono, annunci pubblici, osservazione diretta dei portoni con le cassette delle chiavi. A Venezia e Firenze i registri ci sono; a Napoli, Torino e Roma molto meno.",
+       "parlato": "Si sono messi in fila i dati disponibili in ogni città: registri comunali delle locazioni turistiche dove esistono, annunci pubblici, osservazione diretta dei portoni con le cassette delle chiavi. In alcune città i registri ci sono; in altre molto meno.",
        "aperto": "Come rendere confrontabili città con registri e città senza.",
        "compiti": [
         [

@@ -481,7 +481,7 @@ function usa(id){
   CORTILE = PROGETTI.find(x=>x.id===id); B = CORTILE.bacheca;
   const a = B.app, dt = dIso(a.giorno), f = o => dt.toLocaleDateString(loc(), o), lunga = f({weekday:"long", day:"numeric", month:"long"});
   PROSSIMA = {data:lunga.charAt(0).toUpperCase()+lunga.slice(1), corta:f({weekday:"short", day:"numeric", month:"long"}), giorno:f({day:"numeric", month:"long"}), breve:f({day:"numeric", month:"short"}),
-    ora:`${a.inizio}–${a.fine}`, luogo:a.posto, via:a.via, stato:a.stato, programma:a.programma};
+    titolo:a.titolo, ora:`${a.inizio}–${a.fine}`, luogo:a.posto, via:a.via, stato:a.stato, programma:a.programma};
   POSTI = B.mano.posti; ANCORE = B.ancore; FATE = B.fate; VORREBBERO = B.vorrebbero;
   io = IO[id] || (IO[id] = {vengo:false, compagnia:false});
 }
@@ -588,6 +588,7 @@ function vBacheca(){
 
   <section class="prossima" aria-labelledby="t-prossima">
     <div class="eyebrow" id="t-prossima">${T("Il prossimo appuntamento · evento Pratica")}</div>
+    <div class="titolo-app">${esc(PROSSIMA.titolo)}</div>
     <div class="quando">${PROSSIMA.data}, ${PROSSIMA.ora}</div>
     <div><strong>${esc(PROSSIMA.luogo)}</strong>${viaDopo()?` <span class="meta">${esc(viaDopo())}</span>`:""}</div>
     <span class="stato-volta">${PROSSIMA.stato==="Confermato"?spunta(14):""}${T(PROSSIMA.stato)}</span>
@@ -608,7 +609,7 @@ function vBacheca(){
   ${chiCiTiene()}
 
   <section class="come">${icoPin(30)}<div class="stack-s"><div style="font-weight:600">${T("Come funziona un progetto")}</div>
-    <p>${T("Ogni appuntamento del progetto è un <strong>evento Pratica</strong> sulla mappa e porta il nome del progetto. Prima di ogni appuntamento la bacheca dice cosa serve. Qui non c’è una chat: per organizzarvi scrivete alle Ancore o alle Fate, e la conversazione resta nei vostri canali.")}</p></div></section>
+    <p>${T("Ogni appuntamento del progetto è un <strong>evento Pratica</strong> sulla mappa e porta il nome del progetto. Prima di ogni appuntamento la bacheca dice cosa serve. Per organizzarvi potete scrivere alle Ancore o alle Fate.")}</p></div></section>
 
   <section class="stack">
     <div class="stack-s"><h2>${esc(B.luoghi.titolo)}</h2><p class="meta">${esc(B.luoghi.meta)}</p></div>
@@ -733,6 +734,7 @@ function foglioStampa(){
     <div class="carta">${S_.strisciaCarta()}
       <div class="cm">${T("Progetto")} · ${esc(CORTILE.zona)}</div>
       <div class="ct">${esc(CORTILE.titolo)}</div>
+      <div style="font-weight:700;font-size:15px;line-height:20px">${esc(PROSSIMA.titolo)}</div>
       <div class="cq">${PROSSIMA.data}, ${PROSSIMA.ora}</div>
       <div style="font-size:13px;line-height:19px">${esc(PROSSIMA.luogo)}${viaDopo()?", "+esc(viaDopo()):""}. ${esc(PROSSIMA.programma)}</div>
       <div style="font-weight:700;font-size:14px">${esc(B.stampa.invito)}</div>
