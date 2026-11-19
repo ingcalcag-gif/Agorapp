@@ -331,7 +331,7 @@ const MAPPA_DOVE = (() => {
 })();
 const temaAttuale = () => document.documentElement.getAttribute('data-theme')==='dark' ? 'dark' : 'light';
 let map = null, mappaOk = false;
-const MAPPA = {indice:null, fonte:'file', pmtiles:false, stili:{}, tema:null};
+const MAPPA = {indice:null, fonte:'file', fileOk:false, pmtiles:false, stili:{}, tema:null};
 const FONDO_MAPPA = {light:'#ECE6D9', dark:'#1C1915'};
 function stileVuoto(t){ return {version:8, sources:{}, layers:[{id:'sfondo', type:'background', paint:{'background-color':FONDO_MAPPA[t]}}]}; }
 function preparaPmtiles(){
@@ -422,7 +422,9 @@ async function caricaMappa(){
 /* Cambio di tema: solo i colori e le icone, senza ricaricare la mappa (i tasselli restano). */
 async function tingiMappa(){
   if(!map || !mappaOk) return;
-  const t = temaAttuale(); if(MAPPA.tema===t) return;
+  const t = temaAttuale();
+  if(!map.getSource('protomaps')){ try{ map.setPaintProperty('sfondo', 'background-color', FONDO_MAPPA[t]); }catch(e){} return; }
+  if(MAPPA.tema===t) return;
   let livelli; try{ livelli = await stileMappa(t); }catch(e){ return; }
   if(temaAttuale()!==t || !mappaOk) return; MAPPA.tema = t;
   for(const l of livelli){ if(!map.getLayer(l.id)) continue; for(const [k,v] of Object.entries(l.paint||{})) try{ map.setPaintProperty(l.id, k, v); }catch(e){} }
@@ -484,10 +486,14 @@ function initMappa(){
   }catch(e){ $('map').innerHTML = `<p class="meta" style="padding:120px 24px;text-align:center">${tr('Questo browser non riesce a disegnare la mappa.')}</p>`; return; }
   if(c.bounds) try{ map.fitBounds(c.bounds, {padding:40, duration:0}); }catch(e){}
   try{ map.touchZoomRotate.disableRotation(); map.keyboard.disableRotation(); }catch(e){}
-  map.on('style.load', () => { if(!map.getSource('protomaps')) return; aggiungiCorrezioni(); aggiungiLivelli(); mappaOk = true; civiciMappa(); tingiMappa(); disegnaPins(); });
+  /* Anche senza file della mappa (indirizzo vuoto, rete assente) il fondo regge segnaposto e livelli dell'app;
+     quando arriva lo stile vero, style.load li rimette. */
+  map.on('style.load', () => { if(map.getSource('protomaps')) aggiungiCorrezioni(); aggiungiLivelli(); mappaOk = true; civiciMappa(); tingiMappa(); disegnaPins(); });
+  map.on('sourcedata', ev => { if(ev && ev.sourceId==='protomaps' && ev.tile && MAPPA.fonte==='file') MAPPA.fileOk = true; });
   map.on('error', ev => {
-    /* il file unico non si legge a pezzi su questo server: si passa alla cartella di tasselli */
-    if(MAPPA.fonte==='file' && ev && ev.sourceId==='protomaps'){ MAPPA.fonte = 'tasselli'; caricaMappa(); }
+    /* il file unico non si legge a pezzi su questo server: si passa alla cartella di tasselli,
+       solo se dal file non è mai arrivato un tassello (un errore di rete dopo non basta) */
+    if(MAPPA.fonte==='file' && !MAPPA.fileOk && ev && ev.sourceId==='protomaps'){ MAPPA.fonte = 'tasselli'; caricaMappa(); }
   });
   caricaMappa();
   map.on('movestart', () => { $('app').classList.add('muove'); annullaLungo(); });

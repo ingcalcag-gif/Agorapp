@@ -10,10 +10,12 @@
    - l'avviso di provenienza dica «© OpenStreetMap» con il collegamento alla pagina dei diritti e «Protomaps», senza CARTO;
    - lo strato delle correzioni (T-018), con un file di correzioni inventato, nasconda l'oggetto indicato (qui Via Roma),
      disegni l'aggiunta con il suo nome e faccia comparire nell'avviso «correzioni di» con il nome del servizio;
-     con il file vero, oggi vuoto, l'avviso delle correzioni non compare.
+     con il file vero, oggi vuoto, l'avviso delle correzioni non compare;
+   - senza file della mappa (indice che non si trova) i segnaposto degli eventi restano sul fondo.
    Serve WebGL: Chromium lo fa in software (SwiftShader), qui e su GitHub Actions. */
 'use strict';
-const { playwright, server, apri, pausa } = require('./comune.js');
+const { playwright, server, apri, pausa, giorno } = require('./comune.js');
+const { eventi } = require('./ostili.js');
 const { esito, eseguiDaSola, config } = require('../comune.js');
 
 // Il punto di Torino da guardare: Via Roma tra piazza San Carlo e piazza Carlo Felice.
@@ -104,6 +106,18 @@ async function prova() {
     if (!viste.aggiunte.includes('Punto di prova')) e.errori.push('l\'aggiunta dello strato delle correzioni non si vede');
     if (!viste.avviso.includes('correzioni di ' + config().nome)) e.errori.push('con le correzioni l\'avviso non dice «correzioni di ' + config().nome + '»: ' + viste.avviso);
     e.note.push('con le correzioni di prova: ' + viste.avviso);
+
+    // Senza file della mappa: il fondo regge i segnaposto (qui due eventi inventati di domani, strato Musica).
+    const c3 = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } },
+      agorapp_events: eventi(false).map(x => ({ ...x, datetime: giorno(1) + 'T18:00', end: giorno(1) + 'T20:00' })) });
+    try {
+      await c3.ctx.route(u => u.pathname.endsWith('/mappa/prova/mappa.json'), r => r.fulfill({ status: 404, body: 'non trovato' }));
+      const p3 = await c3.ctx.newPage();
+      await p3.goto(s.url + 'index.html'); await pausa(2500);
+      const pin = await p3.locator('.pin').count();
+      if (pin < 2) e.errori.push(`senza file della mappa i segnaposto non si vedono (${pin} invece di 2)`);
+      e.note.push(`senza file della mappa: ${pin} segnaposto sul fondo`);
+    } finally { await c3.browser.close(); }
   } finally {
     await browser.close(); await s.chiudi();
   }
