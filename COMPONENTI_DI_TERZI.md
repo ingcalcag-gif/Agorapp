@@ -56,3 +56,8 @@ Stanno in `prove/package.json`, servono alle prove automatiche (T-005) e non van
 - Lo stile usato non include icone con licenza propria diversa da quella indicata qui: le icone sono quelle di `basemaps-assets`, derivate dalle icone MIT di Mapzen (§ 31.3).
 - Il vecchio `mappa/LICENZE.md` del ramo chiamava BSD lo stile della mappa: la licenza dice codice BSD e disegno CC0 (piano, sezione 12). Il file è stato riscritto.
 - Gli strumenti di generazione (`mappa/strumenti/package.json`: `@protomaps/basemaps` 5.7.2, `fontnik` 0.7.7, `@fontsource-variable/dm-sans` 5.3.0, `pmtiles` 4.5.0; fontTools 4.67.0 per le istanze del carattere) non vanno nell'app. La rigenerazione dà file identici: le impronte stanno in `sorgenti/vendor/elenco.js`.
+
+## Note del controllo del 20/11/2026 (archivio degli eventi, T-021)
+
+- I confini delle regioni in `sorgenti/dati/regioni.json` vengono da Natural Earth 5.1.2, «Admin 1 – States, Provinces» alla scala 1:10 milioni (repository `nvkelso/natural-earth-vector`, etichetta `v5.1.2`): dati di pubblico dominio, che non chiedono attribuzione. Le 110 province italiane sono unite nelle venti regioni e semplificate da `strumenti/genera-regioni.mjs`. I confini non vanno nell'app: servono a chi scrive l'indice dell'archivio (oggi lo strumento dell'archivio di prova, poi lo sportello). Nell'indice arrivano al telefono soltanto i nomi delle regioni, i numeri degli eventi e un punto interno per ciascuna.
+- Lo strumento usa `mapshaper` 0.6.121 (Mozilla Public License 2.0; `strumenti/package.json`), che non va nell'app.

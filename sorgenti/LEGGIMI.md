@@ -56,7 +56,8 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
   - app6: tocchi (`data-az`), tastiera, avvio.
 - `parti/sezioni.js`: Agorà e Progetti in forma dimostrativa, montato a parte in `sezioni.js`; i contenuti d'esempio arrivano da `anteprime/` (sezione qui sotto).
 - `parti/traduzioni.js`: testi in EN ES FR AR (`window.AGR_TR`, chiave = testo italiano, una riga di JSON).
-- `moduli/`: le parti nuove, scritte come moduli separati con le loro prove (piano di adeguamento, QB-1). Ogni modulo funziona nel browser (in `window.AGR_MODULI`) e in Node (`require`), così lo usano allo stesso modo l'app, gli strumenti e, più avanti, lo sportello. `eventi.js`: formato pubblico degli eventi e unica funzione di controllo (T-020; descritto in `docs/formato-eventi.md`).
+- `moduli/`: le parti nuove, scritte come moduli separati con le loro prove (piano di adeguamento, QB-1). Ogni modulo funziona nel browser (in `window.AGR_MODULI`) e in Node (`require`), così lo usano allo stesso modo l'app, gli strumenti e, più avanti, lo sportello. `eventi.js`: formato pubblico degli eventi e unica funzione di controllo (T-020); `quadranti.js`: griglia dei quadranti, regioni, scrittura e lettura dell'archivio (T-021). Entrambi descritti in `docs/formato-eventi.md`.
+- `dati/regioni.json`: confini semplificati delle venti regioni, da Natural Earth (pubblico dominio; `strumenti/genera-regioni.mjs`). Non vanno nell'app: servono a chi scrive l'indice dell'archivio.
 - `dati/strati.js`: strati della mappa e loro icone (`LAYER_ICONS`, `LAYERS`), inseriti al posto del segnaposto `/*@@LAYERS@@*/` di `app1.js`.
 - `dati/legali_tradotti.json`: testi legali tradotti (oggi solo l'inglese), inseriti al posto del segnaposto `/*@@LEGALI@@*/` di `app5.js`.
 

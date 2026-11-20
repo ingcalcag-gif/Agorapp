@@ -1,0 +1,9 @@
+{
+  "name": "agorapp-strumenti-archivio",
+  "private": true,
+  "description": "Strumenti per i dati dell'archivio degli eventi: regioni d'Italia e archivio di prova (T-021). Non vanno nell'app. Vedi strumenti/LEGGIMI.md.",
+  "type": "module",
+  "dependencies": {
+    "mapshaper": "0.6.121"
+  }
+}

@@ -42,7 +42,39 @@ Nel formato non c'è posto per: immagini (§ 6.2), password, la provenienza inte
 
 ## La riserva dell'estrazione
 
-Ogni file dell'archivio porta in testa la riserva dell'estrazione di testo e di dati in forma leggibile dalle macchine (§ 6.5; direttiva (UE) 2019/790, art. 4, par. 3, e cons. 18): il campo `tdm-reservation` con il valore `1`. Il nome del campo viene dal protocollo pubblico per la riserva (TDM Reservation Protocol); gli standard tecnici da usare sono «da verificare» e si fissano con T-056, che può aggiungere il riferimento alle condizioni d'uso. La forma dei file dell'archivio (quadranti e indice) si aggiunge qui con T-021.
+Ogni file dell'archivio porta in testa la riserva dell'estrazione di testo e di dati in forma leggibile dalle macchine (§ 6.5; direttiva (UE) 2019/790, art. 4, par. 3, e cons. 18): il campo `tdm-reservation` con il valore `1`. Il nome del campo viene dal protocollo pubblico per la riserva (TDM Reservation Protocol); gli standard tecnici da usare sono «da verificare» e si fissano con T-056, che può aggiungere il riferimento alle condizioni d'uso. La forma dei file è descritta qui sotto.
+
+## L'archivio: quadranti e indice
+
+L'archivio comune non è un file unico: il telefono non scarica una città intera (§ 2.4, «La lettura degli eventi»). Il modulo `sorgenti/moduli/quadranti.js` contiene la griglia e le funzioni per scrivere e leggere l'archivio; lo usano chi lo scrive (oggi lo strumento dell'archivio di prova, poi lo sportello di pubblicazione, blocco 9) e l'app pubblica.
+
+**La griglia.** Una griglia fissa divide l'Italia in quadranti: 0,45 gradi di latitudine (circa 50 km) per 0,6 gradi di longitudine (da circa 54 km in Sicilia a 45 km in Alto Adige), a partire dall'angolo sud-ovest (35,4° N, 6,5° E); 27 righe da sud a nord e 21 colonne da ovest a est, fino a 47,55° N e 19,1° E. Un quadrante si chiama `q<riga>-<colonna>`, con due cifre ciascuna: Torino è in `q21-01` (la parte a est del Po in `q21-02`), Milano in `q22-04`, Roma in `q14-09`. Un punto esattamente sul bordo appartiene al quadrante a nord e a est. La griglia non cambia: se cambiasse, sarebbe una versione nuova dell'archivio.
+
+**I file dei quadranti.** Ogni quadrante con almeno un evento ha il suo file, con gli eventi che non sono ancora usciti dalla mappa, uno per riga, in ordine di inizio:
+
+```
+{"formato":"eventi-quadrante","versione":1,"tdm-reservation":1,"quadrante":"q21-01","eventi":[
+{…un evento…},
+{…un evento…}
+]}
+```
+
+**L'indice.** Un file piccolo, `indice.json`, dice per ogni quadrante il nome del file, la sua versione e quanti eventi contiene, e per ogni regione quanti eventi ci sono e dove mettere il numero sulla mappa vista da lontano:
+
+```
+{"formato":"eventi-indice","versione":1,"tdm-reservation":1,"generato":"2026-11-20T05:00:00Z",
+ "griglia":{"versione":1,"ovest":6.5,"sud":35.4,"passo_lat":0.45,"passo_lng":0.6,"righe":27,"colonne":21},
+ "quadranti":{"q21-01":{"file":"quadranti/q21-01-<versione>.json","v":"<versione>","eventi":10}, …},
+ "regioni":[{"nome":"Piemonte","punto":[7.9108,44.9987],"eventi":14}, …]}
+```
+
+La versione di un quadrante è un'impronta breve del contenuto del suo file (funzione `impronta`): cambia quando cambia il file. Il nome del file la contiene, così nessuna copia vecchia, nel telefono o nella rete di consegna, si scambia per quella nuova; il telefono scarica di nuovo solo i quadranti la cui versione è cambiata. L'indice elenca solo i quadranti e le regioni con almeno un evento.
+
+**Le regioni.** La regione di un evento si ricava dalle sue coordinate con i confini semplificati delle venti regioni in `sorgenti/dati/regioni.json` (da Natural Earth, pubblico dominio; strumento `strumenti/genera-regioni.mjs`); un punto in mare vicino alla costa, entro 40 km, va alla regione più vicina. Il telefono non riceve i confini: gli bastano i numeri e i punti dell'indice.
+
+**Che cosa controlla chi legge.** L'app usa un indice solo se ha questo formato, questa versione e la stessa griglia, e se i nomi dei file stanno nella cartella dell'archivio (funzione `controllaIndice`); di un file di quadrante tiene solo gli eventi validi che stanno davvero in quel quadrante (funzione `eventiDelQuadrante`).
+
+**L'archivio di prova.** `prova/archivio/` contiene l'unico archivio del repository: eventi inventati (`strumenti/archivio-prova.json`, approvati da Lorenzo il 20/11/2026), scritti con `node strumenti/genera-archivio-prova.mjs [--da=AAAA-MM-GG]`. Nessun evento reale entra mai nel repository (§ 2.6). La prova `prove/quadranti.js` controlla che i file siano esattamente quelli che lo strumento produce.
 
 ## Versioni del formato
 
