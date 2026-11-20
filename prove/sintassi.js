@@ -10,6 +10,7 @@ function prova() {
   const js = [
     ...elencaFile(DIST).filter(f => /\.m?js$/.test(f)).map(f => path.join(DIST, f)),
     ...['sorgenti/build.js', 'sorgenti/licenze.js', 'sorgenti/config.js', 'sorgenti/dati/strati.js', 'sorgenti/vendor/elenco.js'].map(f => path.join(RADICE, f)),
+    ...elencaFile(path.join(RADICE, 'sorgenti', 'moduli')).filter(f => f.endsWith('.js')).map(f => path.join(RADICE, 'sorgenti', 'moduli', f)),
     ...elencaFile(__dirname).filter(f => f.endsWith('.js') && !f.startsWith('node_modules/')).map(f => path.join(__dirname, f)),
     ...elencaFile(path.join(RADICE, 'netlify')).filter(f => /\.m?js$/.test(f)).map(f => path.join(RADICE, 'netlify', f)),
   ];
