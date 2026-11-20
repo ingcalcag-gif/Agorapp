@@ -149,13 +149,15 @@ function vista(ev){
     desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||'', fineMs:em};
 }
 /* Un evento dell'archivio (formato pubblico, docs/formato-eventi.md) nella stessa vista. Le ore sono quelle italiane;
-   q è il quadrante da cui arriva. Organizzatore e descrizione del luogo entrano nella scheda con T-023. */
+   q è il quadrante da cui arriva. «luogo» è la riga breve di elenchi, calendario e PDF (nome del luogo e indirizzo); la
+   scheda li mostra su righe proprie, con l'organizzatore e la descrizione del luogo (T-023; libro mastro, § 11.3). */
 const nomeSub = (s, id) => { const l = S[s], x = l && l.sub.find(z => z.id===id); return x ? x.label : ''; };
 function vistaArchivio(x){
   const ev = x.ev, ia = FORMATO.istante(ev.inizio), fm = FORMATO.fineMs(ev); if(ia==null || fm==null) return null;
   const a = new Date(ia), b = new Date(Math.max(fm, ia)), conFine = b>a;
   return {id:ev.id, raw:ev, archivio:true, q:x.q, tipo:'evento', strato:ev.strato, sub:nomeSub(ev.strato, ev.sottostrato), titolo:ev.titolo,
     luogo:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · '), lat:ev.lat, lng:ev.lng, a, b, giorno:ymd(a), inizio:hm(a), fine:conFine?hm(b):'',
+    nomeLuogo:ev.luogo||'', indirizzo:ev.indirizzo||'', descLuogo:ev.descrizione_luogo||'', aMano:ev.collocazione==='a_mano', organizzatore:ev.organizzatore||'',
     prezzo:ev.prezzo||'', desc:ev.descrizione||'', nascosto:false, serie:null, suMappa:true, citta:'', fineMs:fm, fonte:ev.fonte};
 }
 let EV = [];

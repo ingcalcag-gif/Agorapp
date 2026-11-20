@@ -178,13 +178,15 @@ function vista(ev){
     desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||'', fineMs:em};
 }
 /* Un evento dell'archivio (formato pubblico, docs/formato-eventi.md) nella stessa vista. Le ore sono quelle italiane;
-   q è il quadrante da cui arriva. Organizzatore e descrizione del luogo entrano nella scheda con T-023. */
+   q è il quadrante da cui arriva. «luogo» è la riga breve di elenchi, calendario e PDF (nome del luogo e indirizzo); la
+   scheda li mostra su righe proprie, con l'organizzatore e la descrizione del luogo (T-023; libro mastro, § 11.3). */
 const nomeSub = (s, id) => { const l = S[s], x = l && l.sub.find(z => z.id===id); return x ? x.label : ''; };
 function vistaArchivio(x){
   const ev = x.ev, ia = FORMATO.istante(ev.inizio), fm = FORMATO.fineMs(ev); if(ia==null || fm==null) return null;
   const a = new Date(ia), b = new Date(Math.max(fm, ia)), conFine = b>a;
   return {id:ev.id, raw:ev, archivio:true, q:x.q, tipo:'evento', strato:ev.strato, sub:nomeSub(ev.strato, ev.sottostrato), titolo:ev.titolo,
     luogo:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · '), lat:ev.lat, lng:ev.lng, a, b, giorno:ymd(a), inizio:hm(a), fine:conFine?hm(b):'',
+    nomeLuogo:ev.luogo||'', indirizzo:ev.indirizzo||'', descLuogo:ev.descrizione_luogo||'', aMano:ev.collocazione==='a_mano', organizzatore:ev.organizzatore||'',
     prezzo:ev.prezzo||'', desc:ev.descrizione||'', nascosto:false, serie:null, suMappa:true, citta:'', fineMs:fm, fonte:ev.fonte};
 }
 let EV = [];
@@ -308,6 +310,7 @@ const icoOra = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria
 const icoLuogo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 14.5s5-4.6 5-8.3A5 5 0 0 0 3 6.2c0 3.7 5 8.3 5 8.3Z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.3" r="1.8" stroke="currentColor" stroke-width="1.4"/></svg>';
 const icoPrezzo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8.6V3a.5.5 0 0 1 .5-.5h5.6l5.2 5.2a1 1 0 0 1 0 1.4l-4.3 4.3a1 1 0 0 1-1.4 0L2.5 8.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="5.6" cy="5.6" r="1.1" fill="currentColor"/></svg>';
 const icoLink = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 9.5 9.5 6.5M7 4.5l1-1a3 3 0 0 1 4.2 4.2l-1 1M9 11.5l-1 1a3 3 0 0 1-4.2-4.2l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+const icoOrg = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6" cy="5.4" r="2.4" stroke="currentColor" stroke-width="1.5"/><path d="M1.8 13.2c.3-2.4 2-3.8 4.2-3.8s3.9 1.4 4.2 3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.6 3.3a2.3 2.3 0 0 1 0 4.2M12.2 9.8c1.2.5 1.9 1.6 2.1 3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 const icoRipeti = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M12.5 6A5 5 0 0 0 3.6 4.4M3.5 10a5 5 0 0 0 8.9 1.6M12.8 2.5V6H9.3M3.2 13.5V10h3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoNote = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.5h10v11H3zM5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoImporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2v7M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -929,29 +932,42 @@ function descrizione(e){
 }
 const boxAdmin = e => st.admin && e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
-/* «Fonte:» di un evento dell'archivio (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e
-   senza referrer (regola 3). Il resto della scheda conforme (avviso, organizzatore, luogo) arriva con T-023. */
+/* ---------- Scheda dell'evento pubblico (T-023; libro mastro, §§ 5.2, 5.3 e 11.3) ----------
+   Tutto ciò che serve per andare all'evento sta qui, in forma di testo: nome del luogo e indirizzo su righe proprie, la
+   descrizione del luogo per gli eventi collocati a mano, l'organizzatore quando è noto, il prezzo come lo indica la fonte.
+   In fondo «Fonte:» e, accanto, l'avviso breve del § 5.2. Nessun collegamento separato al sito di chi organizza: il
+   collegamento è quello della fonte. La segnalazione arriva con il modulo «Segnala» (T-050). */
+/* «Fonte:» (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e senza referrer (regola 3);
+   se il collegamento manca o non è https, resta il nome (regola 4). */
 function rigaFonte(f){
   if(!f || !f.testo) return '';
   const u = f.collegamento && /^https:\/\//i.test(f.collegamento) ? f.collegamento : '';
   return `<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(f.testo)}</a>` : esc(f.testo)}</span>`;
 }
+/* L'avviso breve accanto a «Fonte:»: il testo del § 5.2 e, per lo strato delle manifestazioni, quello per cortei e presidi. */
+const avvisoFonte = e => e.strato==='manifestazioni'
+  ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.')
+  : tr('Informazioni riprese dalla fonte indicata: verifica con l’organizzatore prima di andare.');
+function rigaLuogo(e){
+  const nome = e.nomeLuogo || '', ind = e.indirizzo || (nome ? '' : e.luogo || '');
+  if(!nome && !ind && !e.descLuogo) return '';
+  return `<div class="dato dato-luogo">${icoLuogo}<div>${nome?`<span class="t nome-luogo">${esc(nome)}</span>`:''}${ind?`<span class="indirizzo">${esc(ind)}</span>`:''}${e.descLuogo?`<span class="come-arrivare"><strong>${tr('Come arrivare')}:</strong> ${esc(e.descLuogo)}</span>`:''}</div></div>`;
+}
 function fScheda(e){
   if(!e) return '';
   let testa, corpo; const x = e.raw;
   if(e.tipo==='evento'){
-    const man = e.strato==='manifestazioni', link = safeUrl(x.link);
+    const man = e.strato==='manifestazioni';
     testa = `<div class="riga-titolo"><div class="pill-row">${pillStrato(e)}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa"><span style="${finito(e)?'filter:grayscale(1);opacity:.6':''}">${forma('evento',e.strato,40)}</span><div><div class="eyebrow" style="color:var(--testo-2)">${e.nascosto ? icoLucchetto(12)+' '+tr('Evento nascosto, sbloccato con la password') : tr('Evento')}</div><h2>${esc(e.titolo)}</h2></div></div>
       ${finito(e)?'':`<div class="tasti tasti-testa">${tastoSalva(e)}${tastoMappe(e)}</div>`}`;
     corpo = `<div class="fatti">${quando(e)}
-        ${e.luogo?`<div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span></div></div>`:''}
-        ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
-        ${link?`<div class="dato">${icoLink}<div><a href="${esc(link)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${tr('Sito di chi organizza')}</a><span class="meta">${esc(hostDi(link))}</span></div></div>`:''}</div>
+        ${rigaLuogo(e)}
+        ${e.organizzatore?`<div class="dato dato-organizzatore">${icoOrg}<div><span class="meta">${tr('Organizza')}</span><span class="t">${esc(e.organizzatore)}</span></div></div>`:''}
+        ${e.prezzo?`<div class="dato dato-prezzo">${icoPrezzo}<div><span class="t">${esc(e.prezzo)}</span><span class="meta">${tr('Prezzo indicato dalla fonte')}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      <div class="fonte${man?' attenzione':''}">${e.archivio ? rigaFonte(e.fonte) : x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
-        <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
-      ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
+      <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
+        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>${boxAdmin(e)}`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(safeUrl).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';

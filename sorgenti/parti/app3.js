@@ -168,29 +168,42 @@ function descrizione(e){
 }
 const boxAdmin = e => st.admin && e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
-/* «Fonte:» di un evento dell'archivio (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e
-   senza referrer (regola 3). Il resto della scheda conforme (avviso, organizzatore, luogo) arriva con T-023. */
+/* ---------- Scheda dell'evento pubblico (T-023; libro mastro, §§ 5.2, 5.3 e 11.3) ----------
+   Tutto ciò che serve per andare all'evento sta qui, in forma di testo: nome del luogo e indirizzo su righe proprie, la
+   descrizione del luogo per gli eventi collocati a mano, l'organizzatore quando è noto, il prezzo come lo indica la fonte.
+   In fondo «Fonte:» e, accanto, l'avviso breve del § 5.2. Nessun collegamento separato al sito di chi organizza: il
+   collegamento è quello della fonte. La segnalazione arriva con il modulo «Segnala» (T-050). */
+/* «Fonte:» (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e senza referrer (regola 3);
+   se il collegamento manca o non è https, resta il nome (regola 4). */
 function rigaFonte(f){
   if(!f || !f.testo) return '';
   const u = f.collegamento && /^https:\/\//i.test(f.collegamento) ? f.collegamento : '';
   return `<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(f.testo)}</a>` : esc(f.testo)}</span>`;
 }
+/* L'avviso breve accanto a «Fonte:»: il testo del § 5.2 e, per lo strato delle manifestazioni, quello per cortei e presidi. */
+const avvisoFonte = e => e.strato==='manifestazioni'
+  ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.')
+  : tr('Informazioni riprese dalla fonte indicata: verifica con l’organizzatore prima di andare.');
+function rigaLuogo(e){
+  const nome = e.nomeLuogo || '', ind = e.indirizzo || (nome ? '' : e.luogo || '');
+  if(!nome && !ind && !e.descLuogo) return '';
+  return `<div class="dato dato-luogo">${icoLuogo}<div>${nome?`<span class="t nome-luogo">${esc(nome)}</span>`:''}${ind?`<span class="indirizzo">${esc(ind)}</span>`:''}${e.descLuogo?`<span class="come-arrivare"><strong>${tr('Come arrivare')}:</strong> ${esc(e.descLuogo)}</span>`:''}</div></div>`;
+}
 function fScheda(e){
   if(!e) return '';
   let testa, corpo; const x = e.raw;
   if(e.tipo==='evento'){
-    const man = e.strato==='manifestazioni', link = safeUrl(x.link);
+    const man = e.strato==='manifestazioni';
     testa = `<div class="riga-titolo"><div class="pill-row">${pillStrato(e)}${pillTema(e)}</div>${chiudiBtn()}</div>
       <div class="scheda-testa"><span style="${finito(e)?'filter:grayscale(1);opacity:.6':''}">${forma('evento',e.strato,40)}</span><div><div class="eyebrow" style="color:var(--testo-2)">${e.nascosto ? icoLucchetto(12)+' '+tr('Evento nascosto, sbloccato con la password') : tr('Evento')}</div><h2>${esc(e.titolo)}</h2></div></div>
       ${finito(e)?'':`<div class="tasti tasti-testa">${tastoSalva(e)}${tastoMappe(e)}</div>`}`;
     corpo = `<div class="fatti">${quando(e)}
-        ${e.luogo?`<div class="dato">${icoLuogo}<div><span class="t">${esc(e.luogo)}</span></div></div>`:''}
-        ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
-        ${link?`<div class="dato">${icoLink}<div><a href="${esc(link)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${tr('Sito di chi organizza')}</a><span class="meta">${esc(hostDi(link))}</span></div></div>`:''}</div>
+        ${rigaLuogo(e)}
+        ${e.organizzatore?`<div class="dato dato-organizzatore">${icoOrg}<div><span class="meta">${tr('Organizza')}</span><span class="t">${esc(e.organizzatore)}</span></div></div>`:''}
+        ${e.prezzo?`<div class="dato dato-prezzo">${icoPrezzo}<div><span class="t">${esc(e.prezzo)}</span><span class="meta">${tr('Prezzo indicato dalla fonte')}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      <div class="fonte${man?' attenzione':''}">${e.archivio ? rigaFonte(e.fonte) : x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
-        <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
-      ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
+      <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
+        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>${boxAdmin(e)}`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(safeUrl).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';

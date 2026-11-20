@@ -431,6 +431,10 @@ body{background:var(--fondo)}
 .top .nome{white-space:nowrap}
 .dato a{color:var(--verde);font-weight:600;text-decoration:none;overflow-wrap:anywhere}
 .fonte a{color:var(--verde);font-weight:600;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}   /* collegamento della fonte (T-022) */
+/* scheda dell'evento (T-023): nome del luogo e indirizzo su righe proprie, descrizione del luogo sotto */
+.dato-luogo .nome-luogo,.dato-luogo .indirizzo,.dato-luogo .come-arrivare,.dato-organizzatore .t,.dato-prezzo .t{overflow-wrap:anywhere}
+.dato-luogo .come-arrivare{font-size:14px;line-height:19px;color:var(--testo-2);margin-top:3px;white-space:pre-wrap}
+.dato-luogo .come-arrivare strong{color:var(--testo)}
 .riga-ev .meta,.tappa-r .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .campo input[type="date"],.campo input[type="time"],.campo input[type="datetime-local"]{min-width:0}
 .sugg .m{font-weight:600}
