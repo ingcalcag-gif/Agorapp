@@ -8,7 +8,13 @@
    5 lingue, testi legali v1.2. Stessi dati sul telefono (chiavi agorapp_*).
    ===================================================================== */
 const $ = id => document.getElementById(id);
-const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* Moduli separati (sorgenti/moduli/, QB-1): testi come testo (T-024), formato degli eventi (T-020), quadranti (T-021),
+   lettura dell'archivio (T-022). */
+const MODULI = window.AGR_MODULI || {};
+const FORMATO = MODULI.eventi, QUAD = MODULI.quadranti;
+/* L'unica funzione che protegge i caratteri speciali: ogni testo che arriva da fuori entra nella pagina passando di qui
+   (T-024; libro mastro, § 3.11; sorgenti/moduli/testo.js). */
+const esc = MODULI.testo.esc;
 /* ---------- Configurazione (sorgenti/config.js, caricata prima dell'app) ---------- */
 const CFG = window.AGR_CONFIG || {};
 const NOME = CFG.nome || '';
@@ -21,9 +27,6 @@ const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   ? `<span class="${classe}">${esc(CASELLA)}</span>`
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
 const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
-/* Moduli separati (sorgenti/moduli/, QB-1): formato degli eventi (T-020), quadranti (T-021), lettura dell'archivio (T-022). */
-const MODULI = window.AGR_MODULI || {};
-const FORMATO = MODULI.eventi, QUAD = MODULI.quadranti;
 
 /* ---------- Memoria del telefono ---------- */
 const LS = {
@@ -159,8 +162,10 @@ function purgeExpired(){
   if(!via.length) return false;
   events = events.filter(ev => !shouldDelete(ev)); via.forEach(id => delete calEvents[id]); saveEvents(); saveCal(); return true;
 }
-const safeUrl = u => { if(!u) return ''; const s = String(u).trim(); return /^https?:\/\//i.test(s) ? s : ''; };
-const normLink = u => { u = (u||'').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u) && /^[\w-]+(\.[\w-]+)+/.test(u)) u = 'https://'+u; return safeUrl(u); };
+/* Collegamenti: nella pagina solo https (T-024). Un indirizzo scritto senza lo schema, o con http, si porta a https;
+   tutto ciò che non è un indirizzo https valido non diventa un collegamento. */
+const safeUrl = u => MODULI.testo.collegamento(u==null ? '' : String(u));
+const normLink = u => { u = String(u==null?'':u).trim(); if(!u) return ''; u = u.replace(/^http:\/\//i, 'https://'); if(!/^https:\/\//i.test(u) && /^[\w-]+(\.[\w-]+)+/.test(u)) u = 'https://'+u; return safeUrl(u); };
 const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gratuito|gratis|free|ingresso libero|libero|offerta libera)$/i.test(s)) return s; if(s.includes('€')||/euro/i.test(s)) return s; if(/^\d+([.,]\d+)?$/.test(s)) return s+' €'; return s; };
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */
@@ -517,7 +522,7 @@ function disegnaRegioni(){
   if(!ZONA.lontano || !ARCHIVIO) return;
   ARCHIVIO.regioni().forEach(r => {
     const lab = r.eventi===1 ? tr('1 evento in {r}: avvicinati per vederlo',{r:r.nome}) : tr('{n} eventi in {r}: avvicinati per vederli',{n:r.eventi, r:r.nome});
-    mettiSegnaposto(`<button class="pin regione" data-regione="${esc(r.vai.join(','))}" aria-label="${esc(lab)}"><span class="f"><span>${r.eventi}</span></span></button>`, r.punto[0], r.punto[1]);
+    mettiSegnaposto(`<button class="pin regione" data-regione="${esc(r.vai.join(','))}" aria-label="${esc(lab)}"><span class="f"><span>${esc(r.eventi)}</span></span></button>`, r.punto[0], r.punto[1]);
   });
 }
 
@@ -941,7 +946,7 @@ const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
    se il collegamento manca o non è https, resta il nome (regola 4). */
 function rigaFonte(f){
   if(!f || !f.testo) return '';
-  const u = f.collegamento && /^https:\/\//i.test(f.collegamento) ? f.collegamento : '';
+  const u = safeUrl(f.collegamento);
   return `<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(f.testo)}</a>` : esc(f.testo)}</span>`;
 }
 /* L'avviso breve accanto a «Fonte:»: il testo del § 5.2 e, per lo strato delle manifestazioni, quello per cortei e presidi. */
@@ -969,7 +974,7 @@ function fScheda(e){
       <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
         <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>${boxAdmin(e)}`;
   } else {
-    const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(safeUrl).filter(Boolean);
+    const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(normLink).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';
     const prec = {map:tr('Punto scelto da te sulla mappa'), street:tr('Civico non in mappa: punto sulla via'), nonum:tr('Senza numero civico')}[x.addrPrecision] || '';
     testa = `<div class="riga-titolo"><div class="pill-row"><span class="pillola dot" style="--pp:var(--verde);--pb:var(--verde-tenue);--pt:var(--verde)">${tr('Off-Grid · lo vedi solo tu')}</span></div>${chiudiBtn()}</div>
@@ -1367,7 +1372,7 @@ function copiaIndirizzo(id){
 function boxPunto(f){
   if(!f.pos) return '';
   const T = {exact:[tr('Registriamo questo punto'), tr('Numero civico trovato sulla mappa.'), false],
-    street:[tr('Registriamo questo punto · verifica'), tr('Il civico {n} non è presente sulla mappa: il punto è sulla via. Tocca «Scegli sulla mappa» per spostarlo sul portone giusto.',{n:f.hn}), true],
+    street:[tr('Registriamo questo punto · verifica'), tr('Il civico {n} non è presente sulla mappa: il punto è sulla via. Tocca «Scegli sulla mappa» per spostarlo sul portone giusto.',{n:esc(f.hn)}), true],
     nonum:[tr('Registriamo questo punto · verifica'), tr('Nessun numero civico: il punto è al centro della via o del luogo. Aggiungi il civico o scegli sulla mappa per essere precisi.'), true],
     map:[tr('Registriamo questo punto'), tr('Punto scelto da te sulla mappa.'), false]}[f.precision||'map'] || [tr('Registriamo questo punto'),'',false];
   return `<div class="punto-ok${T[2]?' avviso':''}"><span style="font-weight:600">${T[0]}</span><span class="meta" style="color:var(--testo)">${T[1]}</span>${f.addrFull||f.indirizzo?`<span class="meta">${esc(f.addrFull||f.indirizzo)}</span>`:''}</div>`;
@@ -1376,7 +1381,7 @@ function aggiornaPunto(){ const b = $('f-punto'); if(b && st.form) b.innerHTML =
 function notaFine(f){
   if(!f.inizio || !f.fine) return '';
   if(f.fine===f.inizio) return `<span class="err">${tr('L’orario di fine coincide con l’inizio: cambialo')}</span>`;
-  if(f.fine < f.inizio) return `<span class="stato grigio">${tr('Finisce il giorno dopo: {g} alle {o}',{g:esc(nomeGiorno(piuGiorni(f.giorno,1))), o:f.fine})}</span>`;
+  if(f.fine < f.inizio) return `<span class="stato grigio">${tr('Finisce il giorno dopo: {g} alle {o}',{g:esc(nomeGiorno(piuGiorni(f.giorno,1))), o:esc(f.fine)})}</span>`;
   return '';
 }
 function notaRep(f){ if(f.rep==='none') return ''; if(!f.fino || f.fino < f.giorno) return `<span class="err">${tr('La data di fine ripetizione deve essere dopo il primo giorno')}</span>`; if(f.fino > piuMesi(f.giorno,12)) return `<span class="err">${tr('Al massimo un anno di ripetizioni')}</span>`; return tr('{n} date in calendario',{n:repDates(f.giorno,f.rep,f.fino).length}); }
@@ -1390,12 +1395,12 @@ function fForm(){
       <div id="f-sugg"></div>${f.err.indirizzo?`<span class="err">${esc(f.err.indirizzo===2?tr('Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.'):tr('Scegli un indirizzo dai suggerimenti o dalla mappa'))}</span>`:''}
       <div id="f-punto">${boxPunto(f)}</div>
       <button class="link" data-az="scegli-mappa">${icoLuogo} ${tr('Scegli sulla mappa')}</button></div>
-    <div class="stack-s"><span class="etich">${tr('Giorno')}</span><div class="chips-in"><button class="chip-in" data-fgiorno="${oggi()}" aria-pressed="${f.giorno===oggi()}">${tr('Oggi')}</button><button class="chip-in" data-fgiorno="${domani()}" aria-pressed="${f.giorno===domani()}">${tr('Domani')}</button><label class="campo" style="flex:1;min-height:36px;min-width:150px"><input id="f-giorno" type="date" data-campo="giorno" value="${f.giorno}" aria-label="${esc(tr('Giorno'))}"></label></div></div>
-    <div class="stack-s"><div class="due"><div class="stack-s"><label class="etich" for="f-inizio">${tr('Inizio')}</label><div class="campo${f.err.inizio?' errore':''}"><input id="f-inizio" type="time" step="300" data-campo="inizio" value="${f.inizio}"></div></div>
-      <div class="stack-s"><label class="etich" for="f-fine">${tr('Fine')}</label><div class="campo"><input id="f-fine" type="time" step="300" data-campo="fine" value="${f.fine}"></div></div></div>
+    <div class="stack-s"><span class="etich">${tr('Giorno')}</span><div class="chips-in"><button class="chip-in" data-fgiorno="${oggi()}" aria-pressed="${f.giorno===oggi()}">${tr('Oggi')}</button><button class="chip-in" data-fgiorno="${domani()}" aria-pressed="${f.giorno===domani()}">${tr('Domani')}</button><label class="campo" style="flex:1;min-height:36px;min-width:150px"><input id="f-giorno" type="date" data-campo="giorno" value="${esc(f.giorno)}" aria-label="${esc(tr('Giorno'))}"></label></div></div>
+    <div class="stack-s"><div class="due"><div class="stack-s"><label class="etich" for="f-inizio">${tr('Inizio')}</label><div class="campo${f.err.inizio?' errore':''}"><input id="f-inizio" type="time" step="300" data-campo="inizio" value="${esc(f.inizio)}"></div></div>
+      <div class="stack-s"><label class="etich" for="f-fine">${tr('Fine')}</label><div class="campo"><input id="f-fine" type="time" step="300" data-campo="fine" value="${esc(f.fine)}"></div></div></div>
       ${f.err.inizio?`<span class="err">${tr('Indica almeno giorno e orario di inizio')}</span>`:''}<div id="f-fine-nota">${notaFine(f)}</div></div>
     ${!mod?`<div class="stack-s"><label class="etich" for="f-rep">${tr('Ripetizione')}</label><div class="campo"><select id="f-rep" data-campo="rep">${['none','daily','weekdays','weekly','biweekly','monthly'].map(r => `<option value="${r}" ${f.rep===r?'selected':''}>${esc(repLabel(r,f.giorno))}</option>`).join('')}</select></div>
-      <div class="due" style="align-items:center"><label class="etich" for="f-fino">${tr('Fino al')}</label><div class="campo${f.rep==='none'?' spento':''}"><input id="f-fino" type="date" data-campo="fino" value="${f.fino}" min="${f.giorno}" max="${piuMesi(f.giorno,12)}" ${f.rep==='none'?'disabled':''}></div></div>
+      <div class="due" style="align-items:center"><label class="etich" for="f-fino">${tr('Fino al')}</label><div class="campo${f.rep==='none'?' spento':''}"><input id="f-fino" type="date" data-campo="fino" value="${esc(f.fino)}" min="${esc(f.giorno)}" max="${esc(piuMesi(f.giorno,12))}" ${f.rep==='none'?'disabled':''}></div></div>
       <span class="meta" id="f-rep-nota">${notaRep(f)}</span></div>`
       : serie && serie.length>1 ? `<div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Fa parte di una serie: {r} · {n} date',{r:esc(repLabel(f.raw.rep&&f.raw.rep.freq,(f.raw.datetime||'').slice(0,10))), n:serie.length})}</strong> ${tr('Scegli in fondo se salvare le modifiche solo per questa data o per tutta la serie.')}</span></div>` : ''}
     <div class="stack-s"><label class="etich" for="f-note">${tr('Note')} <span class="fac">${tr('facoltativo')}</span></label><div class="campo"><textarea id="f-note" data-campo="note" maxlength="1000" placeholder="${esc(tr('Cosa portare, con chi, promemoria…'))}">${esc(f.note)}</textarea></div></div>
@@ -1946,9 +1951,12 @@ const byK = k => universo().find(u => u.k===k);
 /* le tre lenti di chi usa l'app: stessa chiave dell'app online (agorapp_temi_slots) */
 function caricaLenti(){
   const a = LS.get('agorapp_temi_slots', null);
-  const conv = s => { if(!s) return null; if(Array.isArray(s.k)) return {nome:s.nome||s.name||'', k:s.k};
-    const k = (s.tags||[]).map(lb => { const l = LAYERS.find(x => x.label===lb); return l ? 's:'+l.id : (TEMI_VOC.includes(lb) ? 't:'+lb : null); }).filter(Boolean);
-    return k.length ? {nome:s.name||'', k} : null; };
+  /* dalla memoria del telefono si tengono solo strati e temi che l'app conosce, e un nome di 16 caratteri al massimo (T-024) */
+  const nome = x => String(x==null ? '' : x).slice(0, 16);
+  const conv = s => { if(!s || typeof s!=='object') return null;
+    const k = Array.isArray(s.k) ? s.k.filter(x => typeof x==='string' && byK(x))
+      : (Array.isArray(s.tags) ? s.tags : []).map(lb => { const l = LAYERS.find(x => x.label===lb); return l ? 's:'+l.id : (TEMI_VOC.includes(lb) ? 't:'+lb : null); }).filter(Boolean);
+    return k.length ? {nome:nome(s.nome||s.name), k} : null; };
   return Array.isArray(a) && a.length===3 ? a.map(conv) : [null,null,null];
 }
 function salvaLenti(){ LS.set('agorapp_temi_slots', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }
@@ -2151,6 +2159,8 @@ function mz(){
   MZ = Object.assign({v:1, giorni:{}, visti:{}, creati:{}, richieste:{}, azioni:[], rimozioni:[], segnalazioni:{}, correzioni:{}, versioni:[], prove:[], giri:[], rete:{},
     soglie:{}, stati:{}, mie:{}}, d);
   MZ.soglie = Object.assign({zona:2, nuovi:50, carico:3}, MZ.soglie||{}); delete MZ.soglie.interesse;   /* soglia dei pulsanti volontari, tolta con T-010 */
+  /* le soglie sono numeri positivi: un valore diverso nella memoria del telefono torna a quello di partenza (T-024) */
+  Object.entries({zona:2, nuovi:50, carico:3}).forEach(([k,v]) => { const n = Number(MZ.soglie[k]); MZ.soglie[k] = isFinite(n) && n>0 ? n : v; });
   return MZ;
 }
 function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
@@ -2216,7 +2226,9 @@ function misureConta(tipo){ if(!st.admin) return; const m = mz(), g = oggi(); m.
 
 /* ---------- periodi ---------- */
 const mzGiorni = n => { const out = [], g = oggi(); for(let i=n-1;i>=0;i--) out.push(piuGiorni(g,-i)); return out; };
-const somma = (o, giorni, f) => giorni.reduce((s,g) => s + (o[g]!=null ? (f ? f(o[g]) : o[g]) : 0), 0);
+/* i conteggi sono numeri: un valore della memoria del telefono che non lo è vale zero (T-024) */
+const numMz = x => { const n = Number(x); return isFinite(n) ? n : 0; };
+const somma = (o, giorni, f) => giorni.reduce((s,g) => s + (o && o[g]!=null ? numMz(f ? f(o[g]) : o[g]) : 0), 0);
 const nf = n => n==null ? '–' : Number(n).toLocaleString('it-IT');
 const n1 = x => String(Math.round(x*10)/10).replace('.',',');
 const brevD = s => dIso(s).toLocaleDateString(dloc(), {day:'numeric', month:'short'}).replace('.','');
@@ -2519,7 +2531,7 @@ function vImpattoMz(){
     <div class="mz-card"><h3>${tr('Registra un giro di prova sul campo')}</h3><form class="mz-form" data-mzform="giro">
       <label class="mz-etich">${tr('Nome del giro')}<span class="campo"><input name="titolo" maxlength="40" placeholder="${esc(tr('es. Dopo il lancio'))}"></span></label>
       <div class="due">${[['n',tr('Persone'),0,'min="1" max="200" required'],['scoperto',tr('Hanno scoperto eventi nuovi'),44,'min="0"'],['andato',tr('Sono andate a un evento'),45,'min="0"'],['guida',tr('Guida completata senza aiuto'),35,'min="0"'],['og',tr('Off-Grid al primo tentativo'),37,'min="0"'],['cons',tr('Lo consiglierebbero (mediana 0–10)'),47,'min="0" max="10" step="0.5"']].filter(x => !x[2] || on(x[2])).map(x => `<label class="mz-etich">${x[1]}<span class="campo"><input name="${x[0]}" type="number" ${x[3]}></span></label>`).join('')}</div>
-      <button class="tasto sec pieno" type="submit">${tr('Salva il giro')}</button></form>${G.length>1?`<p class="meta">${tr('Giri precedenti: {g}',{g:G.slice(1).map(x => (x.titolo||brevD(x.d))+' ('+x.n+')').join(' · ')})}</p>`:''}${u?`<button class="link" data-mz="giro-togli">${tr('Togli l’ultimo giro')}</button>`:''}</div>
+      <button class="tasto sec pieno" type="submit">${tr('Salva il giro')}</button></form>${G.length>1?`<p class="meta">${tr('Giri precedenti: {g}',{g:esc(G.slice(1).map(x => (x.titolo||brevD(x.d))+' ('+x.n+')').join(' · '))})}</p>`:''}${u?`<button class="link" data-mz="giro-togli">${tr('Togli l’ultimo giro')}</button>`:''}</div>
     ${bloccataMz(46, tr('{nome} riduce la solitudine?'), tr('Domande sul benessere possono essere dati sulla salute (art. 9 GDPR): solo con un partner universitario e il suo comitato etico.'))}
     ${studioSezioneMz('impatto')}`;
 }
@@ -2737,7 +2749,7 @@ function descriviVoce(x){
   if(x.id) parti.push(ev ? `«${esc(ev.title||'')}»` : `<span class="sh-via">${tr('evento non più sulla mappa')}</span>`);
   if(strato) parti.push(esc(strato));
   if(x.n!=null) parti.push(x.n===1 ? tr('1 evento') : tr('{n} eventi',{n:nf(x.n)}));
-  if(x.r!=null) parti.push(tr('riga {n}',{n:x.r}));
+  if(x.r!=null) parti.push(tr('riga {n}',{n:esc(x.r)}));
   if(x.x) parti.push(esc(x.x));
   return parti.join(' · ');
 }

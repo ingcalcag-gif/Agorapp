@@ -219,7 +219,7 @@ function copiaIndirizzo(id){
 function boxPunto(f){
   if(!f.pos) return '';
   const T = {exact:[tr('Registriamo questo punto'), tr('Numero civico trovato sulla mappa.'), false],
-    street:[tr('Registriamo questo punto · verifica'), tr('Il civico {n} non è presente sulla mappa: il punto è sulla via. Tocca «Scegli sulla mappa» per spostarlo sul portone giusto.',{n:f.hn}), true],
+    street:[tr('Registriamo questo punto · verifica'), tr('Il civico {n} non è presente sulla mappa: il punto è sulla via. Tocca «Scegli sulla mappa» per spostarlo sul portone giusto.',{n:esc(f.hn)}), true],
     nonum:[tr('Registriamo questo punto · verifica'), tr('Nessun numero civico: il punto è al centro della via o del luogo. Aggiungi il civico o scegli sulla mappa per essere precisi.'), true],
     map:[tr('Registriamo questo punto'), tr('Punto scelto da te sulla mappa.'), false]}[f.precision||'map'] || [tr('Registriamo questo punto'),'',false];
   return `<div class="punto-ok${T[2]?' avviso':''}"><span style="font-weight:600">${T[0]}</span><span class="meta" style="color:var(--testo)">${T[1]}</span>${f.addrFull||f.indirizzo?`<span class="meta">${esc(f.addrFull||f.indirizzo)}</span>`:''}</div>`;
@@ -228,7 +228,7 @@ function aggiornaPunto(){ const b = $('f-punto'); if(b && st.form) b.innerHTML =
 function notaFine(f){
   if(!f.inizio || !f.fine) return '';
   if(f.fine===f.inizio) return `<span class="err">${tr('L’orario di fine coincide con l’inizio: cambialo')}</span>`;
-  if(f.fine < f.inizio) return `<span class="stato grigio">${tr('Finisce il giorno dopo: {g} alle {o}',{g:esc(nomeGiorno(piuGiorni(f.giorno,1))), o:f.fine})}</span>`;
+  if(f.fine < f.inizio) return `<span class="stato grigio">${tr('Finisce il giorno dopo: {g} alle {o}',{g:esc(nomeGiorno(piuGiorni(f.giorno,1))), o:esc(f.fine)})}</span>`;
   return '';
 }
 function notaRep(f){ if(f.rep==='none') return ''; if(!f.fino || f.fino < f.giorno) return `<span class="err">${tr('La data di fine ripetizione deve essere dopo il primo giorno')}</span>`; if(f.fino > piuMesi(f.giorno,12)) return `<span class="err">${tr('Al massimo un anno di ripetizioni')}</span>`; return tr('{n} date in calendario',{n:repDates(f.giorno,f.rep,f.fino).length}); }
@@ -242,12 +242,12 @@ function fForm(){
       <div id="f-sugg"></div>${f.err.indirizzo?`<span class="err">${esc(f.err.indirizzo===2?tr('Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.'):tr('Scegli un indirizzo dai suggerimenti o dalla mappa'))}</span>`:''}
       <div id="f-punto">${boxPunto(f)}</div>
       <button class="link" data-az="scegli-mappa">${icoLuogo} ${tr('Scegli sulla mappa')}</button></div>
-    <div class="stack-s"><span class="etich">${tr('Giorno')}</span><div class="chips-in"><button class="chip-in" data-fgiorno="${oggi()}" aria-pressed="${f.giorno===oggi()}">${tr('Oggi')}</button><button class="chip-in" data-fgiorno="${domani()}" aria-pressed="${f.giorno===domani()}">${tr('Domani')}</button><label class="campo" style="flex:1;min-height:36px;min-width:150px"><input id="f-giorno" type="date" data-campo="giorno" value="${f.giorno}" aria-label="${esc(tr('Giorno'))}"></label></div></div>
-    <div class="stack-s"><div class="due"><div class="stack-s"><label class="etich" for="f-inizio">${tr('Inizio')}</label><div class="campo${f.err.inizio?' errore':''}"><input id="f-inizio" type="time" step="300" data-campo="inizio" value="${f.inizio}"></div></div>
-      <div class="stack-s"><label class="etich" for="f-fine">${tr('Fine')}</label><div class="campo"><input id="f-fine" type="time" step="300" data-campo="fine" value="${f.fine}"></div></div></div>
+    <div class="stack-s"><span class="etich">${tr('Giorno')}</span><div class="chips-in"><button class="chip-in" data-fgiorno="${oggi()}" aria-pressed="${f.giorno===oggi()}">${tr('Oggi')}</button><button class="chip-in" data-fgiorno="${domani()}" aria-pressed="${f.giorno===domani()}">${tr('Domani')}</button><label class="campo" style="flex:1;min-height:36px;min-width:150px"><input id="f-giorno" type="date" data-campo="giorno" value="${esc(f.giorno)}" aria-label="${esc(tr('Giorno'))}"></label></div></div>
+    <div class="stack-s"><div class="due"><div class="stack-s"><label class="etich" for="f-inizio">${tr('Inizio')}</label><div class="campo${f.err.inizio?' errore':''}"><input id="f-inizio" type="time" step="300" data-campo="inizio" value="${esc(f.inizio)}"></div></div>
+      <div class="stack-s"><label class="etich" for="f-fine">${tr('Fine')}</label><div class="campo"><input id="f-fine" type="time" step="300" data-campo="fine" value="${esc(f.fine)}"></div></div></div>
       ${f.err.inizio?`<span class="err">${tr('Indica almeno giorno e orario di inizio')}</span>`:''}<div id="f-fine-nota">${notaFine(f)}</div></div>
     ${!mod?`<div class="stack-s"><label class="etich" for="f-rep">${tr('Ripetizione')}</label><div class="campo"><select id="f-rep" data-campo="rep">${['none','daily','weekdays','weekly','biweekly','monthly'].map(r => `<option value="${r}" ${f.rep===r?'selected':''}>${esc(repLabel(r,f.giorno))}</option>`).join('')}</select></div>
-      <div class="due" style="align-items:center"><label class="etich" for="f-fino">${tr('Fino al')}</label><div class="campo${f.rep==='none'?' spento':''}"><input id="f-fino" type="date" data-campo="fino" value="${f.fino}" min="${f.giorno}" max="${piuMesi(f.giorno,12)}" ${f.rep==='none'?'disabled':''}></div></div>
+      <div class="due" style="align-items:center"><label class="etich" for="f-fino">${tr('Fino al')}</label><div class="campo${f.rep==='none'?' spento':''}"><input id="f-fino" type="date" data-campo="fino" value="${esc(f.fino)}" min="${esc(f.giorno)}" max="${esc(piuMesi(f.giorno,12))}" ${f.rep==='none'?'disabled':''}></div></div>
       <span class="meta" id="f-rep-nota">${notaRep(f)}</span></div>`
       : serie && serie.length>1 ? `<div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Fa parte di una serie: {r} · {n} date',{r:esc(repLabel(f.raw.rep&&f.raw.rep.freq,(f.raw.datetime||'').slice(0,10))), n:serie.length})}</strong> ${tr('Scegli in fondo se salvare le modifiche solo per questa data o per tutta la serie.')}</span></div>` : ''}
     <div class="stack-s"><label class="etich" for="f-note">${tr('Note')} <span class="fac">${tr('facoltativo')}</span></label><div class="campo"><textarea id="f-note" data-campo="note" maxlength="1000" placeholder="${esc(tr('Cosa portare, con chi, promemoria…'))}">${esc(f.note)}</textarea></div></div>

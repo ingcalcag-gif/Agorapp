@@ -12,6 +12,8 @@ function mz(){
   MZ = Object.assign({v:1, giorni:{}, visti:{}, creati:{}, richieste:{}, azioni:[], rimozioni:[], segnalazioni:{}, correzioni:{}, versioni:[], prove:[], giri:[], rete:{},
     soglie:{}, stati:{}, mie:{}}, d);
   MZ.soglie = Object.assign({zona:2, nuovi:50, carico:3}, MZ.soglie||{}); delete MZ.soglie.interesse;   /* soglia dei pulsanti volontari, tolta con T-010 */
+  /* le soglie sono numeri positivi: un valore diverso nella memoria del telefono torna a quello di partenza (T-024) */
+  Object.entries({zona:2, nuovi:50, carico:3}).forEach(([k,v]) => { const n = Number(MZ.soglie[k]); MZ.soglie[k] = isFinite(n) && n>0 ? n : v; });
   return MZ;
 }
 function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
@@ -77,7 +79,9 @@ function misureConta(tipo){ if(!st.admin) return; const m = mz(), g = oggi(); m.
 
 /* ---------- periodi ---------- */
 const mzGiorni = n => { const out = [], g = oggi(); for(let i=n-1;i>=0;i--) out.push(piuGiorni(g,-i)); return out; };
-const somma = (o, giorni, f) => giorni.reduce((s,g) => s + (o[g]!=null ? (f ? f(o[g]) : o[g]) : 0), 0);
+/* i conteggi sono numeri: un valore della memoria del telefono che non lo è vale zero (T-024) */
+const numMz = x => { const n = Number(x); return isFinite(n) ? n : 0; };
+const somma = (o, giorni, f) => giorni.reduce((s,g) => s + (o && o[g]!=null ? numMz(f ? f(o[g]) : o[g]) : 0), 0);
 const nf = n => n==null ? '–' : Number(n).toLocaleString('it-IT');
 const n1 = x => String(Math.round(x*10)/10).replace('.',',');
 const brevD = s => dIso(s).toLocaleDateString(dloc(), {day:'numeric', month:'short'}).replace('.','');
@@ -380,7 +384,7 @@ function vImpattoMz(){
     <div class="mz-card"><h3>${tr('Registra un giro di prova sul campo')}</h3><form class="mz-form" data-mzform="giro">
       <label class="mz-etich">${tr('Nome del giro')}<span class="campo"><input name="titolo" maxlength="40" placeholder="${esc(tr('es. Dopo il lancio'))}"></span></label>
       <div class="due">${[['n',tr('Persone'),0,'min="1" max="200" required'],['scoperto',tr('Hanno scoperto eventi nuovi'),44,'min="0"'],['andato',tr('Sono andate a un evento'),45,'min="0"'],['guida',tr('Guida completata senza aiuto'),35,'min="0"'],['og',tr('Off-Grid al primo tentativo'),37,'min="0"'],['cons',tr('Lo consiglierebbero (mediana 0–10)'),47,'min="0" max="10" step="0.5"']].filter(x => !x[2] || on(x[2])).map(x => `<label class="mz-etich">${x[1]}<span class="campo"><input name="${x[0]}" type="number" ${x[3]}></span></label>`).join('')}</div>
-      <button class="tasto sec pieno" type="submit">${tr('Salva il giro')}</button></form>${G.length>1?`<p class="meta">${tr('Giri precedenti: {g}',{g:G.slice(1).map(x => (x.titolo||brevD(x.d))+' ('+x.n+')').join(' · ')})}</p>`:''}${u?`<button class="link" data-mz="giro-togli">${tr('Togli l’ultimo giro')}</button>`:''}</div>
+      <button class="tasto sec pieno" type="submit">${tr('Salva il giro')}</button></form>${G.length>1?`<p class="meta">${tr('Giri precedenti: {g}',{g:esc(G.slice(1).map(x => (x.titolo||brevD(x.d))+' ('+x.n+')').join(' · '))})}</p>`:''}${u?`<button class="link" data-mz="giro-togli">${tr('Togli l’ultimo giro')}</button>`:''}</div>
     ${bloccataMz(46, tr('{nome} riduce la solitudine?'), tr('Domande sul benessere possono essere dati sulla salute (art. 9 GDPR): solo con un partner universitario e il suo comitato etico.'))}
     ${studioSezioneMz('impatto')}`;
 }

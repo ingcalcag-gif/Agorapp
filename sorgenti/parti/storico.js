@@ -33,7 +33,7 @@ function descriviVoce(x){
   if(x.id) parti.push(ev ? `«${esc(ev.title||'')}»` : `<span class="sh-via">${tr('evento non più sulla mappa')}</span>`);
   if(strato) parti.push(esc(strato));
   if(x.n!=null) parti.push(x.n===1 ? tr('1 evento') : tr('{n} eventi',{n:nf(x.n)}));
-  if(x.r!=null) parti.push(tr('riga {n}',{n:x.r}));
+  if(x.r!=null) parti.push(tr('riga {n}',{n:esc(x.r)}));
   if(x.x) parti.push(esc(x.x));
   return parti.join(' · ');
 }

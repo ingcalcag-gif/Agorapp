@@ -16,7 +16,7 @@ const ELENCO = path.join(RADICE, 'COMPONENTI_DI_TERZI.md');
 const TESTI = path.join(RADICE, 'licenze');
 const SEZIONE = "Componenti nell'app";
 
-const escH = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escH = require('./moduli/testo.js').esc;   // la stessa funzione dell'app (T-024)
 // Il testo delle celle è Markdown semplice: tolgo gli apici inversi del codice.
 const piano = s => String(s).replace(/`([^`]*)`/g, '$1').trim();
 

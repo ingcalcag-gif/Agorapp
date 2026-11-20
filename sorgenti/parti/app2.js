@@ -230,7 +230,7 @@ function disegnaRegioni(){
   if(!ZONA.lontano || !ARCHIVIO) return;
   ARCHIVIO.regioni().forEach(r => {
     const lab = r.eventi===1 ? tr('1 evento in {r}: avvicinati per vederlo',{r:r.nome}) : tr('{n} eventi in {r}: avvicinati per vederli',{n:r.eventi, r:r.nome});
-    mettiSegnaposto(`<button class="pin regione" data-regione="${esc(r.vai.join(','))}" aria-label="${esc(lab)}"><span class="f"><span>${r.eventi}</span></span></button>`, r.punto[0], r.punto[1]);
+    mettiSegnaposto(`<button class="pin regione" data-regione="${esc(r.vai.join(','))}" aria-label="${esc(lab)}"><span class="f"><span>${esc(r.eventi)}</span></span></button>`, r.punto[0], r.punto[1]);
   });
 }
 

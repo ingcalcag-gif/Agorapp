@@ -56,7 +56,7 @@ function configurazione() {
   return cfg;
 }
 
-const escH = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escH = require('./moduli/testo.js').esc;   // la stessa funzione dell'app (T-024)
 const segnaposto = s => /^\[.*\]$/.test(String(s));
 // «2026-03» → «Marzo 2026» (italiano), «March 2026» (inglese)…
 function meseAnno(aaaamm, lingua) {
@@ -135,9 +135,10 @@ function correzioniMappa() {
 
 /* ---------- Ordine dei pezzi ---------- */
 // Moduli separati (QB-1), montati in moduli.js prima dell'app, nell'ordine in cui dipendono l'uno dall'altro:
-// formato degli eventi (T-020), quadranti (T-021), lettura dell'archivio (T-022). Nel browser stanno in window.AGR_MODULI.
-const JS_MODULI = ['eventi.js', 'quadranti.js', 'archivio.js'];
-// Un solo modulo JavaScript: app1 apre, app6 chiude.
+// testi come testo (T-024), formato degli eventi (T-020), quadranti (T-021), lettura dell'archivio (T-022).
+// Nel browser stanno in window.AGR_MODULI.
+const JS_MODULI = ['testo.js', 'eventi.js', 'quadranti.js', 'archivio.js'];
+// Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude).
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js',
   'misure_kpi.js', 'misure.js', 'storico.js', 'app6.js'];
 const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css', 'style_misure.css'];
@@ -181,15 +182,15 @@ function monta(cfg) {
 <meta name="referrer" content="no-referrer">
 <title>${escH(cfg.nome)} — Torino</title>
 <link rel="stylesheet" href="lib/caratteri/caratteri.css?v=${crypto.createHash('sha256').update(caratteri).digest('hex').slice(0, 10)}">
-<link rel="stylesheet" href="${lib('maplibre-gl.css')}">
+<link rel="stylesheet" href="${escH(lib('maplibre-gl.css'))}">
 <link rel="stylesheet" href="app.css?v=${v('app.css')}">
 </head>
 <body>
 ${riempi(leggi(PARTI, 'body.html'), cfg, 'it')}
 <!-- Testi legali: quelli dell'app online OG 1.7 (v1.2), invariati -->
 ${legaliIt}
-<script src="${lib('maplibre-gl.js')}"></script>
-<script src="${lib('pmtiles.js')}"></script>
+<script src="${escH(lib('maplibre-gl.js'))}"></script>
+<script src="${escH(lib('pmtiles.js'))}"></script>
 <script src="config.js?v=${v('config.js')}"></script>
 <script src="traduzioni.js?v=${v('traduzioni.js')}"></script>
 <script src="moduli.js?v=${v('moduli.js')}"></script>

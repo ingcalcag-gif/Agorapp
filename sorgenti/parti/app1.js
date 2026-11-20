@@ -8,7 +8,13 @@
    5 lingue, testi legali v1.2. Stessi dati sul telefono (chiavi agorapp_*).
    ===================================================================== */
 const $ = id => document.getElementById(id);
-const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* Moduli separati (sorgenti/moduli/, QB-1): testi come testo (T-024), formato degli eventi (T-020), quadranti (T-021),
+   lettura dell'archivio (T-022). */
+const MODULI = window.AGR_MODULI || {};
+const FORMATO = MODULI.eventi, QUAD = MODULI.quadranti;
+/* L'unica funzione che protegge i caratteri speciali: ogni testo che arriva da fuori entra nella pagina passando di qui
+   (T-024; libro mastro, § 3.11; sorgenti/moduli/testo.js). */
+const esc = MODULI.testo.esc;
 /* ---------- Configurazione (sorgenti/config.js, caricata prima dell'app) ---------- */
 const CFG = window.AGR_CONFIG || {};
 const NOME = CFG.nome || '';
@@ -21,9 +27,6 @@ const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   ? `<span class="${classe}">${esc(CASELLA)}</span>`
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
 const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
-/* Moduli separati (sorgenti/moduli/, QB-1): formato degli eventi (T-020), quadranti (T-021), lettura dell'archivio (T-022). */
-const MODULI = window.AGR_MODULI || {};
-const FORMATO = MODULI.eventi, QUAD = MODULI.quadranti;
 
 /* ---------- Memoria del telefono ---------- */
 const LS = {
@@ -130,8 +133,10 @@ function purgeExpired(){
   if(!via.length) return false;
   events = events.filter(ev => !shouldDelete(ev)); via.forEach(id => delete calEvents[id]); saveEvents(); saveCal(); return true;
 }
-const safeUrl = u => { if(!u) return ''; const s = String(u).trim(); return /^https?:\/\//i.test(s) ? s : ''; };
-const normLink = u => { u = (u||'').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u) && /^[\w-]+(\.[\w-]+)+/.test(u)) u = 'https://'+u; return safeUrl(u); };
+/* Collegamenti: nella pagina solo https (T-024). Un indirizzo scritto senza lo schema, o con http, si porta a https;
+   tutto ciò che non è un indirizzo https valido non diventa un collegamento. */
+const safeUrl = u => MODULI.testo.collegamento(u==null ? '' : String(u));
+const normLink = u => { u = String(u==null?'':u).trim(); if(!u) return ''; u = u.replace(/^http:\/\//i, 'https://'); if(!/^https:\/\//i.test(u) && /^[\w-]+(\.[\w-]+)+/.test(u)) u = 'https://'+u; return safeUrl(u); };
 const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gratuito|gratis|free|ingresso libero|libero|offerta libera)$/i.test(s)) return s; if(s.includes('€')||/euro/i.test(s)) return s; if(/^\d+([.,]\d+)?$/.test(s)) return s+' €'; return s; };
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */

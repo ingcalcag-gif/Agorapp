@@ -43,7 +43,7 @@ function carica(){
 A.anteprime = {carica, dati:() => (pronti && linguaPronti===A.lingua() ? pronti : null), errore:() => errore};
 
 /* ---------- Pezzi comuni ---------- */
-const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = window.AGR_MODULI.testo.esc;   /* la stessa funzione dell'app (T-024; sorgenti/moduli/testo.js) */
 const icoInfo = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4M8 4.8v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 /* la striscia in testa a ogni foglio e a ogni PDF (in testa alle due pagine sta in body.html) */
 const striscia = () => `<div class="anteprima striscia-f" role="note"><b>${T("Demo")}</b><span>${T("contenuti d’esempio")}</span></div>`;

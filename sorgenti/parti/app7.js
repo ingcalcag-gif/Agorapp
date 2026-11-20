@@ -41,9 +41,12 @@ const byK = k => universo().find(u => u.k===k);
 /* le tre lenti di chi usa l'app: stessa chiave dell'app online (agorapp_temi_slots) */
 function caricaLenti(){
   const a = LS.get('agorapp_temi_slots', null);
-  const conv = s => { if(!s) return null; if(Array.isArray(s.k)) return {nome:s.nome||s.name||'', k:s.k};
-    const k = (s.tags||[]).map(lb => { const l = LAYERS.find(x => x.label===lb); return l ? 's:'+l.id : (TEMI_VOC.includes(lb) ? 't:'+lb : null); }).filter(Boolean);
-    return k.length ? {nome:s.name||'', k} : null; };
+  /* dalla memoria del telefono si tengono solo strati e temi che l'app conosce, e un nome di 16 caratteri al massimo (T-024) */
+  const nome = x => String(x==null ? '' : x).slice(0, 16);
+  const conv = s => { if(!s || typeof s!=='object') return null;
+    const k = Array.isArray(s.k) ? s.k.filter(x => typeof x==='string' && byK(x))
+      : (Array.isArray(s.tags) ? s.tags : []).map(lb => { const l = LAYERS.find(x => x.label===lb); return l ? 's:'+l.id : (TEMI_VOC.includes(lb) ? 't:'+lb : null); }).filter(Boolean);
+    return k.length ? {nome:nome(s.nome||s.name), k} : null; };
   return Array.isArray(a) && a.length===3 ? a.map(conv) : [null,null,null];
 }
 function salvaLenti(){ LS.set('agorapp_temi_slots', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }

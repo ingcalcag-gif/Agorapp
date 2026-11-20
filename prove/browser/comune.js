@@ -5,6 +5,9 @@
    le prove non contattano nessun servizio esterno e si comportano allo stesso modo qui e su GitHub Actions.
    Dal blocco 3 la mappa è la mappa di prova di Torino del repository (T-017). I dati sono sempre inventati. */
 'use strict';
+/* Le prove ragionano con l'ora italiana, come il browser che aprono (timezoneId qui sotto): così «domani» è lo stesso
+   giorno per la prova e per l'app anche quando in Italia è già passata la mezzanotte e sul server non ancora. */
+process.env.TZ = 'Europe/Rome';
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
