@@ -302,6 +302,8 @@ function fCalendario(){
     <div style="display:flex;gap:8px"><div class="seg" style="flex:1" role="group">${[['giornata',tr('Giornata')],['mese',tr('Mese')],['agenda',tr('Agenda')]].map(([k,l]) => `<button data-vista="${k}" aria-pressed="${v===k}">${l}</button>`).join('')}</div><button class="tasto sec tasto-pdf" style="flex:none;min-height:44px" data-az="pdf" aria-label="${esc(tr('PDF: scarica o condividi'))}">PDF ${icoCondividi()}</button></div>`;
   return foglio('forte medio', testa, v==='giornata' ? vGiornata() : v==='mese' ? vMese() : vAgenda());
 }
+/* il prezzo di un evento pubblico si scrive com'è nella fonte, senza ritocchi, anche nel PDF (T-023; § 5.1, regola 2) */
+const prezzoDi = e => e.archivio ? e.prezzo : formatPrice(e.prezzo);
 function basePdf(){ return st.pdf.giornata ? giornata(st.pdf.giornata).vive : miei().filter(e => !sparito(e)).sort((a,b) => a.a-b.a); }
 function fPdf(){
   const base = basePdf(), scelti = base.filter(e => !st.pdf.tolti.has(e.id));
@@ -344,7 +346,7 @@ function creaPdf(scelti){
   giorni.forEach(g => {
     if(!st.pdf.giornata){ spazio(16); y += 3; doc.setDrawColor('#D8CFC2'); doc.line(X, y - 4, X + W, y - 4); y += riga(maiusc(titoloGiorno(g)).toUpperCase(), 'helvetica', 'bold', 8.5, '#5C5246', X, W) + 2; }
     scelti.filter(e => e.giorno===g).forEach(e => {
-      const extra = [e.luogo, sottotitoloEv(e) + (e.prezzo ? ' · ' + formatPrice(e.prezzo) : '')].filter(Boolean).join('\n');
+      const extra = [e.luogo, sottotitoloEv(e) + (e.prezzo ? ' · ' + prezzoDi(e) : '')].filter(Boolean).join('\n');
       doc.setFontSize(9.5); const hExtra = doc.splitTextToSize(pulisci(extra), W - COL).length * 4 + (e.tipo==='og' && e.desc ? doc.splitTextToSize(pulisci(e.desc), W - COL).length * 4 : 0);
       spazio(8 + hExtra);
       const y0 = y; riga(e.inizio + (e.fine ? '–' + e.fine : ''), 'helvetica', 'bold', 11, '#2F5D46', X, COL - 2);
@@ -376,7 +378,7 @@ function stampaPdf(){
   const sotto = st.pdf.giornata ? maiusc(titoloGiorno(st.pdf.giornata)) : '';
   const giorni = [...new Set(scelti.map(e => e.giorno))];
   const righe = giorni.map(g => `<tr><td colspan="3" class="day">${esc(maiusc(titoloGiorno(g)))}</td></tr>` + scelti.filter(e => e.giorno===g).map(e =>
-    `<tr><td class="tm">${e.inizio}${e.fine?'–'+e.fine:''}</td><td class="tt">${esc(e.titolo)}${e.tipo==='og'&&e.desc?`<div class="nt">${esc(e.desc)}</div>`:''}</td><td>${esc(e.luogo)}<div class="nt">${esc(sottotitoloEv(e))}${e.prezzo?' · '+esc(formatPrice(e.prezzo)):''}</div></td></tr>`).join('')).join('');
+    `<tr><td class="tm">${e.inizio}${e.fine?'–'+e.fine:''}</td><td class="tt">${esc(e.titolo)}${e.tipo==='og'&&e.desc?`<div class="nt">${esc(e.desc)}</div>`:''}</td><td>${esc(e.luogo)}<div class="nt">${esc(sottotitoloEv(e))}${e.prezzo?' · '+esc(prezzoDi(e)):''}</div></td></tr>`).join('')).join('');
   const html = `<!DOCTYPE html><html lang="${lang}" dir="${lang==='ar'?'rtl':'ltr'}"><head><meta charset="UTF-8"><title>${esc(titolo)} · ${esc(NOME)}</title><style>body{font-family:Georgia,serif;max-width:760px;margin:24px auto;color:#1c1712;padding:0 16px}h1{font-size:24px;margin:0 0 2px;font-weight:400}p{font-size:12px;color:#5c5246;margin:0 0 18px;font-family:Helvetica,Arial,sans-serif}.m{text-transform:uppercase;letter-spacing:.08em;font-size:11px}table{width:100%;border-collapse:collapse;font-family:Helvetica,Arial,sans-serif}td{padding:8px 10px;border-bottom:1px solid #e3ddd0;font-size:12px;vertical-align:top}td.day{background:#f5f0e8;font-weight:700;font-size:13px;border-top:2px solid #cfc6b4}td.tm{white-space:nowrap;color:#5c5246;font-weight:700}td.tt{font-weight:600}.nt{font-weight:400;color:#5c5246;font-size:11px;margin-top:2px;white-space:pre-wrap}.f{margin-top:18px;font-size:11px;color:#5c5246;font-family:Helvetica,Arial,sans-serif}</style></head><body><p class="m">${esc(NOME)} · ${esc(cittaObj().n)}</p><h1>${esc(titolo)}</h1><p>${esc(sotto)}</p><table><tbody>${righe}</tbody></table><p class="f">${tr('Stampato da {nome}. Verifica orari e luoghi con chi organizza.')}</p></body></html>`;
   const url = URL.createObjectURL(new Blob([html], {type:'text/html'}));
   const w = window.open(url, '_blank');
