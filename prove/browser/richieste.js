@@ -46,7 +46,7 @@ async function prova() {
     if (!car.sans || !car.serif) e.errori.push('caratteri non caricati dall\'app: DM Sans ' + car.sans + ', DM Serif Display ' + car.serif);
     if (!car.mappa) e.errori.push('MapLibre non caricato dall\'app');
     vista = 'elenco e scheda'; await p.click('[data-az="elenco"]'); await pausa(400);
-    await p.locator('[data-ev="' + ID_EV + '"]').first().click(); await pausa(500);
+    await p.locator('#foglio-slot [data-ev="' + ID_EV + '"]').first().click(); await pausa(500);
     // Collegamenti esterni (T-012; § 5.3, regola 3): solo al tocco, senza referrer, e la pagina ha la regola generale.
     const col = await p.evaluate(() => ({ meta: (document.querySelector('meta[name="referrer"]') || {}).content || '',
       a: [...document.querySelectorAll('#foglio-slot a[href^="http"]')].map(a => ({ h: a.host, rel: a.rel, pol: a.referrerPolicy })) }));
@@ -86,7 +86,7 @@ async function prova() {
     try {
       await archivio(A.ctx, PUBBLICI);
       const pa = await A.ctx.newPage(); await pa.goto(s.url + 'index.html'); await pa.waitForSelector('[data-az="elenco"]'); await eventiCaricati(pa); await pausa(400);
-      await pa.click('[data-az="elenco"]'); await pausa(400); await pa.locator('[data-ev="' + ID_EV + '"]').first().click(); await pausa(500);
+      await pa.click('[data-az="elenco"]'); await pausa(400); await pa.locator('#foglio-slot [data-ev="' + ID_EV + '"]').first().click(); await pausa(500);
       const geo = await pa.locator('#foglio-slot a[href^="geo:"]').evaluateAll(a => a.map(x => x.getAttribute('href')));
       if (geo.length !== 1 || !/^geo:-?\d+\.\d+,-?\d+\.\d+\?q=-?\d+\.\d+,-?\d+\.\d+$/.test(geo[0])) e.errori.push('Android: «Apri nelle mappe del telefono» assente o con altro oltre alle coordinate (' + (geo.join(' ') || 'nessuno') + ')');
       if (await pa.locator('#foglio-slot [data-copia-indirizzo]').count()) e.errori.push('Android: compare «Copia indirizzo» insieme a «Apri nelle mappe del telefono»');

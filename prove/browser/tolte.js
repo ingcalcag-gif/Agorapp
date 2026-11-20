@@ -69,7 +69,7 @@ async function prova() {
     await eventiCaricati(p);
     await p.click('[data-az="elenco"]'); await pausa(400);
     if (await p.locator('[data-ev="' + ID_CON_IMMAGINE + '"]').count()) e.errori.push('elenco: compare l\'evento dell\'archivio con l\'immagine, che il formato rifiuta');
-    const riga = p.locator('[data-ev="' + ID_SENZA + '"]').first();
+    const riga = p.locator('#foglio-slot [data-ev="' + ID_SENZA + '"]').first();   // la riga dell'elenco, non il segnaposto che il foglio copre
     if (!(await riga.count())) e.errori.push('elenco: non trovo l\'evento di prova dell\'archivio');
     else {
       await riga.click(); await pausa(600);

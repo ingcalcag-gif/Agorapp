@@ -46,7 +46,7 @@ async function prova() {
     await avvia(); await analizza('mappa');
     if (await tocca('[data-az="elenco"]', 'elenco')) {
       await analizza('elenco');
-      if (await tocca('[data-ev="' + ID_EV + '"]', 'scheda evento')) await analizza('scheda evento');
+      if (await tocca('#foglio-slot [data-ev="' + ID_EV + '"]', 'scheda evento')) await analizza('scheda evento');
     }
     await avvia(); if (await tocca('[data-az="calendario"]', 'calendario')) await analizza('calendario');
     await avvia(); if (await tocca('[data-az="cerca"]', 'cerca')) await analizza('cerca');
