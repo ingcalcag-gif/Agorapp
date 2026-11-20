@@ -185,7 +185,8 @@ async function prova() {
     await browser.close(); await s.chiudi();
   }
   const mappa = new URL('../../mappa/prova/', s.url).href; // la mappa di prova di Torino (T-017): stessa zona di consegna del file della mappa
-  const esterne = richieste.filter(u => !u.startsWith(s.url) && !u.startsWith(mappa) && !u.startsWith('blob:') && !u.startsWith('data:'));
+  const eventiZona = new URL('../../prova/archivio/', s.url).href; // l'archivio di prova degli eventi (T-022): zona degli eventi
+  const esterne = richieste.filter(u => !u.startsWith(s.url) && !u.startsWith(mappa) && !u.startsWith(eventiZona) && !u.startsWith('blob:') && !u.startsWith('data:'));
   const conosciute = esterne.filter(u => /basemaps\.cartocdn\.com/.test(u));   // mappa CARTO fino a T-017 (scarto della prova delle richieste)
   if (esterne.length > conosciute.length) e.errori.push('richieste fuori dall\'app: ' + [...new Set(esterne.filter(u => !conosciute.includes(u)))].join(', '));
   const esempi = richieste.filter(u => /\/anteprime\/[a-z]{2}\.json/.test(u));

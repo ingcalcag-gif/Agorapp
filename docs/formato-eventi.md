@@ -59,13 +59,13 @@ L'archivio comune non è un file unico: il telefono non scarica una città inter
 ]}
 ```
 
-**L'indice.** Un file piccolo, `indice.json`, dice per ogni quadrante il nome del file, la sua versione e quanti eventi contiene, e per ogni regione quanti eventi ci sono e dove mettere il numero sulla mappa vista da lontano:
+**L'indice.** Un file piccolo, `indice.json`, dice per ogni quadrante il nome del file, la sua versione e quanti eventi contiene, e per ogni regione quanti eventi ci sono, dove mettere il numero sulla mappa vista da lontano (`punto`, un punto interno della regione) e dove portare chi lo tocca (`vai`, il punto medio degli eventi del quadrante più pieno della regione):
 
 ```
 {"formato":"eventi-indice","versione":1,"tdm-reservation":1,"generato":"2026-11-20T05:00:00Z",
  "griglia":{"versione":1,"ovest":6.5,"sud":35.4,"passo_lat":0.45,"passo_lng":0.6,"righe":27,"colonne":21},
  "quadranti":{"q21-01":{"file":"quadranti/q21-01-<versione>.json","v":"<versione>","eventi":10}, …},
- "regioni":[{"nome":"Piemonte","punto":[7.9108,44.9987],"eventi":14}, …]}
+ "regioni":[{"nome":"Piemonte","punto":[7.9108,44.9987],"eventi":14,"vai":[7.6803,45.0729]}, …]}
 ```
 
 La versione di un quadrante è un'impronta breve del contenuto del suo file (funzione `impronta`): cambia quando cambia il file. Il nome del file la contiene, così nessuna copia vecchia, nel telefono o nella rete di consegna, si scambia per quella nuova; il telefono scarica di nuovo solo i quadranti la cui versione è cambiata. L'indice elenca solo i quadranti e le regioni con almeno un evento.
@@ -73,6 +73,8 @@ La versione di un quadrante è un'impronta breve del contenuto del suo file (fun
 **Le regioni.** La regione di un evento si ricava dalle sue coordinate con i confini semplificati delle venti regioni in `sorgenti/dati/regioni.json` (da Natural Earth, pubblico dominio; strumento `strumenti/genera-regioni.mjs`); un punto in mare vicino alla costa, entro 40 km, va alla regione più vicina. Il telefono non riceve i confini: gli bastano i numeri e i punti dell'indice.
 
 **Che cosa controlla chi legge.** L'app usa un indice solo se ha questo formato, questa versione e la stessa griglia, e se i nomi dei file stanno nella cartella dell'archivio (funzione `controllaIndice`); di un file di quadrante tiene solo gli eventi validi che stanno davvero in quel quadrante (funzione `eventiDelQuadrante`).
+
+**Come lo legge l'app pubblica (T-022).** Il modulo `sorgenti/moduli/archivio.js` chiede l'indice all'apertura e al ritorno nell'app dopo più di trenta minuti, ricontrollandolo sempre con il server; quando la mappa resta ferma per mezzo secondo e la zona inquadrata sta dentro il quadrante del centro e gli otto intorno, scarica quei quadranti che hanno eventi e non ha già nella versione giusta. Da più lontano l'app mostra soltanto i numeri per regione e invita ad avvicinarsi. Nessuna richiesta porta cookie, credenziali o parametri. I file scaricati restano sul telefono (memoria del browser per i file, `agorapp_archivio`) come «eventi delle zone consultate» (§ 3.7): l'app li mostra subito alla riapertura, anche senza rete, riscarica solo i quadranti cambiati e cancella i file che l'indice non nomina più. Elenco e mappa mostrano gli eventi della zona inquadrata; calendario, ricerca e Temi anche quelli delle altre zone consultate. Gli eventi escono da mappa e agenda tre ore dopo la fine.
 
 **L'archivio di prova.** `prova/archivio/` contiene l'unico archivio del repository: eventi inventati (`strumenti/archivio-prova.json`, approvati da Lorenzo il 20/11/2026), scritti con `node strumenti/genera-archivio-prova.mjs [--da=AAAA-MM-GG]`. Nessun evento reale entra mai nel repository (§ 2.6). La prova `prove/quadranti.js` controlla che i file siano esattamente quelli che lo strumento produce.
 

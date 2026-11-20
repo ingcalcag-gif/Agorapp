@@ -4,7 +4,8 @@
    Legge soltanto i file di sorgenti/ e scrive due uscite:
      dist/pubblica/   l'app pubblica (la sola cartella che il sito pubblica)
      dist/redazione/  l'app della redazione (uguale alla pubblica fino al blocco 8 del piano)
-   In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina.
+   In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina; i moduli separati di sorgenti/moduli/
+   (formato degli eventi, quadranti, lettura dell'archivio: blocco 4) stanno in moduli.js, caricato prima dell'app.
    Ogni uscita contiene anche licenze/: titolari, licenze e testi integrali dei componenti di terzi
    (sorgenti/licenze.js, da COMPONENTI_DI_TERZI.md e licenze/), e lib/: librerie e caratteri di terzi
    a versione fissa, copiati da sorgenti/vendor/ con accanto il testo della loro licenza (T-007; dal blocco 3 anche
@@ -34,6 +35,7 @@ const VENDOR = require('./vendor/elenco.js');
 const SORGENTI = __dirname;
 const RADICE = path.resolve(SORGENTI, '..');
 const PARTI = path.join(SORGENTI, 'parti');
+const MODULI = path.join(SORGENTI, 'moduli');
 const DATI = path.join(SORGENTI, 'dati');
 
 const opz = Object.fromEntries(process.argv.slice(2)
@@ -132,6 +134,9 @@ function correzioniMappa() {
 }
 
 /* ---------- Ordine dei pezzi ---------- */
+// Moduli separati (QB-1), montati in moduli.js prima dell'app, nell'ordine in cui dipendono l'uno dall'altro:
+// formato degli eventi (T-020), quadranti (T-021), lettura dell'archivio (T-022). Nel browser stanno in window.AGR_MODULI.
+const JS_MODULI = ['eventi.js', 'quadranti.js', 'archivio.js'];
 // Un solo modulo JavaScript: app1 apre, app6 chiude.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js',
   'misure_kpi.js', 'misure.js', 'storico.js', 'app6.js'];
@@ -153,11 +158,13 @@ function monta(cfg) {
   const traduzioni = fs.existsSync(path.join(PARTI, 'traduzioni.js')) ? leggi(PARTI, 'traduzioni.js') : 'window.AGR_TR={};';
   const css = CSS.map(f => leggi(PARTI, f)).join('\n');
   const sezioni = leggi(PARTI, 'sezioni.js');
+  const moduli = JS_MODULI.map(f => leggi(MODULI, f)).join('\n');
 
   const file = {
     'config.js': '/* Configurazione montata da sorgenti/config.js: non modificare qui. */\nwindow.AGR_CONFIG = ' + JSON.stringify(cfg, null, 1) + ';\n',
     'app.css': css + '\n',
     'traduzioni.js': traduzioni + '\n',
+    'moduli.js': moduli + '\n',
     'app.js': app + '\n',
     'sezioni.js': sezioni + '\n',
   };
@@ -185,6 +192,7 @@ ${legaliIt}
 <script src="${lib('pmtiles.js')}"></script>
 <script src="config.js?v=${v('config.js')}"></script>
 <script src="traduzioni.js?v=${v('traduzioni.js')}"></script>
+<script src="moduli.js?v=${v('moduli.js')}"></script>
 <script src="app.js?v=${v('app.js')}"></script>
 <script src="sezioni.js?v=${v('sezioni.js')}"></script>
 </body>

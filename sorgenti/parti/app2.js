@@ -177,6 +177,62 @@ function civiciMappa(){
   if(!map || !mappaOk) return;
   try{ if(map.getLayer('address_label')) map.setLayoutProperty('address_label', 'visibility', st.posa ? 'visible' : 'none'); }catch(e){}
 }
+/* ---------- Eventi dell'archivio, a quadranti (T-022; libro mastro § 2.4, «La lettura degli eventi») ----------
+   L'archivio sta all'indirizzo degli eventi nella configurazione (indirizzi.eventi, su Bunny con T-065); finché è vuoto,
+   l'app aperta dal repository (githack, prove automatiche) legge l'archivio di prova in prova/archivio/, con soli eventi
+   inventati; altrove nessun evento pubblico. Quando la mappa resta ferma per mezzo secondo e la zona inquadrata sta
+   dentro il quadrante del centro e gli otto intorno, si caricano quei nove quadranti; da più lontano si vedono soltanto
+   i numeri per regione, con l'invito ad avvicinarsi. All'apertura e al ritorno nell'app dopo più di trenta minuti si
+   controlla se l'archivio è cambiato. Nessuna richiesta porta con sé identificativi, cookie o credenziali. */
+const ARCHIVIO_DOVE = (() => {
+  const u = (CFG.indirizzi||{}).eventi;
+  try{ if(u) return new URL(u.replace(/\/?$/,'/'), location.href).href; }catch(e){ return ''; }
+  const i = location.pathname.lastIndexOf('/dist/');
+  return i>=0 ? location.origin + location.pathname.slice(0, i) + '/prova/archivio/' : '';
+})();
+function avviaArchivio(){
+  if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
+  ARCHIVIO = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window),
+    caches:(window.isSecureContext && window.caches) || null, nomeCache:'agorapp_archivio'});
+  ARCHIVIO.apri().then(dopoControllo);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
+}
+function dopoControllo(){ pulisciCalendarioArchivio(); ricostruisci(); aggiornaZona(true); }
+/* Dal calendario escono gli eventi dell'archivio che non ci sono più (ritirati o usciti dalla mappa); solo se le zone
+   consultate restano sul telefono e l'indice è appena arrivato, così un evento non sparisce perché non è caricato. */
+function pulisciCalendarioArchivio(){
+  if(!ARCHIVIO || !ARCHIVIO.persistente() || !ARCHIVIO.ultimoControllo()) return;
+  const vivi = new Set(ARCHIVIO.eventi().map(x => x.ev.id)), locali = new Set(events.map(e => e.id));
+  const via = Object.keys(calEvents).filter(id => FORMATO.ID.test(id) && !vivi.has(id) && !locali.has(id));
+  if(via.length){ via.forEach(id => delete calEvents[id]); saveCal(); }
+}
+let zonaT = 0;
+function programmaZona(){ clearTimeout(zonaT); zonaT = setTimeout(() => aggiornaZona(false), 500); }
+/* Il quadrante del centro, se la zona inquadrata sta tutta dentro di lui e degli otto intorno; altrimenti null.
+   Se il telefono non riesce a disegnare la mappa, la zona è quella della città scelta: elenco e agenda restano utili (§ 11.3). */
+function zonaVicina(){
+  if(!map){ const k = cittaObj(), c = k.center ? {lat:k.center[0], lng:k.center[1]} : {lat:(k.bounds[0][1]+k.bounds[1][1])/2, lng:(k.bounds[0][0]+k.bounds[1][0])/2}; return QUAD.quadrante(c.lat, c.lng); }
+  const c = map.getCenter(), q = QUAD.quadrante(c.lat, c.lng); if(!q) return null;
+  const k = QUAD.confini(q), G = QUAD.GRIGLIA, b = map.getBounds();
+  return b.getWest() >= k.ovest - G.passo_lng && b.getEast() <= k.est + G.passo_lng && b.getSouth() >= k.sud - G.passo_lat && b.getNorth() <= k.nord + G.passo_lat ? q : null;
+}
+function aggiornaZona(forza){
+  if(!QUAD) return;
+  const q = zonaVicina(), ids = q ? QUAD.intorno(q) : [], lontano = !q;
+  const cambiata = [...ZONA.ids].sort().join() !== ids.slice().sort().join() || lontano !== ZONA.lontano;
+  ZONA.ids = new Set(ids); ZONA.lontano = lontano;
+  if(cambiata || forza){ ricostruisci(); tutto(); }
+  if(ARCHIVIO && ids.length) ARCHIVIO.carica(ids).then(nuovi => { if(nuovi && ZONA.ids.has(ids[0])){ ricostruisci(); tutto(); } });
+}
+/* Da lontano: un numero per regione, nel punto della regione; toccandolo ci si avvicina a dove sono gli eventi. */
+function disegnaRegioni(){
+  if(!ZONA.lontano || !ARCHIVIO) return;
+  ARCHIVIO.regioni().forEach(r => {
+    const lab = r.eventi===1 ? tr('1 evento in {r}: avvicinati per vederlo',{r:r.nome}) : tr('{n} eventi in {r}: avvicinati per vederli',{n:r.eventi, r:r.nome});
+    mettiSegnaposto(`<button class="pin regione" data-regione="${esc(r.vai.join(','))}" aria-label="${esc(lab)}"><span class="f"><span>${r.eventi}</span></span></button>`, r.punto[0], r.punto[1]);
+  });
+}
+
 /* «I vuoti»: i quartieri dove, nel periodo scelto, non succede niente. Per ora rettangoli (come nel mockup), solo a Torino */
 const QUARTIERI = [
   {n:'Centro',la:[45.0640,45.0760],ln:[7.6720,7.6920]},{n:'Vanchiglia',la:[45.0680,45.0790],ln:[7.6920,7.7040]},
@@ -237,8 +293,9 @@ function initMappa(){
     if(MAPPA.fonte==='file' && !MAPPA.fileOk && ev && ev.sourceId==='protomaps'){ MAPPA.fonte = 'tasselli'; caricaMappa(); }
   });
   caricaMappa();
-  map.on('movestart', () => { $('app').classList.add('muove'); annullaLungo(); });
-  map.on('moveend', () => { $('app').classList.remove('muove'); aggiornaZoomBtn(); });
+  map.once('load', programmaZona);
+  map.on('movestart', () => { $('app').classList.add('muove'); annullaLungo(); clearTimeout(zonaT); });
+  map.on('moveend', () => { $('app').classList.remove('muove'); aggiornaZoomBtn(); programmaZona(); });
   map.on('zoomend', () => { if(!modoGiornata()) disegnaPins(); });
   map.on('click', ev => {
     const t = ev.originalEvent && ev.originalEvent.target;
@@ -319,6 +376,7 @@ function disegnaPins(){
       mettiSegnaposto(`<button class="pin gruppo" style="--anello:${anello}" data-gruppo="${esc(g.el.map(e=>e.id).join(','))}" aria-label="${esc(tr('{n} cose qui vicino',{n:g.el.length}))}"><span class="f"><span>${g.el.length}</span></span></button>`, ll.lng, ll.lat);
     }
   });
+  disegnaRegioni();
   if(st.tuQui) mettiSegnaposto(`<span class="tu-qui" aria-label="${esc(tr('Sei qui'))}"></span>`, st.tuQui.lng, st.tuQui.lat, 'mk-tu');
   if(st.cercaQui) mettiSegnaposto('<span class="cerca-qui"></span>', st.cercaQui.lng, st.cercaQui.lat, 'mk-q');
   if(st.punto && st.foglio==='punto') mettiSegnaposto('<span class="cerca-qui"></span>', st.punto.lng, st.punto.lat, 'mk-q');
@@ -392,6 +450,8 @@ function disegnaPeek(){
   if(st.lente) extra.push(tr('lente «{n}»',{n:st.lente.nome}));
   if(st.finiti) extra.push(tr('anche appena finiti'));
   if(!st.tipi.og) extra.push(tr('senza i tuoi Off-Grid'));
+  /* da lontano (T-022): l'invito ad avvicinarsi, accanto ai numeri per regione sulla mappa */
+  if(ZONA.lontano && ARCHIVIO && ARCHIVIO.pronto()) extra.push(tr('avvicinati a una città per vedere gli eventi'));
   if(vuotiAttivi()){ const v = quartieriVuoti(visibili()).length; if(v) extra.push(v===1 ? tr('1 quartiere vuoto') : tr('{n} quartieri vuoti',{n:v})); }
   const N = LAYERS.length, k = st.strati.size;
   const accesi = k===N ? tr('Tutti i {n} strati accesi',{n:N}) : k===1 ? tr('1 strato su {n} acceso',{n:N}) : k ? tr('{k} strati su {n} accesi',{k, n:N}) : tr('Nessuno strato acceso');

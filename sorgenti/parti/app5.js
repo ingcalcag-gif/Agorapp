@@ -39,6 +39,7 @@ function applicaCitta(id, anima){
   citta = CITTA.find(x => x.id===id) ? id : 'torino'; LS.set('agorapp_city', citta);
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n;
   vaiCitta(anima);
+  if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
 }
 
 /* ======================= Admin ======================= */
@@ -344,6 +345,7 @@ function selezionaEv(id){
   const e = byId(id); if(!e) return;
   if(st.sezione!=='mappa') vaiSezione('mappa');
   if(!e.suMappa){ apriCalendario('giornata', e.giorno); return; }
+  st.sel = id;   /* prima del controllo: un evento di un'altra zona già consultata conta come visibile (T-022) */
   if(!visibile(e) && !modoGiornata()){
     if(!finito(e)) st.tempo = 'tutto'; else st.finiti = true; st.salvatiSolo = false; st.tipi[e.tipo] = true;
     if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); st.preset = -1; st.prezzo = 'tutti'; st.lente = null;

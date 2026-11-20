@@ -129,7 +129,7 @@ function rigaEv(e){
 function perGiorni(lista){ const giorni = [...new Set(lista.map(e => e.giorno))]; return giorni.map(g => `<div class="giorno">${esc(titoloGiorno(g))}</div><div class="lista">${lista.filter(e => e.giorno===g).map(rigaEv).join('')}</div>`).join(''); }
 function fElenco(lista, titolo, nota, conCal){
   const corpo = lista.length ? perGiorni(lista) + `<p class="nota">${nota}</p>`
-    : `<div class="fatti"><div class="dato">${icoOra}<div><span class="t">${tr('Niente da mostrare')}</span><span class="meta">${EV.length ? tr('Prova un altro periodo o riaccendi qualche strato.') : tr('La mappa è vuota: qui compaiono gli eventi della città e i tuoi Off-Grid.')}</span></div></div></div>`;
+    : `<div class="fatti"><div class="dato">${icoOra}<div><span class="t">${tr('Niente da mostrare')}</span><span class="meta">${ZONA.lontano && ARCHIVIO ? tr('Da lontano vedi solo quanti eventi ci sono in ogni regione. Avvicinati a una città, o sceglila dal menu delle città.') : EV.length ? tr('Prova un altro periodo o riaccendi qualche strato.') : tr('La mappa è vuota: qui compaiono gli eventi della città e i tuoi Off-Grid.')}</span></div></div></div>`;
   const testa = `<div class="riga-titolo"><div class="stack-s" style="gap:2px"><h2>${esc(titolo)}</h2><p class="meta">${lista.length===1 ? tr('1 cosa') : tr('{n} cose',{n:lista.length})}${conCal ? ' '+tr('sulla mappa') : ''}</p></div>${chiudiBtn()}</div>`;
   return foglio('medio', testa, corpo + (conCal ? `<button class="tasto sec pieno" data-az="calendario">${icoCal()}${tr('Apri il Calendario')}</button>` : ''));
 }
@@ -137,7 +137,7 @@ function fElenco(lista, titolo, nota, conCal){
 /* --- Scheda --- */
 function quando(e){
   let stato = ''; const n = ora();
-  if(finito(e)){ const sparisce = new Date((getEnd(e.raw)||e.b.getTime()) + EXPIRE_MS); stato = `<span class="stato grigio">${e.fine ? tr('Terminato alle {f}',{f:e.fine}) : tr('Iniziato alle {i}',{i:e.inizio})} · ${tr('sparisce dalla mappa alle {h}',{h:hm(sparisce)})}</span>`; }
+  if(finito(e)){ const sparisce = new Date((e.fineMs!=null ? e.fineMs : e.b.getTime()) + EXPIRE_MS); stato = `<span class="stato grigio">${e.fine ? tr('Terminato alle {f}',{f:e.fine}) : tr('Iniziato alle {i}',{i:e.inizio})} · ${tr('sparisce dalla mappa alle {h}',{h:hm(sparisce)})}</span>`; }
   else if(e.a<=n && e.b>n) stato = `<span class="stato">${tr('In corso · finisce alle {f}',{f:e.fine})}</span>`;
   else if(e.giorno===oggi()){ const min = Math.round((e.a-n)/6e4); stato = `<span class="stato grigio">${min<60 ? tr('Tra {n} minuti',{n:min}) : (Math.round(min/60)===1 ? tr('Tra un’ora') : tr('Tra {n} ore',{n:Math.round(min/60)}))}</span>`; }
   const notte = e.fine && ymd(e.b)!==e.giorno ? ` · <strong>${tr('finisce il giorno dopo')}</strong>` : '';
@@ -166,8 +166,15 @@ function descrizione(e){
   const lungo = e.desc.length > 170;
   return `<p class="desc${lungo&&!st.descAperta?' chiusa':''}">${esc(e.desc)}</p>${lungo?`<button class="link" style="min-height:32px;margin-top:-10px" data-az="leggi">${st.descAperta?tr('Mostra meno'):tr('Leggi tutto')}</button>`:''}`;
 }
-const boxAdmin = e => st.admin && e.tipo!=='og' ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
+const boxAdmin = e => st.admin && e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
+/* «Fonte:» di un evento dell'archivio (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e
+   senza referrer (regola 3). Il resto della scheda conforme (avviso, organizzatore, luogo) arriva con T-023. */
+function rigaFonte(f){
+  if(!f || !f.testo) return '';
+  const u = f.collegamento && /^https:\/\//i.test(f.collegamento) ? f.collegamento : '';
+  return `<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(f.testo)}</a>` : esc(f.testo)}</span>`;
+}
 function fScheda(e){
   if(!e) return '';
   let testa, corpo; const x = e.raw;
@@ -181,7 +188,7 @@ function fScheda(e){
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
         ${link?`<div class="dato">${icoLink}<div><a href="${esc(link)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${tr('Sito di chi organizza')}</a><span class="meta">${esc(hostDi(link))}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      <div class="fonte${man?' attenzione':''}">${x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
+      <div class="fonte${man?' attenzione':''}">${e.archivio ? rigaFonte(e.fonte) : x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
       ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
   } else {

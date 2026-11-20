@@ -103,6 +103,10 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .pin.sel::before{content:"";position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:color-mix(in srgb,var(--superficie) 55%,transparent);border:1.5px solid var(--linea-forte)}
 .pin.gruppo .f{width:40px;height:40px;border-radius:50%;background:var(--anello);padding:4px}
 .pin.gruppo .f span{width:100%;height:100%;border-radius:50%;background:var(--superficie);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;line-height:1;color:var(--testo)}
+/* Numero di eventi di una regione, sulla mappa vista da lontano (T-022): si tocca per avvicinarsi */
+.pin.regione{width:48px;height:48px}
+.pin.regione .f{width:46px;height:46px;border-radius:50%;background:var(--clay);padding:3px}
+.pin.regione .f span{width:100%;height:100%;border-radius:50%;background:var(--superficie);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:18px;line-height:1;color:var(--testo)}
 .tu-qui{position:relative;width:18px;height:18px;border-radius:50%;background:var(--superficie);border:4px solid var(--verde);box-shadow:0 0 0 8px color-mix(in srgb,var(--verde) 18%,transparent)}
 .cerca-qui{position:relative;width:26px;height:26px;border-radius:50%;border:2.5px dashed var(--testo);background:color-mix(in srgb,var(--superficie) 40%,transparent)}
 /* Giornata sulla mappa: tappe numerate e percorso */
@@ -426,6 +430,7 @@ body{background:var(--fondo)}
 .attrib a{color:inherit;text-decoration:none}
 .top .nome{white-space:nowrap}
 .dato a{color:var(--verde);font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.fonte a{color:var(--verde);font-weight:600;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}   /* collegamento della fonte (T-022) */
 .riga-ev .meta,.tappa-r .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .campo input[type="date"],.campo input[type="time"],.campo input[type="datetime-local"]{min-width:0}
 .sugg .m{font-weight:600}

@@ -9,6 +9,7 @@ $('app').addEventListener('click', ev => {
   if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */
   const d = t.dataset;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
+  if(d.regione){ const [lng, lat] = d.regione.split(',').map(Number); if(map && isFinite(lng) && isFinite(lat)) map.flyTo({center:[lng, lat], zoom:12, duration:800}); return; }
   if(d.sez){ vaiSezione(d.sez, true); return; }
   if(d.ev){ if(st.foglio==='calendario' && !modoGiornata()) st.foglio = null; selezionaEv(d.ev); return; }
   if(d.gruppo){ st.sel = null; apri('gruppo', {gruppo:d.gruppo.split(',')}); const e = byId(st.gruppo[0]); if(e) requestAnimationFrame(() => inquadra(e.lat, e.lng)); return; }
@@ -189,10 +190,11 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   if(st.semplice) $('app').classList.add('semplice');
   testiFissi(); purgeExpired(); ricostruisci();
   st.cal.giorno = oggi();
-  initMappa(); tutto();
+  initMappa(); avviaArchivio(); tutto();
   if(LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
+    archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),
     tr, dloc, lingua:() => lang,
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },

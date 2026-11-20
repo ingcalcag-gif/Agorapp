@@ -107,10 +107,17 @@
     return '{"formato":"eventi-quadrante","versione":' + E.FORMATO + ',"tdm-reservation":1,"quadrante":"' + id + '","eventi":[' +
       (eventi.length ? '\n' + eventi.map(e => JSON.stringify(e)).join(',\n') + '\n' : '') + ']}\n';
   }
+  /* Dove portare chi tocca il numero di una regione: il punto medio degli eventi del suo quadrante più pieno (a parità, il
+     primo in ordine di nome), arrotondato a quattro decimali. */
+  function vai(perQuadrante) {
+    const q = Object.keys(perQuadrante).sort().reduce((m, k) => (!m || perQuadrante[k].length > perQuadrante[m].length ? k : m), null);
+    const l = perQuadrante[q], r4 = x => Math.round(x * 1e4) / 1e4;
+    return [r4(l.reduce((s, e) => s + e.lng, 0) / l.length), r4(l.reduce((s, e) => s + e.lat, 0) / l.length)];
+  }
   function costruisci(eventi, opz) {
     const adesso = opz.adesso, cartella = opz.cartella || 'quadranti/', regioni = opz.regioni || [];
     if (!Number.isFinite(adesso)) throw new Error('costruisci: serve «adesso» in millisecondi');
-    const per = {}, conta = {}, visti = new Set();
+    const per = {}, conta = {}, perRegione = {}, visti = new Set();
     for (const ev of eventi) {
       const err = E.controlla(ev, opz.vocabolario ? { vocabolario: opz.vocabolario } : undefined);
       if (err.length) throw new Error('evento ' + (ev && ev.id) + ' non valido: ' + err.join('; '));
@@ -119,7 +126,7 @@
       const q = quadrante(ev.lat, ev.lng); if (!q) throw new Error('evento ' + ev.id + ' fuori dalla griglia');
       (per[q] = per[q] || []).push(ev);
       const reg = regione(ev.lat, ev.lng, regioni);
-      if (reg) conta[reg] = (conta[reg] || 0) + 1;
+      if (reg) { conta[reg] = (conta[reg] || 0) + 1; ((perRegione[reg] = perRegione[reg] || {})[q] = perRegione[reg][q] || []).push(ev); }
     }
     const file = {}, quadranti = {};
     for (const q of Object.keys(per).sort()) {
@@ -129,7 +136,7 @@
     }
     const indice = { formato: 'eventi-indice', versione: E.FORMATO, 'tdm-reservation': 1, generato: new Date(adesso).toISOString().slice(0, 19) + 'Z',
       griglia: GRIGLIA, quadranti,
-      regioni: regioni.filter(r => conta[r.nome]).map(r => ({ nome: r.nome, punto: r.punto, eventi: conta[r.nome] })) };
+      regioni: regioni.filter(r => conta[r.nome]).map(r => ({ nome: r.nome, punto: r.punto, eventi: conta[r.nome], vai: vai(perRegione[r.nome]) })) };
     file['indice.json'] = JSON.stringify(indice) + '\n';
     return { indice, file };
   }
@@ -151,8 +158,8 @@
     }
     if (!Array.isArray(j.regioni)) err.push('indice: mancano le regioni');
     else for (const r of j.regioni) {
-      if (!r || typeof r.nome !== 'string' || !r.nome || r.nome.length > 40 || !Array.isArray(r.punto) || r.punto.length !== 2 || !Number.isInteger(r.eventi) || r.eventi < 0 ||
-          !(r.punto[1] >= E.RIQUADRO.sud && r.punto[1] < E.RIQUADRO.nord && r.punto[0] >= E.RIQUADRO.ovest && r.punto[0] < E.RIQUADRO.est)) err.push('indice: regione non valida');
+      const inItalia = p => Array.isArray(p) && p.length === 2 && p[1] >= E.RIQUADRO.sud && p[1] < E.RIQUADRO.nord && p[0] >= E.RIQUADRO.ovest && p[0] < E.RIQUADRO.est;
+      if (!r || typeof r.nome !== 'string' || !r.nome || r.nome.length > 40 || !inItalia(r.punto) || !inItalia(r.vai) || !Number.isInteger(r.eventi) || r.eventi < 0) err.push('indice: regione non valida');
     }
     return err;
   }

@@ -18,11 +18,13 @@ function playwright() {
 const TIPI = { '.geojson': 'application/geo+json', '.pbf': 'application/x-protobuf', '.pmtiles': 'application/octet-stream', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
-/* Server statico con la stessa disposizione del repository che githack serve: l'app sta in /dist/<uscita>/ e la mappa di
-   prova di Torino in /mappa/prova/ (T-017), dove l'app la cerca. Nient'altro del repository è raggiungibile.
+/* Server statico con la stessa disposizione del repository che githack serve: l'app sta in /dist/<uscita>/, la mappa di
+   prova di Torino in /mappa/prova/ (T-017) e l'archivio di prova degli eventi in /prova/archivio/ (T-021), dove l'app li
+   cerca. Nient'altro del repository è raggiungibile.
    Come githack in molti casi, non accetta le richieste a pezzi: l'app deve passare da sé alla cartella di tasselli. */
 function server(uscita = 'pubblica') {
-  const radici = [['/dist/' + uscita + '/', path.join(DIST, uscita)], ['/mappa/prova/', path.join(RADICE, 'mappa', 'prova')]];
+  const radici = [['/dist/' + uscita + '/', path.join(DIST, uscita)], ['/mappa/prova/', path.join(RADICE, 'mappa', 'prova')],
+    ['/prova/archivio/', path.join(RADICE, 'prova', 'archivio')]];
   const s = http.createServer((req, res) => {
     const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     const r = radici.find(([pre]) => u.startsWith(pre));
@@ -58,4 +60,48 @@ function giorno(n) {
 
 const pausa = ms => new Promise(r => setTimeout(r, ms));
 
-module.exports = { playwright, server, apri, giorno, pausa };
+/* ---------- Archivio degli eventi nelle prove (T-022) ----------
+   L'app aperta dal server di prova legge l'archivio di prova del repository (prova/archivio/). Una prova può sostituirlo
+   con un archivio suo, di eventi inventati, scritto con lo stesso modulo dello sportello: archivio(ctx, eventi, grezzi).
+   grezzi sono eventi aggiunti ai file così come sono, anche non validi, per provare che l'app li scarta. */
+const EVF = require('../../sorgenti/moduli/eventi.js');
+const QUAD = require('../../sorgenti/moduli/quadranti.js');
+const REGIONI = require('../../sorgenti/dati/regioni.json').regioni;
+const ZONA_ARCHIVIO = '/prova/archivio/';
+/* Un identificativo nella forma del formato: 16 lettere dalla chiave, un trattino, «provaaaa». */
+const idProva = chiave => (String(chiave).toLowerCase().replace(/[^a-z]/g, '') + 'aaaaaaaaaaaaaaaa').slice(0, 16) + '-provaaaa';
+/* Un evento valido del formato pubblico (docs/formato-eventi.md), domani a Torino, con i campi cambiati da «campi». */
+function eventoProva(chiave, campi = {}) {
+  return Object.assign({ id: idProva(chiave), titolo: 'Evento inventato', strato: 'musica', inizio: giorno(1) + 'T18:00', fine: giorno(1) + 'T20:00',
+    luogo: 'Sala inventata', indirizzo: 'Via Inventata 1, Torino', collocazione: 'indirizzo', lat: 45.0703, lng: 7.6869,
+    descrizione: 'Evento inventato per la prova.', fonte: { testo: 'Fonte inventata' }, modificato: new Date().toISOString().slice(0, 19) + 'Z' }, campi);
+}
+function fileArchivio(eventi, grezzi = []) {
+  const { file, indice } = QUAD.costruisci(eventi, { adesso: Date.now(), regioni: REGIONI });
+  const per = {};
+  for (const g of grezzi) { const q = QUAD.quadrante(g.lat, g.lng); (per[q] = per[q] || []).push(g); }
+  for (const [q, lista] of Object.entries(per)) {
+    const prima = indice.quadranti[q], valide = prima ? JSON.parse(file[prima.file]).eventi : [];
+    if (prima) delete file[prima.file];
+    const tutti = valide.concat(lista);
+    const testo = '{"formato":"eventi-quadrante","versione":1,"tdm-reservation":1,"quadrante":"' + q + '","eventi":[\n' + tutti.map(x => JSON.stringify(x)).join(',\n') + '\n]}\n';
+    const v = QUAD.impronta(testo), f = 'quadranti/' + q + '-' + v + '.json';
+    file[f] = testo; indice.quadranti[q] = { file: f, v, eventi: tutti.length };
+  }
+  file['indice.json'] = JSON.stringify(indice) + '\n';
+  return file;
+}
+async function archivio(ctx, eventi, grezzi = []) {
+  const file = fileArchivio(eventi, grezzi);
+  await ctx.route(u => u.pathname.includes(ZONA_ARCHIVIO), r => {
+    const k = new URL(r.request().url()).pathname.split(ZONA_ARCHIVIO)[1];
+    return k in file ? r.fulfill({ status: 200, contentType: 'application/json', body: file[k] }) : r.fulfill({ status: 404, body: 'non trovato' });
+  });
+  return file;
+}
+/* Aspetta che l'app abbia caricato almeno n eventi dell'archivio. */
+async function eventiCaricati(p, n = 1, ms = 20000) {
+  try { await p.waitForFunction(k => window.AGR && window.AGR.archivio && window.AGR.archivio().pubblici >= k, n, { timeout: ms }); return true; } catch (e) { return false; }
+}
+
+module.exports = { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, idProva, eventiCaricati, ZONA_ARCHIVIO, EVF, QUAD };

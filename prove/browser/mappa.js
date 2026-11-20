@@ -16,8 +16,8 @@
    - senza file della mappa (indice che non si trova) i segnaposto degli eventi restano sul fondo.
    Serve WebGL: Chromium lo fa in software (SwiftShader), qui e su GitHub Actions. */
 'use strict';
-const { playwright, server, apri, pausa, giorno } = require('./comune.js');
-const { eventi } = require('./ostili.js');
+const { playwright, server, apri, pausa, giorno, archivio, ZONA_ARCHIVIO } = require('./comune.js');
+const { pubblici, offgrid } = require('./ostili.js');
 const { esito, eseguiDaSola, config } = require('../comune.js');
 
 // Il punto di Torino da guardare: Via Roma tra piazza San Carlo e piazza Carlo Felice.
@@ -40,7 +40,7 @@ async function prova() {
     let ml; Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return ml; },
       set(v) { const M = v.Map; v.Map = function (...a) { const m = new M(...a); window.__mappaProva = m; window.__iconeMancanti = []; m.on('styleimagemissing', ev => window.__iconeMancanti.push(ev.id)); return m; }; v.Map.prototype = M.prototype; ml = v; } });
   });
-  const zonaMappa = new URL('../../mappa/prova/', s.url).href;
+  const zonaMappa = new URL('../../mappa/prova/', s.url).href, zonaArchivio = new URL('../..' + ZONA_ARCHIVIO, s.url).href;
   const richieste = [];
   try {
     const p = await ctx.newPage();
@@ -56,8 +56,8 @@ async function prova() {
     for (const [parte, re] of [['stile', /lib\/protomaps-basemaps-[\d.]+\/stile-carta-chiaro\.json$/], ['icone', /lib\/protomaps-icone-v\d+\/light(@2x)?\.png$/],
       ['glifi', /lib\/caratteri-mappa\/dm-sans-v\d+\/DM%20Sans%20Regular\/\d+-\d+\.pbf$/], ['lettore', /lib\/pmtiles-[\d.]+\/pmtiles\.js$/], ['indice', /mappa\/prova\/mappa\.json$/]])
       if (!richieste.some(u => re.test(u))) e.errori.push(`mappa: ${parte} non caricato dall'app`);
-    const altrove = richieste.filter(u => !u.startsWith(s.url) && !u.startsWith(zonaMappa) && !/^(blob|data):/.test(u));
-    if (altrove.length) e.errori.push('richieste fuori dall\'app e dalla zona della mappa: ' + altrove.slice(0, 5).join(', '));
+    const altrove = richieste.filter(u => !u.startsWith(s.url) && !u.startsWith(zonaMappa) && !u.startsWith(zonaArchivio) && !/^(blob|data):/.test(u));
+    if (altrove.length) e.errori.push('richieste fuori dall\'app, dalla zona della mappa e da quella degli eventi: ' + altrove.slice(0, 5).join(', '));
 
     // Via Roma, via pedonale, ha il suo nome.
     await p.evaluate(v => window.__mappaProva.jumpTo({ center: v.centro, zoom: v.zoom }), VIA_ROMA); await pronta().catch(() => {}); await pausa(600);
@@ -117,13 +117,13 @@ async function prova() {
     if (!viste.avviso.includes('correzioni di ' + config().nome)) e.errori.push('con le correzioni l\'avviso non dice «correzioni di ' + config().nome + '»: ' + viste.avviso);
     e.note.push('con le correzioni di prova: ' + viste.avviso);
 
-    // Senza file della mappa: il fondo regge i segnaposto (qui due eventi inventati di domani, strato Musica).
-    const c3 = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } },
-      agorapp_events: eventi(false).map(x => ({ ...x, datetime: giorno(1) + 'T18:00', end: giorno(1) + 'T20:00' })) });
+    // Senza file della mappa: il fondo regge i segnaposto (qui un evento dell'archivio e un Off-Grid inventati di domani).
+    const c3 = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: offgrid(false, giorno(1)) });
     try {
+      await archivio(c3.ctx, pubblici(false, giorno(1)));
       await c3.ctx.route(u => u.pathname.endsWith('/mappa/prova/mappa.json'), r => r.fulfill({ status: 404, body: 'non trovato' }));
       const p3 = await c3.ctx.newPage();
-      await p3.goto(s.url + 'index.html'); await pausa(2500);
+      await p3.goto(s.url + 'index.html'); await pausa(3500);
       const pin = await p3.locator('.pin').count();
       if (pin < 2) e.errori.push(`senza file della mappa i segnaposto non si vedono (${pin} invece di 2)`);
       e.note.push(`senza file della mappa: ${pin} segnaposto sul fondo`);

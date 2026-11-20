@@ -2,8 +2,9 @@
    (criterio d'ordine 6: pulizia completa e subito; libro mastro, § 1.3, regola 2, e § 3.7).
    - T-010: niente pulsanti volontari in Città, Agorà e Progetti; nessuna richiesta a /api/; la chiave
      agorapp_interesse, se il telefono l'aveva, sparisce all'avvio.
-   - T-011: un evento con un'immagine nei dati la perde all'avvio; la scheda non mostra immagini e il telefono
-     non chiede nulla al sito dell'immagine (§ 6.2; § 2.5, principio 1).
+   - T-011: un evento con un'immagine nei dati del telefono la perde all'avvio; un evento dell'archivio con l'immagine non
+     si mostra (il formato la rifiuta, T-020); la scheda non mostra immagini e il telefono non chiede nulla al sito
+     dell'immagine (§ 6.2; § 2.5, principio 1).
    - T-014: le quattro chiavi dell'Ordine delle Fate e gli eventi ricevuti con i pacchetti spariscono all'avvio, anche
      dal calendario; la vecchia formula nella barra dei nascosti è una password come le altre; niente strato delle
      Fate, niente tasto dorato nel Calendario (§ 1.3; § 2.4; § 3.7).
@@ -15,7 +16,8 @@
    Dati inventati; ogni richiesta verso l'esterno è bloccata. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
-const { playwright, server, apri, giorno, pausa } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati } = require('./comune.js');
+const ID_SENZA = 'provaimmaginesen-provaaaa', ID_CON_IMMAGINE = 'provaimmaginecon-provaaaa';
 
 /* Chiavi delle funzioni tolte, con un valore inventato: all'avvio l'app le deve cancellare senza leggerle. */
 const CHIAVI_TOLTE = { agorapp_interesse: { agora: '2026-10-10', citta: 'Comune inventato (XX)' },
@@ -41,6 +43,8 @@ async function prova() {
   const segnato = Object.assign({}, ev, { id: 'prova-segnato-demo', demo: true, image: undefined });
   const { browser, ctx } = await apri(pw, Object.assign({ agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: [ev, fata, demoEv, demoOg, segnato],
     agorapp_cal: { 'prova-fata': true, 'demo-concerto-inventato': true, 'demo-og-inventato': true, 'demo-pratica-inventata': true, 'prova-segnato-demo': true, 'prova-immagine': true } }, CHIAVI_TOLTE));
+  await archivio(ctx, [eventoProva(ID_SENZA, { titolo: 'Concerto inventato senza immagine' })],
+    [eventoProva(ID_CON_IMMAGINE, { titolo: 'Concerto inventato con immagine', immagine: IMG })]);
   const api = [], immagini = [], fileDemo = [];
   ctx.on('request', r => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/')) api.push(u.pathname); if (r.url() === IMG) immagini.push(r.url());
     if (/(^|\/)demo\//.test(u.pathname) || /demo\.json$/.test(u.pathname)) fileDemo.push(u.pathname); });
@@ -60,9 +64,13 @@ async function prova() {
     const calDemo = Object.keys(dati.cal).filter(id => /^demo-/.test(id) || id === 'prova-segnato-demo');
     if (calDemo.length) e.errori.push('voci della demo ancora nel calendario: ' + calDemo.join(', '));
     if (!dati.cal['prova-immagine']) e.errori.push('la pulizia ha tolto dal calendario anche un evento che doveva restare');
+    // Dal blocco 4 gli eventi pubblici arrivano dall'archivio (T-022): uno valido e uno con il campo dell'immagine,
+    // che il formato rifiuta (T-020; § 6.2). Il primo si vede senza immagini, il secondo non si vede.
+    await eventiCaricati(p);
     await p.click('[data-az="elenco"]'); await pausa(400);
-    const riga = p.locator('[data-ev="prova-immagine"]').first();
-    if (!(await riga.count())) e.errori.push('elenco: non trovo l\'evento di prova');
+    if (await p.locator('[data-ev="' + ID_CON_IMMAGINE + '"]').count()) e.errori.push('elenco: compare l\'evento dell\'archivio con l\'immagine, che il formato rifiuta');
+    const riga = p.locator('[data-ev="' + ID_SENZA + '"]').first();
+    if (!(await riga.count())) e.errori.push('elenco: non trovo l\'evento di prova dell\'archivio');
     else {
       await riga.click(); await pausa(600);
       const img = await p.locator('#foglio-slot img').count();

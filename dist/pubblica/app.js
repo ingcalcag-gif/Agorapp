@@ -21,6 +21,9 @@ const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   ? `<span class="${classe}">${esc(CASELLA)}</span>`
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
 const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
+/* Moduli separati (sorgenti/moduli/, QB-1): formato degli eventi (T-020), quadranti (T-021), lettura dell'archivio (T-022). */
+const MODULI = window.AGR_MODULI || {};
+const FORMATO = MODULI.eventi, QUAD = MODULI.quadranti;
 
 /* ---------- Memoria del telefono ---------- */
 const LS = {
@@ -148,19 +151,23 @@ function getEnd(ev){
     return s + (u.startsWith('m') ? n*6e4 : n*36e5);
   }catch(e){ return null; }
 }
-function isGone(ev){ const e = getEnd(ev); return e!==null && Date.now() > e + EXPIRE_MS; }
 function shouldDelete(ev){ const e = getEnd(ev); if(e===null) return false; return Date.now() > e + (ev.personal ? OG_KEEP_MS : EXPIRE_MS); }
+/* Toglie dal telefono gli eventi propri scaduti e, dal calendario, solo le loro voci: le voci degli eventi dell'archivio
+   si tolgono dopo il controllo delle novità (pulisciCalendarioArchivio, app2). */
 function purgeExpired(){
-  const n = events.length; events = events.filter(ev => !shouldDelete(ev));
-  if(events.length!==n){ Object.keys(calEvents).forEach(id => { if(!events.some(e=>e.id===id)) delete calEvents[id]; }); saveEvents(); saveCal(); return true; }
-  return false;
+  const via = events.filter(ev => shouldDelete(ev)).map(ev => ev.id);
+  if(!via.length) return false;
+  events = events.filter(ev => !shouldDelete(ev)); via.forEach(id => delete calEvents[id]); saveEvents(); saveCal(); return true;
 }
 const safeUrl = u => { if(!u) return ''; const s = String(u).trim(); return /^https?:\/\//i.test(s) ? s : ''; };
 const normLink = u => { u = (u||'').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u) && /^[\w-]+(\.[\w-]+)+/.test(u)) u = 'https://'+u; return safeUrl(u); };
 const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gratuito|gratis|free|ingresso libero|libero|offerta libera)$/i.test(s)) return s; if(s.includes('€')||/euro/i.test(s)) return s; if(/^\d+([.,]\d+)?$/.test(s)) return s+' €'; return s; };
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */
-/* Pratiche e Istanze non vanno sulla mappa finché Progetti e Agorà non aprono (T-015): tutto ciò che non è un Off-Grid è un evento. */
+/* Due provenienze, separate (T-022): gli eventi pubblici arrivano soltanto dall'archivio comune, a quadranti; gli
+   Off-Grid soltanto dalla memoria del telefono. Gli eventi creati o importati qui dall'area riservata restano nella
+   memoria di questo telefono ma non vanno più sulla mappa: si pubblicheranno dall'app della redazione (blocchi 8-10).
+   Pratiche e Istanze non vanno sulla mappa finché Progetti e Agorà non aprono (T-015). */
 function tipoDi(ev){ return (ev.personal || ev.offgrid) ? 'og' : 'evento'; }
 function vista(ev){
   const a = new Date(ev.datetime); if(isNaN(a) || !isFinite(+ev.lat) || !isFinite(+ev.lng)) return null;
@@ -168,10 +175,26 @@ function vista(ev){
   const conFine = b>a;
   return {id:ev.id, raw:ev, tipo:tipoDi(ev), strato:ev.category||'', sub:ev.sublayer||'', titolo:ev.title||'', luogo:ev.addressFull||ev.address||'',
     lat:+ev.lat, lng:+ev.lng, a, b, giorno:ymd(a), inizio:hm(a), fine:conFine?hm(b):'', prezzo:ev.price||'',
-    desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||''};
+    desc:(ev.personal ? ev.notes : ev.description)||'', nascosto:!!ev.hidden, serie:ev.seriesId||null, suMappa:ev.suMappa!==false, citta:ev.citta||'', fineMs:em};
+}
+/* Un evento dell'archivio (formato pubblico, docs/formato-eventi.md) nella stessa vista. Le ore sono quelle italiane;
+   q è il quadrante da cui arriva. Organizzatore e descrizione del luogo entrano nella scheda con T-023. */
+const nomeSub = (s, id) => { const l = S[s], x = l && l.sub.find(z => z.id===id); return x ? x.label : ''; };
+function vistaArchivio(x){
+  const ev = x.ev, ia = FORMATO.istante(ev.inizio), fm = FORMATO.fineMs(ev); if(ia==null || fm==null) return null;
+  const a = new Date(ia), b = new Date(Math.max(fm, ia)), conFine = b>a;
+  return {id:ev.id, raw:ev, archivio:true, q:x.q, tipo:'evento', strato:ev.strato, sub:nomeSub(ev.strato, ev.sottostrato), titolo:ev.titolo,
+    luogo:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · '), lat:ev.lat, lng:ev.lng, a, b, giorno:ymd(a), inizio:hm(a), fine:conFine?hm(b):'',
+    prezzo:ev.prezzo||'', desc:ev.descrizione||'', nascosto:false, serie:null, suMappa:true, citta:'', fineMs:fm, fonte:ev.fonte};
 }
 let EV = [];
-function ricostruisci(){ EV = events.map(vista).filter(Boolean); }
+let ARCHIVIO = null;                             /* lettore dell'archivio (app2.js) */
+const ZONA = {ids:new Set(), lontano:false};     /* quadranti della zona inquadrata; lontano = mappa troppo lontana per gli eventi */
+function ricostruisci(){
+  const og = events.filter(e => e && (e.personal || e.offgrid)).map(vista).filter(Boolean);
+  const pub = ARCHIVIO ? ARCHIVIO.eventi().map(vistaArchivio).filter(Boolean) : [];
+  EV = og.concat(pub);
+}
 const byId = id => EV.find(e => e.id===id);
 const rawById = id => events.find(e => e.id===id);
 
@@ -217,7 +240,10 @@ function salvaPresets(){ const p = LS.get('agorapp_presets', null) || {}; LS.set
 
 /* ---------- Filtri ---------- */
 const finito = e => e.b <= ora();
-const sparito = e => isGone(e.raw);
+const sparito = e => e.fineMs!=null && Date.now() > e.fineMs + EXPIRE_MS;   /* esce da mappa e agenda tre ore dopo la fine (§ 2.2) */
+/* Gli eventi dell'archivio stanno sulla mappa e nell'elenco solo se il loro quadrante è nella zona inquadrata (§ 2.4);
+   nel calendario e nei Temi restano quelli delle zone già consultate. */
+const nellaZona = e => !e.archivio || ZONA.ids.has(e.q) || e.id===st.sel;   /* l'evento aperto resta, mentre la mappa ci va */
 const appenaFinito = e => finito(e) && !sparito(e);
 function weekend(){
   const n = ora(), g = new Date(n.getFullYear(), n.getMonth(), n.getDate()), w = g.getDay();
@@ -251,7 +277,7 @@ function nascostoOk(e){ return !e.nascosto || (st.sbloccati.has(e.raw.hiddenPass
 function serieOk(e){ if(!e.serie) return true; return !EV.some(x => x.serie===e.serie && x.id!==e.id && !sparito(x) && x.a < e.a); }
 function temaOk(e){ if(!st.lente) return true; const L = st.lente; return (L.strati||[]).includes(e.strato) || temiDi(e).some(t => (L.temi||[]).includes(t)); }
 function temiDi(e){ return e.raw.tema ? [e.raw.tema] : []; }
-const base = e => e.suMappa && temaOk(e) && nelTempo(e) && nelPrezzo(e) && nascostoOk(e) && serieOk(e) && (!st.salvatiSolo || inCal(e.id) || e.tipo==='og');
+const base = e => e.suMappa && nellaZona(e) && temaOk(e) && nelTempo(e) && nelPrezzo(e) && nascostoOk(e) && serieOk(e) && (!st.salvatiSolo || inCal(e.id) || e.tipo==='og');
 const visibile = e => base(e) && st.tipi[e.tipo] && nelloStrato(e);
 const visibili = () => EV.filter(visibile).sort((x,y) => x.a-y.a);
 const nelPeriodo = () => EV.filter(base);
@@ -436,6 +462,62 @@ function civiciMappa(){
   if(!map || !mappaOk) return;
   try{ if(map.getLayer('address_label')) map.setLayoutProperty('address_label', 'visibility', st.posa ? 'visible' : 'none'); }catch(e){}
 }
+/* ---------- Eventi dell'archivio, a quadranti (T-022; libro mastro § 2.4, «La lettura degli eventi») ----------
+   L'archivio sta all'indirizzo degli eventi nella configurazione (indirizzi.eventi, su Bunny con T-065); finché è vuoto,
+   l'app aperta dal repository (githack, prove automatiche) legge l'archivio di prova in prova/archivio/, con soli eventi
+   inventati; altrove nessun evento pubblico. Quando la mappa resta ferma per mezzo secondo e la zona inquadrata sta
+   dentro il quadrante del centro e gli otto intorno, si caricano quei nove quadranti; da più lontano si vedono soltanto
+   i numeri per regione, con l'invito ad avvicinarsi. All'apertura e al ritorno nell'app dopo più di trenta minuti si
+   controlla se l'archivio è cambiato. Nessuna richiesta porta con sé identificativi, cookie o credenziali. */
+const ARCHIVIO_DOVE = (() => {
+  const u = (CFG.indirizzi||{}).eventi;
+  try{ if(u) return new URL(u.replace(/\/?$/,'/'), location.href).href; }catch(e){ return ''; }
+  const i = location.pathname.lastIndexOf('/dist/');
+  return i>=0 ? location.origin + location.pathname.slice(0, i) + '/prova/archivio/' : '';
+})();
+function avviaArchivio(){
+  if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
+  ARCHIVIO = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window),
+    caches:(window.isSecureContext && window.caches) || null, nomeCache:'agorapp_archivio'});
+  ARCHIVIO.apri().then(dopoControllo);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
+}
+function dopoControllo(){ pulisciCalendarioArchivio(); ricostruisci(); aggiornaZona(true); }
+/* Dal calendario escono gli eventi dell'archivio che non ci sono più (ritirati o usciti dalla mappa); solo se le zone
+   consultate restano sul telefono e l'indice è appena arrivato, così un evento non sparisce perché non è caricato. */
+function pulisciCalendarioArchivio(){
+  if(!ARCHIVIO || !ARCHIVIO.persistente() || !ARCHIVIO.ultimoControllo()) return;
+  const vivi = new Set(ARCHIVIO.eventi().map(x => x.ev.id)), locali = new Set(events.map(e => e.id));
+  const via = Object.keys(calEvents).filter(id => FORMATO.ID.test(id) && !vivi.has(id) && !locali.has(id));
+  if(via.length){ via.forEach(id => delete calEvents[id]); saveCal(); }
+}
+let zonaT = 0;
+function programmaZona(){ clearTimeout(zonaT); zonaT = setTimeout(() => aggiornaZona(false), 500); }
+/* Il quadrante del centro, se la zona inquadrata sta tutta dentro di lui e degli otto intorno; altrimenti null.
+   Se il telefono non riesce a disegnare la mappa, la zona è quella della città scelta: elenco e agenda restano utili (§ 11.3). */
+function zonaVicina(){
+  if(!map){ const k = cittaObj(), c = k.center ? {lat:k.center[0], lng:k.center[1]} : {lat:(k.bounds[0][1]+k.bounds[1][1])/2, lng:(k.bounds[0][0]+k.bounds[1][0])/2}; return QUAD.quadrante(c.lat, c.lng); }
+  const c = map.getCenter(), q = QUAD.quadrante(c.lat, c.lng); if(!q) return null;
+  const k = QUAD.confini(q), G = QUAD.GRIGLIA, b = map.getBounds();
+  return b.getWest() >= k.ovest - G.passo_lng && b.getEast() <= k.est + G.passo_lng && b.getSouth() >= k.sud - G.passo_lat && b.getNorth() <= k.nord + G.passo_lat ? q : null;
+}
+function aggiornaZona(forza){
+  if(!QUAD) return;
+  const q = zonaVicina(), ids = q ? QUAD.intorno(q) : [], lontano = !q;
+  const cambiata = [...ZONA.ids].sort().join() !== ids.slice().sort().join() || lontano !== ZONA.lontano;
+  ZONA.ids = new Set(ids); ZONA.lontano = lontano;
+  if(cambiata || forza){ ricostruisci(); tutto(); }
+  if(ARCHIVIO && ids.length) ARCHIVIO.carica(ids).then(nuovi => { if(nuovi && ZONA.ids.has(ids[0])){ ricostruisci(); tutto(); } });
+}
+/* Da lontano: un numero per regione, nel punto della regione; toccandolo ci si avvicina a dove sono gli eventi. */
+function disegnaRegioni(){
+  if(!ZONA.lontano || !ARCHIVIO) return;
+  ARCHIVIO.regioni().forEach(r => {
+    const lab = r.eventi===1 ? tr('1 evento in {r}: avvicinati per vederlo',{r:r.nome}) : tr('{n} eventi in {r}: avvicinati per vederli',{n:r.eventi, r:r.nome});
+    mettiSegnaposto(`<button class="pin regione" data-regione="${esc(r.vai.join(','))}" aria-label="${esc(lab)}"><span class="f"><span>${r.eventi}</span></span></button>`, r.punto[0], r.punto[1]);
+  });
+}
+
 /* «I vuoti»: i quartieri dove, nel periodo scelto, non succede niente. Per ora rettangoli (come nel mockup), solo a Torino */
 const QUARTIERI = [
   {n:'Centro',la:[45.0640,45.0760],ln:[7.6720,7.6920]},{n:'Vanchiglia',la:[45.0680,45.0790],ln:[7.6920,7.7040]},
@@ -496,8 +578,9 @@ function initMappa(){
     if(MAPPA.fonte==='file' && !MAPPA.fileOk && ev && ev.sourceId==='protomaps'){ MAPPA.fonte = 'tasselli'; caricaMappa(); }
   });
   caricaMappa();
-  map.on('movestart', () => { $('app').classList.add('muove'); annullaLungo(); });
-  map.on('moveend', () => { $('app').classList.remove('muove'); aggiornaZoomBtn(); });
+  map.once('load', programmaZona);
+  map.on('movestart', () => { $('app').classList.add('muove'); annullaLungo(); clearTimeout(zonaT); });
+  map.on('moveend', () => { $('app').classList.remove('muove'); aggiornaZoomBtn(); programmaZona(); });
   map.on('zoomend', () => { if(!modoGiornata()) disegnaPins(); });
   map.on('click', ev => {
     const t = ev.originalEvent && ev.originalEvent.target;
@@ -578,6 +661,7 @@ function disegnaPins(){
       mettiSegnaposto(`<button class="pin gruppo" style="--anello:${anello}" data-gruppo="${esc(g.el.map(e=>e.id).join(','))}" aria-label="${esc(tr('{n} cose qui vicino',{n:g.el.length}))}"><span class="f"><span>${g.el.length}</span></span></button>`, ll.lng, ll.lat);
     }
   });
+  disegnaRegioni();
   if(st.tuQui) mettiSegnaposto(`<span class="tu-qui" aria-label="${esc(tr('Sei qui'))}"></span>`, st.tuQui.lng, st.tuQui.lat, 'mk-tu');
   if(st.cercaQui) mettiSegnaposto('<span class="cerca-qui"></span>', st.cercaQui.lng, st.cercaQui.lat, 'mk-q');
   if(st.punto && st.foglio==='punto') mettiSegnaposto('<span class="cerca-qui"></span>', st.punto.lng, st.punto.lat, 'mk-q');
@@ -651,6 +735,8 @@ function disegnaPeek(){
   if(st.lente) extra.push(tr('lente «{n}»',{n:st.lente.nome}));
   if(st.finiti) extra.push(tr('anche appena finiti'));
   if(!st.tipi.og) extra.push(tr('senza i tuoi Off-Grid'));
+  /* da lontano (T-022): l'invito ad avvicinarsi, accanto ai numeri per regione sulla mappa */
+  if(ZONA.lontano && ARCHIVIO && ARCHIVIO.pronto()) extra.push(tr('avvicinati a una città per vedere gli eventi'));
   if(vuotiAttivi()){ const v = quartieriVuoti(visibili()).length; if(v) extra.push(v===1 ? tr('1 quartiere vuoto') : tr('{n} quartieri vuoti',{n:v})); }
   const N = LAYERS.length, k = st.strati.size;
   const accesi = k===N ? tr('Tutti i {n} strati accesi',{n:N}) : k===1 ? tr('1 strato su {n} acceso',{n:N}) : k ? tr('{k} strati su {n} accesi',{k, n:N}) : tr('Nessuno strato acceso');
@@ -804,7 +890,7 @@ function rigaEv(e){
 function perGiorni(lista){ const giorni = [...new Set(lista.map(e => e.giorno))]; return giorni.map(g => `<div class="giorno">${esc(titoloGiorno(g))}</div><div class="lista">${lista.filter(e => e.giorno===g).map(rigaEv).join('')}</div>`).join(''); }
 function fElenco(lista, titolo, nota, conCal){
   const corpo = lista.length ? perGiorni(lista) + `<p class="nota">${nota}</p>`
-    : `<div class="fatti"><div class="dato">${icoOra}<div><span class="t">${tr('Niente da mostrare')}</span><span class="meta">${EV.length ? tr('Prova un altro periodo o riaccendi qualche strato.') : tr('La mappa è vuota: qui compaiono gli eventi della città e i tuoi Off-Grid.')}</span></div></div></div>`;
+    : `<div class="fatti"><div class="dato">${icoOra}<div><span class="t">${tr('Niente da mostrare')}</span><span class="meta">${ZONA.lontano && ARCHIVIO ? tr('Da lontano vedi solo quanti eventi ci sono in ogni regione. Avvicinati a una città, o sceglila dal menu delle città.') : EV.length ? tr('Prova un altro periodo o riaccendi qualche strato.') : tr('La mappa è vuota: qui compaiono gli eventi della città e i tuoi Off-Grid.')}</span></div></div></div>`;
   const testa = `<div class="riga-titolo"><div class="stack-s" style="gap:2px"><h2>${esc(titolo)}</h2><p class="meta">${lista.length===1 ? tr('1 cosa') : tr('{n} cose',{n:lista.length})}${conCal ? ' '+tr('sulla mappa') : ''}</p></div>${chiudiBtn()}</div>`;
   return foglio('medio', testa, corpo + (conCal ? `<button class="tasto sec pieno" data-az="calendario">${icoCal()}${tr('Apri il Calendario')}</button>` : ''));
 }
@@ -812,7 +898,7 @@ function fElenco(lista, titolo, nota, conCal){
 /* --- Scheda --- */
 function quando(e){
   let stato = ''; const n = ora();
-  if(finito(e)){ const sparisce = new Date((getEnd(e.raw)||e.b.getTime()) + EXPIRE_MS); stato = `<span class="stato grigio">${e.fine ? tr('Terminato alle {f}',{f:e.fine}) : tr('Iniziato alle {i}',{i:e.inizio})} · ${tr('sparisce dalla mappa alle {h}',{h:hm(sparisce)})}</span>`; }
+  if(finito(e)){ const sparisce = new Date((e.fineMs!=null ? e.fineMs : e.b.getTime()) + EXPIRE_MS); stato = `<span class="stato grigio">${e.fine ? tr('Terminato alle {f}',{f:e.fine}) : tr('Iniziato alle {i}',{i:e.inizio})} · ${tr('sparisce dalla mappa alle {h}',{h:hm(sparisce)})}</span>`; }
   else if(e.a<=n && e.b>n) stato = `<span class="stato">${tr('In corso · finisce alle {f}',{f:e.fine})}</span>`;
   else if(e.giorno===oggi()){ const min = Math.round((e.a-n)/6e4); stato = `<span class="stato grigio">${min<60 ? tr('Tra {n} minuti',{n:min}) : (Math.round(min/60)===1 ? tr('Tra un’ora') : tr('Tra {n} ore',{n:Math.round(min/60)}))}</span>`; }
   const notte = e.fine && ymd(e.b)!==e.giorno ? ` · <strong>${tr('finisce il giorno dopo')}</strong>` : '';
@@ -841,8 +927,15 @@ function descrizione(e){
   const lungo = e.desc.length > 170;
   return `<p class="desc${lungo&&!st.descAperta?' chiusa':''}">${esc(e.desc)}</p>${lungo?`<button class="link" style="min-height:32px;margin-top:-10px" data-az="leggi">${st.descAperta?tr('Mostra meno'):tr('Leggi tutto')}</button>`:''}`;
 }
-const boxAdmin = e => st.admin && e.tipo!=='og' ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
+const boxAdmin = e => st.admin && e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
+/* «Fonte:» di un evento dell'archivio (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e
+   senza referrer (regola 3). Il resto della scheda conforme (avviso, organizzatore, luogo) arriva con T-023. */
+function rigaFonte(f){
+  if(!f || !f.testo) return '';
+  const u = f.collegamento && /^https:\/\//i.test(f.collegamento) ? f.collegamento : '';
+  return `<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(f.testo)}</a>` : esc(f.testo)}</span>`;
+}
 function fScheda(e){
   if(!e) return '';
   let testa, corpo; const x = e.raw;
@@ -856,7 +949,7 @@ function fScheda(e){
         ${e.prezzo?`<div class="dato">${icoPrezzo}<div><span class="t">${esc(formatPrice(e.prezzo))}</span></div></div>`:''}
         ${link?`<div class="dato">${icoLink}<div><a href="${esc(link)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${tr('Sito di chi organizza')}</a><span class="meta">${esc(hostDi(link))}</span></div></div>`:''}</div>
       ${descrizione(e)}
-      <div class="fonte${man?' attenzione':''}">${x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
+      <div class="fonte${man?' attenzione':''}">${e.archivio ? rigaFonte(e.fonte) : x.source?`<span class="meta"><strong style="color:var(--testo)">${tr('Fonte')}:</strong> ${esc(tr(x.source))}</span>`:''}
         <span class="meta">${man ? tr('Per cortei e presidi verifica sempre con chi organizza prima di andare: luogo e orario possono cambiare.') : tr('Le informazioni raccolte possono cambiare: verifica con chi organizza prima di andare.')}</span></div>
       ${segnaposto(CASELLA)||!CASELLA ? `<span class="meta">${tr('Non è più valido? Segnalalo')}: ${esc(CASELLA)}</span>` : `<a class="link" href="mailto:${esc(CASELLA)}?subject=${encodeURIComponent(tr('Evento non più valido')+': '+e.titolo)}">${tr('Non è più valido? Segnalalo')}</a>`}${boxAdmin(e)}`;
   } else {
@@ -1428,6 +1521,7 @@ function applicaCitta(id, anima){
   citta = CITTA.find(x => x.id===id) ? id : 'torino'; LS.set('agorapp_city', citta);
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n;
   vaiCitta(anima);
+  if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
 }
 
 /* ======================= Admin ======================= */
@@ -1733,6 +1827,7 @@ function selezionaEv(id){
   const e = byId(id); if(!e) return;
   if(st.sezione!=='mappa') vaiSezione('mappa');
   if(!e.suMappa){ apriCalendario('giornata', e.giorno); return; }
+  st.sel = id;   /* prima del controllo: un evento di un'altra zona già consultata conta come visibile (T-022) */
   if(!visibile(e) && !modoGiornata()){
     if(!finito(e)) st.tempo = 'tutto'; else st.finiti = true; st.salvatiSolo = false; st.tipi[e.tipo] = true;
     if(e.strato && S[e.strato]) st.strati.add(e.strato); st.subOff.delete(e.strato+'|'+e.sub); st.preset = -1; st.prezzo = 'tutti'; st.lente = null;
@@ -2683,6 +2778,7 @@ $('app').addEventListener('click', ev => {
   if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */
   const d = t.dataset;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
+  if(d.regione){ const [lng, lat] = d.regione.split(',').map(Number); if(map && isFinite(lng) && isFinite(lat)) map.flyTo({center:[lng, lat], zoom:12, duration:800}); return; }
   if(d.sez){ vaiSezione(d.sez, true); return; }
   if(d.ev){ if(st.foglio==='calendario' && !modoGiornata()) st.foglio = null; selezionaEv(d.ev); return; }
   if(d.gruppo){ st.sel = null; apri('gruppo', {gruppo:d.gruppo.split(',')}); const e = byId(st.gruppo[0]); if(e) requestAnimationFrame(() => inquadra(e.lat, e.lng)); return; }
@@ -2863,10 +2959,11 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   if(st.semplice) $('app').classList.add('semplice');
   testiFissi(); purgeExpired(); ricostruisci();
   st.cal.giorno = oggi();
-  initMappa(); tutto();
+  initMappa(); avviaArchivio(); tutto();
   if(LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
+    archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),
     tr, dloc, lingua:() => lang,
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },

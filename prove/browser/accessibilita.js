@@ -9,8 +9,8 @@
 'use strict';
 const fs = require('fs');
 const { esito, eseguiDaSola, confronta } = require('../comune.js');
-const { playwright, server, apri, pausa } = require('./comune.js');
-const { eventi } = require('./ostili.js');   // gli stessi eventi inventati, senza testi ostili
+const { playwright, server, apri, pausa, archivio, eventiCaricati } = require('./comune.js');
+const { pubblici, offgrid, ID_EV, ID_OG } = require('./ostili.js');   // gli stessi eventi inventati, senza testi ostili
 
 const REGOLE = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
@@ -21,8 +21,11 @@ async function prova() {
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const axe = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
   const s = await server('pubblica');
-  const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: eventi(false),
-    agorapp_cal: { 'prova-ostile-1': true, 'prova-ostile-og': true } });
+  const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: offgrid(false),
+    agorapp_cal: { [ID_EV]: true, [ID_OG]: true } });
+  // Evento senza collegamento della fonte: così la scheda resta senza elementi focalizzabili, come capita a molti eventi,
+  // e lo scarto noto della regione scorrevole (T-057) resta visibile finché T-057 non lo chiude.
+  await archivio(ctx, pubblici(false).map(x => ({ ...x, fonte: { testo: x.fonte.testo } })));
   const trovati = [];
   try {
     const p = await ctx.newPage();
@@ -34,7 +37,7 @@ async function prova() {
       }, REGOLE);
       for (const v of r) for (const n of v.nodi) trovati.push({ chiave: v.id, dove: schermata, dettaglio: `${v.impatto}: ${n}` });
     };
-    const avvia = async () => { await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); await pausa(500); };
+    const avvia = async () => { await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); await eventiCaricati(p); await pausa(500); };
     const tocca = async (sel, schermata) => {
       const l = p.locator(sel).first();
       if (!(await l.count())) { e.errori.push(`${schermata}: non trovo ${sel}`); return false; }
@@ -43,7 +46,7 @@ async function prova() {
     await avvia(); await analizza('mappa');
     if (await tocca('[data-az="elenco"]', 'elenco')) {
       await analizza('elenco');
-      if (await tocca('[data-ev="prova-ostile-1"]', 'scheda evento')) await analizza('scheda evento');
+      if (await tocca('[data-ev="' + ID_EV + '"]', 'scheda evento')) await analizza('scheda evento');
     }
     await avvia(); if (await tocca('[data-az="calendario"]', 'calendario')) await analizza('calendario');
     await avvia(); if (await tocca('[data-az="cerca"]', 'cerca')) await analizza('cerca');
