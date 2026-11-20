@@ -5,6 +5,8 @@
      senza nessun servizio di mappe esterno; il server di prova, come githack, non accetta le richieste a pezzi:
      l'app deve passare da sé dal file unico alla cartella di tasselli;
    - le vie abbiano il nome anche quando sono pedonali (Via Roma a Torino, dato di OpenStreetMap);
+   - gli oggetti della mappa siano di tutte le categorie, attività commerciali comprese (decisione del 20/11/2026, da
+     sfoltire prima della pubblicazione), e nessuno chieda un'icona che non c'è;
    - i numeri civici non si vedano sulla mappa normale e si vedano solo mentre si sceglie un punto («Scegli sulla mappa»);
    - il cambio di tema cambi colori e icone senza scaricare di nuovo tasselli o glifi;
    - l'avviso di provenienza dica «© OpenStreetMap» con il collegamento alla pagina dei diritti e «Protomaps», senza CARTO;
@@ -36,7 +38,7 @@ async function prova() {
   // La mappa vive dentro l'app: per guardarla dall'esterno si tiene da parte l'oggetto che MapLibre crea.
   await ctx.addInitScript(() => {
     let ml; Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return ml; },
-      set(v) { const M = v.Map; v.Map = function (...a) { const m = new M(...a); window.__mappaProva = m; return m; }; v.Map.prototype = M.prototype; ml = v; } });
+      set(v) { const M = v.Map; v.Map = function (...a) { const m = new M(...a); window.__mappaProva = m; window.__iconeMancanti = []; m.on('styleimagemissing', ev => window.__iconeMancanti.push(ev.id)); return m; }; v.Map.prototype = M.prototype; ml = v; } });
   });
   const zonaMappa = new URL('../../mappa/prova/', s.url).href;
   const richieste = [];
@@ -62,6 +64,12 @@ async function prova() {
     const nomi = await p.evaluate(() => window.__mappaProva.queryRenderedFeatures().filter(f => /^roads_labels/.test(f.layer.id)).map(f => f.properties.name));
     if (!nomi.includes('Via Roma')) e.errori.push('a zoom 16,5 su Via Roma la mappa non scrive «Via Roma» (vie con il nome: ' + [...new Set(nomi)].join(', ') + ')');
 
+    // Oggetti della mappa: per ora tutte le categorie, anche le attività commerciali (decisione del 20/11/2026).
+    const tipi = await p.evaluate(() => [...new Set(window.__mappaProva.queryRenderedFeatures().filter(f => f.layer.id === 'pois').map(f => f.properties.kind))]);
+    const commerciali = tipi.filter(k => ['cafe', 'restaurant', 'bar', 'fast_food', 'ice_cream', 'supermarket', 'clothes', 'shoes', 'bank', 'pharmacy'].includes(k));
+    if (!commerciali.length) e.errori.push('a zoom 16,5 su Via Roma non si vede nessuna attività commerciale (categorie: ' + tipi.join(', ') + ')');
+    e.note.push(`oggetti della mappa a zoom 16,5 su Via Roma: ${tipi.length} categorie, tra cui ${commerciali.join(', ')}`);
+
     // Numeri civici: mai sulla mappa normale, solo durante «Scegli sulla mappa».
     const civici = () => p.evaluate(() => { const m = window.__mappaProva; m.jumpTo({ center: [7.6826, 45.0668], zoom: 18.5 }); return new Promise(ok => m.once('idle', () => ok(m.queryRenderedFeatures().filter(f => f.layer.id === 'address_label').length))); });
     const prima = await civici();
@@ -74,6 +82,8 @@ async function prova() {
     const dopo = await p.evaluate(() => window.__mappaProva.getLayoutProperty('address_label', 'visibility'));
     if (dopo !== 'none') e.errori.push('i numeri civici restano accesi dopo «Annulla»');
     e.note.push(`numeri civici a zoom 18,5: mappa normale ${prima}, durante la scelta del punto ${durante}`);
+    const mancanti = await p.evaluate(() => [...new Set(window.__iconeMancanti)]);
+    if (mancanti.length) e.errori.push('la mappa chiede icone che non ci sono: ' + mancanti.join(', '));
 
     // Cambio di tema: colori e icone, nessun tassello o glifo scaricato di nuovo.
     await p.goto(s.url + 'index.html'); await pronta();
