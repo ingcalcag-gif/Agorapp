@@ -60,6 +60,8 @@ h2{font-size:20px;line-height:24px}
 :root[data-theme="dark"] .sez-progetti{--ic:#E0A070;--pin:#E0A070;--it:#3A2A1C;--ib:#7A5232;--su-ic:#1E150D}
 h3{font-size:18px;line-height:22px}
 p{margin:0}
+/* testo che si sente ma non si vede: accompagna i segni che da soli non dicono nulla al lettore di schermo (T-025) */
+.solo-voce{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
 .meta{font-size:12px;line-height:16px;color:var(--testo-2)}
 .tipo{font-size:12px;line-height:16px;font-weight:600;color:var(--testo-2);letter-spacing:.04em;text-transform:uppercase}
 .stack{display:flex;flex-direction:column;gap:12px}

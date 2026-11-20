@@ -321,6 +321,9 @@ const icoNote = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ari
 const icoImporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2v7M4 6l3 3 3-3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const icoEsporta = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 9V2M4 5l3-3 3 3M2 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+/* Il lucchetto degli eventi nascosti non parla da solo: accanto ha sempre un testo, visibile o letto dal lettore di schermo
+   (T-025; libro mastro, § 11.3, regola 5). */
+const segnoNascosto = (s=12) => `${icoLucchetto(s)}<span class="solo-voce">${tr('Evento nascosto')}: </span>`;
 const interno = svg => svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
 function colorePin(e){ return e.tipo==='evento' ? (S[e.strato]||{pin:'#888'}).pin : 'var(--verde)'; }
 function contenutoPin(e){ return e.tipo==='og' ? GLIFO_OG : icoPin(e.strato); }
@@ -648,6 +651,13 @@ function raggruppa(lista){
 }
 const modoGiornata = () => st.foglio==='calendario' && st.cal.vista==='giornata';
 function svuotaPercorso(){ try{ const s = map && map.getSource('agr-percorso'); if(s) s.setData({type:'FeatureCollection', features:[]}); }catch(e){} }
+/* Ciò che il lettore di schermo dice di un segnaposto: strato (oppure «Off-Grid»), titolo e data, poi ciò che sulla mappa si
+   vede solo dal colore o da un segno: nascosto, in corso, finito, salvato nel calendario (T-025; § 11.3, regola 5). */
+function etichettaPin(e){
+  const n = ora(), chi = e.tipo==='og' ? tr('Off-Grid') : (nomeStrato(e.strato) || tr('Evento'));
+  return [chi + ': ' + e.titolo, dataBreve(e), e.nascosto ? tr('evento nascosto') : '', e.a<=n && e.b>n ? tr('in corso') : finito(e) ? tr('finito') : '',
+    inCal(e.id) && e.tipo!=='og' ? tr('nel calendario') : ''].filter(Boolean).join(', ');
+}
 function dataBreve(e){ return (e.giorno===oggi() ? tr('oggi') : e.giorno===domani() ? tr('domani') : nomeGiorno(e.giorno)) + ' ' + tr('alle {o}',{o:e.inizio}); }
 function disegnaPins(){
   if(!map || !mappaOk) return;
@@ -661,7 +671,7 @@ function disegnaPins(){
     if(g.el.length===1){
       const e = g.el[0], cls = {evento:'ev', og:'og'}[e.tipo];
       const inCorso = e.a<=n && e.b>n, fin = finito(e);
-      const h = `<button class="pin ${cls}${inCorso?' ora':''}${fin?' finito':''}${st.sel===e.id?' sel':''}" style="--pc:${colorePin(e)}" data-ev="${esc(e.id)}" aria-label="${esc(e.titolo+', '+dataBreve(e))}"><span class="f">${contenutoPin(e)}${inCal(e.id)&&e.tipo!=='og'?`<span class="salvato">${icoCalPieno}</span>`:''}${e.nascosto?`<span class="lucchetto">${icoLucchetto(9)}</span>`:''}</span></button>`;
+      const h = `<button class="pin ${cls}${inCorso?' ora':''}${fin?' finito':''}${st.sel===e.id?' sel':''}" style="--pc:${colorePin(e)}" data-ev="${esc(e.id)}" aria-label="${esc(etichettaPin(e))}"><span class="f">${contenutoPin(e)}${inCal(e.id)&&e.tipo!=='og'?`<span class="salvato">${icoCalPieno}</span>`:''}${e.nascosto?`<span class="lucchetto">${icoLucchetto(9)}</span>`:''}</span></button>`;
       mettiSegnaposto(h, e.lng, e.lat, st.sel===e.id ? 'alto' : '');
     } else {
       const col = [...new Set(g.el.map(colorePin))], passo = 360/col.length;
@@ -893,7 +903,7 @@ const luogoBreve = e => (e.luogo||'').split(/[·,]/)[0].trim();
 function rigaEv(e){
   const n = ora(), inCorso = e.a<=n && e.b>n, fin = finito(e);
   const meta = [luogoBreve(e), sottotitoloEv(e)].filter(Boolean).join(' · ');
-  return `<button class="riga-ev" data-ev="${esc(e.id)}"><span class="ora${inCorso?' adesso':''}${fin?' fin':''}">${fin ? tr('finito') : inCorso ? tr('ora') : e.inizio}</span><span style="${fin?'filter:grayscale(1);opacity:.55':''}">${forma(e.tipo,e.strato,28)}</span><div><span class="t">${e.nascosto?icoLucchetto(12)+' ':''}${esc(e.titolo)}</span><span class="meta">${esc(meta)}</span></div>${inCal(e.id)&&e.tipo!=='og'?`<span class="sv" aria-label="${esc(tr('Nel calendario'))}">${icoCal()}</span>`:''}</button>`;
+  return `<button class="riga-ev" data-ev="${esc(e.id)}"><span class="ora${inCorso?' adesso':''}${fin?' fin':''}">${fin ? tr('finito') : inCorso ? tr('ora') : e.inizio}</span><span style="${fin?'filter:grayscale(1);opacity:.55':''}">${forma(e.tipo,e.strato,28)}</span><div><span class="t">${e.nascosto?segnoNascosto(12)+' ':''}${esc(e.titolo)}</span><span class="meta">${esc(meta)}</span></div>${inCal(e.id)&&e.tipo!=='og'?`<span class="sv" aria-label="${esc(tr('Nel calendario'))}">${icoCal()}</span>`:''}</button>`;
 }
 function perGiorni(lista){ const giorni = [...new Set(lista.map(e => e.giorno))]; return giorni.map(g => `<div class="giorno">${esc(titoloGiorno(g))}</div><div class="lista">${lista.filter(e => e.giorno===g).map(rigaEv).join('')}</div>`).join(''); }
 function fElenco(lista, titolo, nota, conCal){
@@ -1051,7 +1061,9 @@ function vMese(){
   for(let d=1; d<=giorniMese; d++){
     const s = ymd(new Date(y,m,d)), mm = tuttiMiei.filter(e => e.giorno===s);
     const og = mm.filter(e => e.tipo==='og').length, sv = mm.length-og;
-    celle += `<button data-giorno-cal="${s}" class="${s===oggi()?'oggi':''}${s<oggi()?' passato':''}" aria-label="${esc(titoloGiorno(s))}">${d}<span class="punti">${og?'<span class="punto og"></span>':''}${sv?'<span class="punto sv"></span>':''}</span></button>`;
+    /* i due pallini dicono che cosa c'è nel giorno: il lettore di schermo lo dice a parole (T-025) */
+    const cosa = [og ? (og===1 ? tr('1 Off-Grid') : tr('{n} Off-Grid',{n:og})) : '', sv ? (sv===1 ? tr('1 evento salvato') : tr('{n} eventi salvati',{n:sv})) : ''].filter(Boolean);
+    celle += `<button data-giorno-cal="${s}" class="${s===oggi()?'oggi':''}${s<oggi()?' passato':''}" aria-label="${esc([titoloGiorno(s)].concat(cosa).join(', '))}">${d}<span class="punti">${og?'<span class="punto og"></span>':''}${sv?'<span class="punto sv"></span>':''}</span></button>`;
   }
   const prima = new Date(y,m-1,1), dopo = new Date(y,m+1,1);
   return `<div class="giro"><button class="frc" data-mese="${prima.getFullYear()}-${prima.getMonth()}" aria-label="${esc(tr('Mese prima'))}">${frecciaSx}</button><div><strong>${esc(maiusc(nomeMese(y,m)))}</strong></div><button class="frc" data-mese="${dopo.getFullYear()}-${dopo.getMonth()}" aria-label="${esc(tr('Mese dopo'))}">${frecciaDx}</button></div>
