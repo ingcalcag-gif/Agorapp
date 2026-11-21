@@ -19,7 +19,7 @@ Calendario, Off-Grid e preferenze stanno già sul telefono (T-026). Senza rete n
 - **Che cosa conserva.** Tutti i file dell'uscita (pagina, codice, stile, traduzioni, librerie, caratteri, stili e icone della mappa, contenuti d'esempio di Agorà e Progetti in tutte le lingue, pagina delle licenze, manifest e icone). SheetJS, che serve solo all'area riservata, si conserva la prima volta che lo si usa. Non conserva mai file di altri siti.
 - **Che cosa non conserva.** `avvisi.json`, `emergenza.json` e `sw.js`: il telefono li chiede sempre alla rete. Eventi e mappa passano dalla rete com'è e li conservano i loro moduli.
 - **Impronte.** Il montaggio scrive nel service worker l'elenco dei file con l'impronta di ciascuno. Un file entra nella copia solo se la sua impronta corrisponde: se il server consegna un file di un'altra versione, la versione nuova non parte e resta quella di prima. I file che non cambiano tra due versioni non si riscaricano.
-- **Aggiornamento silenzioso.** Una versione nuova si prepara mentre l'app è aperta e sostituisce la precedente alla riapertura; i file di prima si cancellano. La pagina aperta resta com'è; si ricarica da sé solo quando non disturba, cioè quando l'app non è in vista e la persona non ha nulla di aperto (un foglio, un modulo, la guida). Nessun avviso: gli avvisi servono solo per le novità che contano (sotto).
+- **Aggiornamento silenzioso.** Una versione nuova si prepara mentre l'app è aperta e aspetta: entra in uso quando l'app viene chiusa e riaperta. Entra in uso prima solo se c'è un momento in cui non disturba, cioè quando l'app non è in vista da qualche secondo e la persona non ha nulla di aperto (un foglio, un modulo, la guida): allora la pagina glielo dice e si ricarica. Mentre la persona usa l'app non cambia nulla. Poi i file della versione di prima si cancellano. Nessun avviso: gli avvisi servono solo per le novità che contano (sotto).
 - **Numero di versione.** Sette caratteri ricavati dal contenuto di tutti i file dell'app. Sta nella pagina (`data-versione`), nel service worker e in Impostazioni, in fondo («Versione …»).
 - **Niente che riconosca il telefono.** Richieste senza credenziali e senza parametri che dipendano dal telefono; nessun conteggio.
 
@@ -72,7 +72,7 @@ Per pubblicare un avviso basta cambiare `avvisi.json` e rimontare: l'avviso arri
 ## Sul collegamento di prova
 
 - Ogni ramo ha il suo indirizzo e quindi il suo service worker; la memoria per i file è in comune tra i rami, ma ogni service worker tocca solo i file del suo indirizzo.
-- Dopo un invio sul ramo la versione nuova arriva alla seconda apertura (la prima la prepara). Il numero in fondo alle Impostazioni dice quale versione è in uso.
+- Dopo un invio sul ramo la versione nuova si prepara alla prima apertura ed entra in uso quando tutte le schede dell'app sono state chiuse e l'app viene riaperta (oppure dopo qualche secondo con l'app non in vista). Il numero in fondo alle Impostazioni dice quale versione è in uso.
 - Il collegamento di prova tiene per qualche minuto le copie dei file: finché non ha tutti i file della versione nuova, il controllo delle impronte la rifiuta e resta quella di prima.
 
 ## Prove

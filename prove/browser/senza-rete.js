@@ -7,8 +7,9 @@
    2. Senza rete: l'app si riapre, con la mappa, gli eventi della zona, il calendario con l'Off-Grid, i contenuti
       d'esempio di Agorà e il PDF del calendario.
    3. Una versione con un file che non corrisponde alla sua impronta non parte: resta la versione di prima.
-   4. Una versione nuova si prepara in silenzio: la pagina aperta resta quella di prima, alla riapertura c'è la nuova
-      e i file della versione di prima sono cancellati.
+   4. Una versione nuova si prepara in silenzio e aspetta: finché l'app è in uso (anche dopo una ricarica, anche con
+      un foglio aperto) resta quella di prima; entra in uso da sé quando l'app non è in vista e non c'è nulla di
+      aperto, e allora i file della versione di prima sono cancellati.
    5. Interruttore d'emergenza: quando emergenza.json dice di scartare la versione, la copia si cancella, il service
       worker si toglie e l'app si ricarica dalla rete, senza riattivarlo.
    Dati inventati; ogni richiesta verso l'esterno è bloccata. */
@@ -111,26 +112,38 @@ async function prova() {
     await ctx.setOffline(false);
 
     /* ---------- 3. una versione con un file che non è il suo non parte ---------- */
+    const inAttesa = () => p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.waiting); });
     /* si manomette un file che tra le due versioni cambia: quelli uguali il telefono li ha già, e non li riscarica */
     if (A['index.html'] === B['index.html']) err('le due versioni di prova hanno la stessa pagina');
     attuale = { ...B, 'index.html': B['index.html'] + '\n<!-- file manomesso dalla prova -->\n' };
     await apriApp(); await pausa(2500);
     await apriApp(); await pausa(1500);
-    if (await versioneSw() !== vA) err('una versione con un file che non corrisponde alla sua impronta ha sostituito quella di prima');
-    if (await versionePagina() !== vA) err('con una versione nuova non valida la pagina non è rimasta quella di prima');
+    if (await inAttesa()) err('una versione con un file che non corrisponde alla sua impronta è stata accettata');
+    if (await versioneSw() !== vA || await versionePagina() !== vA) err('con una versione nuova non valida non è rimasta in uso quella di prima');
 
     /* ---------- 4. una versione nuova, in silenzio ---------- */
     attuale = B;
     await apriApp();
-    if (await versionePagina() !== vA) err('all\'arrivo di una versione nuova la pagina già aperta deve restare quella di prima');
-    if (!(await aspetta(async () => (await versioneSw()) === vB))) err('la versione nuova non si è preparata da sola');
+    if (!(await aspetta(inAttesa))) err('la versione nuova non si è preparata da sola');
+    if (await versionePagina() !== vA || await versioneSw() !== vA) err('la versione nuova è entrata in uso mentre l\'app era aperta');
+    await apriApp(); await pausa(800);
+    if (await versionePagina() !== vA) err('la versione nuova è entrata in uso a una semplice ricarica, con l\'app ancora aperta');
+    /* entra in uso da sé solo quando non disturba: app non in vista e nulla di aperto */
+    const nonInVista = () => p.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+    if (await tocca('[data-az="elenco"]', 'elenco')) {
+      await nonInVista(); await pausa(4500);
+      if (await versionePagina() !== vA) err('la versione nuova è entrata in uso mentre la persona aveva un foglio aperto');
+      else { await tocca(F + '[data-az="chiudi"]', 'elenco, chiudi'); await nonInVista();
+        if (!(await aspetta(async () => (await versionePagina()) === vB && (await versioneSw()) === vB, 30000))) err('con l\'app non in vista e nulla di aperto la versione nuova non è entrata in uso da sé'); }
+    }
+    await pausa(1000);
     await apriApp();
     if (await versionePagina() !== vB) err('alla riapertura non c\'è la versione nuova');
     const copiaB = copiaDi(B), buone = new Set(Object.entries(copiaB).map(([f, h]) => f + '?v=' + h));
     chiavi = await nellaCopia();
     const vecchie = chiavi.map(u => decodeURIComponent(u.slice(base.length))).filter(k => !buone.has(k));
     if (vecchie.length) err('dopo l\'aggiornamento restano nella copia file della versione di prima: ' + vecchie.slice(0, 3).join(', '));
-    e.note.push(`aggiornamento da ${vA} a ${vB}: preparato a pagina aperta, in uso alla riapertura; i file di prima cancellati; una versione con un file manomesso è stata rifiutata`);
+    e.note.push(`aggiornamento da ${vA} a ${vB}: preparato a pagina aperta, in attesa finché l'app è in uso, entrato in uso da sé con l'app non in vista; i file di prima cancellati; una versione con un file manomesso è stata rifiutata`);
 
     /* ---------- 5. interruttore d'emergenza ---------- */
     attuale = { ...B, 'emergenza.json': JSON.stringify({ scarta: [vB] }) }; lento = true;

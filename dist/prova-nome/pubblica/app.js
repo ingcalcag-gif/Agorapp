@@ -3077,12 +3077,19 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
    il piccolo file d'emergenza: se dice di scartare questa versione, il service worker non parte e quello che c'è si toglie.
    Il service worker si avvia solo dopo aver letto davvero il file: se la lettura non riesce (senza rete, o perché la pagina
    si sta ricaricando proprio per l'interruttore d'emergenza) non si fa nulla, e quello che c'era resta com'è. */
-/* Una versione nuova si prepara in silenzio e prende il posto di quella di prima mentre la pagina è ancora aperta: la pagina
-   aperta resta com'è, e si ricarica da sé solo quando non disturba, cioè quando l'app non è in vista e la persona non ha
-   nulla di aperto (un foglio, un modulo, la guida). Altrimenti la versione nuova si vede alla prossima apertura. */
-let versioneNuovaPronta = false;
-function ricaricaSeNonDisturba(){
-  if(versioneNuovaPronta && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa') location.reload();
+/* Una versione nuova si prepara in silenzio e aspetta. Entra in uso quando l'app viene chiusa e riaperta; oppure prima, se
+   c'è un momento in cui non disturba: l'app non è in vista da qualche secondo e la persona non ha nulla di aperto (un
+   foglio, un modulo, la guida). Allora la pagina dice alla versione nuova di entrare in uso e si ricarica. Mentre la
+   persona usa l'app non cambia nulla. */
+let registrazione = null, paginaInUscita = false;
+/* Una pagina che si sta chiudendo o che sta andando altrove diventa «non in vista» per un attimo: non è il momento di
+   ricaricarla. Per questo si aspetta qualche secondo e si ricontrolla: se la pagina se n'è andata, non succede nulla. */
+window.addEventListener('pagehide', () => { paginaInUscita = true; });
+window.addEventListener('pageshow', () => { paginaInUscita = false; });
+const versioneInAttesa = () => registrazione && registrazione.waiting && navigator.serviceWorker.controller ? registrazione.waiting : null;
+const nonDisturba = () => !paginaInUscita && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa';
+function passaAllaVersioneNuova(){
+  if(versioneInAttesa() && nonDisturba()) setTimeout(() => { const w = versioneInAttesa(); if(w && nonDisturba()){ try{ w.postMessage('attiva'); }catch(e){} } }, 3000);
 }
 /* Interruttore d'emergenza, dal lato della pagina: il service worker fa lo stesso da sé (sorgenti/sw.js), ma basta che ci
    riesca uno dei due. Si toglie il service worker, se c'è ancora, e si cancella la copia dei file di questa app. Se la
@@ -3102,12 +3109,13 @@ async function scartaCopia(){
 function avviaCopia(){
   if(!('serviceWorker' in navigator) || !window.isSecureContext || !VERSIONE) return;
   let servita = !!navigator.serviceWorker.controller;   /* alla prima apertura il service worker arriva a pagina aperta: non è una versione nuova */
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if(servita){ versioneNuovaPronta = true; ricaricaSeNonDisturba(); } servita = true; });
-  document.addEventListener('visibilitychange', ricaricaSeNonDisturba);
+  /* la versione nuova è entrata in uso (l'ha chiesto questa pagina, in un momento che non disturba): la pagina si ricarica */
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if(servita && !paginaInUscita) location.reload(); servita = true; });
+  document.addEventListener('visibilitychange', passaAllaVersioneNuova);
   fetch('emergenza.json', {cache:'no-store', credentials:'omit'}).then(r => r.ok ? r.json() : null).then(j => {
     if(!j || !Array.isArray(j.scarta)) return;
     if(j.scarta.includes(VERSIONE) || j.scarta.includes('*')) return scartaCopia();
-    return navigator.serviceWorker.register('sw.js');
+    return navigator.serviceWorker.register('sw.js').then(r => { registrazione = r; });
   }).catch(() => {});
 }
 

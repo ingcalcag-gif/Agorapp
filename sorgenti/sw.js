@@ -11,8 +11,9 @@
    - Poi consegna quei file dalla copia, anche senza rete. Tutto il resto passa dalla rete com'è: gli eventi
      (li conserva il modulo archivio.js), la mappa (modulo mappa-locale.js), la ricerca degli indirizzi, gli avvisi e
      il file d'emergenza. Il service worker non conserva mai file di altri siti.
-   - Una versione nuova si prepara in silenzio e sostituisce la precedente alla prossima apertura; i file della versione
-     di prima si cancellano.
+   - Una versione nuova si prepara in silenzio e aspetta: sostituisce la precedente quando l'app viene chiusa e riaperta,
+     oppure prima, quando la pagina lo chiede perché in quel momento non disturba nessuno (messaggio «attiva»). Non
+     prende mai il posto della versione di prima mentre la persona sta usando l'app. Poi i file di prima si cancellano.
    - Interruttore d'emergenza: a ogni apertura in rete legge il piccolo file emergenza.json. Se il file dice di scartare
      questa versione, cancella la copia, si toglie di mezzo e fa ricaricare la pagina dalla rete.
 
@@ -61,7 +62,6 @@ self.addEventListener('install', ev => ev.waitUntil((async () => {
   const mancanti = [];
   for (const p of Object.keys(COPIA)) if (!PIGRI.includes(p) && !(await c.match(chiave(p)))) mancanti.push(p);
   for (let i = 0; i < mancanti.length; i += INSIEME) await Promise.all(mancanti.slice(i, i + INSIEME).map(p => prendi(c, p)));
-  await self.skipWaiting();
 })()));
 
 self.addEventListener('activate', ev => ev.waitUntil((async () => {
@@ -118,5 +118,8 @@ async function emergenza() {
   for (const cl of await self.clients.matchAll({ type: 'window' })) { try { await cl.navigate(cl.url); } catch (e) { /* la pagina si ricaricherà da sé */ } }
 }
 
-/* La pagina può chiedere la versione di chi la serve. */
-self.addEventListener('message', ev => { if (ev.data === 'versione' && ev.ports && ev.ports[0]) ev.ports[0].postMessage(VERSIONE); });
+/* La pagina può chiedere la versione di chi la serve e, quando non disturba, dire alla versione nuova di entrare in uso. */
+self.addEventListener('message', ev => {
+  if (ev.data === 'versione' && ev.ports && ev.ports[0]) ev.ports[0].postMessage(VERSIONE);
+  else if (ev.data === 'attiva') ev.waitUntil(self.skipWaiting());
+});

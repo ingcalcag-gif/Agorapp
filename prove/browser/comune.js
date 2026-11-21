@@ -55,12 +55,16 @@ function server(uscita = 'pubblica', opzioni = {}) {
 /* Un browser con un contesto da telefono. memoria: chiavi e valori da mettere nella memoria del telefono
    prima dell'apertura (una volta sola per contesto); opzioni: altre impostazioni del contesto (per esempio userAgent). */
 async function apri(pw, memoria = {}, opzioni = {}) {
+  /* Con il service worker acceso (serviceWorkers: 'allow') le richieste non si intercettano: una richiesta del service
+     worker fermata in attesa della prova può restare appesa quando il service worker viene sostituito, e blocca tutto.
+     Lì gli indirizzi esterni si bloccano alla radice: il browser non risolve nessun nome, tranne il server locale. */
+  const acceso = opzioni.serviceWorkers === 'allow';
   // WebGL in software (SwiftShader): dal blocco 3 la mappa si disegna davvero anche nelle prove.
-  const browser = await pw.chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] });
+  const browser = await pw.chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'].concat(acceso ? ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'] : []) });
   /* Il service worker (T-029) resta spento, salvo nelle prove che lo provano (serviceWorkers: 'allow'): con il service
      worker acceso le risposte finte di una prova (archivio, ricerca degli indirizzi) potrebbero non arrivare alla pagina. */
   const ctx = await browser.newContext(Object.assign({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'it-IT', timezoneId: 'Europe/Rome', serviceWorkers: 'block' }, opzioni));
-  await ctx.route(r => !/^https?:\/\/127\.0\.0\.1(:\d+)?\//.test(r.href), r => r.abort());
+  if (!acceso) await ctx.route(r => !/^https?:\/\/127\.0\.0\.1(:\d+)?\//.test(r.href), r => r.abort());
   await ctx.addInitScript(m => {
     if (sessionStorage.getItem('prova-seminata')) return;
     for (const [k, v] of Object.entries(m)) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
