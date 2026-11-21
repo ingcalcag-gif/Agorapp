@@ -3085,16 +3085,19 @@ function ricaricaSeNonDisturba(){
   if(versioneNuovaPronta && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa') location.reload();
 }
 /* Interruttore d'emergenza, dal lato della pagina: il service worker fa lo stesso da sé (sorgenti/sw.js), ma basta che ci
-   riesca uno dei due. Si toglie il service worker, si cancella la copia dei file di questa app e, se la pagina era stata
-   consegnata dalla copia, la si ricarica dalla rete. Dopo, il service worker non c'è più e la pagina non si ricarica oltre. */
+   riesca uno dei due. Si toglie il service worker, se c'è ancora, e si cancella la copia dei file di questa app. Se la
+   pagina è ancora servita dal service worker, si ricarica dalla rete: una volta sola, perché una pagina già ricaricata
+   non si ricarica di nuovo. Dopo, il service worker non c'è più. */
 async function scartaCopia(){
-  const r = await navigator.serviceWorker.getRegistration(); if(!r) return;
-  await r.unregister();
+  try{ const r = await navigator.serviceWorker.getRegistration(); if(r) await r.unregister(); }catch(e){}
   try{
     const c = MEM.file ? await MEM.file.open('dl_app') : null, base = new URL('./', location.href).href;
     if(c) for(const k of await c.keys()) if(k.url.startsWith(base)) await c.delete(k);
   }catch(e){}
-  if(navigator.serviceWorker.controller) location.reload();
+  if(!navigator.serviceWorker.controller) return;
+  let ricaricata = false;
+  try{ const n = performance.getEntriesByType('navigation')[0]; ricaricata = n ? n.type==='reload' : !!(performance.navigation && performance.navigation.type===1); }catch(e){}
+  if(!ricaricata) location.reload();
 }
 function avviaCopia(){
   if(!('serviceWorker' in navigator) || !window.isSecureContext || !VERSIONE) return;

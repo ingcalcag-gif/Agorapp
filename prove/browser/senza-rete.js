@@ -41,6 +41,7 @@ async function prova() {
   try {
     const p = await ctx.newPage();
     const errori = []; p.on('pageerror', x => errori.push(x.message));
+    p.setDefaultNavigationTimeout(60000);   // su una macchina lenta la prima apertura dopo un aggiornamento può richiedere tempo
     await p.addInitScript(() => { let ml; Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return ml; },
       set(v) { const C = v.Map; v.Map = function (...a) { const m = new C(...a); window.__mappaProva = m; return m; }; v.Map.prototype = C.prototype; ml = v; } }); });
     const apriApp = async () => { await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); };
