@@ -25,8 +25,8 @@ async function prova() {
   // Un evento dell'archivio (con il collegamento della fonte) e un Off-Grid, stasera (T-022).
   const PUBBLICI = pubblici(false, giorno(0), ['22:00', '23:30']);
   const s = await server('pubblica');
-  const MEMORIA = { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: offgrid(false, giorno(0)).map(x => ({ ...x, datetime: giorno(0) + 'T22:00', end: giorno(0) + 'T23:30' })),
-    agorapp_cal: { [ID_EV]: true, [ID_OG]: true } };
+  const MEMORIA = { dl_guida: '1', dl_strati: { musica: { on: true } }, dl_eventi: offgrid(false, giorno(0)).map(x => ({ ...x, datetime: giorno(0) + 'T22:00', end: giorno(0) + 'T23:30' })),
+    dl_calendario: { [ID_EV]: true, [ID_OG]: true } };
   const { browser, ctx } = await apri(pw, MEMORIA, { geolocation: { latitude: 45.0712, longitude: 7.6845 }, permissions: ['geolocation'] });
   await archivio(ctx, PUBBLICI);
   const esterne = [], locali = new Set(), senzaNoref = [];

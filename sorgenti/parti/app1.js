@@ -5,7 +5,7 @@
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
    Funzioni vere dall'app online OG 1.7: mappa (dal blocco 3 la mappa propria, T-017), indirizzi Photon,
    GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
-   5 lingue, testi legali v1.2. Stessi dati sul telefono (chiavi agorapp_*).
+   5 lingue, testi legali v1.2. I dati sul telefono passano dal modulo della memoria (T-026).
    ===================================================================== */
 const $ = id => document.getElementById(id);
 /* Moduli separati (sorgenti/moduli/, QB-1): testi come testo (T-024), formato degli eventi (T-020), quadranti (T-021),
@@ -28,24 +28,17 @@ const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
 const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
 
-/* ---------- Memoria del telefono ---------- */
-const LS = {
-  get(k,d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
-  s(k,d){ try{ const v = localStorage.getItem(k); return v==null ? d : v; }catch(e){ return d; } },
-  set(k,v){ try{ localStorage.setItem(k, typeof v==='string' ? v : JSON.stringify(v)); return true; }catch(e){ return false; } },
-  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
-};
-/* Pulizia una tantum: chiavi di funzioni tolte dall'app (piano di adeguamento). Se il telefono le ha ancora,
-   si cancellano all'avvio senza leggerle. */
-const CHIAVI_TOLTE = [
-  'agorapp_interesse',   // pulsanti volontari «Mi interessa» e «Vorrei … qui» (T-010)
-  'agorapp_fate', 'agorapp_fate_io', 'agorapp_fate_strato', 'agorapp_fate_chi',   // Ordine delle Fate (T-014)
-  'agorapp_demo',        // demo degli eventi, con progetti e istanze d'esempio (T-015)
-];
-CHIAVI_TOLTE.forEach(k => LS.del(k));
+/* ---------- Memoria del telefono (T-026; libro mastro, § 3.7 e cap. 30; docs/dati-locali.md) ----------
+   Tutto ciò che l'app salva sul telefono passa da MEM, che conosce soltanto le chiavi dell'elenco chiuso
+   (sorgenti/moduli/memoria.js): leggi e scrivi per i valori in JSON, testo per i testi, togli per cancellare.
+   Fino al blocco 8 l'area riservata sta ancora in questa app: per questo la memoria comprende le chiavi della Redazione.
+   avvia(), prima di ogni lettura: i dati salvati con i nomi delle versioni precedenti traslocano sotto i nomi nuovi e
+   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle. */
+const MEM = MODULI.memoria.crea({redazione:true});
+MEM.avvia();
 
 /* ---------- Lingue ---------- */
-let lang = LS.s('agorapp_lang','it'); if(!['it','en','es','fr','ar'].includes(lang)) lang = 'it';
+let lang = MEM.testo('dl_lingua','it'); if(!['it','en','es','fr','ar'].includes(lang)) lang = 'it';
 const dloc = () => ({it:'it-IT',en:'en-GB',es:'es-ES',fr:'fr-FR',ar:'ar'})[lang] || 'it-IT';
 const TR = window.AGR_TR || {};
 function tr(s, v){
@@ -65,7 +58,7 @@ const icoPin = id => (ICO[id]||'').replace(/<circle cx="13" cy="13" r="12"[^>]*\
 const nomeStrato = id => S[id] ? tr(S[id].label) : '';
 
 /* ---------- Dati sul telefono ---------- */
-let events = LS.get('agorapp_events', []); if(!Array.isArray(events)) events = [];
+let events = MEM.leggi('dl_eventi', []); if(!Array.isArray(events)) events = [];
 const IDS_TOLTI = (function pulizia(){
   const n = events.length;
   /* eventi ricevuti con i pacchetti dell'Ordine delle Fate, tolto con T-014: si cancellano, anche dal calendario */
@@ -76,20 +69,19 @@ const IDS_TOLTI = (function pulizia(){
   /* demo degli eventi, tolta con T-015: i suoi eventi e Off-Grid d'esempio si cancellano, anche dal calendario */
   const demo = events.filter(e => e.demo || /^demo-/.test(String(e.id))).map(e => e.id);
   events = events.filter(e => !(e.demo || /^demo-/.test(String(e.id))));
-  /* niente contatori «Ci vado / Sono qui» */
+  /* niente contatori «Ci vado / Sono qui» (la loro chiave la cancella MEM.avvia) */
   let tolti = false; events.forEach(e => { if('going' in e || 'here' in e){ delete e.going; delete e.here; tolti = true; } });
   /* nessuna immagine negli eventi (T-011; libro mastro, § 6.2): il campo si toglie dai dati */
   events.forEach(e => { if('image' in e){ delete e.image; tolti = true; } });
-  if(events.length!==n || tolti) LS.set('agorapp_events', events);
-  try{ sessionStorage.removeItem('agorapp_votes'); }catch(e){}
+  if(events.length!==n || tolti) MEM.scrivi('dl_eventi', events);
   return fate.concat(demo);
 })();
-let calEvents = LS.get('agorapp_cal', {}); if(!calEvents || typeof calEvents!=='object') calEvents = {};
+let calEvents = MEM.leggi('dl_calendario', {}); if(!calEvents || typeof calEvents!=='object') calEvents = {};
 /* dal calendario escono gli eventi tolti qui sopra e ogni voce d'esempio della demo (demo-…), anche senza evento */
 (function(){ const via = Object.keys(calEvents).filter(id => IDS_TOLTI.includes(id) || /^demo-/.test(id));
-  if(via.length){ via.forEach(id => delete calEvents[id]); LS.set('agorapp_cal', calEvents); } })();
-function saveEvents(){ if(!LS.set('agorapp_events', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
-function saveCal(){ LS.set('agorapp_cal', calEvents); }
+  if(via.length){ via.forEach(id => delete calEvents[id]); MEM.scrivi('dl_calendario', calEvents); } })();
+function saveEvents(){ if(!MEM.scrivi('dl_eventi', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
+function saveCal(){ MEM.scrivi('dl_calendario', calEvents); }
 const inCal = id => !!calEvents[id];
 
 /* ---------- Tempo ---------- */
@@ -186,12 +178,12 @@ const st = {
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
   admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, msgAdmin:null, lente:null, vuoti:false
 };
-(function(){ const m = LS.s('agorapp_day_mode','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
-st.semplice = LS.s('agorapp_simple','0')==='1';
+(function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
+st.semplice = MEM.testo('dl_semplice','0')==='1';
 
 /* strati: alla prima apertura sono tutti spenti (come online); il pannellino invita ad accenderli */
 function caricaStrati(){
-  const s = LS.get('agorapp_layers', null);
+  const s = MEM.leggi('dl_strati', null);
   st.strati = new Set(); st.subOff = new Set();
   LAYERS.forEach(l => {
     const x = s && s[l.id];
@@ -202,11 +194,11 @@ function caricaStrati(){
 }
 function istantanea(){ const o = {}; LAYERS.forEach(l => { o[l.id] = {on:st.strati.has(l.id), subs:Object.fromEntries(l.sub.map(su => [su.id, !st.subOff.has(l.id+'|'+su.label)]))}; }); return o; }
 function applicaIstantanea(o){ st.strati = new Set(); st.subOff = new Set(); LAYERS.forEach(l => { const x = o[l.id]; if(x && x.on) st.strati.add(l.id); if(x && x.subs) l.sub.forEach(su => { if(x.subs[su.id]===false) st.subOff.add(l.id+'|'+su.label); }); }); }
-function salvaStrati(){ LS.set('agorapp_layers', istantanea()); }
+function salvaStrati(){ MEM.scrivi('dl_strati', istantanea()); }
 caricaStrati();
 /* combinazioni Mappa 1/2/3 */
 const PRESET_BASE = [null, ['sociale','manifestazioni','conferenze','volontariato'], ['musica','arte','teatro','cinema']];
-let presets = (function(){ const p = LS.get('agorapp_presets', null); return (p && Array.isArray(p.data)) ? p.data.slice(0,3) : [null,null,null]; })();
+let presets = (function(){ const p = MEM.leggi('dl_combinazioni', null); return (p && Array.isArray(p.data)) ? p.data.slice(0,3) : [null,null,null]; })();
 while(presets.length<3) presets.push(null);
 function strategiaPreset(i){
   if(presets[i]) return presets[i];
@@ -214,7 +206,7 @@ function strategiaPreset(i){
   LAYERS.forEach(l => { o[l.id] = {on: base ? base.includes(l.id) : true, subs:Object.fromEntries(l.sub.map(su=>[su.id,true]))}; });
   return o;
 }
-function salvaPresets(){ const p = LS.get('agorapp_presets', null) || {}; LS.set('agorapp_presets', {data:presets, names:(p.names||['Mappa 1','Mappa 2','Mappa 3'])}); }
+function salvaPresets(){ const p = MEM.leggi('dl_combinazioni', null) || {}; MEM.scrivi('dl_combinazioni', {data:presets, names:(p.names||['Mappa 1','Mappa 2','Mappa 3'])}); }
 
 /* ---------- Filtri ---------- */
 const finito = e => e.b <= ora();

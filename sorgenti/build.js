@@ -5,7 +5,8 @@
      dist/pubblica/   l'app pubblica (la sola cartella che il sito pubblica)
      dist/redazione/  l'app della redazione (uguale alla pubblica fino al blocco 8 del piano)
    In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina; i moduli separati di sorgenti/moduli/
-   (formato degli eventi, quadranti, lettura dell'archivio: blocco 4) stanno in moduli.js, caricato prima dell'app.
+   (testi come testo, memoria del telefono, formato degli eventi, quadranti, lettura dell'archivio) stanno in moduli.js,
+   caricato prima dell'app.
    Ogni uscita contiene anche licenze/: titolari, licenze e testi integrali dei componenti di terzi
    (sorgenti/licenze.js, da COMPONENTI_DI_TERZI.md e licenze/), e lib/: librerie e caratteri di terzi
    a versione fissa, copiati da sorgenti/vendor/ con accanto il testo della loro licenza (T-007; dal blocco 3 anche
@@ -135,9 +136,10 @@ function correzioniMappa() {
 
 /* ---------- Ordine dei pezzi ---------- */
 // Moduli separati (QB-1), montati in moduli.js prima dell'app, nell'ordine in cui dipendono l'uno dall'altro:
-// testi come testo (T-024), formato degli eventi (T-020), quadranti (T-021), lettura dell'archivio (T-022).
+// testi come testo (T-024), memoria del telefono (T-026), formato degli eventi (T-020), quadranti (T-021), lettura
+// dell'archivio (T-022).
 // Nel browser stanno in window.AGR_MODULI.
-const JS_MODULI = ['testo.js', 'eventi.js', 'quadranti.js', 'archivio.js'];
+const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'quadranti.js', 'archivio.js'];
 // Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude).
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js',
   'misure_kpi.js', 'misure.js', 'storico.js', 'app6.js'];

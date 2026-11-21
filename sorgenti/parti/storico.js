@@ -1,5 +1,5 @@
 /* ======================= Storico delle operazioni dell'admin (6 ottobre 2026) =======================
-   Dove sta: in questo telefono, nella memoria del browser (localStorage, chiave agorapp_storico), come gli eventi
+   Dove sta: in questo telefono, nella memoria del browser (chiave red_storico), come gli eventi
    e le Misure. L'app lo legge da lì: non va su nessun server e un altro telefono non lo vede.
    Cosa tiene: il tipo di operazione, giorno e ora, quanti eventi e il codice dell'evento. Il titolo NON viene salvato:
    lo storico lo legge dall'evento finché l'evento è sulla mappa. Quando l'evento sparisce (3 ore dopo la fine),
@@ -16,7 +16,7 @@ const OP_STORICO = {
 const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Accessi']];
 const SH = {filtro:'tutte', mostrati:60, conferma:false};
 function storico(){
-  const l = LS.get('agorapp_storico', []); if(!Array.isArray(l)) return [];
+  const l = MEM.leggi('red_storico', []); if(!Array.isArray(l)) return [];
   const limite = Date.now() - STORICO_GIORNI*864e5;
   return l.filter(x => x && OP_STORICO[x.op] && Date.parse(x.t) >= limite);
 }
@@ -25,7 +25,7 @@ function registra(op, extra){
   const voce = Object.assign({t:new Date().toISOString(), op}, extra||{});
   Object.keys(voce).forEach(k => { if(voce[k]==null || voce[k]==='') delete voce[k]; });
   const l = storico(); l.push(voce);
-  LS.set('agorapp_storico', l.slice(-STORICO_MAX));
+  MEM.scrivi('red_storico', l.slice(-STORICO_MAX));
 }
 function descriviVoce(x){
   const ev = x.id ? rawById(x.id) : null, strato = x.s && S[x.s] ? tr(S[x.s].label) : '';
@@ -47,7 +47,7 @@ function foglioStorico(){
   window.AGR.foglio(`<div class="mz-foglio sh">
     <button class="link sh-indietro" data-az="admin">${tr('‹ Modalità admin')}</button>
     <h2>${tr('Storico delle operazioni')}</h2>
-    <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave agorapp_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
+    <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave red_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
     <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra lo storico'))}">${GRUPPI_STORICO.map(([k,t]) => `<button data-sh="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(t)} · ${tutte.filter(x => k==='tutte' || OP_STORICO[x.op][0]===k).length}</span></button>`).join('')}</nav>
     ${righe || `<p class="mz-nota">${tr('Nessuna operazione registrata. Lo storico parte da oggi: le operazioni fatte prima non ci sono.')}</p>`}
     ${lista.length > vis.length ? `<button class="tasto sec pieno" data-sh="altre">${tr('Mostra le precedenti ({n})',{n:lista.length - vis.length})}</button>` : ''}
@@ -75,6 +75,6 @@ document.addEventListener('click', ev => {
   else if(a==='esporta'){ esportaStorico(); return; }
   else if(a==='svuota') SH.conferma = true;
   else if(a==='annulla') SH.conferma = false;
-  else if(a==='svuota-ok'){ const n = storico().length; LS.set('agorapp_storico', []); SH.conferma = false; registra('svuota', {x:tr('{n} operazioni cancellate',{n})}); avviso(tr('Storico svuotato'), null, true); }
+  else if(a==='svuota-ok'){ const n = storico().length; MEM.scrivi('red_storico', []); SH.conferma = false; registra('svuota', {x:tr('{n} operazioni cancellate',{n})}); avviso(tr('Storico svuotato'), null, true); }
   foglioStorico();
 }, true);

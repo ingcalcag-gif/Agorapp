@@ -9,8 +9,8 @@
 'use strict';
 const { stampa } = require('./comune.js');
 
-const STATICHE = ['./sintassi.js', './uscite.js', './componenti.js', './nome.js', './indirizzi.js', './collegamenti.js', './chiavi.js', './parole.js', './anteprime.js', './eventi.js', './quadranti.js', './archivio.js', './testi.js'];
-const BROWSER = ['./browser/ostili.js', './browser/richieste.js', './browser/tolte.js', './browser/anteprime.js', './browser/accessibilita.js', './browser/mappa.js', './browser/archivio.js', './browser/scheda.js', './browser/agenda.js'];
+const STATICHE = ['./sintassi.js', './uscite.js', './componenti.js', './nome.js', './indirizzi.js', './collegamenti.js', './chiavi.js', './parole.js', './anteprime.js', './eventi.js', './quadranti.js', './archivio.js', './testi.js', './memoria.js'];
+const BROWSER = ['./browser/ostili.js', './browser/richieste.js', './browser/tolte.js', './browser/anteprime.js', './browser/accessibilita.js', './browser/mappa.js', './browser/archivio.js', './browser/scheda.js', './browser/agenda.js', './browser/memoria.js'];
 
 async function main() {
   const opz = new Set(process.argv.slice(2));

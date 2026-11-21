@@ -41,8 +41,8 @@ async function prova() {
   const demoOg = { id: 'demo-og-inventato', demo: true, personal: true, offgrid: true, title: 'Cena d\'esempio inventata', datetime: g + 'T20:00', end: g + 'T22:00',
     lat: 45.071, lng: 7.688, address: 'Via Finta 3', hidden: false, price: '' };
   const segnato = Object.assign({}, ev, { id: 'prova-segnato-demo', demo: true, image: undefined });
-  const { browser, ctx } = await apri(pw, Object.assign({ agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: [ev, fata, demoEv, demoOg, segnato],
-    agorapp_cal: { 'prova-fata': true, 'demo-concerto-inventato': true, 'demo-og-inventato': true, 'demo-pratica-inventata': true, 'prova-segnato-demo': true, 'prova-immagine': true } }, CHIAVI_TOLTE));
+  const { browser, ctx } = await apri(pw, Object.assign({ dl_guida: '1', dl_strati: { musica: { on: true } }, dl_eventi: [ev, fata, demoEv, demoOg, segnato],
+    dl_calendario: { 'prova-fata': true, 'demo-concerto-inventato': true, 'demo-og-inventato': true, 'demo-pratica-inventata': true, 'prova-segnato-demo': true, 'prova-immagine': true } }, CHIAVI_TOLTE));
   await archivio(ctx, [eventoProva(ID_SENZA, { titolo: 'Concerto inventato senza immagine' })],
     [eventoProva(ID_CON_IMMAGINE, { titolo: 'Concerto inventato con immagine', immagine: IMG })]);
   const api = [], immagini = [], fileDemo = [];
@@ -53,7 +53,7 @@ async function prova() {
     await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="citta"]'); await pausa(500);
     const rimaste = await p.evaluate(k => k.filter(x => localStorage.getItem(x) != null), Object.keys(CHIAVI_TOLTE));
     if (rimaste.length) e.errori.push('chiavi di funzioni tolte ancora nella memoria del telefono dopo l\'avvio: ' + rimaste.join(', '));
-    const dati = await p.evaluate(() => ({ ev: JSON.parse(localStorage.getItem('agorapp_events') || '[]'), cal: JSON.parse(localStorage.getItem('agorapp_cal') || '{}') }));
+    const dati = await p.evaluate(() => ({ ev: JSON.parse(localStorage.getItem('dl_eventi') || '[]'), cal: JSON.parse(localStorage.getItem('dl_calendario') || '{}') }));
     const conImmagine = dati.ev.filter(x => 'image' in x).length;
     if (conImmagine) e.errori.push(conImmagine + ' eventi conservano il campo dell\'immagine dopo l\'avvio');
     if (dati.ev.some(x => x.fata)) e.errori.push('gli eventi ricevuti con i pacchetti delle Fate restano nella memoria del telefono');
@@ -109,7 +109,7 @@ async function prova() {
       if (/carica(re)? la demo|togli la demo|prova la demo|accendi la demo/i.test(testo)) e.errori.push(nome + ': compare ancora un invito a caricare la demo degli eventi');
     }
     // Guida alla prima apertura: nessun cartellino della demo, e l'ultimo cartellino si chiude.
-    const g2 = await apri(pw, { agorapp_layers: { musica: { on: true } } });
+    const g2 = await apri(pw, { dl_strati: { musica: { on: true } } });
     try {
       const q = await g2.ctx.newPage();
       await q.goto(s.url + 'index.html'); await q.waitForSelector('.guida', { timeout: 5000 }).catch(() => {});
@@ -122,7 +122,7 @@ async function prova() {
         else { await q.locator('.guida [data-az="guida-salta"]').click(); await pausa(150); }
       }
       if (await q.locator('.guida').count()) e.errori.push('guida: l\'ultimo cartellino non si chiude');
-      if (await q.evaluate(() => localStorage.getItem('agorapp_guida')) !== '1') e.errori.push('guida: chiusa, ma il telefono non ricorda di averla vista');
+      if (await q.evaluate(() => localStorage.getItem('dl_guida')) !== '1') e.errori.push('guida: chiusa, ma il telefono non ricorda di averla vista');
       // Agorà e Progetti su un telefono che non ha mai avuto la demo: nessun invito a caricarla.
       for (const [nome, sez] of [['Agorà', 'agora'], ['Progetti', 'progetti']]) {
         await q.click('button[data-sez="' + sez + '"]'); await pausa(500);

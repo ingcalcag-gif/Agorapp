@@ -31,7 +31,7 @@ Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`
 - Nelle traduzioni e nei testi passati a `tr()` il nome è la variabile `{nome}`, che `tr()` riempie da sé.
 - Nella pagina e nei testi legali il montaggio sostituisce `{nome}`, `{titolare}`, `{casella_contatto}`, `{versione_legali}` e `{data_legali}`.
 - I valori tra parentesi quadre (per esempio `[casella di contatto]`) sono segnaposto: l'app li mostra come testo, senza collegamento.
-- Le chiavi interne della memoria del telefono (`agorapp_…`) non sono visibili e restano come sono.
+- Le chiavi della memoria del telefono non contengono il nome (`dl_…`, `red_…`): stanno nell'elenco chiuso di `moduli/memoria.js` (T-026; `docs/dati-locali.md`), che all'avvio trasloca i dati salvati con i nomi di prima (`agorapp_…`).
 
 Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prova-nome`) scrive `dist/prova-nome/pubblica/` con il nome «Nomeprova». Serve solo a provare che il nome cambia ovunque; il sito non la pubblica. La prova `prove/nome.js` fallisce se il nome compare scritto fuori da `config.js`.
 
@@ -46,7 +46,7 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 - `parti/legali_it.html`: testi legali italiani in uso (versione 1.2), come modelli `<template>`.
 - `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`, `style_misure`. `parti/css_mock.css` non entra nel montaggio.
 - `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, `misure_kpi`, `misure`, `storico`, `app6` (app1 apre, app6 chiude).
-  - app1: dati, stato, filtri, lingue (`tr()`);
+  - app1: dati (con `MEM`, la memoria del telefono), stato, filtri, lingue (`tr()`);
   - app2: icone, mappa MapLibre, segnaposto;
   - app3: fogli (Strati, Elenco, schede, Calendario, PDF);
   - app4: Cerca, Scegli i giorni, Off-Grid, conferme;
@@ -56,7 +56,7 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
   - app6: tocchi (`data-az`), tastiera, avvio.
 - `parti/sezioni.js`: Agorà e Progetti in forma dimostrativa, montato a parte in `sezioni.js`; i contenuti d'esempio arrivano da `anteprime/` (sezione qui sotto).
 - `parti/traduzioni.js`: testi in EN ES FR AR (`window.AGR_TR`, chiave = testo italiano, una riga di JSON).
-- `moduli/`: le parti nuove, scritte come moduli separati con le loro prove (piano di adeguamento, QB-1). Ogni modulo funziona nel browser (in `window.AGR_MODULI`) e in Node (`require`), così lo usano allo stesso modo l'app, gli strumenti e, più avanti, lo sportello. `testo.js`: l'unica funzione che protegge i caratteri speciali, `esc()`, e il controllo dei collegamenti, solo https (T-024; `docs/testi-come-testo.md`); `eventi.js`: formato pubblico degli eventi e unica funzione di controllo (T-020); `quadranti.js`: griglia dei quadranti, regioni, scrittura e lettura dell'archivio (T-021); `archivio.js`: lettura dell'archivio nell'app pubblica, con la copia sul telefono degli eventi delle zone consultate (T-022). Descritti in `docs/formato-eventi.md`; il montaggio li mette in `moduli.js`, caricato prima dell'app.
+- `moduli/`: le parti nuove, scritte come moduli separati con le loro prove (piano di adeguamento, QB-1). Ogni modulo funziona nel browser (in `window.AGR_MODULI`) e in Node (`require`), così lo usano allo stesso modo l'app, gli strumenti e, più avanti, lo sportello. `testo.js`: l'unica funzione che protegge i caratteri speciali, `esc()`, e il controllo dei collegamenti, solo https (T-024; `docs/testi-come-testo.md`); `memoria.js`: tutto ciò che l'app salva sul telefono, con l'elenco chiuso delle chiavi, il trasloco dei nomi di prima e la pulizia delle chiavi delle funzioni tolte (T-026; `docs/dati-locali.md`): nessun altro file usa la memoria del browser; `eventi.js`: formato pubblico degli eventi e unica funzione di controllo (T-020); `quadranti.js`: griglia dei quadranti, regioni, scrittura e lettura dell'archivio (T-021); `archivio.js`: lettura dell'archivio nell'app pubblica, con la copia sul telefono degli eventi delle zone consultate (T-022). Descritti in `docs/formato-eventi.md`; il montaggio li mette in `moduli.js`, caricato prima dell'app.
 - `dati/regioni.json`: confini semplificati delle venti regioni, da Natural Earth (pubblico dominio; `strumenti/genera-regioni.mjs`). Non vanno nell'app: servono a chi scrive l'indice dell'archivio.
 - `dati/strati.js`: strati della mappa e loro icone (`LAYER_ICONS`, `LAYERS`), inseriti al posto del segnaposto `/*@@LAYERS@@*/` di `app1.js`.
 - `dati/legali_tradotti.json`: testi legali tradotti (oggi solo l'inglese), inseriti al posto del segnaposto `/*@@LEGALI@@*/` di `app5.js`.

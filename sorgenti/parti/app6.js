@@ -34,7 +34,7 @@ $('app').addEventListener('click', ev => {
   if(d.vista){ st.cal.vista = d.vista; disegnaFoglio(); disegnaPins(); posizioni(); if(modoGiornata()) requestAnimationFrame(() => inquadraTutti(giornata(st.cal.giorno).vive)); return; }
   if(d.giornoCal){ st.cal.giorno = d.giornoCal; st.cal.vista = 'giornata'; const g = dIso(d.giornoCal); st.cal.y = g.getFullYear(); st.cal.m = g.getMonth(); disegnaFoglio(); disegnaPins(); posizioni(); requestAnimationFrame(() => inquadraTutti(giornata(st.cal.giorno).vive)); return; }
   if(d.mese){ const [y,m] = d.mese.split('-').map(Number); st.cal.y = y; st.cal.m = m; disegnaFoglio(); return; }
-  if(d.mezzo){ st.cal.mezzo = d.mezzo; LS.set('agorapp_day_mode', d.mezzo); disegnaFoglio(); disegnaPins(); return; }
+  if(d.mezzo){ st.cal.mezzo = d.mezzo; MEM.scrivi('dl_mezzo', d.mezzo); disegnaFoglio(); disegnaPins(); return; }
   if(d.giornata){ apriCalendario('giornata', d.giornata); return; }
   if(d.aggiungi){ const [g,o] = d.aggiungi.split('|'); apriForm(null, o ? {giorno:g, inizio:o, fine:autoFine(o)} : {giorno:g}); return; }
   if(d.pdf){ st.pdf.tolti.has(d.pdf) ? st.pdf.tolti.delete(d.pdf) : st.pdf.tolti.add(d.pdf); disegnaFoglio(); return; }
@@ -97,10 +97,10 @@ $('app').addEventListener('click', ev => {
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; st.msgAdmin = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
-    case 'semplice': st.semplice = !st.semplice; LS.set('agorapp_simple', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
+    case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;
-    case 'guida-salta': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); break;
+    case 'guida-salta': st.guida = null; disegnaGuida(); MEM.scrivi('dl_guida','1'); posizioni(); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
     case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
@@ -184,14 +184,14 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
 
 /* ======================= Avvio ======================= */
 (function avvio(){
-  const tema = LS.s('agorapp_theme', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
+  const tema = MEM.testo('dl_tema', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
   document.documentElement.setAttribute('data-theme', tema);
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', tema==='dark' ? '#211D18' : '#FFFDF8');
   if(st.semplice) $('app').classList.add('semplice');
   testiFissi(); purgeExpired(); ricostruisci();
   st.cal.giorno = oggi();
   initMappa(); avviaArchivio(); tutto();
-  if(LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
+  if(MEM.testo('dl_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),

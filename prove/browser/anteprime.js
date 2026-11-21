@@ -21,7 +21,7 @@ async function prova() {
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const D = C.sorgenti();
   const s = await server('pubblica');
-  const { browser, ctx } = await apri(pw, { agorapp_guida: '1' });
+  const { browser, ctx } = await apri(pw, { dl_guida: '1' });
   const richieste = [];
   ctx.on('request', r => richieste.push(r.url()));
   const p = await ctx.newPage();

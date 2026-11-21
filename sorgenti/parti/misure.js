@@ -1,14 +1,13 @@
 /* ======================= Misure (solo admin): si misura la città, non le persone =======================
-   Tranche 1 (6 ottobre 2026). Tutto resta sul telefono dell'admin, nella chiave agorapp_misure:
+   Tranche 1 (6 ottobre 2026). Tutto resta sul telefono dell'admin, nella chiave red_misure:
    - totali del giorno calcolati dagli eventi on-grid (mai copia degli eventi: l'informativa promette che spariscono 3 ore dopo la fine);
    - numeri inseriti a mano (richieste da Netlify, azioni di comunicazione, rimozioni, segnalazioni, test, interviste);
    - soglie, stato delle decisioni, decisioni sul catalogo delle 50 domande.
    Nessun dato degli utenti, nessuna rete. I pulsanti volontari «Mi interessa» della seconda tranche sono stati tolti con T-010. */
-const MZ_KEY = 'agorapp_misure';
 let MZ = null;
 function mz(){
   if(MZ) return MZ;
-  const d = LS.get(MZ_KEY, null) || {};
+  const d = MEM.leggi('red_misure', null) || {};
   MZ = Object.assign({v:1, giorni:{}, visti:{}, creati:{}, richieste:{}, azioni:[], rimozioni:[], segnalazioni:{}, correzioni:{}, versioni:[], prove:[], giri:[], rete:{},
     soglie:{}, stati:{}, mie:{}}, d);
   MZ.soglie = Object.assign({zona:2, nuovi:50, carico:3}, MZ.soglie||{}); delete MZ.soglie.interesse;   /* soglia dei pulsanti volontari, tolta con T-010 */
@@ -16,7 +15,7 @@ function mz(){
   Object.entries({zona:2, nuovi:50, carico:3}).forEach(([k,v]) => { const n = Number(MZ.soglie[k]); MZ.soglie[k] = isFinite(n) && n>0 ? n : v; });
   return MZ;
 }
-function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
+function mzSalva(){ if(!MEM.scrivi('red_misure', MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
 const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', filtroCat:'operativo', sezLib:'', vista:{}};
 
 /* ---------- Libreria delle misure: ogni domanda del catalogo ha uno stato e, se operativa, si accende e spegne ----------
@@ -231,7 +230,7 @@ function disegnaMisure(){
     </div>
     <div class="mz-corpo">
       ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, libreria:vLibreriaMz})[MS.scheda]()}
-      <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave agorapp_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
+      <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave red_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
       <button class="tasto sec pieno" data-mz="esporta">${tr('Esporta le misure in Excel')}</button>
     </div>`;
   el.scrollTop = y;
@@ -457,7 +456,7 @@ function foglioFontiMz(){
     <div><dt>${fonteMz('mail')} ${fonteMz('reg')}</dt><dd>${tr('Contati da te: segnalazioni arrivate per email e richieste di rimozione, con solo date e ore.')}</dd></div>
     <div><dt>${fonteMz('test')}</dt><dd>${tr('Misure fatte da te sui tuoi telefoni: velocità, mappa, rete lenta.')}</dd></div>
     <div><dt>${fonteMz('int')}</dt><dd>${tr('Interviste e test sul campo, con il consenso dei partecipanti.')}</dd></div>
-    <div><dt>${tr('Dove restano')}</dt><dd>${tr('Su questo telefono, nella chiave agorapp_misure, come il resto dell’admin. Si esportano in Excel. Cancellando i dati di Chrome si perdono: esporta ogni tanto.')}</dd></div>
+    <div><dt>${tr('Dove restano')}</dt><dd>${tr('Su questo telefono, nella chiave red_misure, come il resto dell’admin. Si esportano in Excel. Cancellando i dati di Chrome si perdono: esporta ogni tanto.')}</dd></div>
     <div><dt>${tr('Cosa non c’è')}</dt><dd>${tr('Nessun dato sulle persone che usano l’app: niente identificativi, cookie, IP, posizione, cronologia.')}</dd></div></dl>`);
 }
 function foglioSoglieMz(){

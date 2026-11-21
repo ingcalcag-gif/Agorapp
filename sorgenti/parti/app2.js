@@ -54,7 +54,7 @@ const CITTA = [
   {id:'bologna', n:'Bologna', center:[44.4939,11.3428], zoom:13.3},
   {id:'parmerina', n:'Piazza Armerina', center:[37.3847,14.3686], zoom:14.3}
 ];
-let citta = (function(){ const c = LS.s('agorapp_city','torino'); return CITTA.find(x=>x.id===c) ? c : 'torino'; })();
+let citta = (function(){ const c = MEM.testo('dl_citta','torino'); return CITTA.find(x=>x.id===c) ? c : 'torino'; })();
 const cittaObj = () => CITTA.find(x => x.id===citta) || CITTA[0];
 
 /* ---------- Mappa vera: file nostro (Protomaps) disegnato da MapLibre, tinta carta chiara e scura (T-017) ----------
@@ -197,7 +197,7 @@ const ARCHIVIO_DOVE = (() => {
 function avviaArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
   ARCHIVIO = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window),
-    caches:(window.isSecureContext && window.caches) || null, nomeCache:'agorapp_archivio'});
+    casse:MEM.file, nomeCassa:'dl_archivio'});
   ARCHIVIO.apri().then(dopoControllo);
   document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
 }

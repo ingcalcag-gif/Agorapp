@@ -14,7 +14,7 @@ const REGOLE = [
   { nome: 'gettone di un servizio', re: /\b(?:sk-(?:ant-|proj-|live_|test_)?[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})\b/g },
   // Un nome che dice «password», «segreto», «chiave», «formula»… assegnato a un testo scritto nel codice
   // (vedi segreto() qui sotto: conta il nome a pezzi, così «confine» non è «fine»).
-  { nome: 'segreto assegnato a un testo', re: /\b([A-Za-z_$][\w$]*)\s*[:=]\s*(['"`])(?!agorapp_)[^'"`\n]{8,}\2/g, filtro: m => segreto(m[1]) },
+  { nome: 'segreto assegnato a un testo', re: /\b([A-Za-z_$][\w$]*)\s*[:=]\s*(['"`])[^'"`\n]{8,}\2/g, filtro: m => segreto(m[1]) },
 ];
 // Pezzi di nome che indicano un segreto. FINE e FRASE sono le formule delle Fate (T-014).
 const PEZZI = new Set(['pass', 'password', 'passwd', 'pw', 'pwd', 'secret', 'segreto', 'segreti', 'token', 'apikey', 'chiave', 'chiavi', 'key', 'frase', 'formula', 'salt', 'sale', 'fine']);

@@ -36,7 +36,7 @@ function fCitta(){
   return foglio('forte alto', testa, corpo);
 }
 function applicaCitta(id, anima){
-  citta = CITTA.find(x => x.id===id) ? id : 'torino'; LS.set('agorapp_city', citta);
+  citta = CITTA.find(x => x.id===id) ? id : 'torino'; MEM.scrivi('dl_citta', citta);
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n;
   vaiCitta(anima);
   if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
@@ -383,7 +383,7 @@ function vaiSezione(s, daNav){
 
 /* ======================= Tema e lingua ======================= */
 function applicaTema(t){
-  document.documentElement.setAttribute('data-theme', t); LS.set('agorapp_theme', t);
+  document.documentElement.setAttribute('data-theme', t); MEM.scrivi('dl_tema', t);
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', t==='dark' ? '#211D18' : '#FFFDF8');
   tingiMappa(); if(map && mappaOk){ try{ map.updateImage('agr-tratteggio', immagineTratteggio()); map.setPaintProperty('agr-vuoti-bordo','line-color', t==='dark'?'#B5A998':'#5C5246'); }catch(e){} }
   if(modoGiornata()) disegnaPins();
@@ -403,4 +403,4 @@ function testiFissi(){
   avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
-function applicaLingua(l){ lang = l; LS.set('agorapp_lang', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }
+function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }

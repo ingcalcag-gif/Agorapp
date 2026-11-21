@@ -60,7 +60,7 @@ async function prova() {
   // 1. Prima apertura: indice, poi solo i quadranti chiesti che hanno eventi.
   const net = rete(scrivi(torino.concat(milano, roma)));
   const cassa = memoriaFinta();
-  const L = A.crea({ dove: DOVE, fetch: net, caches: cassa, nomeCache: 'agorapp_archivio', adesso: () => adesso });
+  const L = A.crea({ dove: DOVE, fetch: net, casse: cassa, nomeCassa: 'dl_archivio', adesso: () => adesso });
   if (!(await L.apri())) e.errori.push('alla prima apertura il controllo delle novità non segnala nulla');
   const indice = net.log.find(x => x.url === DOVE + 'indice.json');
   if (!indice || indice.opz.cache !== 'no-cache' || indice.opz.credentials !== 'omit') e.errori.push('l\'indice non si chiede senza credenziali e ricontrollandolo con il server: ' + JSON.stringify(indice && indice.opz));
@@ -82,7 +82,7 @@ async function prova() {
 
   // 2. Riapertura senza rete: subito ciò che il telefono conserva.
   net.spenta = true;
-  const L2 = A.crea({ dove: DOVE, fetch: net, caches: cassa, nomeCache: 'agorapp_archivio', adesso: () => adesso });
+  const L2 = A.crea({ dove: DOVE, fetch: net, casse: cassa, nomeCassa: 'dl_archivio', adesso: () => adesso });
   await L2.apri();
   if (L2.eventi().length !== 3 || !L2.pronto()) e.errori.push(`senza rete, alla riapertura: ${L2.eventi().length} eventi invece dei 3 conservati`);
   net.spenta = false;
@@ -91,13 +91,13 @@ async function prova() {
   const torino2 = [torino[0]], milano2 = [milano[0], ev(45.47, 9.2, domani, '21:30')];
   Object.keys(net.file).forEach(k => delete net.file[k]); Object.assign(net.file, scrivi(torino2.concat(milano2, roma)));
   const prima = net.log.length;
-  const L3 = A.crea({ dove: DOVE, fetch: net, caches: cassa, nomeCache: 'agorapp_archivio', adesso: () => adesso });
+  const L3 = A.crea({ dove: DOVE, fetch: net, casse: cassa, nomeCassa: 'dl_archivio', adesso: () => adesso });
   await L3.apri();
   const nuove = net.log.slice(prima).map(x => x.url.replace(DOVE, '')).filter(u => u !== 'indice.json').map(u => u.slice(10, 16));
   if (nuove.join() !== 'q22-04') e.errori.push('dopo il cambiamento riscaricati: ' + (nuove.join(', ') || 'nessuno') + ' (atteso solo q22-04)');
   if (L3.quadrantiConservati().sort().join() !== 'q21-01,q22-04') e.errori.push('dopo il cambiamento conservati: ' + L3.quadrantiConservati().join(', '));
   if (L3.eventi().length !== 3) e.errori.push(`dopo il cambiamento: ${L3.eventi().length} eventi invece di 3`);
-  const chiavi = [...cassa.casse.get('agorapp_archivio').keys()].map(u => u.replace(DOVE, '')).sort();
+  const chiavi = [...cassa.casse.get('dl_archivio').keys()].map(u => u.replace(DOVE, '')).sort();
   const attese = ['indice.json'].concat(Object.keys(net.file).filter(k => /q21-01|q22-04/.test(k))).sort();
   if (chiavi.join() !== attese.join()) e.errori.push('memoria del telefono dopo il cambiamento: ' + chiavi.join(', '));
 

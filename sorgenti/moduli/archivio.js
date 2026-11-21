@@ -24,17 +24,18 @@
   const RICHIESTA_INDICE = { credentials: 'omit', cache: 'no-cache', redirect: 'error' };
   const RICHIESTA_FILE = { credentials: 'omit', redirect: 'error' };
 
-  /* crea({dove, vocabolario, fetch, caches, nomeCache, adesso}): un lettore dell'archivio.
-     dove: indirizzo della cartella dell'archivio, con la barra finale; fetch e caches: quelli del browser (nelle prove,
-     finti); nomeCache: il nome della memoria dei file sul telefono; adesso: funzione che dà l'ora in millisecondi. */
+  /* crea({dove, vocabolario, fetch, casse, nomeCassa, adesso}): un lettore dell'archivio.
+     dove: indirizzo della cartella dell'archivio, con la barra finale; fetch: quello del browser; casse: la memoria per
+     i file del modulo memoria.js (nelle prove, finta), con nomeCassa che è il suo nome nell'elenco chiuso della memoria
+     del telefono (T-026); adesso: funzione che dà l'ora in millisecondi. */
   function crea(o) {
     const dove = String(o.dove || '').replace(/\/?$/, '/');
     const prendi = o.fetch, adesso = o.adesso || (() => Date.now()), opzEv = o.vocabolario ? { vocabolario: o.vocabolario } : undefined;
     const S = { indice: null, caricati: new Map(), inCorso: new Map(), ultimoControllo: 0, cache: null, persistente: false, controllo: null };
 
     async function memoria() {
-      if (S.cache || !o.caches || !o.nomeCache) return S.cache;
-      try { S.cache = await o.caches.open(o.nomeCache); S.persistente = true; } catch (e) { S.cache = null; }
+      if (S.cache || !o.casse || !o.nomeCassa) return S.cache;
+      try { S.cache = await o.casse.open(o.nomeCassa); S.persistente = true; } catch (e) { S.cache = null; }
       return S.cache;
     }
     async function leggiMemoria(percorso) {

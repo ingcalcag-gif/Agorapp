@@ -5,7 +5,7 @@
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
    Funzioni vere dall'app online OG 1.7: mappa (dal blocco 3 la mappa propria, T-017), indirizzi Photon,
    GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
-   5 lingue, testi legali v1.2. Stessi dati sul telefono (chiavi agorapp_*).
+   5 lingue, testi legali v1.2. I dati sul telefono passano dal modulo della memoria (T-026).
    ===================================================================== */
 const $ = id => document.getElementById(id);
 /* Moduli separati (sorgenti/moduli/, QB-1): testi come testo (T-024), formato degli eventi (T-020), quadranti (T-021),
@@ -28,24 +28,17 @@ const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
 const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
 
-/* ---------- Memoria del telefono ---------- */
-const LS = {
-  get(k,d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
-  s(k,d){ try{ const v = localStorage.getItem(k); return v==null ? d : v; }catch(e){ return d; } },
-  set(k,v){ try{ localStorage.setItem(k, typeof v==='string' ? v : JSON.stringify(v)); return true; }catch(e){ return false; } },
-  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
-};
-/* Pulizia una tantum: chiavi di funzioni tolte dall'app (piano di adeguamento). Se il telefono le ha ancora,
-   si cancellano all'avvio senza leggerle. */
-const CHIAVI_TOLTE = [
-  'agorapp_interesse',   // pulsanti volontari «Mi interessa» e «Vorrei … qui» (T-010)
-  'agorapp_fate', 'agorapp_fate_io', 'agorapp_fate_strato', 'agorapp_fate_chi',   // Ordine delle Fate (T-014)
-  'agorapp_demo',        // demo degli eventi, con progetti e istanze d'esempio (T-015)
-];
-CHIAVI_TOLTE.forEach(k => LS.del(k));
+/* ---------- Memoria del telefono (T-026; libro mastro, § 3.7 e cap. 30; docs/dati-locali.md) ----------
+   Tutto ciò che l'app salva sul telefono passa da MEM, che conosce soltanto le chiavi dell'elenco chiuso
+   (sorgenti/moduli/memoria.js): leggi e scrivi per i valori in JSON, testo per i testi, togli per cancellare.
+   Fino al blocco 8 l'area riservata sta ancora in questa app: per questo la memoria comprende le chiavi della Redazione.
+   avvia(), prima di ogni lettura: i dati salvati con i nomi delle versioni precedenti traslocano sotto i nomi nuovi e
+   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle. */
+const MEM = MODULI.memoria.crea({redazione:true});
+MEM.avvia();
 
 /* ---------- Lingue ---------- */
-let lang = LS.s('agorapp_lang','it'); if(!['it','en','es','fr','ar'].includes(lang)) lang = 'it';
+let lang = MEM.testo('dl_lingua','it'); if(!['it','en','es','fr','ar'].includes(lang)) lang = 'it';
 const dloc = () => ({it:'it-IT',en:'en-GB',es:'es-ES',fr:'fr-FR',ar:'ar'})[lang] || 'it-IT';
 const TR = window.AGR_TR || {};
 function tr(s, v){
@@ -94,7 +87,7 @@ const icoPin = id => (ICO[id]||'').replace(/<circle cx="13" cy="13" r="12"[^>]*\
 const nomeStrato = id => S[id] ? tr(S[id].label) : '';
 
 /* ---------- Dati sul telefono ---------- */
-let events = LS.get('agorapp_events', []); if(!Array.isArray(events)) events = [];
+let events = MEM.leggi('dl_eventi', []); if(!Array.isArray(events)) events = [];
 const IDS_TOLTI = (function pulizia(){
   const n = events.length;
   /* eventi ricevuti con i pacchetti dell'Ordine delle Fate, tolto con T-014: si cancellano, anche dal calendario */
@@ -105,20 +98,19 @@ const IDS_TOLTI = (function pulizia(){
   /* demo degli eventi, tolta con T-015: i suoi eventi e Off-Grid d'esempio si cancellano, anche dal calendario */
   const demo = events.filter(e => e.demo || /^demo-/.test(String(e.id))).map(e => e.id);
   events = events.filter(e => !(e.demo || /^demo-/.test(String(e.id))));
-  /* niente contatori «Ci vado / Sono qui» */
+  /* niente contatori «Ci vado / Sono qui» (la loro chiave la cancella MEM.avvia) */
   let tolti = false; events.forEach(e => { if('going' in e || 'here' in e){ delete e.going; delete e.here; tolti = true; } });
   /* nessuna immagine negli eventi (T-011; libro mastro, § 6.2): il campo si toglie dai dati */
   events.forEach(e => { if('image' in e){ delete e.image; tolti = true; } });
-  if(events.length!==n || tolti) LS.set('agorapp_events', events);
-  try{ sessionStorage.removeItem('agorapp_votes'); }catch(e){}
+  if(events.length!==n || tolti) MEM.scrivi('dl_eventi', events);
   return fate.concat(demo);
 })();
-let calEvents = LS.get('agorapp_cal', {}); if(!calEvents || typeof calEvents!=='object') calEvents = {};
+let calEvents = MEM.leggi('dl_calendario', {}); if(!calEvents || typeof calEvents!=='object') calEvents = {};
 /* dal calendario escono gli eventi tolti qui sopra e ogni voce d'esempio della demo (demo-…), anche senza evento */
 (function(){ const via = Object.keys(calEvents).filter(id => IDS_TOLTI.includes(id) || /^demo-/.test(id));
-  if(via.length){ via.forEach(id => delete calEvents[id]); LS.set('agorapp_cal', calEvents); } })();
-function saveEvents(){ if(!LS.set('agorapp_events', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
-function saveCal(){ LS.set('agorapp_cal', calEvents); }
+  if(via.length){ via.forEach(id => delete calEvents[id]); MEM.scrivi('dl_calendario', calEvents); } })();
+function saveEvents(){ if(!MEM.scrivi('dl_eventi', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
+function saveCal(){ MEM.scrivi('dl_calendario', calEvents); }
 const inCal = id => !!calEvents[id];
 
 /* ---------- Tempo ---------- */
@@ -215,12 +207,12 @@ const st = {
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
   admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, msgAdmin:null, lente:null, vuoti:false
 };
-(function(){ const m = LS.s('agorapp_day_mode','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
-st.semplice = LS.s('agorapp_simple','0')==='1';
+(function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
+st.semplice = MEM.testo('dl_semplice','0')==='1';
 
 /* strati: alla prima apertura sono tutti spenti (come online); il pannellino invita ad accenderli */
 function caricaStrati(){
-  const s = LS.get('agorapp_layers', null);
+  const s = MEM.leggi('dl_strati', null);
   st.strati = new Set(); st.subOff = new Set();
   LAYERS.forEach(l => {
     const x = s && s[l.id];
@@ -231,11 +223,11 @@ function caricaStrati(){
 }
 function istantanea(){ const o = {}; LAYERS.forEach(l => { o[l.id] = {on:st.strati.has(l.id), subs:Object.fromEntries(l.sub.map(su => [su.id, !st.subOff.has(l.id+'|'+su.label)]))}; }); return o; }
 function applicaIstantanea(o){ st.strati = new Set(); st.subOff = new Set(); LAYERS.forEach(l => { const x = o[l.id]; if(x && x.on) st.strati.add(l.id); if(x && x.subs) l.sub.forEach(su => { if(x.subs[su.id]===false) st.subOff.add(l.id+'|'+su.label); }); }); }
-function salvaStrati(){ LS.set('agorapp_layers', istantanea()); }
+function salvaStrati(){ MEM.scrivi('dl_strati', istantanea()); }
 caricaStrati();
 /* combinazioni Mappa 1/2/3 */
 const PRESET_BASE = [null, ['sociale','manifestazioni','conferenze','volontariato'], ['musica','arte','teatro','cinema']];
-let presets = (function(){ const p = LS.get('agorapp_presets', null); return (p && Array.isArray(p.data)) ? p.data.slice(0,3) : [null,null,null]; })();
+let presets = (function(){ const p = MEM.leggi('dl_combinazioni', null); return (p && Array.isArray(p.data)) ? p.data.slice(0,3) : [null,null,null]; })();
 while(presets.length<3) presets.push(null);
 function strategiaPreset(i){
   if(presets[i]) return presets[i];
@@ -243,7 +235,7 @@ function strategiaPreset(i){
   LAYERS.forEach(l => { o[l.id] = {on: base ? base.includes(l.id) : true, subs:Object.fromEntries(l.sub.map(su=>[su.id,true]))}; });
   return o;
 }
-function salvaPresets(){ const p = LS.get('agorapp_presets', null) || {}; LS.set('agorapp_presets', {data:presets, names:(p.names||['Mappa 1','Mappa 2','Mappa 3'])}); }
+function salvaPresets(){ const p = MEM.leggi('dl_combinazioni', null) || {}; MEM.scrivi('dl_combinazioni', {data:presets, names:(p.names||['Mappa 1','Mappa 2','Mappa 3'])}); }
 
 /* ---------- Filtri ---------- */
 const finito = e => e.b <= ora();
@@ -346,7 +338,7 @@ const CITTA = [
   {id:'bologna', n:'Bologna', center:[44.4939,11.3428], zoom:13.3},
   {id:'parmerina', n:'Piazza Armerina', center:[37.3847,14.3686], zoom:14.3}
 ];
-let citta = (function(){ const c = LS.s('agorapp_city','torino'); return CITTA.find(x=>x.id===c) ? c : 'torino'; })();
+let citta = (function(){ const c = MEM.testo('dl_citta','torino'); return CITTA.find(x=>x.id===c) ? c : 'torino'; })();
 const cittaObj = () => CITTA.find(x => x.id===citta) || CITTA[0];
 
 /* ---------- Mappa vera: file nostro (Protomaps) disegnato da MapLibre, tinta carta chiara e scura (T-017) ----------
@@ -489,7 +481,7 @@ const ARCHIVIO_DOVE = (() => {
 function avviaArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
   ARCHIVIO = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window),
-    caches:(window.isSecureContext && window.caches) || null, nomeCache:'agorapp_archivio'});
+    casse:MEM.file, nomeCassa:'dl_archivio'});
   ARCHIVIO.apri().then(dopoControllo);
   document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
 }
@@ -1553,7 +1545,7 @@ function fCitta(){
   return foglio('forte alto', testa, corpo);
 }
 function applicaCitta(id, anima){
-  citta = CITTA.find(x => x.id===id) ? id : 'torino'; LS.set('agorapp_city', citta);
+  citta = CITTA.find(x => x.id===id) ? id : 'torino'; MEM.scrivi('dl_citta', citta);
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n;
   vaiCitta(anima);
   if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
@@ -1900,7 +1892,7 @@ function vaiSezione(s, daNav){
 
 /* ======================= Tema e lingua ======================= */
 function applicaTema(t){
-  document.documentElement.setAttribute('data-theme', t); LS.set('agorapp_theme', t);
+  document.documentElement.setAttribute('data-theme', t); MEM.scrivi('dl_tema', t);
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', t==='dark' ? '#211D18' : '#FFFDF8');
   tingiMappa(); if(map && mappaOk){ try{ map.updateImage('agr-tratteggio', immagineTratteggio()); map.setPaintProperty('agr-vuoti-bordo','line-color', t==='dark'?'#B5A998':'#5C5246'); }catch(e){} }
   if(modoGiornata()) disegnaPins();
@@ -1920,7 +1912,7 @@ function testiFissi(){
   avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
-function applicaLingua(l){ lang = l; LS.set('agorapp_lang', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }
+function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }
 
 
 /* ======================= Temi: ovali Strati e Temi trasversali, lenti dell'app e tre lenti tue (passo 2) ======================= */
@@ -1962,9 +1954,9 @@ const universo = () => [
   ...TEMI_VOC.map(t => { const c = temaCol(t); return {k:'t:'+t, label:tr(t), tipo:'tema', dot:c.dot, bg:c.bg, tx:c.tx}; })
 ];
 const byK = k => universo().find(u => u.k===k);
-/* le tre lenti di chi usa l'app: stessa chiave dell'app online (agorapp_temi_slots) */
+/* le tre lenti di chi usa l'app (chiave dl_lenti; i dati dell'app online traslocano all'avvio, T-026) */
 function caricaLenti(){
-  const a = LS.get('agorapp_temi_slots', null);
+  const a = MEM.leggi('dl_lenti', null);
   /* dalla memoria del telefono si tengono solo strati e temi che l'app conosce, e un nome di 16 caratteri al massimo (T-024) */
   const nome = x => String(x==null ? '' : x).slice(0, 16);
   const conv = s => { if(!s || typeof s!=='object') return null;
@@ -1973,7 +1965,7 @@ function caricaLenti(){
     return k.length ? {nome:nome(s.nome||s.name), k} : null; };
   return Array.isArray(a) && a.length===3 ? a.map(conv) : [null,null,null];
 }
-function salvaLenti(){ LS.set('agorapp_temi_slots', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }
+function salvaLenti(){ MEM.scrivi('dl_lenti', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }
 const TM = {vista:'esplora', scelti:[], mostrati:6, mappaOn:true, q:'', strumenti:{terminati:false, nascosti:false}, lenti:caricaLenti(), lenteNome:null, lenteAg:null, salva:null, foglio:null};
 const lenteAg = id => LENTI_AG.find(l => l.id===id);
 const nomeLenteAg = l => tr(l.nome);
@@ -2160,16 +2152,15 @@ const MZ_KPI = [{"n": 1, "area": "A · Offerta di eventi", "q": "Quanti eventi s
 MZ_KPI.forEach(k => Object.keys(k).forEach(c => { if(typeof k[c]==='string') k[c] = k[c].split('{nome}').join(NOME).split('{casella}').join(CASELLA); }));
 
 /* ======================= Misure (solo admin): si misura la città, non le persone =======================
-   Tranche 1 (6 ottobre 2026). Tutto resta sul telefono dell'admin, nella chiave agorapp_misure:
+   Tranche 1 (6 ottobre 2026). Tutto resta sul telefono dell'admin, nella chiave red_misure:
    - totali del giorno calcolati dagli eventi on-grid (mai copia degli eventi: l'informativa promette che spariscono 3 ore dopo la fine);
    - numeri inseriti a mano (richieste da Netlify, azioni di comunicazione, rimozioni, segnalazioni, test, interviste);
    - soglie, stato delle decisioni, decisioni sul catalogo delle 50 domande.
    Nessun dato degli utenti, nessuna rete. I pulsanti volontari «Mi interessa» della seconda tranche sono stati tolti con T-010. */
-const MZ_KEY = 'agorapp_misure';
 let MZ = null;
 function mz(){
   if(MZ) return MZ;
-  const d = LS.get(MZ_KEY, null) || {};
+  const d = MEM.leggi('red_misure', null) || {};
   MZ = Object.assign({v:1, giorni:{}, visti:{}, creati:{}, richieste:{}, azioni:[], rimozioni:[], segnalazioni:{}, correzioni:{}, versioni:[], prove:[], giri:[], rete:{},
     soglie:{}, stati:{}, mie:{}}, d);
   MZ.soglie = Object.assign({zona:2, nuovi:50, carico:3}, MZ.soglie||{}); delete MZ.soglie.interesse;   /* soglia dei pulsanti volontari, tolta con T-010 */
@@ -2177,7 +2168,7 @@ function mz(){
   Object.entries({zona:2, nuovi:50, carico:3}).forEach(([k,v]) => { const n = Number(MZ.soglie[k]); MZ.soglie[k] = isFinite(n) && n>0 ? n : v; });
   return MZ;
 }
-function mzSalva(){ if(!LS.set(MZ_KEY, MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
+function mzSalva(){ if(!MEM.scrivi('red_misure', MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
 const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', filtroCat:'operativo', sezLib:'', vista:{}};
 
 /* ---------- Libreria delle misure: ogni domanda del catalogo ha uno stato e, se operativa, si accende e spegne ----------
@@ -2392,7 +2383,7 @@ function disegnaMisure(){
     </div>
     <div class="mz-corpo">
       ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, libreria:vLibreriaMz})[MS.scheda]()}
-      <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave agorapp_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
+      <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave red_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
       <button class="tasto sec pieno" data-mz="esporta">${tr('Esporta le misure in Excel')}</button>
     </div>`;
   el.scrollTop = y;
@@ -2618,7 +2609,7 @@ function foglioFontiMz(){
     <div><dt>${fonteMz('mail')} ${fonteMz('reg')}</dt><dd>${tr('Contati da te: segnalazioni arrivate per email e richieste di rimozione, con solo date e ore.')}</dd></div>
     <div><dt>${fonteMz('test')}</dt><dd>${tr('Misure fatte da te sui tuoi telefoni: velocità, mappa, rete lenta.')}</dd></div>
     <div><dt>${fonteMz('int')}</dt><dd>${tr('Interviste e test sul campo, con il consenso dei partecipanti.')}</dd></div>
-    <div><dt>${tr('Dove restano')}</dt><dd>${tr('Su questo telefono, nella chiave agorapp_misure, come il resto dell’admin. Si esportano in Excel. Cancellando i dati di Chrome si perdono: esporta ogni tanto.')}</dd></div>
+    <div><dt>${tr('Dove restano')}</dt><dd>${tr('Su questo telefono, nella chiave red_misure, come il resto dell’admin. Si esportano in Excel. Cancellando i dati di Chrome si perdono: esporta ogni tanto.')}</dd></div>
     <div><dt>${tr('Cosa non c’è')}</dt><dd>${tr('Nessun dato sulle persone che usano l’app: niente identificativi, cookie, IP, posizione, cronologia.')}</dd></div></dl>`);
 }
 function foglioSoglieMz(){
@@ -2729,7 +2720,7 @@ function nascondiTipMz(){ if(tipMz) tipMz.style.opacity = 0; }
 })();
 
 /* ======================= Storico delle operazioni dell'admin (6 ottobre 2026) =======================
-   Dove sta: in questo telefono, nella memoria del browser (localStorage, chiave agorapp_storico), come gli eventi
+   Dove sta: in questo telefono, nella memoria del browser (chiave red_storico), come gli eventi
    e le Misure. L'app lo legge da lì: non va su nessun server e un altro telefono non lo vede.
    Cosa tiene: il tipo di operazione, giorno e ora, quanti eventi e il codice dell'evento. Il titolo NON viene salvato:
    lo storico lo legge dall'evento finché l'evento è sulla mappa. Quando l'evento sparisce (3 ore dopo la fine),
@@ -2746,7 +2737,7 @@ const OP_STORICO = {
 const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Accessi']];
 const SH = {filtro:'tutte', mostrati:60, conferma:false};
 function storico(){
-  const l = LS.get('agorapp_storico', []); if(!Array.isArray(l)) return [];
+  const l = MEM.leggi('red_storico', []); if(!Array.isArray(l)) return [];
   const limite = Date.now() - STORICO_GIORNI*864e5;
   return l.filter(x => x && OP_STORICO[x.op] && Date.parse(x.t) >= limite);
 }
@@ -2755,7 +2746,7 @@ function registra(op, extra){
   const voce = Object.assign({t:new Date().toISOString(), op}, extra||{});
   Object.keys(voce).forEach(k => { if(voce[k]==null || voce[k]==='') delete voce[k]; });
   const l = storico(); l.push(voce);
-  LS.set('agorapp_storico', l.slice(-STORICO_MAX));
+  MEM.scrivi('red_storico', l.slice(-STORICO_MAX));
 }
 function descriviVoce(x){
   const ev = x.id ? rawById(x.id) : null, strato = x.s && S[x.s] ? tr(S[x.s].label) : '';
@@ -2777,7 +2768,7 @@ function foglioStorico(){
   window.AGR.foglio(`<div class="mz-foglio sh">
     <button class="link sh-indietro" data-az="admin">${tr('‹ Modalità admin')}</button>
     <h2>${tr('Storico delle operazioni')}</h2>
-    <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave agorapp_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
+    <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave red_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
     <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra lo storico'))}">${GRUPPI_STORICO.map(([k,t]) => `<button data-sh="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(t)} · ${tutte.filter(x => k==='tutte' || OP_STORICO[x.op][0]===k).length}</span></button>`).join('')}</nav>
     ${righe || `<p class="mz-nota">${tr('Nessuna operazione registrata. Lo storico parte da oggi: le operazioni fatte prima non ci sono.')}</p>`}
     ${lista.length > vis.length ? `<button class="tasto sec pieno" data-sh="altre">${tr('Mostra le precedenti ({n})',{n:lista.length - vis.length})}</button>` : ''}
@@ -2805,7 +2796,7 @@ document.addEventListener('click', ev => {
   else if(a==='esporta'){ esportaStorico(); return; }
   else if(a==='svuota') SH.conferma = true;
   else if(a==='annulla') SH.conferma = false;
-  else if(a==='svuota-ok'){ const n = storico().length; LS.set('agorapp_storico', []); SH.conferma = false; registra('svuota', {x:tr('{n} operazioni cancellate',{n})}); avviso(tr('Storico svuotato'), null, true); }
+  else if(a==='svuota-ok'){ const n = storico().length; MEM.scrivi('red_storico', []); SH.conferma = false; registra('svuota', {x:tr('{n} operazioni cancellate',{n})}); avviso(tr('Storico svuotato'), null, true); }
   foglioStorico();
 }, true);
 
@@ -2845,7 +2836,7 @@ $('app').addEventListener('click', ev => {
   if(d.vista){ st.cal.vista = d.vista; disegnaFoglio(); disegnaPins(); posizioni(); if(modoGiornata()) requestAnimationFrame(() => inquadraTutti(giornata(st.cal.giorno).vive)); return; }
   if(d.giornoCal){ st.cal.giorno = d.giornoCal; st.cal.vista = 'giornata'; const g = dIso(d.giornoCal); st.cal.y = g.getFullYear(); st.cal.m = g.getMonth(); disegnaFoglio(); disegnaPins(); posizioni(); requestAnimationFrame(() => inquadraTutti(giornata(st.cal.giorno).vive)); return; }
   if(d.mese){ const [y,m] = d.mese.split('-').map(Number); st.cal.y = y; st.cal.m = m; disegnaFoglio(); return; }
-  if(d.mezzo){ st.cal.mezzo = d.mezzo; LS.set('agorapp_day_mode', d.mezzo); disegnaFoglio(); disegnaPins(); return; }
+  if(d.mezzo){ st.cal.mezzo = d.mezzo; MEM.scrivi('dl_mezzo', d.mezzo); disegnaFoglio(); disegnaPins(); return; }
   if(d.giornata){ apriCalendario('giornata', d.giornata); return; }
   if(d.aggiungi){ const [g,o] = d.aggiungi.split('|'); apriForm(null, o ? {giorno:g, inizio:o, fine:autoFine(o)} : {giorno:g}); return; }
   if(d.pdf){ st.pdf.tolti.has(d.pdf) ? st.pdf.tolti.delete(d.pdf) : st.pdf.tolti.add(d.pdf); disegnaFoglio(); return; }
@@ -2908,10 +2899,10 @@ $('app').addEventListener('click', ev => {
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; st.msgAdmin = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
-    case 'semplice': st.semplice = !st.semplice; LS.set('agorapp_simple', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
+    case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;
-    case 'guida-salta': st.guida = null; disegnaGuida(); LS.set('agorapp_guida','1'); posizioni(); break;
+    case 'guida-salta': st.guida = null; disegnaGuida(); MEM.scrivi('dl_guida','1'); posizioni(); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
     case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
@@ -2995,14 +2986,14 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
 
 /* ======================= Avvio ======================= */
 (function avvio(){
-  const tema = LS.s('agorapp_theme', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
+  const tema = MEM.testo('dl_tema', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
   document.documentElement.setAttribute('data-theme', tema);
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', tema==='dark' ? '#211D18' : '#FFFDF8');
   if(st.semplice) $('app').classList.add('semplice');
   testiFissi(); purgeExpired(); ricostruisci();
   st.cal.giorno = oggi();
   initMappa(); avviaArchivio(); tutto();
-  if(LS.s('agorapp_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
+  if(MEM.testo('dl_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),

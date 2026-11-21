@@ -21,8 +21,8 @@ async function prova() {
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const axe = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
   const s = await server('pubblica');
-  const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: offgrid(false),
-    agorapp_cal: { [ID_EV]: true, [ID_OG]: true } });
+  const { browser, ctx } = await apri(pw, { dl_guida: '1', dl_strati: { musica: { on: true } }, dl_eventi: offgrid(false),
+    dl_calendario: { [ID_EV]: true, [ID_OG]: true } });
   // Evento senza collegamento della fonte: così la scheda resta senza elementi focalizzabili, come capita a molti eventi,
   // e lo scarto noto della regione scorrevole (T-057) resta visibile finché T-057 non lo chiude.
   await archivio(ctx, pubblici(false).map(x => ({ ...x, fonte: { testo: x.fonte.testo } })));

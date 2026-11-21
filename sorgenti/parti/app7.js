@@ -38,9 +38,9 @@ const universo = () => [
   ...TEMI_VOC.map(t => { const c = temaCol(t); return {k:'t:'+t, label:tr(t), tipo:'tema', dot:c.dot, bg:c.bg, tx:c.tx}; })
 ];
 const byK = k => universo().find(u => u.k===k);
-/* le tre lenti di chi usa l'app: stessa chiave dell'app online (agorapp_temi_slots) */
+/* le tre lenti di chi usa l'app (chiave dl_lenti; i dati dell'app online traslocano all'avvio, T-026) */
 function caricaLenti(){
-  const a = LS.get('agorapp_temi_slots', null);
+  const a = MEM.leggi('dl_lenti', null);
   /* dalla memoria del telefono si tengono solo strati e temi che l'app conosce, e un nome di 16 caratteri al massimo (T-024) */
   const nome = x => String(x==null ? '' : x).slice(0, 16);
   const conv = s => { if(!s || typeof s!=='object') return null;
@@ -49,7 +49,7 @@ function caricaLenti(){
     return k.length ? {nome:nome(s.nome||s.name), k} : null; };
   return Array.isArray(a) && a.length===3 ? a.map(conv) : [null,null,null];
 }
-function salvaLenti(){ LS.set('agorapp_temi_slots', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }
+function salvaLenti(){ MEM.scrivi('dl_lenti', TM.lenti.map(l => l ? {name:l.nome, tags:l.k.map(k => k.startsWith('s:') ? (S[k.slice(2)]||{}).label : k.slice(2)), nome:l.nome, k:l.k} : null)); }
 const TM = {vista:'esplora', scelti:[], mostrati:6, mappaOn:true, q:'', strumenti:{terminati:false, nascosti:false}, lenti:caricaLenti(), lenteNome:null, lenteAg:null, salva:null, foglio:null};
 const lenteAg = id => LENTI_AG.find(l => l.id===id);
 const nomeLenteAg = l => tr(l.nome);

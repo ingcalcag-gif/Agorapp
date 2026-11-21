@@ -34,7 +34,7 @@ async function prova() {
   const pw = playwright();
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const s = await server('pubblica');
-  const { browser, ctx } = await apri(pw, { agorapp_guida: '1' });
+  const { browser, ctx } = await apri(pw, { dl_guida: '1' });
   // La mappa vive dentro l'app: per guardarla dall'esterno si tiene da parte l'oggetto che MapLibre crea.
   await ctx.addInitScript(() => {
     let ml; Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return ml; },
@@ -118,7 +118,7 @@ async function prova() {
     e.note.push('con le correzioni di prova: ' + viste.avviso);
 
     // Senza file della mappa: il fondo regge i segnaposto (qui un evento dell'archivio e un Off-Grid inventati di domani).
-    const c3 = await apri(pw, { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: offgrid(false, giorno(1)) });
+    const c3 = await apri(pw, { dl_guida: '1', dl_strati: { musica: { on: true } }, dl_eventi: offgrid(false, giorno(1)) });
     try {
       await archivio(c3.ctx, pubblici(false, giorno(1)));
       await c3.ctx.route(u => u.pathname.endsWith('/mappa/prova/mappa.json'), r => r.fulfill({ status: 404, body: 'non trovato' }));

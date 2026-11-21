@@ -36,7 +36,7 @@ async function prova() {
   const nTorino = (indice.quadranti['q21-01'] || {}).eventi + (indice.quadranti['q21-02'] || {}).eventi, nMilano = (indice.quadranti['q22-04'] || {}).eventi;
 
   // ---------------- Archivio di prova del repository ----------------
-  const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: TUTTI });
+  const { browser, ctx } = await apri(pw, { dl_guida: '1', dl_strati: TUTTI });
   await ctx.addInitScript(spia);
   await ctx.addCookies([{ name: 'prova', value: 'biscotto', domain: '127.0.0.1', path: '/' }]);
   const richieste = [];
@@ -107,7 +107,7 @@ async function prova() {
   const finito4 = eventoProva('finitodaquattro', { titolo: 'Finito da quattro ore', inizio: oraRoma(ora - 6 * 36e5), fine: oraRoma(ora - 4 * 36e5) });
   const og = { id: 'prova-og-quadranti', personal: true, offgrid: true, title: 'Off-Grid inventato', datetime: giorno(1) + 'T20:00', end: giorno(1) + 'T21:00', lat: 45.072, lng: 7.69, address: 'Via Finta 2', hidden: false, price: '' };
   const vecchio = { id: 'prova-pubblico-locale', title: 'Pubblico rimasto nel telefono', category: 'musica', datetime: giorno(1) + 'T18:00', end: giorno(1) + 'T20:00', lat: 45.0705, lng: 7.687, address: 'Via Inventata 2', hidden: false, offgrid: false };
-  const B = await apri(pw, { agorapp_guida: '1', agorapp_layers: TUTTI, agorapp_events: [og, vecchio] });
+  const B = await apri(pw, { dl_guida: '1', dl_strati: TUTTI, dl_eventi: [og, vecchio] });
   await B.ctx.addInitScript(spia);
   await archivio(B.ctx, [torino, roma, milano, finito2], [finito4]);
   const chiesti = [];
@@ -157,7 +157,7 @@ async function prova() {
   } finally { await B.browser.close(); }
 
   // ---------------- Senza mappa ----------------
-  const C = await apri(pw, { agorapp_guida: '1', agorapp_layers: TUTTI });
+  const C = await apri(pw, { dl_guida: '1', dl_strati: TUTTI });
   await C.ctx.addInitScript(() => { Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return undefined; }, set() {} }); });
   try {
     const p = await C.ctx.newPage();

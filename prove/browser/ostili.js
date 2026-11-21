@@ -61,12 +61,12 @@ function altriOffgrid(g = giorno(1)) {
 }
 /* La memoria del telefono con testi ostili ovunque l'app legga un testo. */
 function memoriaOstile() {
-  return { agorapp_guida: '1', agorapp_layers: { musica: { on: true } }, agorapp_events: offgrid().concat(altriOffgrid()),
-    agorapp_cal: { [ID_EV]: true, [ID_OG]: true, [ID_OG2]: true, [ID_SERIE]: true, ['id ' + ATTR_('cal-id')]: true },
+  return { dl_guida: '1', dl_strati: { musica: { on: true } }, dl_eventi: offgrid().concat(altriOffgrid()),
+    dl_calendario: { [ID_EV]: true, [ID_OG]: true, [ID_OG2]: true, [ID_SERIE]: true, ['id ' + ATTR_('cal-id')]: true },
     /* le lenti: il nome è al massimo di 16 caratteri, quindi il testo ostile è corto; se diventasse un elemento avrebbe l'attributo data-ostile */
-    agorapp_temi_slots: [{ nome: '<s data-ostile>L', k: ['s:musica', 't:' + O_('lente-tema'), 's:' + ATTR_('lente-strato')] }, { name: '<s data-ostile>V', tags: ['Musica'] }, null],
-    agorapp_presets: { data: [null, null, null], names: ['Mappa ' + O_('preset'), 'Mappa 2', 'Mappa 3'] },
-    agorapp_city: 'torino' + ATTR_('citta'), agorapp_day_mode: 'piedi' + ATTR_('mezzo'), agorapp_theme: 'light' + ATTR_('tema'), agorapp_simple: ATTR_('semplice') };
+    dl_lenti: [{ nome: '<s data-ostile>L', k: ['s:musica', 't:' + O_('lente-tema'), 's:' + ATTR_('lente-strato')] }, { name: '<s data-ostile>V', tags: ['Musica'] }, null],
+    dl_combinazioni: { data: [null, null, null], names: ['Mappa ' + O_('preset'), 'Mappa 2', 'Mappa 3'] },
+    dl_citta: 'torino' + ATTR_('citta'), dl_mezzo: 'piedi' + ATTR_('mezzo'), dl_tema: 'light' + ATTR_('tema'), dl_semplice: ATTR_('semplice') };
 }
 /* Le risposte della ricerca degli indirizzi, con testi ostili in ogni proprietà. */
 function risposteRicerca() {
@@ -274,7 +274,7 @@ async function prova() {
     });
 
     /* ---------- L'area riservata: importazione, storico, Misure ---------- */
-    await sessione(Object.assign(memoriaOstile(), { agorapp_storico: STORICO(), agorapp_misure: misureOstili() }), {}, async ({ p, controlla, avvia, tocca }) => {
+    await sessione(Object.assign(memoriaOstile(), { red_storico: STORICO(), red_misure: misureOstili() }), {}, async ({ p, controlla, avvia, tocca }) => {
       const F = '#foglio-slot ';
       /* la password dell'area riservata sta ancora nel codice (scarto noto, T-033 e T-034): la prova la legge da lì */
       const m = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'sorgenti', 'parti', 'app1.js'), 'utf8').match(/ADMIN_PW = '([^']+)'/);

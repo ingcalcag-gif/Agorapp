@@ -9,7 +9,7 @@
    che tr() riempie da sé. Per cambiare nome o recapiti basta cambiare questo file e rimontare.
    Una prova automatica fallisce se il nome compare scritto altrove nei sorgenti.
 
-   Le chiavi interne della memoria del telefono (agorapp_…) non sono visibili e restano come sono.
+   Le chiavi della memoria del telefono non contengono il nome (sorgenti/moduli/memoria.js, T-026).
    I valori tra parentesi quadre sono segnaposto: l'app li mostra come testo, senza collegamento. */
 'use strict';
 

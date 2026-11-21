@@ -2,8 +2,10 @@
 
    1. Nei sorgenti (sorgenti/, tranne config.js e i testi .md) non c'è «agorapp», in nessuna forma.
    2. Nell'app montata con un altro nome («Nomeprova», solo in memoria) non resta «agorapp» da nessuna parte.
-   Sono ammesse soltanto le chiavi interne della memoria del telefono (agorapp_…), che non si vedono e
-   restano come sono (T-002). Ogni altro caso è un errore o uno scarto noto con la voce che lo chiude. */
+   Dal blocco 6 (T-026) le chiavi della memoria del telefono non contengono più il nome. Restano ammessi soltanto i
+   nomi che le chiavi avevano prima (agorapp_…), scritti una volta sola nel modulo della memoria
+   (sorgenti/moduli/memoria.js, montato in moduli.js), che li usa per traslocare i dati e per cancellare le chiavi delle
+   funzioni tolte. Ogni altro caso è un errore o uno scarto noto con la voce che lo chiude. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -12,13 +14,15 @@ const { monta, configurazione } = require('../sorgenti/build.js');
 const { fileLicenze } = require('../sorgenti/licenze.js');
 
 const NOME = /agorapp/gi;
-// Chiavi della memoria del telefono: agorapp_ seguito da un nome che non finisce con «_», oppure agorapp_* nei commenti.
-const CHIAVE = /^agorapp_(?:[a-z][a-z_]*[a-z]|[a-z]|\*)/i;
+// I nomi di prima delle chiavi della memoria del telefono, presi dal modulo: ammessi solo lì e in moduli.js.
+const MEMORIA = require('../sorgenti/moduli/memoria.js');
+const NOMI_DI_PRIMA = new Set(MEMORIA.ELENCO.map(v => v.prima).filter(Boolean).concat(MEMORIA.TOLTE.map(t => t.nome)));
+const DOVE_AMMESSI = /(^|\/)(sorgenti\/moduli\/memoria\.js|moduli\.js)$/;
 
 function cerca(testo, dove, trovati) {
   for (const m of testo.matchAll(NOME)) {
     const resto = testo.slice(m.index, m.index + 60);
-    if (CHIAVE.test(resto)) continue;
+    if (DOVE_AMMESSI.test(dove) && NOMI_DI_PRIMA.has(resto.match(/^[\w]*/)[0])) continue;
     const parola = (testo.slice(Math.max(0, m.index - 12), m.index).match(/[\w.$-]*$/)[0] + resto.match(/^[\w.$-]*/)[0]);
     trovati.push({ chiave: parola, dove, dettaglio: `riga ${riga(testo, m.index)}` });
   }

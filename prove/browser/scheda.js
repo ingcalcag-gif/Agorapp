@@ -65,7 +65,7 @@ async function prova() {
   const pw = playwright();
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const s = await server('pubblica');
-  const { browser, ctx } = await apri(pw, { agorapp_guida: '1', agorapp_layers: STRATI });
+  const { browser, ctx } = await apri(pw, { dl_guida: '1', dl_strati: STRATI });
   await archivio(ctx, EVENTI());
   try {
     const p = await ctx.newPage();
@@ -125,7 +125,7 @@ async function prova() {
       uguale('evento minimo', 'fonte', x.fonte, 'Fonte: Fonte inventata');
     }
     /* in un'altra lingua l'avviso non resta in italiano */
-    await p.evaluate(() => localStorage.setItem('agorapp_lang', 'en'));
+    await p.evaluate(() => localStorage.setItem('dl_lingua', 'en'));
     x = await scheda('schedacompleto');
     if (x) { uguale('inglese', 'avviso', x.avviso, TR.en[AVVISO]); uguale('inglese', 'etichetta dell\'organizzatore', x.organizzatoreEtichetta, TR.en.Organizza); uguale('inglese', 'etichetta del prezzo', x.prezzoEtichetta, TR.en['Prezzo indicato dalla fonte']); }
   } finally {
