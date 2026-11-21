@@ -148,9 +148,13 @@
           if (!v.prima) continue;
           const vecchio = prendi(v.prima);
           if (vecchio == null) continue;
-          /* se il nome nuovo c'è già vale quello; se manca lo spazio il nome vecchio resta, e si riprova al prossimo avvio */
-          if (prendi(v.nome) == null) { if (!metti(v.nome, vecchio)) continue; fatto.traslocate.push(v.nome); }
+          /* Se il nome nuovo c'è già vale quello. Altrimenti il nome di prima si toglie prima di scrivere quello nuovo:
+             così il trasloco non chiede spazio in più nemmeno su un telefono quasi pieno. Se la scrittura non riesce
+             lo stesso, il dato torna sotto il nome di prima e si riprova al prossimo avvio. */
           via(v.prima);
+          if (prendi(v.nome) != null) continue;
+          if (metti(v.nome, vecchio)) fatto.traslocate.push(v.nome);
+          else metti(v.prima, vecchio);
         } else if (v.dove === 'file' && cas) {
           /* i file si riscaricano: il nome vecchio si cancella e basta */
           for (const k of fuori ? [v.prima, v.nome] : [v.prima]) if (k) { try { Promise.resolve(cas.delete(k)).catch(() => {}); } catch (e) { /* niente da fare */ } }

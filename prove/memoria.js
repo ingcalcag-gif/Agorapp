@@ -118,13 +118,22 @@ function prova() {
     if (!uguali(oggetto(mem), { dl_lingua: 'es' })) err('trasloco: se il nome nuovo c\'è già deve valere quello, e il nome di prima sparire');
   }
   {  // senza spazio il nome di prima resta, e al prossimo avvio si riprova
-    let piena = true;
-    const mem = memoriaFinta({ agorapp_events: '[1]' }, () => piena);
+    let piena = true;   // non c'è posto per le chiavi nuove; ciò che c'era può tornare al suo posto
+    const mem = memoriaFinta({ agorapp_events: '[1]' }, k => piena && k.startsWith('dl_'));
     const A = M.crea({ redazione: true, memoria: mem, sessione: null, casse: null });
     if (A.avvia().traslocate.length || !uguali(oggetto(mem), { agorapp_events: '[1]' })) err('trasloco senza spazio: il dato di prima deve restare dov\'è');
     if (A.scrivi('dl_tema', 'dark') !== false) err('scrivi: senza spazio deve rispondere false');
     piena = false;
     if (!uguali(A.avvia().traslocate, ['dl_eventi']) || !uguali(oggetto(mem), { dl_eventi: '[1]' })) err('trasloco: tornato lo spazio, il dato deve traslocare');
+  }
+  {  // un telefono quasi pieno: il trasloco non occupa mai, nemmeno per un momento, più spazio di prima
+    const grande = 'x'.repeat(1000);
+    let massimo = 0;
+    const mem = memoriaFinta({ agorapp_events: grande });
+    const scrivi = mem.setItem;
+    mem.setItem = (k, v) => { scrivi(k, v); massimo = Math.max(massimo, [...mem.dati.values()].reduce((n, x) => n + x.length, 0)); };
+    M.crea({ redazione: true, memoria: mem, sessione: null, casse: null }).avvia();
+    if (mem.dati.get('dl_eventi') !== grande || massimo > grande.length) err('trasloco: su un telefono quasi pieno il dato deve passare al nome nuovo senza occupare spazio in più');
   }
   {  // un'app senza area riservata: le chiavi della Redazione si cancellano senza leggerle
     const red = M.ELENCO.filter(v => v.redazione);

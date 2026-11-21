@@ -76,7 +76,7 @@ Chiavi di funzioni che l'app non ha più. Se un telefono le ha ancora, all'avvio
 
 ## Il trasloco dei nomi
 
-All'avvio, prima di leggere qualunque cosa, il modulo guarda se il telefono ha dati sotto i nomi di prima. Se li ha, li copia sotto il nome nuovo così come sono e cancella il nome di prima; se il nome nuovo c'è già, vale quello. Se al telefono manca lo spazio per la copia, il dato resta sotto il nome di prima e il trasloco si riprova all'avvio successivo: nessun dato si perde. I file con il nome di prima si cancellano e basta, perché l'app li riscarica. Il modulo tocca soltanto le chiavi che conosce: sullo stesso indirizzo possono esserci dati di altre pagine (succede con l'indirizzo di prova), e restano dove sono.
+All'avvio, prima di leggere qualunque cosa, il modulo guarda se il telefono ha dati sotto i nomi di prima. Se li ha, li passa sotto il nome nuovo così come sono e cancella il nome di prima; se il nome nuovo c'è già, vale quello. Il nome di prima si toglie un attimo prima di scrivere quello nuovo, così il trasloco non chiede spazio in più nemmeno su un telefono quasi pieno; se la scrittura non riesce lo stesso, il dato torna sotto il nome di prima e il trasloco si riprova all'avvio successivo. I file con il nome di prima si cancellano e basta, perché l'app li riscarica. Il modulo tocca soltanto le chiavi che conosce: sullo stesso indirizzo possono esserci dati di altre pagine (succede con l'indirizzo di prova), e restano dove sono.
 
 ## Ciò che l'app non salva
 
