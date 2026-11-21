@@ -10,14 +10,13 @@
 const fs = require('fs');
 const path = require('path');
 const { RADICE, elencaFile, riga, esito, eseguiDaSola, confronta } = require('./comune.js');
-const { monta, configurazione } = require('../sorgenti/build.js');
-const { fileLicenze } = require('../sorgenti/licenze.js');
+const { configurazione, uscita: fileUscita } = require('../sorgenti/build.js');
 
 const NOME = /agorapp/gi;
 // I nomi di prima delle chiavi della memoria del telefono, presi dal modulo: ammessi solo lì e in moduli.js.
 const MEMORIA = require('../sorgenti/moduli/memoria.js');
 const NOMI_DI_PRIMA = new Set(MEMORIA.ELENCO.map(v => v.prima).filter(Boolean).concat(MEMORIA.TOLTE.map(t => t.nome)));
-const DOVE_AMMESSI = /(^|\/)(sorgenti\/moduli\/memoria\.js|moduli\.js)$/;
+const DOVE_AMMESSI = /(^|\/)(sorgenti\/moduli\/memoria\.js|moduli\.js|sw\.js)$/;
 
 function cerca(testo, dove, trovati) {
   for (const m of testo.matchAll(NOME)) {
@@ -37,7 +36,7 @@ function prova() {
   }
 
   const cfg = { ...configurazione(), nome: 'Nomeprova' };
-  const file = { ...monta(cfg), ...fileLicenze(cfg) };
+  const file = Object.fromEntries(Object.entries(fileUscita(cfg)).filter(([f, x]) => typeof x === 'string' && !f.startsWith('lib/')));
   const uscita = [];
   for (const [f, testo] of Object.entries(file)) cerca(testo, 'Nomeprova/' + f, uscita);
   confronta(e, 'nome', sorgenti.concat(uscita));

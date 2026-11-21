@@ -137,9 +137,9 @@ function correzioniMappa() {
 /* ---------- Ordine dei pezzi ---------- */
 // Moduli separati (QB-1), montati in moduli.js prima dell'app, nell'ordine in cui dipendono l'uno dall'altro:
 // testi come testo (T-024), memoria del telefono (T-026), formato degli eventi (T-020), quadranti (T-021), lettura
-// dell'archivio (T-022).
+// dell'archivio (T-022), mappa conservata sul telefono (T-029), avvisi delle novità (T-031).
 // Nel browser stanno in window.AGR_MODULI.
-const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'quadranti.js', 'archivio.js'];
+const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'quadranti.js', 'archivio.js', 'mappa-locale.js', 'avvisi.js'];
 // Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude).
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js',
   'misure_kpi.js', 'misure.js', 'storico.js', 'app6.js'];
@@ -176,13 +176,17 @@ function monta(cfg) {
 
   file['index.html'] = `<!DOCTYPE html>
 <!-- App montata da sorgenti/build.js: non modificare questo file, si cambia nei sorgenti. -->
-<html lang="it" data-theme="light">
+<html lang="it" data-theme="light" data-versione="@@VERSIONE@@">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFFDF8">
+<meta name="theme-color" content="${escH((cfg.aspetto || {}).colore_tema || '#FFFDF8')}">
 <meta name="referrer" content="no-referrer">
 <title>${escH(cfg.nome)} — Torino</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icone/icona-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="${escH(cfg.nome)}">
 <link rel="stylesheet" href="lib/caratteri/caratteri.css?v=${crypto.createHash('sha256').update(caratteri).digest('hex').slice(0, 10)}">
 <link rel="stylesheet" href="${escH(lib('maplibre-gl.css'))}">
 <link rel="stylesheet" href="app.css?v=${v('app.css')}">
@@ -207,6 +211,48 @@ ${legaliIt}
   return file;
 }
 
+/* ---------- App installabile e senza rete (T-028, T-029, T-031) ----------
+   A un'uscita completa (app, licenze, librerie) si aggiungono: le icone e il manifest, che rendono l'app installabile;
+   avvisi.json, il piccolo file degli avvisi delle novità; emergenza.json, l'interruttore d'emergenza; il numero di
+   versione, ricavato dal contenuto di tutti i file; e sw.js, il service worker, con l'elenco dei file dell'app e la
+   loro impronta. avvisi.json ed emergenza.json non stanno nella copia dell'app: il telefono li chiede sempre alla rete. */
+const ICONE = [180, 192, 512];
+const SEMPRE_DALLA_RETE = ['avvisi.json', 'emergenza.json', 'sw.js'];
+const impronta = dati => crypto.createHash('sha256').update(dati).digest('hex').slice(0, 10);
+const pigro = f => /^lib\/sheetjs-[^/]+\/.*\.js$/.test(f);   // serve solo all'area riservata: si conserva quando la si usa
+function completa(file, cfg) {
+  file = { ...file };
+  for (const n of ICONE) file[`icone/icona-${n}.png`] = fs.readFileSync(path.join(SORGENTI, 'icone', `icona-${n}.png`));
+  const a = cfg.aspetto || {};
+  file['manifest.webmanifest'] = JSON.stringify({
+    name: cfg.nome, short_name: cfg.nome, lang: 'it', start_url: './index.html', scope: './', display: 'standalone',
+    background_color: a.colore_sfondo || '#F5F0E8', theme_color: a.colore_tema || '#FFFDF8',
+    icons: [192, 512].map(n => ({ src: `icone/icona-${n}.png`, sizes: `${n}x${n}`, type: 'image/png', purpose: 'any maskable' })),
+  }, null, 1) + '\n';
+
+  const AVVISI = require('./moduli/avvisi.js'), avvisi = leggi(SORGENTI, 'testi', 'avvisi.json');
+  const sbagli = AVVISI.errori(JSON.parse(avvisi));
+  if (sbagli.length) throw new Error('sorgenti/testi/avvisi.json: ' + sbagli.join('; '));
+  file['avvisi.json'] = avvisi;
+  const emergenza = leggi(SORGENTI, 'emergenza.json'), em = JSON.parse(emergenza);
+  if (!em || !Array.isArray(em.scarta) || !em.scarta.every(v => typeof v === 'string')) throw new Error('sorgenti/emergenza.json: serve {"scarta": [versioni]}');
+  file['emergenza.json'] = emergenza;
+
+  if (!file['index.html'].includes('@@VERSIONE@@')) throw new Error('index.html: manca il posto del numero di versione');
+  const elenco = Object.keys(file).filter(f => !SEMPRE_DALLA_RETE.includes(f)).sort();
+  const versione = impronta(elenco.map(f => f + ' ' + impronta(file[f])).join('\n')).slice(0, 7);
+  file['index.html'] = file['index.html'].split('@@VERSIONE@@').join(versione);
+  const copia = Object.fromEntries(elenco.map(f => [f, impronta(file[f])]));
+
+  let sw = leggi(SORGENTI, 'sw.js');
+  for (const k of ['VERSIONE', 'COPIA', 'PIGRI']) if (!sw.includes('/*@@' + k + '@@*/')) throw new Error('sw.js: manca il segnaposto ' + k);
+  sw = sw.replace("/*@@VERSIONE@@*/''", () => JSON.stringify(versione)).replace('/*@@COPIA@@*/{}', () => JSON.stringify(copia)).replace('/*@@PIGRI@@*/[]', () => JSON.stringify(elenco.filter(pigro)));
+  file['sw.js'] = '/* Service worker montato da sorgenti/build.js (sorgenti/moduli/memoria.js e sorgenti/sw.js): non modificare qui. */\n' + leggi(MODULI, 'memoria.js') + '\n' + sw;
+  return file;
+}
+// Tutti i file di un'uscita, come {percorso: testo o Buffer}.
+function uscita(cfg) { return completa({ ...monta(cfg), ...fileLicenze(cfg), ...fileVendor() }, cfg); }
+
 /* ---------- Scrittura delle uscite ---------- */
 function scrivi(cartella, file) {
   const dentro = path.relative(RADICE, cartella);
@@ -229,7 +275,7 @@ function controllaSintassi(cartella) {
 function main() {
   const base = path.resolve(RADICE, typeof opz.uscita === 'string' ? opz.uscita : 'dist');
   const cfg = configurazione();
-  const file = { ...monta(cfg), ...fileLicenze(cfg), ...fileVendor() };
+  const file = uscita(cfg);
   const uscite = opz.solo === 'pubblica' ? ['pubblica'] : ['pubblica', 'redazione'];
   for (const u of uscite) {
     const c = path.join(base, u);
@@ -243,4 +289,4 @@ function main() {
 if (require.main === module) {
   try { main(); } catch (e) { console.error(e.message); process.exit(1); }
 }
-module.exports = { monta, configurazione, riempi, fileVendor };
+module.exports = { monta, configurazione, riempi, fileVendor, completa, uscita, SEMPRE_DALLA_RETE };

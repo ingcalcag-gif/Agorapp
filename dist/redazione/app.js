@@ -20,6 +20,8 @@ const CFG = window.AGR_CONFIG || {};
 const NOME = CFG.nome || '';
 const CASELLA = (CFG.caselle || {}).contatto || '';
 const segnaposto = s => /^\[.*\]$/.test(String(s || ''));
+/* numero di versione dell'app montata (T-029): lo scrive il montaggio nella pagina */
+const VERSIONE = document.documentElement.getAttribute('data-versione') || '';
 /* nome dei file scaricati: il nome del servizio in minuscolo, senza spazi né accenti */
 const nomeFile = () => NOME.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app';
 /* la casella di contatto: un collegamento se esiste, il segnaposto come testo finché non esiste */
@@ -349,6 +351,9 @@ const cittaObj = () => CITTA.find(x => x.id===citta) || CITTA[0];
    Lì il piccolo file mappa.json dice quale file usare (T-019). Il file unico .pmtiles si legge a pezzi; se il server non lo
    consente, si passa da sé alla cartella di tasselli. Stili, icone e caratteri della mappa viaggiano con l'app, in lib/
    (percorsi in MAPPA_LIB, scritti dal montaggio da sorgenti/vendor/elenco.js).
+   Senza rete (T-029; § 2.2 e § 3.7): ogni tassello disegnato si conserva sul telefono, fino a 50 MB, e accanto sta la copia
+   di mappa.json (sorgenti/moduli/mappa-locale.js). Per questo i tasselli passano da un protocollo dell'app, «agrmappa»,
+   che guarda prima sul telefono e poi scarica, dal file unico o dalla cartella.
    I numeri civici si vedono solo mentre si sceglie un punto sulla mappa (decisione di Lorenzo del 19/11/2026). */
 const MAPPA_LIB = Object.fromEntries(Object.entries({"stili":"lib/protomaps-basemaps-5.7.2/","icone":"lib/protomaps-icone-v4/","glifi":"lib/caratteri-mappa/dm-sans-v17/"}).map(([k, v]) => [k, new URL(v, location.href).href]));
 const MAPPA_DOVE = (() => {
@@ -360,28 +365,65 @@ const MAPPA_DOVE = (() => {
 })();
 const temaAttuale = () => document.documentElement.getAttribute('data-theme')==='dark' ? 'dark' : 'light';
 let map = null, mappaOk = false;
-const MAPPA = {indice:null, fonte:'file', fileOk:false, pmtiles:false, stili:{}, tema:null};
+const MAPPA = {indice:null, fonte:'file', fileOk:false, file:null, protocollo:false, stili:{}, tema:null};
+const MAPPA_LOCALE = MODULI.mappaLocale && MAPPA_DOVE ? MODULI.mappaLocale.crea({casse:MEM.file, nomeCassa:'dl_mappa', dove:MAPPA_DOVE}) : null;
 const FONDO_MAPPA = {light:'#ECE6D9', dark:'#1C1915'};
 function stileVuoto(t){ return {version:8, sources:{}, layers:[{id:'sfondo', type:'background', paint:{'background-color':FONDO_MAPPA[t]}}]}; }
-function preparaPmtiles(){
-  if(MAPPA.pmtiles || !window.pmtiles) return;
-  try{ maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile); MAPPA.pmtiles = true; }catch(e){}
+/* Un tassello dalla rete: dal file unico, letto a pezzi; se il server non lo consente (e dal file non è mai arrivato
+   nulla) si passa alla cartella di tasselli. Un errore di rete non fa cambiare strada: senza rete si aspetta. */
+async function scaricaTassello(z, x, y, segnale){
+  const i = MAPPA.indice;
+  if(MAPPA.fonte==='file' && !window.pmtiles) MAPPA.fonte = 'tasselli';
+  if(MAPPA.fonte==='file'){
+    try{
+      MAPPA.file = MAPPA.file || new pmtiles.PMTiles(MAPPA_DOVE+i.file);
+      const r = await MAPPA.file.getZxy(z, x, y, segnale); MAPPA.fileOk = true;
+      return r && r.data ? r.data : null;
+    }catch(e){
+      if(MAPPA.fileOk || e instanceof TypeError || (e && e.name==='AbortError') || navigator.onLine===false) throw e;
+      MAPPA.fonte = 'tasselli';
+    }
+  }
+  const r = await fetch(MAPPA_DOVE+i.tasselli+z+'/'+x+'/'+y+'.pbf', {credentials:'omit', signal:segnale});
+  if(r.status===404) return null;
+  if(!r.ok) throw new Error('tassello '+r.status);
+  return r.arrayBuffer();
 }
+function preparaProtocollo(){
+  if(MAPPA.protocollo) return;
+  try{
+    maplibregl.addProtocol('agrmappa', async (richiesta, annulla) => {
+      const m = /^agrmappa:\/\/t\/(\d+)\/(\d+)\/(\d+)$/.exec(richiesta.url); if(!m) throw new Error('tassello sconosciuto');
+      const z = +m[1], x = +m[2], y = +m[3], scarica = () => scaricaTassello(z, x, y, annulla && annulla.signal);
+      const dati = MAPPA_LOCALE ? await MAPPA_LOCALE.tassello(versioneMappa(), z, x, y, scarica) : await scarica();
+      return {data: dati || new ArrayBuffer(0)};
+    });
+    MAPPA.protocollo = true;
+  }catch(e){}
+}
+const versioneMappa = () => String((MAPPA.indice||{}).versione || (MAPPA.indice||{}).file || '0');
 /* mappa.json: {versione, file: "<nome>.pmtiles", tasselli: "<cartella>/", zoom_max, riquadro: [ovest, sud, est, nord]} */
+const indiceValido = j => j && /^[\w.-]+\.pmtiles$/.test(j.file||'') && /^[\w.-]+\/$/.test(j.tasselli||'');
 async function indiceMappa(){
   if(MAPPA.indice) return MAPPA.indice;
   if(!MAPPA_DOVE) throw new Error('indirizzo della mappa mancante');
-  const r = await fetch(MAPPA_DOVE+'mappa.json', {cache:'no-cache', credentials:'omit'});
-  if(!r.ok) throw new Error('mappa.json '+r.status);
-  const j = await r.json();
-  if(!/^[\w.-]+\.pmtiles$/.test(j.file||'') || !/^[\w.-]+\/$/.test(j.tasselli||'')) throw new Error('mappa.json non valido');
+  let testo = null;
+  try{ const r = await fetch(MAPPA_DOVE+'mappa.json', {cache:'no-cache', credentials:'omit'}); if(r.ok) testo = await r.text(); }catch(e){}
+  let j = null; try{ j = testo && JSON.parse(testo); }catch(e){}
+  if(indiceValido(j)){
+    MAPPA.indice = j;
+    /* la copia per l'uso senza rete; i tasselli di una versione precedente della mappa si tolgono */
+    if(MAPPA_LOCALE) MAPPA_LOCALE.ricorda(testo).then(() => MAPPA_LOCALE.soloVersione(versioneMappa())).catch(() => {});
+    return j;
+  }
+  /* senza rete: l'indice che il telefono conserva */
+  try{ j = MAPPA_LOCALE && JSON.parse(await MAPPA_LOCALE.ricordato()); }catch(e){ j = null; }
+  if(!indiceValido(j)) throw new Error('mappa.json non disponibile');
   return MAPPA.indice = j;
 }
 function fonteMappa(){
   const i = MAPPA.indice;
-  if(MAPPA.fonte==='file' && MAPPA.pmtiles) return {type:'vector', url:'pmtiles://'+MAPPA_DOVE+i.file};
-  MAPPA.fonte = 'tasselli';
-  const f = {type:'vector', tiles:[MAPPA_DOVE+i.tasselli+'{z}/{x}/{y}.pbf'], minzoom:0, maxzoom:i.zoom_max||15};
+  const f = {type:'vector', tiles:['agrmappa://t/{z}/{x}/{y}'], minzoom:0, maxzoom:i.zoom_max||15};
   if(Array.isArray(i.riquadro) && i.riquadro.length===4) f.bounds = i.riquadro;
   return f;
 }
@@ -441,7 +483,7 @@ function avvisoCorrezioni(){
 async function caricaMappa(){
   if(!map) return;
   try{
-    await Promise.all([indiceMappa(), caricaCorrezioni()]); preparaPmtiles();
+    await Promise.all([indiceMappa(), caricaCorrezioni()]); preparaProtocollo();
     const t = temaAttuale(), livelli = await stileMappa(t);
     MAPPA.tema = t;
     map.setStyle({version:8, glyphs:MAPPA_LIB.glifi+'{fontstack}/{range}.pbf', sprite:MAPPA_LIB.icone+(t==='dark'?'dark':'light'),
@@ -574,12 +616,7 @@ function initMappa(){
   /* Anche senza file della mappa (indirizzo vuoto, rete assente) il fondo regge segnaposto e livelli dell'app;
      quando arriva lo stile vero, style.load li rimette. */
   map.on('style.load', () => { if(map.getSource('protomaps')) aggiungiCorrezioni(); aggiungiLivelli(); mappaOk = true; civiciMappa(); tingiMappa(); disegnaPins(); });
-  map.on('sourcedata', ev => { if(ev && ev.sourceId==='protomaps' && ev.tile && MAPPA.fonte==='file') MAPPA.fileOk = true; });
-  map.on('error', ev => {
-    /* il file unico non si legge a pezzi su questo server: si passa alla cartella di tasselli,
-       solo se dal file non è mai arrivato un tassello (un errore di rete dopo non basta) */
-    if(MAPPA.fonte==='file' && !MAPPA.fileOk && ev && ev.sourceId==='protomaps'){ MAPPA.fonte = 'tasselli'; caricaMappa(); }
-  });
+  map.on('error', () => {});   /* un tassello che non arriva (senza rete, fuori dalla mappa) non è un errore da mostrare */
   caricaMappa();
   map.once('load', programmaZona);
   map.on('movestart', () => { $('app').classList.add('muove'); annullaLungo(); clearTimeout(zonaT); });
@@ -843,7 +880,7 @@ function disegnaFoglio(){
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
     scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, aform:fAdminForm, conferma:fConferma,
-    impostazioni:fImpostazioni, legale:fLegale, citta:fCitta, admin:fAdmin, importa:fImporta, temi:fTemi,
+    impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, admin:fAdmin, importa:fImporta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
   };
   const fn = F[st.foglio]; if(!fn){ st.foglio = null; slot.innerHTML = ''; return; }
@@ -1517,7 +1554,7 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Aspetto')}</div><div class="seg" role="group"><button data-tema-set="light" aria-pressed="${!scuro}">${tr('Chiaro')}</button><button data-tema-set="dark" aria-pressed="${scuro}">${tr('Scuro')}</button></div>
       <button class="riga-int" data-az="semplice" aria-pressed="${st.semplice}"><div><span class="t">${tr('Modalità semplice')}</span><span class="meta">${tr('Testi più grandi e meno comandi: niente sottocategorie e combinazioni.')}</span></div><span class="interr" aria-hidden="true"></span></button></section>
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
-    <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
+    <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button><button class="menu-r" data-az="senza-rete">${icoNote}<div><span class="t">${tr('Senza connessione')}</span><span class="meta">${tr('Cosa funziona senza rete e come aggiungere l’app alla schermata Home')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
       <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Quali dati, perché, i tuoi diritti')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
@@ -1527,8 +1564,54 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Area riservata')}</div>
       ${st.admin ? `<button class="riga-int" data-az="admin"><div><span class="t">${tr('Sei in modalità admin')}</span><span class="meta">${tr('Eventi on-grid, importa ed esporta in Excel, esci')}</span></div>${freccia}</button>`
         : st.adminPw ? `<div style="display:flex;gap:8px"><label class="campo${st.adminErr?' errore':''}" style="flex:1"><input id="adminpw" type="password" placeholder="${esc(tr('Password admin'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="entra-admin">${tr('Entra')}</button></div>${st.adminErr?`<span class="err">${tr('Password non riconosciuta.')}</span>`:''}`
-        : `<button class="link" data-az="mostra-admin">${tr('Accesso admin')}</button>`}</section>`;
+        : `<button class="link" data-az="mostra-admin">${tr('Accesso admin')}</button>`}</section>
+    ${VERSIONE ? `<p class="meta" id="versione-app">${tr('Versione {v}',{v:esc(VERSIONE)})}</p>` : ''}`;
   return foglio('forte alto', testa, corpo);
+}
+/* ---------- «Senza connessione» (T-030) e invito alla schermata Home (T-028) ----------
+   Il testo è quello del documento di architettura (cap. 7, «Senza rete: come lo spieghiamo agli utenti»); l'avvertenza
+   per iPhone ha la forma prudente del libro mastro (§ 30.1, scelta 5, e § 30.2). Da qui si apre la scheda «Dati locali».
+   L'invito è discreto: sta qui e nell'ultimo cartellino della guida; nessuno conta chi aggiunge l'app. */
+let invitoInstalla = null;
+window.addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); invitoInstalla = ev; if(st.foglio==='senzarete') disegnaFoglio(); });
+window.addEventListener('appinstalled', () => { invitoInstalla = null; if(st.foglio==='senzarete') disegnaFoglio(); });
+function fSenzaRete(){
+  const testa = `<div class="riga-titolo"><h2>${tr('{nome} senza connessione')}</h2>${chiudiBtn('indietro-impostazioni')}</div>`;
+  const corpo = `<div class="legale">
+      <p>${tr('{nome} funziona anche senza rete. Gli eventi delle zone che hai già aperto restano consultabili, e la mappa delle zone che hai già guardato si vede anche offline (c’è spazio per circa un’intera città).')}</p>
+      <p>${tr('Il tuo calendario e i tuoi eventi Off-Grid ci sono sempre, perché vivono sul tuo telefono.')}</p>
+      <p>${tr('Senza rete non vedi gli eventi nuovi o le modifiche dell’ultimo momento, e non puoi cercare un indirizzo. Appena torni online l’app si aggiorna da sola.')}</p>
+      <h3>${tr('Aggiungi {nome} alla schermata Home')}</h3>
+      <p>${tr('Così si apre come un’app, anche senza rete.')}</p>
+      <p>${tr('Su iPhone: se non aggiungi {nome} alla schermata Home, il telefono può cancellare i dati che l’app conserva quando non la apri per alcuni giorni. Per conservarli, apri {nome} in Safari, tocca Condividi e poi «Aggiungi alla schermata Home».')}</p>
+      <p>${tr('Su Android: apri il menu del browser e scegli «Installa app» oppure «Aggiungi a schermata Home».')}</p>
+      ${invitoInstalla ? `<button class="tasto pri" data-az="installa">${tr('Installa')}</button>` : ''}
+    </div>
+    <div class="menu-lista"><button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali: cosa resta su questo telefono')}</span></div>${freccia}</button></div>`;
+  return foglio('forte alto', testa, corpo);
+}
+/* ---------- Avvisi delle novità (T-031; sorgenti/moduli/avvisi.js) ----------
+   All'apertura l'app legge avvisi.json, pubblicato con l'app: se c'è un avviso di questi giorni che il telefono non ha
+   ancora visto, lo mostra in basso, senza coprire l'app. «Leggi» apre il testo, «Ho capito» lo chiude: in tutti e due i
+   casi il telefono ricorda di averlo visto (chiave dl_avvisi). Non è un banner di consenso: non chiede nulla. */
+const NOVITA = {file:null, avviso:null};
+function cercaNovita(){
+  if(!MODULI.avvisi || !window.fetch) return;
+  fetch('avvisi.json', {cache:'no-cache', credentials:'omit'}).then(r => r.ok ? r.json() : null).then(j => { NOVITA.file = j; mostraNovita(); }).catch(() => {});
+}
+function mostraNovita(){
+  const slot = $('novita-slot'); if(!slot) return;
+  const a = NOVITA.avviso = NOVITA.file && st.guida==null ? MODULI.avvisi.daMostrare(NOVITA.file, {oggi:oggi(), visti:MEM.leggi('dl_avvisi', []), lingua:lang}) : null;
+  if(!a){ slot.innerHTML = ''; return; }
+  const titolo = a.tipo==='violazione' ? tr('Comunicazione sui dati') : tr('Novità nei testi');
+  slot.innerHTML = `<div class="novita vetro" role="region" aria-label="${esc(titolo)}"><div class="eyebrow">${esc(titolo)}</div><p lang="${esc(a.lingua)}">${esc(a.testo)}</p>
+    <div class="tasti">${a.apre && $('leg-'+a.apre) ? `<button class="tasto sec" data-az="novita-leggi">${tr('Leggi')}</button>` : ''}<button class="tasto pri" data-az="novita-ok">${tr('Ho capito')}</button></div></div>`;
+}
+function novitaVista(apri_){
+  const a = NOVITA.avviso; if(!a) return;
+  MEM.scrivi('dl_avvisi', MODULI.avvisi.conVisto(NOVITA.file, MEM.leggi('dl_avvisi', []), a.id));
+  mostraNovita();
+  if(apri_ && a.apre && $('leg-'+a.apre)){ st.legale = a.apre; apri('legale'); }
 }
 function fLegale(){
   const T = {privacy:tr('Informativa privacy'), storage:tr('Dati locali'), disclaimer:tr('Note legali')};
@@ -1817,7 +1900,8 @@ function salvaAdmin(){
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
-  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'}
+  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'},
+  {t:tr('Anche senza rete'), d:tr('Aggiungi {nome} alla schermata Home: si apre come un’app e funziona anche senza connessione. Come fare è scritto in Impostazioni, alla voce «Senza connessione».'), el:'btnImpo'}
 ];
 /* ombra su tutto tranne la parte di cui parla il cartellino: un buco con un'ombra enorme intorno */
 function ombraGuida(){
@@ -1912,7 +1996,7 @@ function testiFissi(){
   avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
-function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }
+function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); mostraNovita(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }
 
 
 /* ======================= Temi: ovali Strati e Temi trasversali, lenti dell'app e tre lenti tue (passo 2) ======================= */
@@ -2902,7 +2986,11 @@ $('app').addEventListener('click', ev => {
     case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;
-    case 'guida-salta': st.guida = null; disegnaGuida(); MEM.scrivi('dl_guida','1'); posizioni(); break;
+    case 'guida-salta': st.guida = null; disegnaGuida(); MEM.scrivi('dl_guida','1'); posizioni(); mostraNovita(); break;
+    case 'senza-rete': apri('senzarete'); break;
+    case 'installa': if(invitoInstalla){ const inv = invitoInstalla; invitoInstalla = null; try{ inv.prompt(); }catch(e){} disegnaFoglio(); } break;
+    case 'novita-ok': novitaVista(false); break;
+    case 'novita-leggi': novitaVista(true); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
     case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
@@ -2984,6 +3072,28 @@ document.addEventListener('keydown', ev => { if(ev.key==='Escape'){
   if(st.guida!=null){ st.guida = null; disegnaGuida(); } else if(st.posa){ finePosa(false); } else if(st.foglio) chiudi(); } });
 window.addEventListener('resize', () => { if(map) map.resize(); });
 
+/* ======================= La copia dell'app per l'uso senza rete (T-029) =======================
+   Il service worker (sorgenti/sw.js) conserva la copia dell'app e la consegna anche senza rete. Prima di avviarlo si legge
+   il piccolo file d'emergenza: se dice di scartare questa versione, il service worker non parte e quello che c'è si toglie. */
+/* Una versione nuova si prepara in silenzio e prende il posto di quella di prima mentre la pagina è ancora aperta: la pagina
+   aperta resta com'è, e si ricarica da sé solo quando non disturba, cioè quando l'app non è in vista e la persona non ha
+   nulla di aperto (un foglio, un modulo, la guida). Altrimenti la versione nuova si vede alla prossima apertura. */
+let versioneNuovaPronta = false;
+function ricaricaSeNonDisturba(){
+  if(versioneNuovaPronta && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa') location.reload();
+}
+function avviaCopia(){
+  if(!('serviceWorker' in navigator) || !window.isSecureContext || !VERSIONE) return;
+  let servita = !!navigator.serviceWorker.controller;   /* alla prima apertura il service worker arriva a pagina aperta: non è una versione nuova */
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if(servita){ versioneNuovaPronta = true; ricaricaSeNonDisturba(); } servita = true; });
+  document.addEventListener('visibilitychange', ricaricaSeNonDisturba);
+  fetch('emergenza.json', {cache:'no-store', credentials:'omit'}).then(r => r.ok ? r.json() : null).catch(() => null).then(j => {
+    const via = j && Array.isArray(j.scarta) && (j.scarta.includes(VERSIONE) || j.scarta.includes('*'));
+    if(via) return navigator.serviceWorker.getRegistration().then(r => r && r.unregister());
+    return navigator.serviceWorker.register('sw.js');
+  }).catch(() => {});
+}
+
 /* ======================= Avvio ======================= */
 (function avvio(){
   const tema = MEM.testo('dl_tema', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
@@ -2994,10 +3104,11 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   st.cal.giorno = oggi();
   initMappa(); avviaArchivio(); tutto();
   if(MEM.testo('dl_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
+  cercaNovita(); avviaCopia();
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),
-    tr, dloc, lingua:() => lang,
+    tr, dloc, lingua:() => lang, versione:VERSIONE, mappa:() => ({fonte:MAPPA.fonte, sulTelefono:MAPPA_LOCALE ? MAPPA_LOCALE.stato() : Promise.resolve(null)}),
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },
     chiudi(){ chiudi(); },

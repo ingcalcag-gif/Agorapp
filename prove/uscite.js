@@ -5,8 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { RADICE, leggiUscita, esito, eseguiDaSola } = require('./comune.js');
-const { monta, configurazione, fileVendor } = require('../sorgenti/build.js');
-const { fileLicenze } = require('../sorgenti/licenze.js');
+const { configurazione, uscita } = require('../sorgenti/build.js');
 
 function confrontaUscita(e, nome, atteso) {
   const reale = leggiUscita(nome);
@@ -21,13 +20,12 @@ function confrontaUscita(e, nome, atteso) {
 function prova() {
   const e = esito('Uscite e pubblicazione');
   const cfg = configurazione();
-  const vendor = fileVendor();
-  const file = { ...monta(cfg), ...fileLicenze(cfg), ...vendor };
+  const file = uscita(cfg);
   confrontaUscita(e, 'pubblica', file);
   confrontaUscita(e, 'redazione', file);
   if (fs.existsSync(path.join(RADICE, 'dist', 'prova-nome'))) {
     const c2 = { ...cfg, nome: 'Nomeprova' };
-    confrontaUscita(e, 'prova-nome/pubblica', { ...monta(c2), ...fileLicenze(c2), ...vendor });
+    confrontaUscita(e, 'prova-nome/pubblica', uscita(c2));
   }
 
   // Nessuna copia dell'app fuori da dist/: il vecchio index.html alla radice è uscito il 17/11/2026.

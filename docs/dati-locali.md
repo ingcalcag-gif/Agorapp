@@ -1,6 +1,6 @@
 # Dati locali: che cosa l'app salva sul telefono
 
-Voce T-026 del piano di adeguamento; libro mastro, § 3.7 («Dati salvati sul telefono»), cap. 30 (scheda «Dati locali»), § 2.5 (principio 4) e § 4.1. Stato al 21/11/2026, blocco 6.
+Voce T-026 del piano di adeguamento; libro mastro, § 3.7 («Dati salvati sul telefono»), cap. 30 (scheda «Dati locali»), § 2.5 (principio 4) e § 4.1. Stato al 21/11/2026, blocco 7.
 
 Il libro mastro chiede che l'app salvi sul telefono soltanto ciò che serve al servizio chiesto dalla persona e che tutto ciò che salva sia descritto, riga per riga, nella scheda «Dati locali»: una riga in più o in meno è uno scarto da correggere prima del rilascio (§ 30.1, scelta 2). Questo documento è l'inventario tecnico che sta dietro la scheda: dice quali chiavi esistono, in quale riga della scheda rientrano e come si controlla che non ce ne siano altre.
 
@@ -34,6 +34,9 @@ Le chiavi dell'app pubblica. «Memoria» è la memoria del browser a coppie chia
 | `dl_combinazioni` | memoria | Le tue preferenze e scelte | Le combinazioni di strati salvate, «Mappa 1, 2, 3» (QB-5) | Quando la persona salva una combinazione | Finché la persona non le cambia |
 | `dl_lenti` | memoria | Le tue preferenze e scelte | Le tre lenti dei Temi salvate dalla persona, con il nome che ha dato (QB-5) | Quando la persona salva o toglie una lente | Finché la persona non le cambia |
 | `dl_guida` | memoria | Le tue preferenze e scelte | La guida iniziale è già stata vista (QB-5) | Quando la persona chiude la guida | Sempre: serve a non riproporla a ogni apertura |
+| `dl_avvisi` | memoria | Le tue preferenze e scelte | Gli identificativi degli avvisi delle novità già visti (T-031; QB-5) | Quando la persona chiude un avviso o ne apre il testo | Finché il file degli avvisi nomina ancora l'avviso |
+| `dl_app` | file | L'app | La copia dei file dell'app, per aprirla senza rete; la scrive il service worker (T-029) | Alla prima apertura e a ogni versione nuova | Fino alla versione successiva, che la sostituisce |
+| `dl_mappa` | file | La mappa delle zone che hai guardato | I tasselli della mappa disegnati, uno per uno, e la copia del piccolo indice della mappa (T-029) | Quando l'app disegna un tassello che non aveva | Fino a 50 MB, poi i più vecchi lasciano posto ai nuovi; a ogni versione nuova della mappa i tasselli di prima si cancellano |
 | `dl_archivio` | file | Gli eventi delle zone che hai aperto | L'indice dell'archivio e i file dei quadranti scaricati per le zone consultate (T-022) | Quando la mappa si ferma su una zona e a ogni controllo delle novità | Un file si cancella quando l'indice non lo nomina più; gli eventi finiti da più di tre ore l'app non li mostra |
 
 Fino ai blocchi 8-10 `dl_eventi` contiene anche gli eventi creati o importati dall'area riservata, che non vanno sulla mappa (piano, criterio d'ordine 6): passeranno all'app della redazione.
@@ -42,13 +45,10 @@ Prima del blocco 6 le chiavi portavano il nome del servizio. I nomi di prima son
 
 ## Righe della scheda che l'app non scrive ancora
 
-La scheda (§ 30.2) ha sette righe. Quattro sono già nell'elenco; le altre arrivano con le voci indicate, che aggiungono la chiave all'elenco quando la funzione nasce.
+La scheda (§ 30.2) ha sette righe. Sei sono nell'elenco; l'ultima arriva con la voce indicata, che aggiunge la chiave all'elenco quando la funzione nasce.
 
 | Riga della scheda | Voce | Stato |
 | --- | --- | --- |
-| L'app | T-029 | La copia dell'app per l'uso senza rete nasce con il service worker |
-| La mappa delle zone che hai guardato | T-029 | La mappa non si conserva ancora sul telefono |
-| Le tue preferenze e scelte: avvisi già visti | T-031 | L'avviso delle novità legali non c'è ancora |
 | Gli eventi nascosti che hai sbloccato | T-046 | Oggi lo sblocco vale finché l'app resta aperta e non si salva |
 
 ## Strumenti della Redazione
@@ -86,14 +86,15 @@ All'avvio, prima di leggere qualunque cosa, il modulo guarda se il telefono ha d
 - Tutto ciò che si fa nelle sezioni Demo, Agorà e Progetti (T-015; prova `prove/browser/anteprime.js`).
 - Il PDF del calendario: si crea sul telefono e passa al foglio di condivisione del telefono, oppure si scarica; l'app non ne tiene copia (T-027; prova `prove/browser/offgrid.js`).
 - Le librerie di terzi (MapLibre, lettore PMTiles, jsPDF, SheetJS) non salvano nulla: lo mostra l'inventario del telefono dopo il giro completo.
+- Chi aggiunge l'app alla schermata Home: nessuno lo conta e l'app non lo annota (T-028).
 
 ## Esito per il libro mastro (§ 3.7 e cap. 30)
 
 La verifica chiesta dal § 30.3 («che la tabella corrisponda a ciò che l'app salva davvero») dà oggi questo esito, sul ramo del blocco 6.
 
-- Le righe «I tuoi eventi Off-Grid», «Il tuo calendario» e «Gli eventi delle zone che hai aperto» corrispondono a ciò che l'app salva.
-- La riga delle preferenze va aggiornata, nel § 3.7 e nel § 30.2, come deciso con QB-5: l'app salva tema, lingua, città, strati visibili e combinazioni, lenti, Modalità semplice, mezzo della giornata e guida già vista; gli avvisi già visti arriveranno con T-031.
-- Le righe «L'app», «La mappa delle zone che hai guardato» e «Gli eventi nascosti che hai sbloccato» descrivono funzioni non ancora costruite (T-029, T-046): fino ad allora l'app salva meno di ciò che la scheda dice.
+- Le righe «L'app», «Gli eventi delle zone che hai aperto», «La mappa delle zone che hai guardato», «I tuoi eventi Off-Grid» e «Il tuo calendario» corrispondono a ciò che l'app salva (le prime tre dal blocco 7, T-029).
+- La riga delle preferenze va aggiornata, nel § 3.7 e nel § 30.2, come deciso con QB-5: l'app salva tema, lingua, città, strati visibili e combinazioni, lenti, Modalità semplice, mezzo della giornata, guida già vista e avvisi delle novità già visti (T-031).
+- La riga «Gli eventi nascosti che hai sbloccato» descrive una funzione non ancora costruita (T-046): fino ad allora l'app salva meno di ciò che la scheda dice.
 - Il testo di riferimento nomina, tra parentesi, tre strumenti (localStorage, IndexedDB e Cache Storage): oggi l'app usa il primo e il terzo.
 - Gli Off-Grid restano 92 giorni dopo la fine («tre mesi» nella scheda).
 - Fino al blocco 8 il telefono di chi entra nell'area riservata dall'app pubblica contiene anche le due chiavi della Redazione.

@@ -18,18 +18,27 @@ function playwright() {
   try { return require('playwright'); } catch (e) { return null; }
 }
 
-const TIPI = { '.geojson': 'application/geo+json', '.pbf': 'application/x-protobuf', '.pmtiles': 'application/octet-stream', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+const TIPI = { '.webmanifest': 'application/manifest+json', '.geojson': 'application/geo+json', '.pbf': 'application/x-protobuf', '.pmtiles': 'application/octet-stream', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
 /* Server statico con la stessa disposizione del repository che githack serve: l'app sta in /dist/<uscita>/, la mappa di
    prova di Torino in /mappa/prova/ (T-017) e l'archivio di prova degli eventi in /prova/archivio/ (T-021), dove l'app li
    cerca. Nient'altro del repository è raggiungibile.
    Come githack in molti casi, non accetta le richieste a pezzi: l'app deve passare da sé alla cartella di tasselli. */
-function server(uscita = 'pubblica') {
+function server(uscita = 'pubblica', opzioni = {}) {
   const radici = [['/dist/' + uscita + '/', path.join(DIST, uscita)], ['/mappa/prova/', path.join(RADICE, 'mappa', 'prova')],
     ['/prova/archivio/', path.join(RADICE, 'prova', 'archivio')]];
+  /* opzioni.file: una funzione che dà i file dell'app come {percorso: testo o Buffer}, al posto di quelli di dist/: serve
+     alle prove che cambiano versione dell'app o un suo file (service worker, T-029). Le intestazioni sono quelle di un
+     server vero: i file si possono tenere, ma vanno ricontrollati. */
   const s = http.createServer((req, res) => {
     const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (opzioni.file && u.startsWith(radici[0][0])) {
+      const k = u.slice(radici[0][0].length) || 'index.html', dati = opzioni.file()[k];
+      if (dati == null) { res.writeHead(404); res.end('non trovato'); return; }
+      res.writeHead(200, { 'content-type': TIPI[path.extname(k)] || 'application/octet-stream', 'cache-control': 'no-cache' });
+      res.end(dati); return;
+    }
     const r = radici.find(([pre]) => u.startsWith(pre));
     let f = r && path.normalize(path.join(r[1], u.slice(r[0].length) || 'index.html'));
     if (f && u.endsWith('/')) f = path.join(f, 'index.html');
@@ -45,7 +54,9 @@ function server(uscita = 'pubblica') {
 async function apri(pw, memoria = {}, opzioni = {}) {
   // WebGL in software (SwiftShader): dal blocco 3 la mappa si disegna davvero anche nelle prove.
   const browser = await pw.chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] });
-  const ctx = await browser.newContext(Object.assign({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'it-IT', timezoneId: 'Europe/Rome' }, opzioni));
+  /* Il service worker (T-029) resta spento, salvo nelle prove che lo provano (serviceWorkers: 'allow'): con il service
+     worker acceso le risposte finte di una prova (archivio, ricerca degli indirizzi) potrebbero non arrivare alla pagina. */
+  const ctx = await browser.newContext(Object.assign({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'it-IT', timezoneId: 'Europe/Rome', serviceWorkers: 'block' }, opzioni));
   await ctx.route(r => !/^https?:\/\/127\.0\.0\.1(:\d+)?\//.test(r.href), r => r.abort());
   await ctx.addInitScript(m => {
     if (sessionStorage.getItem('prova-seminata')) return;

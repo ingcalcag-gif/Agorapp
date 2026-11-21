@@ -81,7 +81,7 @@ function prova() {
   if (!uguali(M.chiavi(false).filter(k => k.startsWith('red_')), [])) err('chiavi(false) comprende chiavi della Redazione');
 
   /* ---------- 2. il modulo ---------- */
-  const inMemoria = M.ELENCO.filter(v => v.dove === 'memoria');
+  const inMemoria = M.ELENCO.filter(v => v.dove === 'memoria' && v.prima);   // le chiavi nate dopo il blocco 6 non hanno un nome di prima
   const vecchi = {};   // valori di prima: testi, JSON, e un valore che non è JSON dove l'app si aspetta JSON
   inMemoria.forEach((v, i) => { vecchi[v.prima] = v.forma === 'testo' ? 'valore ' + i : i === 0 ? '{rotto' : JSON.stringify({ n: i, t: 'àè €' }); });
   const tolteMem = Object.fromEntries(M.TOLTE.filter(t => t.dove === 'memoria').map(t => [t.nome, 'da non leggere']));
@@ -162,7 +162,7 @@ function prova() {
   }
   let montati = 0;
   for (const u of USCITE) for (const f of elencaFile(path.join(DIST, u))) {
-    if (!/\.(js|html)$/.test(f) || f.startsWith('lib/') || f === 'moduli.js') continue;
+    if (!/\.(js|html)$/.test(f) || f.startsWith('lib/') || f === 'moduli.js' || f === 'sw.js') continue;   // sw.js porta con sé il modulo della memoria
     montati++;
     const t = fs.readFileSync(path.join(DIST, u, f), 'utf8');
     for (const [re, che] of USI) for (const m of t.matchAll(re)) err(`dist/${u}/${f}: ${che} usato fuori da moduli.js («${m[0].trim()}»)`);
@@ -189,7 +189,13 @@ function prova() {
       if (!v || v.dove !== 'file') err(`sorgenti/${f}, riga ${riga(t, m.index)}: la memoria per i file deve avere un nome dell'elenco, tra apici`);
       else { usate.set(v.nome, (usate.get(v.nome) || 0) + 1); usi++; }
     }
-    for (const m of t.matchAll(/\bmemoria\s*\.\s*crea\s*\(/g)) if (!/^parti\/app1\.js$/.test(f)) err(`sorgenti/${f}, riga ${riga(t, m.index)}: la memoria si crea una volta sola, in app1.js`);
+    for (const m of t.matchAll(/\.\s*file\s*\.\s*(?:open|delete)\s*\(\s*([^,)]*)/g)) {
+      const lit = m[1].trim().match(/^'([^'\\]*)'$/), v = lit && M.ELENCO.find(x => x.nome === lit[1]);
+      if (!v || v.dove !== 'file') err(`sorgenti/${f}, riga ${riga(t, m.index)}: la memoria per i file si apre con un nome dell'elenco, tra apici`);
+      else { usate.set(v.nome, (usate.get(v.nome) || 0) + 1); usi++; }
+    }
+    /* la memoria si crea una volta nell'app (app1.js) e una nel service worker (sw.js), che è un programma a parte */
+    for (const m of t.matchAll(/\bmemoria\s*\.\s*crea\s*\(/g)) if (!/^(parti\/app1\.js|sw\.js)$/.test(f)) err(`sorgenti/${f}, riga ${riga(t, m.index)}: la memoria si crea solo in app1.js e in sw.js`);
   }
   for (const v of M.ELENCO) if (!usate.has(v.nome)) err(`elenco: «${v.nome}» non è usata da nessun file dei sorgenti: una voce in più è uno scarto`);
   const moduli = fs.readFileSync(path.join(SORGENTI, 'build.js'), 'utf8').match(/const JS_MODULI = \[([^\]]*)\]/);

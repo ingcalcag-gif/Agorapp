@@ -8,7 +8,7 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Aspetto')}</div><div class="seg" role="group"><button data-tema-set="light" aria-pressed="${!scuro}">${tr('Chiaro')}</button><button data-tema-set="dark" aria-pressed="${scuro}">${tr('Scuro')}</button></div>
       <button class="riga-int" data-az="semplice" aria-pressed="${st.semplice}"><div><span class="t">${tr('Modalità semplice')}</span><span class="meta">${tr('Testi più grandi e meno comandi: niente sottocategorie e combinazioni.')}</span></div><span class="interr" aria-hidden="true"></span></button></section>
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
-    <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button></div></section>
+    <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button><button class="menu-r" data-az="senza-rete">${icoNote}<div><span class="t">${tr('Senza connessione')}</span><span class="meta">${tr('Cosa funziona senza rete e come aggiungere l’app alla schermata Home')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
       <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Quali dati, perché, i tuoi diritti')}</span></div>${freccia}</button>
       <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
@@ -18,8 +18,54 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Area riservata')}</div>
       ${st.admin ? `<button class="riga-int" data-az="admin"><div><span class="t">${tr('Sei in modalità admin')}</span><span class="meta">${tr('Eventi on-grid, importa ed esporta in Excel, esci')}</span></div>${freccia}</button>`
         : st.adminPw ? `<div style="display:flex;gap:8px"><label class="campo${st.adminErr?' errore':''}" style="flex:1"><input id="adminpw" type="password" placeholder="${esc(tr('Password admin'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="entra-admin">${tr('Entra')}</button></div>${st.adminErr?`<span class="err">${tr('Password non riconosciuta.')}</span>`:''}`
-        : `<button class="link" data-az="mostra-admin">${tr('Accesso admin')}</button>`}</section>`;
+        : `<button class="link" data-az="mostra-admin">${tr('Accesso admin')}</button>`}</section>
+    ${VERSIONE ? `<p class="meta" id="versione-app">${tr('Versione {v}',{v:esc(VERSIONE)})}</p>` : ''}`;
   return foglio('forte alto', testa, corpo);
+}
+/* ---------- «Senza connessione» (T-030) e invito alla schermata Home (T-028) ----------
+   Il testo è quello del documento di architettura (cap. 7, «Senza rete: come lo spieghiamo agli utenti»); l'avvertenza
+   per iPhone ha la forma prudente del libro mastro (§ 30.1, scelta 5, e § 30.2). Da qui si apre la scheda «Dati locali».
+   L'invito è discreto: sta qui e nell'ultimo cartellino della guida; nessuno conta chi aggiunge l'app. */
+let invitoInstalla = null;
+window.addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); invitoInstalla = ev; if(st.foglio==='senzarete') disegnaFoglio(); });
+window.addEventListener('appinstalled', () => { invitoInstalla = null; if(st.foglio==='senzarete') disegnaFoglio(); });
+function fSenzaRete(){
+  const testa = `<div class="riga-titolo"><h2>${tr('{nome} senza connessione')}</h2>${chiudiBtn('indietro-impostazioni')}</div>`;
+  const corpo = `<div class="legale">
+      <p>${tr('{nome} funziona anche senza rete. Gli eventi delle zone che hai già aperto restano consultabili, e la mappa delle zone che hai già guardato si vede anche offline (c’è spazio per circa un’intera città).')}</p>
+      <p>${tr('Il tuo calendario e i tuoi eventi Off-Grid ci sono sempre, perché vivono sul tuo telefono.')}</p>
+      <p>${tr('Senza rete non vedi gli eventi nuovi o le modifiche dell’ultimo momento, e non puoi cercare un indirizzo. Appena torni online l’app si aggiorna da sola.')}</p>
+      <h3>${tr('Aggiungi {nome} alla schermata Home')}</h3>
+      <p>${tr('Così si apre come un’app, anche senza rete.')}</p>
+      <p>${tr('Su iPhone: se non aggiungi {nome} alla schermata Home, il telefono può cancellare i dati che l’app conserva quando non la apri per alcuni giorni. Per conservarli, apri {nome} in Safari, tocca Condividi e poi «Aggiungi alla schermata Home».')}</p>
+      <p>${tr('Su Android: apri il menu del browser e scegli «Installa app» oppure «Aggiungi a schermata Home».')}</p>
+      ${invitoInstalla ? `<button class="tasto pri" data-az="installa">${tr('Installa')}</button>` : ''}
+    </div>
+    <div class="menu-lista"><button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali: cosa resta su questo telefono')}</span></div>${freccia}</button></div>`;
+  return foglio('forte alto', testa, corpo);
+}
+/* ---------- Avvisi delle novità (T-031; sorgenti/moduli/avvisi.js) ----------
+   All'apertura l'app legge avvisi.json, pubblicato con l'app: se c'è un avviso di questi giorni che il telefono non ha
+   ancora visto, lo mostra in basso, senza coprire l'app. «Leggi» apre il testo, «Ho capito» lo chiude: in tutti e due i
+   casi il telefono ricorda di averlo visto (chiave dl_avvisi). Non è un banner di consenso: non chiede nulla. */
+const NOVITA = {file:null, avviso:null};
+function cercaNovita(){
+  if(!MODULI.avvisi || !window.fetch) return;
+  fetch('avvisi.json', {cache:'no-cache', credentials:'omit'}).then(r => r.ok ? r.json() : null).then(j => { NOVITA.file = j; mostraNovita(); }).catch(() => {});
+}
+function mostraNovita(){
+  const slot = $('novita-slot'); if(!slot) return;
+  const a = NOVITA.avviso = NOVITA.file && st.guida==null ? MODULI.avvisi.daMostrare(NOVITA.file, {oggi:oggi(), visti:MEM.leggi('dl_avvisi', []), lingua:lang}) : null;
+  if(!a){ slot.innerHTML = ''; return; }
+  const titolo = a.tipo==='violazione' ? tr('Comunicazione sui dati') : tr('Novità nei testi');
+  slot.innerHTML = `<div class="novita vetro" role="region" aria-label="${esc(titolo)}"><div class="eyebrow">${esc(titolo)}</div><p lang="${esc(a.lingua)}">${esc(a.testo)}</p>
+    <div class="tasti">${a.apre && $('leg-'+a.apre) ? `<button class="tasto sec" data-az="novita-leggi">${tr('Leggi')}</button>` : ''}<button class="tasto pri" data-az="novita-ok">${tr('Ho capito')}</button></div></div>`;
+}
+function novitaVista(apri_){
+  const a = NOVITA.avviso; if(!a) return;
+  MEM.scrivi('dl_avvisi', MODULI.avvisi.conVisto(NOVITA.file, MEM.leggi('dl_avvisi', []), a.id));
+  mostraNovita();
+  if(apri_ && a.apre && $('leg-'+a.apre)){ st.legale = a.apre; apri('legale'); }
 }
 function fLegale(){
   const T = {privacy:tr('Informativa privacy'), storage:tr('Dati locali'), disclaimer:tr('Note legali')};
@@ -308,7 +354,8 @@ function salvaAdmin(){
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
   {t:tr('Scegli cosa vedere'), d:tr('Gli Strati sono in fondo alla mappa, i giorni in alto: quello che cambi lo vedi subito sui segnaposto.'), el:'peek'},
-  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'}
+  {t:tr('I tuoi appuntamenti'), d:tr('Con «+ Off-Grid» aggiungi un tuo evento: resta solo su questo telefono. Tenendo premuto un punto della mappa ne vedi le coordinate, da copiare.'), el:'btnNuovo'},
+  {t:tr('Anche senza rete'), d:tr('Aggiungi {nome} alla schermata Home: si apre come un’app e funziona anche senza connessione. Come fare è scritto in Impostazioni, alla voce «Senza connessione».'), el:'btnImpo'}
 ];
 /* ombra su tutto tranne la parte di cui parla il cartellino: un buco con un'ombra enorme intorno */
 function ombraGuida(){
@@ -403,4 +450,4 @@ function testiFissi(){
   avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
-function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }
+function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); mostraNovita(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }

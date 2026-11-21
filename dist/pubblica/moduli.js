@@ -36,8 +36,8 @@
    Libro mastro, § 3.7: l'app salva sul telefono soltanto ciò che serve al servizio chiesto dalla persona, e tutto ciò
    che salva è descritto nella scheda «Dati locali» (cap. 30). § 30.1, scelta 2: una riga in più o in meno è uno scarto.
    Per questo tutto ciò che l'app salva passa da qui: la memoria del browser (per chi conosce i nomi: localStorage), la
-   memoria del browser per i file (Cache Storage) e, quando serviranno, la base di dati del browser (IndexedDB) e la
-   copia dell'app del service worker. Nessun altro file dei sorgenti nomina questi strumenti: lo controlla la prova
+   memoria del browser per i file (Cache Storage), dove stanno anche la copia dell'app scritta dal service worker e i
+   tasselli della mappa (T-029), e, quando servirà, la base di dati del browser (IndexedDB). Nessun altro file dei sorgenti nomina questi strumenti: lo controlla la prova
    prove/memoria.js; la prova prove/browser/memoria.js controlla che cosa il telefono contiene davvero dopo un giro
    completo nell'app.
 
@@ -89,6 +89,9 @@
     { nome: 'dl_combinazioni', dove: 'memoria', forma: 'json', riga: 'preferenze', prima: 'agorapp_presets', cosa: 'Combinazioni di strati salvate, «Mappa 1, 2, 3» (QB-5)' },
     { nome: 'dl_lenti', dove: 'memoria', forma: 'json', riga: 'preferenze', prima: 'agorapp_temi_slots', cosa: 'Le tre lenti dei Temi salvate dalla persona (QB-5)' },
     { nome: 'dl_guida', dove: 'memoria', forma: 'testo', riga: 'preferenze', prima: 'agorapp_guida', cosa: 'La guida iniziale è già stata vista (QB-5)' },
+    { nome: 'dl_avvisi', dove: 'memoria', forma: 'json', riga: 'preferenze', cosa: 'Gli avvisi delle novità già visti: i soli identificativi degli avvisi (T-031; QB-5)' },
+    { nome: 'dl_app', dove: 'file', riga: 'app', cosa: 'La copia dell\'app per aprirla senza rete; la scrive il service worker (T-029)' },
+    { nome: 'dl_mappa', dove: 'file', riga: 'mappa', cosa: 'I tasselli della mappa delle zone viste, fino a 50 MB, e la copia del piccolo indice della mappa (T-029)' },
     { nome: 'dl_archivio', dove: 'file', riga: 'zone', prima: 'agorapp_archivio',
       cosa: 'Indice e quadranti dell\'archivio degli eventi scaricati per le zone consultate (T-022)' },
     { nome: 'red_storico', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_storico',
@@ -163,7 +166,7 @@
 
     /* La memoria per i file: come quella del browser, ma apre soltanto i nomi dell'elenco. null se il browser non
        la offre (indirizzo non sicuro, navigazione privata): chi la usa lavora allora senza copia sul telefono. */
-    const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); } } : null;
+    const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); }, delete: nome => { voce(nome, 'file'); return cas.delete(nome); } } : null;
 
     /* All'avvio, prima di leggere qualunque cosa: trasloco dei nomi vecchi e pulizia. Restituisce le chiavi traslocate.
        Tocca soltanto le chiavi che conosce: sullo stesso indirizzo possono esserci dati di altre pagine. Le chiavi
@@ -705,5 +708,187 @@
   }
 
   return { crea, TRENTA_MINUTI };
+});
+
+/* La mappa delle zone viste, conservata sul telefono (voce T-029 del piano di adeguamento; documento: docs/senza-rete.md).
+
+   Libro mastro, § 2.2 («L'uso senza rete») e § 3.7: il telefono conserva la mappa delle zone già viste, per vederla
+   senza rete, fino a 50 MB; poi i tasselli più vecchi lasciano posto ai nuovi. La mappa è un file unico letto a pezzi:
+   per questo i tasselli si conservano uno per uno, quando l'app li disegna, nella memoria del browser per i file
+   (modulo memoria.js, voce dell'elenco chiuso). Accanto ai tasselli sta la copia del piccolo indice della mappa
+   (mappa.json), che senza rete dice quale mappa si stava usando.
+
+   Quando la mappa cambia versione (ogni sei mesi, T-019) i tasselli della versione di prima si cancellano.
+   Il modulo non disegna e non scarica nulla: riceve da chi lo usa la funzione che scarica un tassello.
+   Nel browser si trova in window.AGR_MODULI.mappaLocale; in Node con require(). */
+(function (radice, fabbrica) {
+  const m = fabbrica();
+  if (typeof module === 'object' && module.exports) module.exports = m;
+  else (radice.AGR_MODULI = radice.AGR_MODULI || {}).mappaLocale = m;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const LIMITE = 50 * 1024 * 1024;   // 50 MB (§ 3.7)
+  const PESO = 'x-peso';             // intestazione con il peso del tassello, per fare i conti senza rileggerlo
+
+  /* crea({casse, nomeCassa, dove, limite}): casse è la memoria per i file del modulo memoria.js (nelle prove, finta), con
+     nomeCassa che è il suo nome nell'elenco chiuso; dove è l'indirizzo della mappa, con la barra finale; limite in byte. */
+  function crea(o) {
+    const dove = String(o.dove || '').replace(/\/?$/, '/'), limite = o.limite > 0 ? o.limite : LIMITE;
+    const BASE = dove + 'sul-telefono/', INDICE = BASE + 'mappa.json';
+    const S = { cassa: undefined, pesi: null, totale: 0, pronta: null, coda: Promise.resolve() };
+    const chiave = (versione, z, x, y) => BASE + encodeURIComponent(versione) + '/' + z + '/' + x + '/' + y;
+
+    async function cassa() {
+      if (S.cassa !== undefined) return S.cassa;
+      S.cassa = null;
+      if (o.casse && o.nomeCassa && dove !== '/') { try { S.cassa = await o.casse.open(o.nomeCassa); } catch (e) { S.cassa = null; } }
+      return S.cassa;
+    }
+    /* I pesi dei tasselli conservati, nell'ordine in cui sono arrivati: si leggono una volta sola, alla prima scrittura. */
+    function conti() {
+      return S.pronta = S.pronta || (async () => {
+        const c = await cassa(); S.pesi = new Map(); S.totale = 0;
+        if (!c) return;
+        const richieste = await c.keys();
+        for (const r of richieste) {
+          if (r.url === INDICE || !r.url.startsWith(BASE)) continue;
+          let peso = 0;
+          try { const x = await c.match(r); peso = x ? Number(x.headers.get(PESO)) || 0 : 0; } catch (e) { peso = 0; }
+          S.pesi.set(r.url, peso); S.totale += peso;
+        }
+      })();
+    }
+    async function togli(c, url) {
+      try { await c.delete(url); } catch (e) { /* niente da fare */ }
+      S.totale -= S.pesi.get(url) || 0; S.pesi.delete(url);
+    }
+
+    /* La copia dell'indice della mappa: ricorda(testo) la scrive, ricordato() la rilegge (null se non c'è). */
+    async function ricorda(testo) {
+      const c = await cassa(); if (!c) return;
+      try { await c.put(INDICE, new Response(String(testo), { headers: { 'content-type': 'application/json' } })); } catch (e) { /* niente da fare */ }
+    }
+    async function ricordato() {
+      const c = await cassa(); if (!c) return null;
+      try { const r = await c.match(INDICE); return r ? await r.text() : null; } catch (e) { return null; }
+    }
+
+    /* Un tassello: dalla copia sul telefono se c'è, altrimenti con scarica(), che dà i dati (ArrayBuffer) oppure null
+       se in quel punto la mappa non ha nulla. Ciò che si scarica si conserva; gli errori di scarica() passano a chi chiama. */
+    async function tassello(versione, z, x, y, scarica) {
+      const c = await cassa(), k = chiave(versione, z, x, y);
+      if (c) { try { const r = await c.match(k); if (r) return await r.arrayBuffer(); } catch (e) { /* si scarica */ } }
+      const dati = await scarica();
+      /* Si conserva una copia fatta subito: chi disegna la mappa può portarsi via i dati appena li riceve.
+         Le scritture vanno una dopo l'altra, così i conti dello spazio restano giusti. */
+      if (c && dati && dati.byteLength) { const copia = dati.slice(0); S.coda = S.coda.then(() => conserva(c, k, copia)).catch(() => {}); }
+      return dati || null;
+    }
+    async function conserva(c, k, dati) {
+      await conti();
+      const peso = dati.byteLength;
+      if (peso > limite) return;
+      if (S.pesi.has(k)) await togli(c, k);
+      /* prima si fa posto: i più vecchi lasciano posto ai nuovi */
+      for (const vecchio of S.pesi.keys()) { if (S.totale + peso <= limite) break; await togli(c, vecchio); }
+      try { await c.put(k, new Response(dati, { headers: { 'content-type': 'application/x-protobuf', [PESO]: String(peso) } })); } catch (e) { return; }
+      S.pesi.set(k, peso); S.totale += peso;
+    }
+
+    /* Toglie i tasselli delle versioni della mappa diverse da quella in uso. */
+    async function soloVersione(versione) {
+      const c = await cassa(); if (!c) return;
+      await conti();
+      const pre = BASE + encodeURIComponent(versione) + '/';
+      for (const url of [...S.pesi.keys()]) if (!url.startsWith(pre)) await togli(c, url);
+    }
+
+    /* Quanto c'è sul telefono: {tasselli, byte}. */
+    async function stato() { await S.coda; await conti(); return { tasselli: S.pesi.size, byte: S.totale }; }
+
+    return { tassello, ricorda, ricordato, soloVersione, stato, limite };
+  }
+
+  return { LIMITE, crea };
+});
+
+/* Avvisi delle novità (voce T-031 del piano di adeguamento; documento: docs/senza-rete.md).
+
+   Libro mastro, § 29.1 («Quando si aggiorna») e § 32.1: una modifica dei testi che tocca i dati o i diritti si annuncia
+   nell'app, e per le condizioni d'uso prima della data di entrata in vigore; § 3.12, passo 4, e allegato C.13: quando le
+   persone coinvolte non si possono raggiungere una per una, la comunicazione di una violazione dei dati si fa in forma
+   pubblica, anche nell'app (art. 34, par. 3, lett. c, GDPR).
+
+   Gli avvisi stanno in un piccolo file pubblicato con l'app, avvisi.json (sorgente: sorgenti/testi/avvisi.json):
+
+     {"formato": "avvisi", "versione": 1, "avvisi": [
+       {"id": "2027-01-informativa", "tipo": "modifica", "dal": "2027-01-10", "fino": "2027-03-10",
+        "apre": "privacy", "testo": {"it": "…", "en": "…"}}]}
+
+   tipo: «modifica» (dei testi) o «violazione» (comunicazione pubblica di una violazione dei dati); dal, fino: il primo e
+   l'ultimo giorno in cui l'avviso si mostra; apre: il testo che il tasto «Leggi» apre (privacy, storage, disclaimer,
+   condizioni), oppure niente; testo: almeno in italiano, senza codice: l'app lo mostra come testo.
+
+   L'avviso informa e basta: non chiede consensi e non blocca l'app. Chi l'ha visto non lo rivede: il telefono ricorda
+   i soli identificativi degli avvisi visti (riga delle preferenze e scelte della scheda «Dati locali», QB-5).
+   Il modulo non disegna e non scarica nulla. Nel browser si trova in window.AGR_MODULI.avvisi; in Node con require(). */
+(function (radice, fabbrica) {
+  const m = fabbrica();
+  if (typeof module === 'object' && module.exports) module.exports = m;
+  else (radice.AGR_MODULI = radice.AGR_MODULI || {}).avvisi = m;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const TIPI = ['violazione', 'modifica'];                         // in quest'ordine: una violazione si mostra per prima
+  const APRE = ['privacy', 'storage', 'disclaimer', 'condizioni'];
+  const LINGUE = ['it', 'en', 'es', 'fr', 'ar'];
+  const MASSIMO = 10, TESTO_MAX = 600;
+  const giorno = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
+
+  /* Gli errori di un file di avvisi, in parole; elenco vuoto se il file va bene. */
+  function errori(j) {
+    const e = [];
+    if (!j || typeof j !== 'object' || j.formato !== 'avvisi' || j.versione !== 1 || !Array.isArray(j.avvisi)) return ['il file non è un file di avvisi (formato «avvisi», versione 1, elenco «avvisi»)'];
+    if (j.avvisi.length > MASSIMO) e.push('troppi avvisi: al massimo ' + MASSIMO);
+    const visti = new Set();
+    j.avvisi.forEach((a, i) => {
+      const n = 'avviso ' + (i + 1) + ': ';
+      if (!a || typeof a !== 'object') return e.push(n + 'non è un avviso');
+      for (const k of Object.keys(a)) if (!['id', 'tipo', 'dal', 'fino', 'apre', 'testo'].includes(k)) e.push(n + 'campo sconosciuto «' + k + '»');
+      if (typeof a.id !== 'string' || !/^[a-z0-9][a-z0-9.-]{2,60}$/.test(a.id)) e.push(n + 'id non valido (lettere minuscole, cifre, punti e trattini)');
+      else if (visti.has(a.id)) e.push(n + 'id ripetuto'); else visti.add(a.id);
+      if (!TIPI.includes(a.tipo)) e.push(n + 'tipo deve essere «modifica» o «violazione»');
+      if (!giorno(a.dal) || !giorno(a.fino) || a.fino < a.dal) e.push(n + 'servono dal e fino (AAAA-MM-GG), con fino non prima di dal');
+      if (a.apre != null && !APRE.includes(a.apre)) e.push(n + 'apre deve essere uno tra ' + APRE.join(', '));
+      const t = a.testo;
+      if (!t || typeof t !== 'object' || typeof t.it !== 'string' || !t.it.trim()) e.push(n + 'manca il testo in italiano');
+      else for (const [l, x] of Object.entries(t)) {
+        if (!LINGUE.includes(l)) e.push(n + 'lingua sconosciuta «' + l + '»');
+        else if (typeof x !== 'string' || !x.trim() || x.length > TESTO_MAX) e.push(n + 'testo «' + l + '» vuoto o più lungo di ' + TESTO_MAX + ' caratteri');
+      }
+    });
+    return e;
+  }
+
+  /* L'avviso da mostrare oggi, oppure null. o: {oggi: 'AAAA-MM-GG', visti: [id…], lingua}. Un file non valido non mostra nulla. */
+  function daMostrare(j, o) {
+    if (errori(j).length) return null;
+    const oggi = o && o.oggi, visti = new Set(Array.isArray(o && o.visti) ? o.visti : []);
+    if (!giorno(oggi)) return null;
+    const attivi = j.avvisi.filter(a => a.dal <= oggi && oggi <= a.fino && !visti.has(a.id))
+      .sort((a, b) => TIPI.indexOf(a.tipo) - TIPI.indexOf(b.tipo) || (a.dal < b.dal ? -1 : a.dal > b.dal ? 1 : 0));
+    if (!attivi.length) return null;
+    const a = attivi[0], l = o && o.lingua;
+    return { id: a.id, tipo: a.tipo, apre: a.apre || null, testo: (l && a.testo[l]) || a.testo.it, lingua: l && a.testo[l] ? l : 'it' };
+  }
+
+  /* L'elenco degli avvisi visti dopo averne visto uno: restano solo quelli che il file nomina ancora, così non cresce. */
+  function conVisto(j, visti, id) {
+    const nel = new Set(errori(j).length ? [] : j.avvisi.map(a => a.id));
+    return [...new Set((Array.isArray(visti) ? visti : []).concat([id]))].filter(x => typeof x === 'string' && nel.has(x));
+  }
+
+  return { TIPI, APRE, errori, daMostrare, conVisto };
 });
 

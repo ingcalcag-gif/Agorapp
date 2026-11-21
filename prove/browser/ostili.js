@@ -101,7 +101,7 @@ const STORICO = () => [{ t: new Date().toISOString(), op: 'importa', n: 2, x: 'n
 const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizione-luogo', 'prezzo', 'fonte', 'vicino', 'vicino-luogo', 'regione',
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
-  'cerca-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima'];
+  'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
@@ -135,6 +135,9 @@ async function prova() {
       file['indice.json'] = JSON.stringify(indice) + '\n';
       await ctx.route(u => u.pathname.includes(ZONA_ARCHIVIO), r => { const k = new URL(r.request().url()).pathname.split(ZONA_ARCHIVIO)[1];
         return k in file ? r.fulfill({ status: 200, contentType: 'application/json', body: file[k] }) : r.fulfill({ status: 404, body: 'non trovato' }); });
+      /* il file degli avvisi delle novità, con un testo ostile (T-031) */
+      await ctx.route(u => /\/avvisi\.json$/.test(u.pathname), r => r.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ formato: 'avvisi', versione: 1, avvisi: [{ id: 'avviso-ostile', tipo: 'modifica', dal: giorno(-1), fino: giorno(30), testo: { it: 'Avviso ' + O_('avviso-testo') } }] }) }));
       /* la ricerca degli indirizzi risponde con testi ostili (la prova non contatta il servizio vero) */
       await ctx.route(u => u.hostname === 'photon.komoot.io', r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(risposteRicerca()) }));
       const p = await ctx.newPage();

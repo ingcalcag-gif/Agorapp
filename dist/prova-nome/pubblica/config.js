@@ -1,6 +1,10 @@
 /* Configurazione montata da sorgenti/config.js: non modificare qui. */
 window.AGR_CONFIG = {
  "nome": "Nomeprova",
+ "aspetto": {
+  "colore_tema": "#FFFDF8",
+  "colore_sfondo": "#F5F0E8"
+ },
  "titolare": "Lorenzo Calcagno",
  "caselle": {
   "contatto": "[casella di contatto]",

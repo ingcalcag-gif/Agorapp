@@ -25,20 +25,21 @@ Il rischio è uno solo: un testo scritto apposta, dentro un evento, un file o un
 | Altre chiavi della memoria del telefono | Lingua, città, tema, mezzo, strati, combinazioni, lenti (`dl_lenti`), calendario | Solo valori che l'app conosce; per le lenti solo strati e temi dell'app e un nome di 16 caratteri al massimo | Barra degli strati, Temi |
 | File importato nell'area riservata (Excel, CSV, JSON) | Tutte le colonne | Controlli dell'importazione | Anteprima («Riga n: motivo»); gli eventi importati restano nella memoria del telefono |
 | Storico e Misure dell'area riservata (`red_storico`, `red_misure`) | Note, nomi dei giri di prova, azioni, appunti, conteggi | Tipi di operazione conosciuti; conteggi e soglie trattati come numeri | Storico delle operazioni, schede delle Misure |
+| File degli avvisi delle novità (`avvisi.json`, T-031) | Testo dell'avviso, tipo, testo da aprire | `errori()` (`avvisi.js`): solo campi conosciuti, testo fino a 600 caratteri, tipo e testo da aprire tra quelli previsti; nessun collegamento | Avviso in basso, all'apertura |
 | Mappa (dati di OpenStreetMap nel file della mappa) | Nomi di vie e luoghi | Nessuno | Solo nel disegno della mappa (MapLibre li disegna, non li scrive nella pagina) |
 
 Non sono testi esterni, perché viaggiano con l'app e si rivedono prima di pubblicarla: i testi dell'interfaccia e le loro traduzioni (`traduzioni.js`), i contenuti d'esempio di Agorà e Progetti (`anteprime/`), i testi legali, gli strati e le icone, la configurazione. Anche questi, dove passano da un attributo, passano da `esc()`.
 
 ## I punti in cui il codice scrive nella pagina
 
-Sono 48, tutti in `sorgenti/parti/`. La prova `prove/testi.js` li conta: se il numero di un file cambia, si ferma finché il punto nuovo non è stato rivisto e annotato qui.
+Sono 50, tutti in `sorgenti/parti/`. La prova `prove/testi.js` li conta: se il numero di un file cambia, si ferma finché il punto nuovo non è stato rivisto e annotato qui.
 
 | File | Punti | Che cosa scrivono |
 | --- | --- | --- |
 | `app2.js` | 11 | Messaggi della mappa che non si carica; segnaposto (eventi, gruppi, regioni, tappe); barra del tempo e dei tipi; barra degli strati; invito ad accendere gli strati |
 | `app3.js` | 3 | Il foglio in basso: tutte le viste (strati, elenco, scheda, calendario, anteprima del PDF, moduli) passano da qui |
 | `app4.js` | 9 | Risultati e suggerimenti della ricerca degli indirizzi; riquadro del punto; mirino di «Scegli sulla mappa» |
-| `app5.js` | 7 | Testi legali (dell'app); nome della città; guida; avvisi in alto |
+| `app5.js` | 9 | Testi legali (dell'app); nome della città; guida; avvisi in alto; avviso delle novità (testo del file degli avvisi, con `esc()`, e lingua) |
 | `app6.js` | 9 | Aggiornamenti dei moduli mentre si scrive (suggerimenti, riquadro del punto, conteggio dei caratteri); pagina di stampa delle carte di Agorà e Progetti |
 | `app7.js` | 2 | Pagina dei Temi e foglio delle lenti |
 | `misure.js` | 2 | Schede delle Misure e loro fumetto |

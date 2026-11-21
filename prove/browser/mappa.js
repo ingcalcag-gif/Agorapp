@@ -50,8 +50,9 @@ async function prova() {
     try { await pronta(); } catch (x) { e.errori.push('la mappa non si carica entro 30 secondi'); return e; }
 
     // Da dove arrivano le parti della mappa.
-    const fonte = await p.evaluate(() => window.__mappaProva.getStyle().sources.protomaps);
-    if (!fonte.tiles || !String(fonte.tiles[0]).startsWith(zonaMappa + 'torino/')) e.errori.push('la mappa non è passata alla cartella di tasselli della prova: ' + JSON.stringify(fonte).slice(0, 160));
+    /* dal blocco 7 i tasselli passano dal protocollo dell'app, che li conserva sul telefono (T-029): la strada presa si legge dall'app */
+    const fonte = await p.evaluate(() => window.AGR.mappa().fonte);
+    if (fonte !== 'tasselli' || !richieste.some(u => u.startsWith(zonaMappa + 'torino/') && /\.pbf$/.test(u))) e.errori.push('la mappa non è passata alla cartella di tasselli della prova (fonte: ' + fonte + ')');
     if (!richieste.some(u => u === zonaMappa + 'torino.pmtiles')) e.errori.push('l\'app non ha provato prima il file unico torino.pmtiles');
     for (const [parte, re] of [['stile', /lib\/protomaps-basemaps-[\d.]+\/stile-carta-chiaro\.json$/], ['icone', /lib\/protomaps-icone-v\d+\/light(@2x)?\.png$/],
       ['glifi', /lib\/caratteri-mappa\/dm-sans-v\d+\/DM%20Sans%20Regular\/\d+-\d+\.pbf$/], ['lettore', /lib\/pmtiles-[\d.]+\/pmtiles\.js$/], ['indice', /mappa\/prova\/mappa\.json$/]])

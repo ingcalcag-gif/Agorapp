@@ -9,8 +9,9 @@
       nuovo, giornata e PDF, ricerca, città, tema, lingua, Modalità semplice, Temi e lenti, Agorà e Progetti, testi
       legali): nella memoria del browser ci sono soltanto chiavi dell'elenco, e il giro le ha toccate tutte; niente
       nella memoria della scheda, nessun cookie, nessuna base di dati, nessun programma in sottofondo; nella memoria
-      per i file solo la voce degli eventi delle zone consultate, con dentro solo file dell'archivio; nessuna chiave
-      della Redazione.
+      per i file solo le voci dell'elenco, ognuna con dentro solo i file suoi (gli eventi delle zone consultate, i
+      tasselli della mappa); nessuna chiave della Redazione. La copia dell'app, che scrive il service worker, la
+      controlla prove/browser/senza-rete.js: qui il service worker è spento, perché la prova usa risposte finte.
    3. Usare l'app non lascia tracce: riaprirla più volte, muovere la mappa, aprire schede, cercare eventi e indirizzi
       non cambia nulla nella memoria del browser (nessun contatore delle visite, nessun registro di ricerche o di
       spostamenti, nessun identificativo).
@@ -23,6 +24,11 @@ const M = require('../../sorgenti/moduli/memoria.js');
 
 const PUBBLICHE = M.chiavi(false, 'memoria'), REDAZIONE = M.ELENCO.filter(v => v.redazione).map(v => v.nome);
 const FILE = M.chiavi(false, 'file');
+/* Che cosa può stare in ogni voce della memoria per i file, e quali voci il giro deve riempire. */
+const DENTRO = { dl_archivio: f => f.includes(ZONA_ARCHIVIO), dl_mappa: f => f.includes('/mappa/prova/sul-telefono/'), dl_app: f => f.includes('/dist/pubblica/') };
+const NEL_GIRO = FILE.filter(n => n !== 'dl_app');
+/* Un avviso delle novità inventato, per far scrivere al giro la chiave degli avvisi visti (T-031). */
+const AVVISI = { formato: 'avvisi', versione: 1, avvisi: [{ id: 'prova-avviso-inventato', tipo: 'modifica', dal: giorno(-1), fino: giorno(30), testo: { it: 'Avviso inventato per la prova.' } }] };
 const DI_PRIMA = Object.fromEntries(M.ELENCO.filter(v => v.prima).map(v => [v.nome, v.prima]));
 const SEME = 'prova-seminata';   // il segno che le prove lasciano nella memoria della scheda (prove/browser/comune.js)
 
@@ -50,6 +56,7 @@ async function prova() {
   const F = '#foglio-slot ';
 
   const strumenti = async (ctx, p) => {
+    await ctx.route(u => /\/avvisi\.json$/.test(u.pathname), r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(AVVISI) }));
     await ctx.route(u => u.hostname === 'photon.komoot.io', r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(RICERCA) }));
     p.on('pageerror', x => err('errore nella pagina: ' + x.message));
     /* la mappa che l'app crea si tiene da parte, per spostarla */
@@ -73,10 +80,10 @@ async function prova() {
     if (scheda.length) err(`${dove}: l'app usa la memoria della scheda: ${scheda.join(', ')}`);
     if (inv.cookie) err(`${dove}: l'app ha scritto un cookie`);
     if (inv.basi.length) err(`${dove}: l'app ha creato una base di dati nel browser: ${inv.basi.join(', ')}`);
-    if (inv.sw) err(`${dove}: c'è un programma in sottofondo (service worker) che l'elenco non prevede ancora (T-029)`);
     const casse = Object.keys(inv.casse).filter(n => !FILE.includes(n));
     if (casse.length) err(`${dove}: nella memoria per i file ci sono voci fuori elenco: ${casse.join(', ')}`);
-    for (const n of FILE) for (const f of inv.casse[n] || []) if (!f.includes(ZONA_ARCHIVIO)) err(`${dove}: nella memoria per i file «${n}» c'è un file che non è dell'archivio: ${f}`);
+    for (const n of FILE) { const fuoriPosto = (inv.casse[n] || []).filter(f => !DENTRO[n] || !DENTRO[n](f));
+      if (fuoriPosto.length) err(`${dove}: nella memoria per i file «${n}» ci sono ${fuoriPosto.length} file che non sono suoi, per esempio ${fuoriPosto[0]}`); }
   };
 
   try {
@@ -134,6 +141,8 @@ async function prova() {
         if (Object.keys(subito.mem).length) err('telefono nuovo: all\'apertura, prima di ogni scelta, l\'app ha già scritto: ' + Object.keys(subito.mem).join(', '));
         /* la guida */
         if (!(await tocca('[data-az="guida-salta"]', 'guida'))) err('telefono nuovo: la guida non compare');
+        /* l'avviso delle novità, che compare chiusa la guida */
+        if (!(await tocca('[data-az="novita-ok"]', 'avviso delle novità'))) err('telefono nuovo: l\'avviso delle novità non compare');
         /* strati e combinazioni */
         if (await tocca('[data-az="strati"]', 'strati')) { await tocca(F + '[data-az="tutti-strati"]', 'strati, tutti'); await tocca(F + '[data-az="salva-preset"]', 'strati, salva la combinazione'); }
         /* un evento della città: scheda, calendario */
@@ -186,15 +195,18 @@ async function prova() {
         if (nonToccate.length) err('il giro non è completo: non ha fatto scrivere ' + nonToccate.join(', '));
         const red = REDAZIONE.filter(k => k in dopo.mem);
         if (red.length) err('senza entrare nell\'area riservata sul telefono ci sono chiavi della Redazione: ' + red.join(', '));
-        for (const n of FILE) if (!(dopo.casse[n] || []).some(f => /indice\.json$/.test(f))) err(`dopo il giro completo: nella memoria per i file «${n}» manca l'indice dell'archivio`);
+        if (!(dopo.casse.dl_archivio || []).some(f => /indice\.json$/.test(f))) err('dopo il giro completo: nella memoria per i file manca l\'indice dell\'archivio');
+        if ((dopo.casse.dl_mappa || []).length < 4) err('dopo il giro completo: nella memoria per i file mancano i tasselli della mappa guardata');
+        const vuote = NEL_GIRO.filter(n => !(dopo.casse[n] || []).length);
+        if (vuote.length) err('il giro non è completo: non ha riempito ' + vuote.join(', '));
         e.note.push('dopo un giro completo, nella memoria del browser: ' + Object.keys(dopo.mem).sort().join(', '));
-        e.note.push('nella memoria per i file: ' + Object.entries(dopo.casse).map(([n, f]) => `${n} (${f.length} file dell'archivio)`).join(', ') + '; nessun cookie, nessuna base di dati, niente nella memoria della scheda');
+        e.note.push('nella memoria per i file: ' + Object.entries(dopo.casse).map(([n, f]) => `${n} (${f.length} file)`).join(', ') + '; nessun cookie, nessuna base di dati, niente nella memoria della scheda');
 
         /* ---------- 3. usare l'app non lascia tracce ---------- */
         const primaUso = JSON.stringify(dopo.mem);
         for (let i = 0; i < 3; i++) { await avvia(); }
         /* la mappa va a Milano e torna: il telefono scarica gli eventi di un'altra zona, ma non annota dove si è andati */
-        const file0 = (dopo.casse[FILE[0]] || []).length;
+        const file0 = (dopo.casse.dl_archivio || []).length;
         const zone0 = await p.evaluate(() => window.AGR.archivio().conservati.length);
         if (!(await p.evaluate(() => { if (!window.__mappaProva) return false; window.__mappaProva.jumpTo({ center: [9.19, 45.4642], zoom: 13.3 }); return true; }))) err('dopo l\'uso: la prova non riesce a spostare la mappa');
         try { await p.waitForFunction(n => window.AGR.archivio().conservati.length > n, zone0, { timeout: 15000 }); } catch (x) { err('dopo l\'uso: a Milano gli eventi della zona non arrivano'); }
@@ -207,7 +219,7 @@ async function prova() {
         await avvia(); await pausa(800);
         const dopoUso = await conta();
         maiNiente('dopo l\'uso', dopoUso, PUBBLICHE);
-        if ((dopoUso.casse[FILE[0]] || []).length <= file0) err('dopo l\'uso: gli eventi della zona di Milano non sono nella memoria per i file');
+        if ((dopoUso.casse.dl_archivio || []).length <= file0) err('dopo l\'uso: gli eventi della zona di Milano non sono nella memoria per i file');
         if (JSON.stringify(dopoUso.mem) !== primaUso) {
           const diverse = Object.keys({ ...dopo.mem, ...dopoUso.mem }).filter(k => dopo.mem[k] !== dopoUso.mem[k]);
           err('usare l\'app (riaprirla, muovere la mappa, aprire schede, cercare) ha cambiato la memoria del browser: ' + diverse.join(', '));

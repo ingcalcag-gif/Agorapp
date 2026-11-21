@@ -17,6 +17,9 @@ module.exports = {
   // Nome del servizio, come compare ovunque nell'app (§ 2.1; § 13.8). Cambia con T-078.
   nome: 'Agorapp',
 
+  // Colori con cui il telefono presenta l'app installata (manifest, T-028): barra in alto e schermata d'avvio.
+  aspetto: { colore_tema: '#FFFDF8', colore_sfondo: '#F5F0E8' },
+
   // Chi risponde del servizio: compare sempre accanto al nome nei testi pubblici (§ 2.1).
   titolare: 'Lorenzo Calcagno',
 

@@ -100,7 +100,11 @@ $('app').addEventListener('click', ev => {
     case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;
-    case 'guida-salta': st.guida = null; disegnaGuida(); MEM.scrivi('dl_guida','1'); posizioni(); break;
+    case 'guida-salta': st.guida = null; disegnaGuida(); MEM.scrivi('dl_guida','1'); posizioni(); mostraNovita(); break;
+    case 'senza-rete': apri('senzarete'); break;
+    case 'installa': if(invitoInstalla){ const inv = invitoInstalla; invitoInstalla = null; try{ inv.prompt(); }catch(e){} disegnaFoglio(); } break;
+    case 'novita-ok': novitaVista(false); break;
+    case 'novita-leggi': novitaVista(true); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
     case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
     case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
@@ -182,6 +186,28 @@ document.addEventListener('keydown', ev => { if(ev.key==='Escape'){
   if(st.guida!=null){ st.guida = null; disegnaGuida(); } else if(st.posa){ finePosa(false); } else if(st.foglio) chiudi(); } });
 window.addEventListener('resize', () => { if(map) map.resize(); });
 
+/* ======================= La copia dell'app per l'uso senza rete (T-029) =======================
+   Il service worker (sorgenti/sw.js) conserva la copia dell'app e la consegna anche senza rete. Prima di avviarlo si legge
+   il piccolo file d'emergenza: se dice di scartare questa versione, il service worker non parte e quello che c'è si toglie. */
+/* Una versione nuova si prepara in silenzio e prende il posto di quella di prima mentre la pagina è ancora aperta: la pagina
+   aperta resta com'è, e si ricarica da sé solo quando non disturba, cioè quando l'app non è in vista e la persona non ha
+   nulla di aperto (un foglio, un modulo, la guida). Altrimenti la versione nuova si vede alla prossima apertura. */
+let versioneNuovaPronta = false;
+function ricaricaSeNonDisturba(){
+  if(versioneNuovaPronta && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa') location.reload();
+}
+function avviaCopia(){
+  if(!('serviceWorker' in navigator) || !window.isSecureContext || !VERSIONE) return;
+  let servita = !!navigator.serviceWorker.controller;   /* alla prima apertura il service worker arriva a pagina aperta: non è una versione nuova */
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if(servita){ versioneNuovaPronta = true; ricaricaSeNonDisturba(); } servita = true; });
+  document.addEventListener('visibilitychange', ricaricaSeNonDisturba);
+  fetch('emergenza.json', {cache:'no-store', credentials:'omit'}).then(r => r.ok ? r.json() : null).catch(() => null).then(j => {
+    const via = j && Array.isArray(j.scarta) && (j.scarta.includes(VERSIONE) || j.scarta.includes('*'));
+    if(via) return navigator.serviceWorker.getRegistration().then(r => r && r.unregister());
+    return navigator.serviceWorker.register('sw.js');
+  }).catch(() => {});
+}
+
 /* ======================= Avvio ======================= */
 (function avvio(){
   const tema = MEM.testo('dl_tema', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
@@ -192,10 +218,11 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
   st.cal.giorno = oggi();
   initMappa(); avviaArchivio(); tutto();
   if(MEM.testo('dl_guida','0')!=='1'){ st.guida = 0; setTimeout(disegnaGuida, 500); }
+  cercaNovita(); avviaCopia();
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),
-    tr, dloc, lingua:() => lang,
+    tr, dloc, lingua:() => lang, versione:VERSIONE, mappa:() => ({fonte:MAPPA.fonte, sulTelefono:MAPPA_LOCALE ? MAPPA_LOCALE.stato() : Promise.resolve(null)}),
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },
     chiudi(){ chiudi(); },

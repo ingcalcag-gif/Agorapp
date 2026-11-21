@@ -20,6 +20,8 @@ const CFG = window.AGR_CONFIG || {};
 const NOME = CFG.nome || '';
 const CASELLA = (CFG.caselle || {}).contatto || '';
 const segnaposto = s => /^\[.*\]$/.test(String(s || ''));
+/* numero di versione dell'app montata (T-029): lo scrive il montaggio nella pagina */
+const VERSIONE = document.documentElement.getAttribute('data-versione') || '';
 /* nome dei file scaricati: il nome del servizio in minuscolo, senza spazi né accenti */
 const nomeFile = () => NOME.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app';
 /* la casella di contatto: un collegamento se esiste, il segnaposto come testo finché non esiste */

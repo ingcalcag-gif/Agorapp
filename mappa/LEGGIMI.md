@@ -17,6 +17,10 @@ La mappa di Agorapp è un file proprio, costruito con Protomaps dai dati di Open
 
 Accanto al file della mappa sta un piccolo file che dice all'app quale mappa usare (T-019): `versione`, `file` (il file unico `.pmtiles`), `tasselli` (la cartella di riserva con i tasselli separati), `zoom_max`, `riquadro` (ovest, sud, est, nord) e `dati` (provenienza e licenza). L'app legge il file unico a pezzi; se il server non lo consente, passa da sé alla cartella di tasselli.
 
+## La mappa sul telefono
+
+Dal blocco 7 (T-029) ogni tassello disegnato si conserva sul telefono, fino a 50 MB, con accanto la copia di `mappa.json`: così la mappa delle zone già guardate si vede anche senza rete. I tasselli passano dal protocollo «agrmappa» dell'app, che guarda prima sul telefono e poi scarica, dal file unico o dalla cartella. Quando `versione` cambia in `mappa.json`, i tasselli della versione di prima si cancellano. Dettagli in `docs/senza-rete.md`.
+
 ## La prova di Torino
 
 `prova/torino.pmtiles` e `prova/torino/` vengono dalla mappa del mondo di Protomaps del 12/10/2026, ritagliata su Torino (ramo `mappa-protomaps`): 22 MB, 1.513 tasselli, zoom da 0 a 15. Servono solo alle prove sul telefono (githack) e alle prove automatiche. githack non garantisce le richieste a pezzi: di solito l'app passa alla cartella di tasselli.

@@ -24,7 +24,7 @@ function prova() {
   for (const u of USCITE) {
     const trovati = [];
     for (const [f, testo] of Object.entries(leggiUscita(u))) {
-      if (/^licenze\/.*\.txt$/.test(f) || f.startsWith('lib/')) continue;
+      if (/^licenze\/.*\.txt$/.test(f) || f.startsWith('lib/') || typeof testo !== 'string') continue;   // le icone non hanno testo
       const fonte = f === 'licenze/index.html' ? [...testo.matchAll(/\b(?:href|src)="([^"]*)"/g)].map(m => m[1]).join('\n') : testo;
       for (const m of fonte.matchAll(URL_RE)) {
         const url = m[0].replace(/[.,;:!?]+$/, '');
