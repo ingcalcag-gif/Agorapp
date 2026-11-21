@@ -29,7 +29,7 @@ Calendario, Off-Grid e preferenze stanno già sul telefono (T-026). Senza rete n
 
 Se una versione pubblicata risulta sbagliata, si scrive il suo numero nell'elenco, per esempio `{"scarta": ["a1b2c3d"]}`, e si pubblica. A ogni apertura in rete il telefono legge il file: se la versione che ha in copia è nell'elenco, cancella la copia, toglie il service worker e ricarica l'app dalla rete. `"*"` vale per tutte le versioni: l'app resta senza copia finché l'elenco non torna vuoto. Calendario, Off-Grid, preferenze, eventi e mappa conservati non si toccano.
 
-Il file costa una piccola richiesta in più a ogni apertura, allo stesso servizio che ospita l'app.
+Il file costa una piccola richiesta in più a ogni apertura, allo stesso servizio che ospita l'app. La pagina avvia il service worker solo dopo aver letto davvero il file: senza rete non fa nulla e resta quello che c'era. Se il file mancasse dal sito, il service worker non partirebbe su nessun telefono nuovo.
 
 ## La mappa sul telefono
 

@@ -30,8 +30,10 @@ async function prova() {
   const A = uscita(cfg), B = uscita({ ...cfg, aspetto: { ...cfg.aspetto, colore_tema: '#FFFDF7' } });   // due versioni dell'app
   const vA = versioneDi(A), vB = versioneDi(B);
   if (vA === vB) err('le due versioni di prova hanno lo stesso numero');
-  let attuale = A;
-  const s = await server('pubblica', { file: () => attuale });
+  let attuale = A, lento = false, letture = 0;
+  /* quando «lento» è acceso, una lettura su due del file d'emergenza arriva in ritardo: così la pagina lo sta ancora
+     aspettando quando il service worker la fa ricaricare (su una macchina lenta succede da sé) */
+  const s = await server('pubblica', { file: () => attuale, ritardo: k => lento && k === 'emergenza.json' && (letture++ % 2) ? 700 : 0 });
   const F = '#foglio-slot ';
   const g = giorno(1);
   const og = { id: 'prova-og-senza-rete', personal: true, offgrid: true, title: 'Cena inventata', datetime: g + 'T20:00', end: g + 'T22:00', lat: 45.071, lng: 7.688, address: 'Via Finta 3', hidden: false, price: '' };
@@ -52,7 +54,8 @@ async function prova() {
     const versioneSw = () => p.evaluate(() => new Promise(ok => { const c = navigator.serviceWorker && navigator.serviceWorker.controller; if (!c) return ok('');
       const m = new MessageChannel(); m.port1.onmessage = x => ok(String(x.data)); c.postMessage('versione', [m.port2]); setTimeout(() => ok(''), 2000); }));
     const versionePagina = () => p.evaluate(() => document.documentElement.getAttribute('data-versione'));
-    const aspetta = async (fn, ms = 25000) => { const fine = Date.now() + ms; for (;;) { if (await fn()) return true; if (Date.now() > fine) return false; await pausa(300); } };
+    /* mentre la pagina si ricarica una domanda può cadere nel vuoto: si riprova */
+    const aspetta = async (fn, ms = 25000) => { const fine = Date.now() + ms; for (;;) { let ok = false; try { ok = await fn(); } catch (x) { ok = false; } if (ok) return true; if (Date.now() > fine) return false; await pausa(300); } };
     const nellaCopia = () => p.evaluate(async () => (await (await caches.open('dl_app')).keys()).map(r => r.url));
     const casse = () => p.evaluate(async () => { const o = {}; for (const n of await caches.keys()) o[n] = (await (await caches.open(n)).keys()).length; return o; });
 
@@ -129,11 +132,16 @@ async function prova() {
     e.note.push(`aggiornamento da ${vA} a ${vB}: preparato a pagina aperta, in uso alla riapertura; i file di prima cancellati; una versione con un file manomesso è stata rifiutata`);
 
     /* ---------- 5. interruttore d'emergenza ---------- */
-    attuale = { ...B, 'emergenza.json': JSON.stringify({ scarta: [vB] }) };
+    attuale = { ...B, 'emergenza.json': JSON.stringify({ scarta: [vB] }) }; lento = true;
     await apriApp();
-    if (!(await aspetta(() => p.evaluate(async () => !(await navigator.serviceWorker.getRegistration()) && !navigator.serviceWorker.controller), 20000))) err('con l\'interruttore d\'emergenza il service worker non si è tolto');
+    if (!(await aspetta(() => p.evaluate(async () => !(await navigator.serviceWorker.getRegistration()) && !navigator.serviceWorker.controller), 30000))) {
+      const come = await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(), c = navigator.serviceWorker.controller;
+        return 'registrazione ' + (r ? 'presente (attivo: ' + !!r.active + ', in attesa: ' + !!r.waiting + ', in preparazione: ' + !!r.installing + ')' : 'assente') + ', pagina ' + (c ? 'servita dal service worker' : 'non servita') + ', versione della pagina ' + document.documentElement.getAttribute('data-versione'); }).catch(x => 'pagina non raggiungibile: ' + x.message);
+      err('con l\'interruttore d\'emergenza il service worker non si è tolto: ' + come);
+    }
     await pausa(1200);
     try { await p.waitForSelector('[data-az="elenco"]', { timeout: 15000 }); } catch (x) { err('dopo l\'interruttore d\'emergenza l\'app non si riapre dalla rete'); }
+    lento = false;
     const rimasti = (await nellaCopia()).filter(u => u.startsWith(base));
     if (rimasti.length) err('dopo l\'interruttore d\'emergenza restano ' + rimasti.length + ' file nella copia dell\'app');
     await apriApp(); await pausa(1500);

@@ -3074,7 +3074,9 @@ window.addEventListener('resize', () => { if(map) map.resize(); });
 
 /* ======================= La copia dell'app per l'uso senza rete (T-029) =======================
    Il service worker (sorgenti/sw.js) conserva la copia dell'app e la consegna anche senza rete. Prima di avviarlo si legge
-   il piccolo file d'emergenza: se dice di scartare questa versione, il service worker non parte e quello che c'è si toglie. */
+   il piccolo file d'emergenza: se dice di scartare questa versione, il service worker non parte e quello che c'è si toglie.
+   Il service worker si avvia solo dopo aver letto davvero il file: se la lettura non riesce (senza rete, o perché la pagina
+   si sta ricaricando proprio per l'interruttore d'emergenza) non si fa nulla, e quello che c'era resta com'è. */
 /* Una versione nuova si prepara in silenzio e prende il posto di quella di prima mentre la pagina è ancora aperta: la pagina
    aperta resta com'è, e si ricarica da sé solo quando non disturba, cioè quando l'app non è in vista e la persona non ha
    nulla di aperto (un foglio, un modulo, la guida). Altrimenti la versione nuova si vede alla prossima apertura. */
@@ -3082,14 +3084,26 @@ let versioneNuovaPronta = false;
 function ricaricaSeNonDisturba(){
   if(versioneNuovaPronta && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa') location.reload();
 }
+/* Interruttore d'emergenza, dal lato della pagina: il service worker fa lo stesso da sé (sorgenti/sw.js), ma basta che ci
+   riesca uno dei due. Si toglie il service worker, si cancella la copia dei file di questa app e, se la pagina era stata
+   consegnata dalla copia, la si ricarica dalla rete. Dopo, il service worker non c'è più e la pagina non si ricarica oltre. */
+async function scartaCopia(){
+  const r = await navigator.serviceWorker.getRegistration(); if(!r) return;
+  await r.unregister();
+  try{
+    const c = MEM.file ? await MEM.file.open('dl_app') : null, base = new URL('./', location.href).href;
+    if(c) for(const k of await c.keys()) if(k.url.startsWith(base)) await c.delete(k);
+  }catch(e){}
+  if(navigator.serviceWorker.controller) location.reload();
+}
 function avviaCopia(){
   if(!('serviceWorker' in navigator) || !window.isSecureContext || !VERSIONE) return;
   let servita = !!navigator.serviceWorker.controller;   /* alla prima apertura il service worker arriva a pagina aperta: non è una versione nuova */
   navigator.serviceWorker.addEventListener('controllerchange', () => { if(servita){ versioneNuovaPronta = true; ricaricaSeNonDisturba(); } servita = true; });
   document.addEventListener('visibilitychange', ricaricaSeNonDisturba);
-  fetch('emergenza.json', {cache:'no-store', credentials:'omit'}).then(r => r.ok ? r.json() : null).catch(() => null).then(j => {
-    const via = j && Array.isArray(j.scarta) && (j.scarta.includes(VERSIONE) || j.scarta.includes('*'));
-    if(via) return navigator.serviceWorker.getRegistration().then(r => r && r.unregister());
+  fetch('emergenza.json', {cache:'no-store', credentials:'omit'}).then(r => r.ok ? r.json() : null).then(j => {
+    if(!j || !Array.isArray(j.scarta)) return;
+    if(j.scarta.includes(VERSIONE) || j.scarta.includes('*')) return scartaCopia();
     return navigator.serviceWorker.register('sw.js');
   }).catch(() => {});
 }
