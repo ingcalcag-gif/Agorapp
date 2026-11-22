@@ -8,7 +8,7 @@
    3. un evento nuovo riceve l'identificativo con il marcatore; «Viene dal nostro archivio?» dice sì, e no se si
       cambia una lettera;
    4. le Misure contano gli eventi dell'archivio, non quelli del dispositivo; sotto i 5 casi il pannello scrive
-      «meno di 5»; nel file esportato, sotto i 10 casi, «meno di 10»;
+      «meno di 5»; nel file esportato, sotto i 10 casi, «meno di 10»; le richieste di rimozione escono una per riga;
    5. lo storico registra le operazioni; la revoca toglie le chiavi dal dispositivo.
    Tutti i dati sono inventati; nessuna richiesta esce dal computer della prova. */
 'use strict';
@@ -26,7 +26,6 @@ const LETTERE = 'abcdefghijklmnopqrstuvwxyz';
 const EVENTI = Array.from({ length: 12 }, (_, i) => eventoProva('torino' + LETTERE[i], { titolo: 'Evento inventato a Torino ' + (i + 1), lat: +(45.05 + i * 0.004).toFixed(4), lng: +(7.66 + i * 0.003).toFixed(4), inizio: giorno(1 + (i % 5)) + 'T18:00', fine: giorno(1 + (i % 5)) + 'T20:00', prezzo: i % 2 ? 'Gratuito' : '5 €' }))
   .concat(Array.from({ length: 3 }, (_, i) => eventoProva('venezia' + LETTERE[i], { titolo: 'Evento inventato a Venezia ' + (i + 1), indirizzo: 'Calle Inventata 2, Venezia', lat: +(45.438 + i * 0.002).toFixed(4), lng: 12.3358, inizio: giorno(2) + 'T21:00', fine: giorno(2) + 'T23:00' })));
 /* Misure inventate, con numeri piccoli: un giro di prova con 8 persone, tre richieste di rimozione, due segnalazioni */
-const mese = giorno(-3).slice(0, 7);
 const MISURE = { v: 1, giri: [{ d: giorno(-2), titolo: 'Giro inventato', n: 8, scoperto: 3, andato: 6, guida: 3, og: 2, cons: 8 }],
   rimozioni: [1, 2, 3].map(i => ({ ric: giorno(-3) + 'T10:0' + i, eva: giorno(-3) + 'T15:0' + i })), segnalazioni: { [giorno(-1)]: 2 }, richieste: { [giorno(-1)]: 340 },
   giorni: { [giorno(-1)]: { tot: 3, citta: { torino: 3 }, strati: { musica: 3 }, prov: { nd: 3 }, imp: 0, grat: 1 } } };
@@ -157,13 +156,14 @@ async function prova() {
       if (xl) {
         const XLSX = require(path.join(RADICE, 'sorgenti', 'vendor', 'sheetjs-0.18.5', 'xlsx.full.min.js'));
         const wb = XLSX.read(xl.dati, { type: 'buffer' }), fogli = Object.fromEntries(wb.SheetNames.map(n => [n, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true })]));
-        for (const n of ['Giorni', 'Rimozioni', 'Interviste']) {
+        if (!fogli.Rimozioni) err('esportazione: manca il foglio «Rimozioni»');
+        for (const n of ['Giorni', 'Interviste']) {
           if (!fogli[n]) { err('esportazione: manca il foglio «' + n + '»'); continue; }
           for (const riga of fogli[n].slice(1)) riga.forEach((c, i) => { if (i > 0 && typeof c === 'number' && c > 0 && c < 10 && !(n === 'Interviste' && i === 7)) err(`esportazione, foglio «${n}»: un valore sotto i 10 casi è scritto per esteso (${c})`); });
         }
-        const rim = (fogli.Rimozioni || []).find(r => r[0] === mese);
-        if (!rim || rim[1] !== 'meno di 10') err('esportazione: le tre richieste di rimozione del mese devono uscire come «meno di 10», una riga per mese');
-        if ((fogli.Rimozioni || []).some(r => /T\d\d:\d\d/.test(String(r[0])))) err('esportazione: le richieste di rimozione escono ancora una per riga');
+        /* le richieste di rimozione: una per riga, con ricevuta, evasa e ore (decisione del 22/11/2026) */
+        const rim = (fogli.Rimozioni || []).slice(1);
+        if (rim.length !== 3 || !rim.every(r => /T\d\d:\d\d/.test(String(r[0])) && /T\d\d:\d\d/.test(String(r[1])) && r[2] === 5)) err('esportazione: le tre richieste di rimozione devono uscire una per riga, con ricevuta, evasa e ore (' + JSON.stringify(rim).slice(0, 120) + ')');
         const giro = (fogli.Interviste || [])[1];
         if (!giro || giro[2] !== 'meno di 10') err('esportazione: un giro con 8 persone deve uscire come «meno di 10»');
       }
