@@ -157,10 +157,10 @@ async function prova() {
   /* ---------- 5. i testi nuovi sono tradotti ---------- */
   {
     const t = fs.readFileSync(path.join(SORGENTI, 'parti', 'traduzioni.js'), 'utf8'), TR = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
-    const blocchi = [(app5.match(/function fSenzaRete\(\)\{[\s\S]*?\n\}/) || [''])[0], (app5.match(/function mostraNovita\(\)\{[\s\S]*?\n\}/) || [''])[0], (app5.match(/const GUIDA = \(\) => \[[\s\S]*?\n\];/) || [''])[0],
+    const blocchi = [(app5.match(/function fSenzaRete\(\)\{[\s\S]*?\n\}/) || [''])[0], (app5.match(/const MOTIVI_COPIA = [\s\S]*?\nfunction fSenzaRete/) || [''])[0], (app5.match(/function mostraNovita\(\)\{[\s\S]*?\n\}/) || [''])[0], (app5.match(/const GUIDA = \(\) => \[[\s\S]*?\n\];/) || [''])[0],
       (app5.match(/data-az="senza-rete"[^\n]*/) || [''])[0], (app5.match(/id="versione-app"[^\n]*/) || [''])[0]];
     const testi = [...new Set(blocchi.join('\n').match(/tr\('((?:[^'\\]|\\.)*)'/g) || [])].map(x => x.slice(4, -1));
-    if (testi.length < 19) err('testi nuovi: la prova ne trova solo ' + testi.length + ' nei sorgenti');
+    if (testi.length < 29) err('testi nuovi: la prova ne trova solo ' + testi.length + ' nei sorgenti');
     for (const l of ['en', 'es', 'fr', 'ar']) for (const k of testi) {
       if (!TR[l][k]) err(`traduzioni: manca «${k.slice(0, 50)}» in ${l}`);
       else for (const v of k.match(/\{[a-z]+\}/g) || []) if (!TR[l][k].includes(v)) err(`traduzioni: in ${l} «${k.slice(0, 40)}» ha perso ${v}`);

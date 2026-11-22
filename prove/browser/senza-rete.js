@@ -2,8 +2,10 @@
    docs/senza-rete.md). Qui il service worker è acceso, e l'app arriva da un server che la prova può cambiare.
 
    1. Prima apertura in rete: il service worker conserva la copia dell'app (tutti i file della versione, tranne quelli
-      che si conservano solo quando servono), e nient'altro; i tasselli della mappa guardata e gli eventi della zona
-      finiscono nelle loro voci della memoria per i file.
+      che si conservano solo quando servono), e nient'altro; un file che risponde una volta con un errore si richiede
+      e la copia si completa lo stesso; la guida «Senza connessione» dice a che punto è («si sta preparando», poi
+      «è pronta»); i tasselli della mappa guardata e gli eventi della zona finiscono nelle loro voci della memoria per i
+      file.
    2. Senza rete: l'app si riapre, con la mappa, gli eventi della zona, il calendario con l'Off-Grid, i contenuti
       d'esempio di Agorà e il PDF del calendario.
    3. Una versione con un file che non corrisponde alla sua impronta non parte: resta la versione di prima.
@@ -12,6 +14,8 @@
       aperto, e allora i file della versione di prima sono cancellati.
    5. Interruttore d'emergenza: quando emergenza.json dice di scartare la versione, la copia si cancella, il service
       worker si toglie e l'app si ricarica dalla rete, senza riattivarlo.
+   6. Un telefono nuovo a cui arriva un file che non è quello della versione: la copia non si fa e la guida «Senza
+      connessione» dice che non è riuscita, con il nome del file e il motivo.
    Dati inventati; ogni richiesta verso l'esterno è bloccata. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
@@ -34,7 +38,12 @@ async function prova() {
   let attuale = A, lento = false, letture = 0;
   /* quando «lento» è acceso, una lettura su due del file d'emergenza arriva in ritardo: così la pagina lo sta ancora
      aspettando quando il service worker la fa ricaricare (su una macchina lenta succede da sé) */
-  const s = await server('pubblica', { file: () => attuale, ritardo: k => lento && k === 'emergenza.json' && (letture++ % 2) ? 700 : 0 });
+  /* alla prima apertura un file arriva lento (si vede la preparazione) e uno risponde una volta 503 (si deve riprovare) */
+  const LENTO = 'licenze/index.html', CAPRICCIOSO = 'licenze/odbl-1.0.txt';
+  let primaVolta = true, richiesteCapriccioso = 0;
+  const s = await server('pubblica', { file: () => attuale,
+    ritardo: k => (primaVolta && k === LENTO) ? 5000 : (lento && k === 'emergenza.json' && (letture++ % 2)) ? 700 : 0,
+    stato: k => k === CAPRICCIOSO && ++richiesteCapriccioso === 1 ? 503 : 0 });
   const F = '#foglio-slot ';
   const g = giorno(1);
   const og = { id: 'prova-og-senza-rete', personal: true, offgrid: true, title: 'Cena inventata', datetime: g + 'T20:00', end: g + 'T22:00', lat: 45.071, lng: 7.688, address: 'Via Finta 3', hidden: false, price: '' };
@@ -62,8 +71,15 @@ async function prova() {
     const casse = () => p.evaluate(async () => { const o = {}; for (const n of await caches.keys()) o[n] = (await (await caches.open(n)).keys()).length; return o; });
 
     /* ---------- 1. prima apertura in rete ---------- */
+    const statoCopia = async () => ((await p.locator('#copia-stato').textContent().catch(() => '')) || '').trim();
     await apriApp();
-    if (!(await aspetta(async () => (await versioneSw()) === vA))) { err('il service worker non prende in carico la pagina alla prima apertura'); return e; }
+    if (await tocca('[data-az="impostazioni"]', 'impostazioni') && await tocca(F + '[data-az="senza-rete"]', 'guida «Senza connessione»')) {
+      if (!(await aspetta(async () => /si sta preparando per l’uso senza rete\. \d+ file su \d+\./.test(await statoCopia()), 15000))) err('durante la preparazione la guida non dice a che punto è: «' + (await statoCopia()) + '»');
+      if (!(await aspetta(async () => /è pronta per l’uso senza rete/.test(await statoCopia()), 45000))) err('a preparazione finita la guida non dice che l\'app è pronta: «' + (await statoCopia()) + '»');
+    }
+    primaVolta = false;
+    if (richiesteCapriccioso < 2) err('il file che ha risposto 503 non è stato richiesto di nuovo');
+    if (!(await aspetta(async () => (await versioneSw()) === vA))) { err('il service worker non prende in carico la pagina alla prima apertura'); await s.chiudi(); return e; }
     if (await versionePagina() !== vA) err('il numero di versione nella pagina non è quello dell\'app montata');
     const base = s.url, copiaA = copiaDi(A), pigri = pigriDi(A);
     const attesi = Object.keys(copiaA).filter(f => !pigri.includes(f));
@@ -80,12 +96,12 @@ async function prova() {
     const c1 = await casse();
     const estranee = Object.keys(c1).filter(n => !['dl_app', 'dl_mappa', 'dl_archivio'].includes(n));
     if (estranee.length) err('nella memoria per i file ci sono voci fuori elenco: ' + estranee.join(', '));
-    e.note.push(`versione ${vA}: ${attesi.length} file nella copia dell'app; sul telefono anche ${c1.dl_mappa || 0} file della mappa e ${c1.dl_archivio || 0} dell'archivio degli eventi`);
+    e.note.push(`versione ${vA}: ${attesi.length} file nella copia dell'app (un file richiesto ${richiesteCapriccioso} volte dopo un 503); la guida ha mostrato la preparazione e poi «pronta»; sul telefono anche ${c1.dl_mappa || 0} file della mappa e ${c1.dl_archivio || 0} dell'archivio degli eventi`);
 
     /* ---------- 2. senza rete ---------- */
     await ctx.setOffline(true);
     await p.reload();
-    try { await p.waitForSelector('[data-az="elenco"]', { timeout: 15000 }); } catch (x) { err('senza rete l\'app non si apre'); return e; }
+    try { await p.waitForSelector('[data-az="elenco"]', { timeout: 15000 }); } catch (x) { err('senza rete l\'app non si apre'); await s.chiudi(); return e; }
     if (!(await eventiCaricati(p, 3))) err('senza rete gli eventi delle zone già aperte non si vedono');
     if (!(await aspetta(() => p.evaluate(() => { const m = window.__mappaProva; return !!m && m.isStyleLoaded() && m.querySourceFeatures('protomaps', { sourceLayer: 'roads' }).length > 0; }), 15000))) err('senza rete la mappa delle zone già guardate non si disegna');
     if (await tocca('[data-az="elenco"]', 'senza rete, elenco')) {
@@ -163,7 +179,23 @@ async function prova() {
     const dati = await p.evaluate(() => ({ og: window.AGR.eventi().length, cal: window.AGR.salvati.has('prova-og-senza-rete') }));
     if (dati.og !== 1 || !dati.cal) err('l\'interruttore d\'emergenza ha toccato gli Off-Grid o il calendario della persona');
     e.note.push('interruttore d\'emergenza: copia cancellata, service worker tolto, app ricaricata dalla rete; Off-Grid e calendario intatti');
-  } finally { await browser.close(); await s.chiudi(); }
+  } finally { await browser.close(); }
+
+  /* ---------- 6. un telefono nuovo, con un file sbagliato ---------- */
+  const SBAGLIATO = 'anteprime/fr.json';
+  attuale = { ...A, [SBAGLIATO]: A[SBAGLIATO] + '\n' };
+  const nuovo = await apri(pw, { dl_guida: '1' }, { serviceWorkers: 'allow' });
+  try {
+    const p = await nuovo.ctx.newPage();
+    await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="impostazioni"]'); await pausa(500);
+    await p.locator('[data-az="impostazioni"]').first().click(); await pausa(400);
+    await p.locator(F + '[data-az="senza-rete"]').first().click();
+    const fine = Date.now() + 40000; let testo = '';
+    while (Date.now() < fine) { testo = ((await p.locator('#copia-stato').textContent().catch(() => '')) || '').trim(); if (/non è riuscita/.test(testo)) break; await pausa(400); }
+    if (!/non è riuscita \(anteprime\/fr\.json: il file non corrisponde a questa versione\)/.test(testo)) err('con un file sbagliato la guida non dice che la preparazione non è riuscita, con il file e il motivo: «' + testo + '»');
+    if (await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.active); })) err('con un file sbagliato il service worker è entrato in uso');
+    e.note.push('telefono nuovo con un file sbagliato: copia non fatta, la guida dice «' + testo.slice(0, 90) + '…»');
+  } finally { await nuovo.browser.close(); await s.chiudi(); }
   return e;
 }
 

@@ -185,8 +185,10 @@
    Che cosa fa.
    - Alla prima apertura scarica i file dell'app e li conserva nella memoria del browser per i file, nella voce
      «dl_app» dell'elenco chiuso (modulo memoria.js, montato qui sopra). Ogni file si conserva solo se è proprio quello
-     di questa versione: se ne controlla l'impronta. Se un file non corrisponde, la versione nuova non parte e resta
-     quella di prima.
+     di questa versione: se ne controlla l'impronta. Un file che non arriva o non corrisponde si richiede fino a tre
+     volte; se ancora non va, la versione nuova non parte e resta quella di prima. Mentre lavora, il service worker dice
+     alla pagina a che punto è e, se non riesce, quale file e perché: la pagina lo mostra nella guida «Senza
+     connessione». Sono messaggi interni al telefono: non escono.
    - Poi consegna quei file dalla copia, anche senza rete. Tutto il resto passa dalla rete com'è: gli eventi
      (li conserva il modulo archivio.js), la mappa (modulo mappa-locale.js), la ricerca degli indirizzi, gli avvisi e
      il file d'emergenza. Il service worker non conserva mai file di altri siti.
@@ -200,14 +202,15 @@
 
    Il montaggio (sorgenti/build.js) mette qui sopra il modulo della memoria e riempie i tre valori qui sotto. */
 'use strict';
-const VERSIONE = "b4ec0a4";
-const COPIA = {"anteprime/ar.json":"6f424e530d","anteprime/en.json":"646492d396","anteprime/es.json":"ddcc50fe6f","anteprime/fr.json":"a712cc8789","anteprime/it.json":"5f8eaf724a","app.css":"0812eb1f4f","app.js":"d49b9eaacb","config.js":"3137ff659f","icone/icona-180.png":"a33a35fef8","icone/icona-192.png":"d4aaab45da","icone/icona-512.png":"b6768a69fa","index.html":"890a0ad91e","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/0-255.pbf":"f7bb279300","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/256-511.pbf":"1bab33e64d","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/512-767.pbf":"2a33e9ea40","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/768-1023.pbf":"253a66eb43","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/7680-7935.pbf":"9072a9aab7","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8192-8447.pbf":"87125bebb8","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8448-8703.pbf":"acb9141e24","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8704-8959.pbf":"e2e8c0832b","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/0-255.pbf":"62cd08773f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/256-511.pbf":"4e6eeca73c","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/512-767.pbf":"ae44f1a5f8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/768-1023.pbf":"4148875ce7","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/7680-7935.pbf":"5317416ac8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8192-8447.pbf":"af3a53c2d4","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8448-8703.pbf":"eecbbad83f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8704-8959.pbf":"d64c653f83","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/0-255.pbf":"ef444f5a7c","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/256-511.pbf":"b56481ee2a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/512-767.pbf":"c055363cbc","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/768-1023.pbf":"0bcd2e2772","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/7680-7935.pbf":"223c2931f5","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8192-8447.pbf":"4de9665c63","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8448-8703.pbf":"b7254fe37a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8704-8959.pbf":"e68bb91940","lib/caratteri-mappa/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/caratteri.css":"0d359f5805","lib/caratteri/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/dm-sans-v17/dm-sans-latin-ext-opsz-normal.woff2":"5d18d31d23","lib/caratteri/dm-sans-v17/dm-sans-latin-opsz-normal.woff2":"ca72d2bcea","lib/caratteri/dm-serif-display-v17/OFL.txt":"a3e5cdd67d","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-400-normal.woff2":"fdf61e20fd","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-ext-400-normal.woff2":"3af47815d6","lib/jspdf-2.5.1/LICENSE.txt":"2d26bfab8a","lib/jspdf-2.5.1/jspdf.umd.min.js":"98ccf17aa1","lib/maplibre-gl-5.24.0/LICENSE.txt":"ee5fc05a06","lib/maplibre-gl-5.24.0/maplibre-gl.css":"ab1e70d59e","lib/maplibre-gl-5.24.0/maplibre-gl.js":"45a9b07a91","lib/pmtiles-4.5.0/LICENSE.txt":"0371c38f33","lib/pmtiles-4.5.0/pmtiles.js":"caf981bc46","lib/protomaps-basemaps-5.7.2/LICENSE.txt":"74f975cfed","lib/protomaps-basemaps-5.7.2/stile-carta-chiaro.json":"fdbbeab4e1","lib/protomaps-basemaps-5.7.2/stile-carta-scuro.json":"86442de9ba","lib/protomaps-icone-v4/LICENSE.txt":"46d0ca73c1","lib/protomaps-icone-v4/dark.json":"bfac76cf7e","lib/protomaps-icone-v4/dark.png":"8920f68e8f","lib/protomaps-icone-v4/dark@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/dark@2x.png":"6e01b4e366","lib/protomaps-icone-v4/light.json":"bfac76cf7e","lib/protomaps-icone-v4/light.png":"b6a3464091","lib/protomaps-icone-v4/light@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/light@2x.png":"23f6e9df27","lib/sheetjs-0.18.5/LICENSE.txt":"4d2a38ac35","lib/sheetjs-0.18.5/xlsx.full.min.js":"c9506197ca","licenze/dm-sans.txt":"9af3619033","licenze/dm-serif-display.txt":"a3e5cdd67d","licenze/index.html":"2cd2cc85b4","licenze/jspdf-avvisi-nel-file.txt":"c458abafd2","licenze/jspdf.txt":"2d26bfab8a","licenze/licenze.css":"a250c27390","licenze/maplibre-gl-js.txt":"ee5fc05a06","licenze/odbl-1.0.txt":"77d2692c3d","licenze/pmtiles.txt":"0371c38f33","licenze/protomaps-basemaps.txt":"74f975cfed","licenze/protomaps-icone.txt":"46d0ca73c1","licenze/sheetjs.txt":"4d2a38ac35","manifest.webmanifest":"f391b8637f","mappa/correzioni.geojson":"b3049ad7a1","moduli.js":"7b35d6bd69","sezioni.js":"1e3a599c6d","traduzioni.js":"ce76d4a3a5"};      // {percorso: impronta} di ogni file dell'app
+const VERSIONE = "debbbec";
+const COPIA = {"anteprime/ar.json":"6f424e530d","anteprime/en.json":"646492d396","anteprime/es.json":"ddcc50fe6f","anteprime/fr.json":"a712cc8789","anteprime/it.json":"5f8eaf724a","app.css":"983cf00e86","app.js":"eeaa74b19f","config.js":"3137ff659f","icone/icona-180.png":"a33a35fef8","icone/icona-192.png":"d4aaab45da","icone/icona-512.png":"b6768a69fa","index.html":"def9656f3c","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/0-255.pbf":"f7bb279300","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/256-511.pbf":"1bab33e64d","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/512-767.pbf":"2a33e9ea40","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/768-1023.pbf":"253a66eb43","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/7680-7935.pbf":"9072a9aab7","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8192-8447.pbf":"87125bebb8","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8448-8703.pbf":"acb9141e24","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8704-8959.pbf":"e2e8c0832b","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/0-255.pbf":"62cd08773f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/256-511.pbf":"4e6eeca73c","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/512-767.pbf":"ae44f1a5f8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/768-1023.pbf":"4148875ce7","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/7680-7935.pbf":"5317416ac8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8192-8447.pbf":"af3a53c2d4","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8448-8703.pbf":"eecbbad83f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8704-8959.pbf":"d64c653f83","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/0-255.pbf":"ef444f5a7c","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/256-511.pbf":"b56481ee2a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/512-767.pbf":"c055363cbc","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/768-1023.pbf":"0bcd2e2772","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/7680-7935.pbf":"223c2931f5","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8192-8447.pbf":"4de9665c63","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8448-8703.pbf":"b7254fe37a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8704-8959.pbf":"e68bb91940","lib/caratteri-mappa/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/caratteri.css":"0d359f5805","lib/caratteri/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/dm-sans-v17/dm-sans-latin-ext-opsz-normal.woff2":"5d18d31d23","lib/caratteri/dm-sans-v17/dm-sans-latin-opsz-normal.woff2":"ca72d2bcea","lib/caratteri/dm-serif-display-v17/OFL.txt":"a3e5cdd67d","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-400-normal.woff2":"fdf61e20fd","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-ext-400-normal.woff2":"3af47815d6","lib/jspdf-2.5.1/LICENSE.txt":"2d26bfab8a","lib/jspdf-2.5.1/jspdf.umd.min.js":"98ccf17aa1","lib/maplibre-gl-5.24.0/LICENSE.txt":"ee5fc05a06","lib/maplibre-gl-5.24.0/maplibre-gl.css":"ab1e70d59e","lib/maplibre-gl-5.24.0/maplibre-gl.js":"45a9b07a91","lib/pmtiles-4.5.0/LICENSE.txt":"0371c38f33","lib/pmtiles-4.5.0/pmtiles.js":"caf981bc46","lib/protomaps-basemaps-5.7.2/LICENSE.txt":"74f975cfed","lib/protomaps-basemaps-5.7.2/stile-carta-chiaro.json":"fdbbeab4e1","lib/protomaps-basemaps-5.7.2/stile-carta-scuro.json":"86442de9ba","lib/protomaps-icone-v4/LICENSE.txt":"46d0ca73c1","lib/protomaps-icone-v4/dark.json":"bfac76cf7e","lib/protomaps-icone-v4/dark.png":"8920f68e8f","lib/protomaps-icone-v4/dark@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/dark@2x.png":"6e01b4e366","lib/protomaps-icone-v4/light.json":"bfac76cf7e","lib/protomaps-icone-v4/light.png":"b6a3464091","lib/protomaps-icone-v4/light@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/light@2x.png":"23f6e9df27","lib/sheetjs-0.18.5/LICENSE.txt":"4d2a38ac35","lib/sheetjs-0.18.5/xlsx.full.min.js":"c9506197ca","licenze/dm-sans.txt":"9af3619033","licenze/dm-serif-display.txt":"a3e5cdd67d","licenze/index.html":"2cd2cc85b4","licenze/jspdf-avvisi-nel-file.txt":"c458abafd2","licenze/jspdf.txt":"2d26bfab8a","licenze/licenze.css":"a250c27390","licenze/maplibre-gl-js.txt":"ee5fc05a06","licenze/odbl-1.0.txt":"77d2692c3d","licenze/pmtiles.txt":"0371c38f33","licenze/protomaps-basemaps.txt":"74f975cfed","licenze/protomaps-icone.txt":"46d0ca73c1","licenze/sheetjs.txt":"4d2a38ac35","manifest.webmanifest":"f391b8637f","mappa/correzioni.geojson":"b3049ad7a1","moduli.js":"7b35d6bd69","sezioni.js":"1e3a599c6d","traduzioni.js":"4cd50eb3a6"};      // {percorso: impronta} di ogni file dell'app
 const PIGRI = ["lib/sheetjs-0.18.5/xlsx.full.min.js"];      // file che si conservano solo quando servono (strumenti dell'area riservata)
 
 const BASE = new URL('./', self.location.href).href;
 const PERCORSO_BASE = new URL(BASE).pathname;
 const MEM = self.AGR_MODULI.memoria.crea({});
-const INSIEME = 6;   // file scaricati insieme durante la preparazione
+const INSIEME = 6;     // file scaricati insieme durante la preparazione
+const TENTATIVI = 3;   // richieste per ogni file, prima di arrendersi
 
 /* La copia: null se il browser non offre la memoria per i file. */
 async function copia() {
@@ -224,23 +227,56 @@ const TIPI = { html: 'text/html; charset=utf-8', js: 'text/javascript; charset=u
   geojson: 'application/geo+json', txt: 'text/plain; charset=utf-8', png: 'image/png', svg: 'image/svg+xml', pbf: 'application/x-protobuf', woff2: 'font/woff2' };
 const tipo = p => TIPI[p.slice(p.lastIndexOf('.') + 1)] || 'application/octet-stream';
 
-/* Scarica un file dell'app e lo mette nella copia, solo se è quello di questa versione. Restituisce la risposta pronta. */
+/* Perché un file non è entrato nella copia: motivo «rete» (non arriva), «risposta» (il server risponde n), «impronta»
+   (non è il file di questa versione), «altrove» (il server rimanda a un altro sito). */
+function errore(file, motivo, n) { const e = new Error(file + ': ' + motivo + (n ? ' ' + n : '')); e.file = file; e.motivo = motivo; e.n = n || 0; return e; }
+const pausa = ms => new Promise(ok => setTimeout(ok, ms));
+
+/* Scarica un file dell'app e lo mette nella copia, solo se è quello di questa versione; se non va, riprova (la seconda
+   e la terza volta senza passare dalla memoria del browser). Restituisce la risposta pronta. */
 async function prendi(c, p) {
-  const r = await fetch(indirizzo(p), { cache: 'no-cache', credentials: 'omit', redirect: 'error' });
-  if (!r.ok) throw new Error(p + ': ' + r.status);
-  const dati = await r.arrayBuffer();
-  if (await impronta(dati) !== COPIA[p]) throw new Error(p + ': non è il file di questa versione');
-  const intestazioni = { 'content-type': tipo(p), 'content-length': String(dati.byteLength) };
-  await c.put(chiave(p), new Response(dati.slice(0), { headers: intestazioni }));
-  return new Response(dati, { headers: intestazioni });
+  let ultimo = null;
+  for (let t = 0; t < TENTATIVI; t++) {
+    if (t) await pausa(t * 1500);
+    let r;
+    try { r = await fetch(indirizzo(p), { cache: t ? 'reload' : 'no-cache', credentials: 'omit' }); } catch (e) { ultimo = errore(p, 'rete'); continue; }
+    if (r.redirected && new URL(r.url).origin !== self.location.origin) throw errore(p, 'altrove');
+    if (!r.ok) { ultimo = errore(p, 'risposta', r.status); continue; }
+    let dati;
+    try { dati = await r.arrayBuffer(); } catch (e) { ultimo = errore(p, 'rete'); continue; }
+    if (await impronta(dati) !== COPIA[p]) { ultimo = errore(p, 'impronta'); continue; }
+    const intestazioni = { 'content-type': tipo(p), 'content-length': String(dati.byteLength) };
+    await c.put(chiave(p), new Response(dati.slice(0), { headers: intestazioni }));
+    return new Response(dati, { headers: intestazioni });
+  }
+  throw ultimo;
+}
+
+/* A che punto è la preparazione, per tutte le pagine di questa app aperte sul telefono (anche quelle che il service
+   worker non serve ancora). */
+async function annuncia(msg) {
+  try { for (const cl of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) cl.postMessage(Object.assign({ copia: true, versione: VERSIONE }, msg)); } catch (e) { /* niente da fare */ }
 }
 
 self.addEventListener('install', ev => ev.waitUntil((async () => {
   const c = await copia();
-  if (!c) throw new Error('questo browser non conserva file');
-  const mancanti = [];
-  for (const p of Object.keys(COPIA)) if (!PIGRI.includes(p) && !(await c.match(chiave(p)))) mancanti.push(p);
-  for (let i = 0; i < mancanti.length; i += INSIEME) await Promise.all(mancanti.slice(i, i + INSIEME).map(p => prendi(c, p)));
+  if (!c) { await annuncia({ stato: 'errore', motivo: 'memoria' }); throw new Error('questo browser non conserva file'); }
+  const tutti = Object.keys(COPIA).filter(p => !PIGRI.includes(p)), mancanti = [];
+  for (const p of tutti) if (!(await c.match(chiave(p)))) mancanti.push(p);
+  const totale = tutti.length;
+  let fatti = totale - mancanti.length, prossimo = 0, fermo = false;
+  await annuncia({ stato: 'preparazione', fatti, totale });
+  /* sei file alla volta: appena uno è finito, parte il successivo */
+  const lavora = async () => {
+    while (!fermo && prossimo < mancanti.length) {
+      const p = mancanti[prossimo++];
+      await prendi(c, p);
+      annuncia({ stato: 'preparazione', fatti: ++fatti, totale });
+    }
+  };
+  try { await Promise.all(Array.from({ length: INSIEME }, lavora)); }
+  catch (e) { fermo = true; await annuncia({ stato: 'errore', file: e.file || '', motivo: e.motivo || 'rete', n: e.n || 0 }); throw e; }
+  await annuncia({ stato: 'installata', fatti, totale });
 })()));
 
 self.addEventListener('activate', ev => ev.waitUntil((async () => {
@@ -251,6 +287,7 @@ self.addEventListener('activate', ev => ev.waitUntil((async () => {
     for (const r of await c.keys()) if (r.url.startsWith(BASE) && !buone.has(r.url)) await c.delete(r);
   }
   await self.clients.claim();
+  await annuncia({ stato: 'pronta' });
 })()));
 
 /* Il percorso di una richiesta dentro l'app ('' fuori dall'app); la cartella dell'app vale index.html. */

@@ -29,9 +29,25 @@ function fImpostazioni(){
 let invitoInstalla = null;
 window.addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); invitoInstalla = ev; if(st.foglio==='senzarete') disegnaFoglio(); });
 window.addEventListener('appinstalled', () => { invitoInstalla = null; if(st.foglio==='senzarete') disegnaFoglio(); });
+/* A che punto è la copia per l'uso senza rete su questo telefono (T-029): lo dice il service worker con i suoi messaggi
+   (app6.js, avviaCopia). stato: '' (non si sa ancora), preparazione, pronta, errore. Resta solo finché l'app è aperta. */
+const COPIA_STATO = {stato:'', fatti:0, totale:0, file:'', motivo:'', n:0};
+const MOTIVI_COPIA = {rete:() => tr('rete assente'), risposta:n => tr('risposta {n} del server',{n}), impronta:() => tr('il file non corrisponde a questa versione'),
+  altrove:() => tr('il server rimanda a un altro sito'), memoria:() => tr('questo browser non conserva file')};
+function rigaCopia(){
+  if(!('serviceWorker' in navigator) || !window.isSecureContext || !VERSIONE) return '';
+  const s = COPIA_STATO;
+  if(s.stato==='pronta') return `<p class="copia-stato pronta" id="copia-stato" role="status">${tr('Su questo telefono {nome} è pronta per l’uso senza rete.')}</p>`;
+  if(s.stato==='errore'){
+    const m = (MOTIVI_COPIA[s.motivo] || MOTIVI_COPIA.rete)(Number(s.n) || 0);
+    return `<p class="copia-stato errore" id="copia-stato" role="status">${tr('La preparazione per l’uso senza rete non è riuscita ({file}: {motivo}). Riapri l’app con la rete per riprovare.',{file:esc(s.file || '—'), motivo:esc(m)})}</p>`;
+  }
+  const conto = s.totale > 0 ? ' ' + tr('{n} file su {t}.',{n:Number(s.fatti) || 0, t:Number(s.totale) || 0}) : '';
+  return `<p class="copia-stato" id="copia-stato" role="status">${tr('{nome} si sta preparando per l’uso senza rete.')}${conto} ${tr('Tienila aperta con la rete finché questa riga non dice che è pronta.')}</p>`;
+}
 function fSenzaRete(){
   const testa = `<div class="riga-titolo"><h2>${tr('{nome} senza connessione')}</h2>${chiudiBtn('indietro-impostazioni')}</div>`;
-  const corpo = `<div class="legale">
+  const corpo = `${rigaCopia()}<div class="legale">
       <p>${tr('{nome} funziona anche senza rete. Gli eventi delle zone che hai già aperto restano consultabili, e la mappa delle zone che hai già guardato si vede anche offline (c’è spazio per circa un’intera città).')}</p>
       <p>${tr('Il tuo calendario e i tuoi eventi Off-Grid ci sono sempre, perché vivono sul tuo telefono.')}</p>
       <p>${tr('Senza rete non vedi gli eventi nuovi o le modifiche dell’ultimo momento, e non puoi cercare un indirizzo. Appena torni online l’app si aggiorna da sola.')}</p>

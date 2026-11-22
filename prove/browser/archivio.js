@@ -16,7 +16,7 @@
    - senza mappa (il telefono non riesce a disegnarla) l'elenco mostra comunque gli eventi della città scelta. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
-const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati, ZONA_ARCHIVIO } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati, ZONA_ARCHIVIO, EVF } = require('./comune.js');
 
 const TUTTI = Object.fromEntries(['musica', 'arte', 'sport', 'sociale', 'cibo', 'teatro', 'cinema', 'conferenze', 'laboratori', 'manifestazioni', 'mercati', 'benessere', 'volontariato'].map(k => [k, { on: true }]));
 const spia = () => {   // tiene da parte la mappa che l'app crea, per guardarla dall'esterno
@@ -33,7 +33,11 @@ async function prova() {
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const s = await server('pubblica');
   const indice = require('../../prova/archivio/indice.json');
-  const nTorino = (indice.quadranti['q21-01'] || {}).eventi + (indice.quadranti['q21-02'] || {}).eventi, nMilano = (indice.quadranti['q22-04'] || {}).eventi;
+  /* Gli eventi dell'archivio di prova che l'app deve mostrare oggi: quelli dei quadranti, tolti quelli finiti da più di tre
+     ore (l'archivio di prova conta i giorni dalla data in cui è stato scritto, quindi i primi eventi escono man mano). */
+  const visibili = q => { const f = (indice.quadranti[q] || {}).file; if (!f) return 0;
+    return require('../../prova/archivio/' + f).eventi.filter(ev => { const fm = EVF.fineMs(ev); return fm != null && Date.now() <= fm + 3 * 36e5; }).length; };
+  const nTorino = visibili('q21-01') + visibili('q21-02'), nMilano = visibili('q22-04');
 
   // ---------------- Archivio di prova del repository ----------------
   const { browser, ctx } = await apri(pw, { dl_guida: '1', dl_strati: TUTTI });

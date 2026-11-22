@@ -6,8 +6,10 @@
    Che cosa fa.
    - Alla prima apertura scarica i file dell'app e li conserva nella memoria del browser per i file, nella voce
      «dl_app» dell'elenco chiuso (modulo memoria.js, montato qui sopra). Ogni file si conserva solo se è proprio quello
-     di questa versione: se ne controlla l'impronta. Se un file non corrisponde, la versione nuova non parte e resta
-     quella di prima.
+     di questa versione: se ne controlla l'impronta. Un file che non arriva o non corrisponde si richiede fino a tre
+     volte; se ancora non va, la versione nuova non parte e resta quella di prima. Mentre lavora, il service worker dice
+     alla pagina a che punto è e, se non riesce, quale file e perché: la pagina lo mostra nella guida «Senza
+     connessione». Sono messaggi interni al telefono: non escono.
    - Poi consegna quei file dalla copia, anche senza rete. Tutto il resto passa dalla rete com'è: gli eventi
      (li conserva il modulo archivio.js), la mappa (modulo mappa-locale.js), la ricerca degli indirizzi, gli avvisi e
      il file d'emergenza. Il service worker non conserva mai file di altri siti.
@@ -28,7 +30,8 @@ const PIGRI = /*@@PIGRI@@*/[];      // file che si conservano solo quando servon
 const BASE = new URL('./', self.location.href).href;
 const PERCORSO_BASE = new URL(BASE).pathname;
 const MEM = self.AGR_MODULI.memoria.crea({});
-const INSIEME = 6;   // file scaricati insieme durante la preparazione
+const INSIEME = 6;     // file scaricati insieme durante la preparazione
+const TENTATIVI = 3;   // richieste per ogni file, prima di arrendersi
 
 /* La copia: null se il browser non offre la memoria per i file. */
 async function copia() {
@@ -45,23 +48,56 @@ const TIPI = { html: 'text/html; charset=utf-8', js: 'text/javascript; charset=u
   geojson: 'application/geo+json', txt: 'text/plain; charset=utf-8', png: 'image/png', svg: 'image/svg+xml', pbf: 'application/x-protobuf', woff2: 'font/woff2' };
 const tipo = p => TIPI[p.slice(p.lastIndexOf('.') + 1)] || 'application/octet-stream';
 
-/* Scarica un file dell'app e lo mette nella copia, solo se è quello di questa versione. Restituisce la risposta pronta. */
+/* Perché un file non è entrato nella copia: motivo «rete» (non arriva), «risposta» (il server risponde n), «impronta»
+   (non è il file di questa versione), «altrove» (il server rimanda a un altro sito). */
+function errore(file, motivo, n) { const e = new Error(file + ': ' + motivo + (n ? ' ' + n : '')); e.file = file; e.motivo = motivo; e.n = n || 0; return e; }
+const pausa = ms => new Promise(ok => setTimeout(ok, ms));
+
+/* Scarica un file dell'app e lo mette nella copia, solo se è quello di questa versione; se non va, riprova (la seconda
+   e la terza volta senza passare dalla memoria del browser). Restituisce la risposta pronta. */
 async function prendi(c, p) {
-  const r = await fetch(indirizzo(p), { cache: 'no-cache', credentials: 'omit', redirect: 'error' });
-  if (!r.ok) throw new Error(p + ': ' + r.status);
-  const dati = await r.arrayBuffer();
-  if (await impronta(dati) !== COPIA[p]) throw new Error(p + ': non è il file di questa versione');
-  const intestazioni = { 'content-type': tipo(p), 'content-length': String(dati.byteLength) };
-  await c.put(chiave(p), new Response(dati.slice(0), { headers: intestazioni }));
-  return new Response(dati, { headers: intestazioni });
+  let ultimo = null;
+  for (let t = 0; t < TENTATIVI; t++) {
+    if (t) await pausa(t * 1500);
+    let r;
+    try { r = await fetch(indirizzo(p), { cache: t ? 'reload' : 'no-cache', credentials: 'omit' }); } catch (e) { ultimo = errore(p, 'rete'); continue; }
+    if (r.redirected && new URL(r.url).origin !== self.location.origin) throw errore(p, 'altrove');
+    if (!r.ok) { ultimo = errore(p, 'risposta', r.status); continue; }
+    let dati;
+    try { dati = await r.arrayBuffer(); } catch (e) { ultimo = errore(p, 'rete'); continue; }
+    if (await impronta(dati) !== COPIA[p]) { ultimo = errore(p, 'impronta'); continue; }
+    const intestazioni = { 'content-type': tipo(p), 'content-length': String(dati.byteLength) };
+    await c.put(chiave(p), new Response(dati.slice(0), { headers: intestazioni }));
+    return new Response(dati, { headers: intestazioni });
+  }
+  throw ultimo;
+}
+
+/* A che punto è la preparazione, per tutte le pagine di questa app aperte sul telefono (anche quelle che il service
+   worker non serve ancora). */
+async function annuncia(msg) {
+  try { for (const cl of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) cl.postMessage(Object.assign({ copia: true, versione: VERSIONE }, msg)); } catch (e) { /* niente da fare */ }
 }
 
 self.addEventListener('install', ev => ev.waitUntil((async () => {
   const c = await copia();
-  if (!c) throw new Error('questo browser non conserva file');
-  const mancanti = [];
-  for (const p of Object.keys(COPIA)) if (!PIGRI.includes(p) && !(await c.match(chiave(p)))) mancanti.push(p);
-  for (let i = 0; i < mancanti.length; i += INSIEME) await Promise.all(mancanti.slice(i, i + INSIEME).map(p => prendi(c, p)));
+  if (!c) { await annuncia({ stato: 'errore', motivo: 'memoria' }); throw new Error('questo browser non conserva file'); }
+  const tutti = Object.keys(COPIA).filter(p => !PIGRI.includes(p)), mancanti = [];
+  for (const p of tutti) if (!(await c.match(chiave(p)))) mancanti.push(p);
+  const totale = tutti.length;
+  let fatti = totale - mancanti.length, prossimo = 0, fermo = false;
+  await annuncia({ stato: 'preparazione', fatti, totale });
+  /* sei file alla volta: appena uno è finito, parte il successivo */
+  const lavora = async () => {
+    while (!fermo && prossimo < mancanti.length) {
+      const p = mancanti[prossimo++];
+      await prendi(c, p);
+      annuncia({ stato: 'preparazione', fatti: ++fatti, totale });
+    }
+  };
+  try { await Promise.all(Array.from({ length: INSIEME }, lavora)); }
+  catch (e) { fermo = true; await annuncia({ stato: 'errore', file: e.file || '', motivo: e.motivo || 'rete', n: e.n || 0 }); throw e; }
+  await annuncia({ stato: 'installata', fatti, totale });
 })()));
 
 self.addEventListener('activate', ev => ev.waitUntil((async () => {
@@ -72,6 +108,7 @@ self.addEventListener('activate', ev => ev.waitUntil((async () => {
     for (const r of await c.keys()) if (r.url.startsWith(BASE) && !buone.has(r.url)) await c.delete(r);
   }
   await self.clients.claim();
+  await annuncia({ stato: 'pronta' });
 })()));
 
 /* Il percorso di una richiesta dentro l'app ('' fuori dall'app); la cartella dell'app vale index.html. */

@@ -220,8 +220,36 @@ async function scartaCopia(){
   try{ const n = performance.getEntriesByType('navigation')[0]; ricaricata = n ? n.type==='reload' : !!(performance.navigation && performance.navigation.type===1); }catch(e){}
   if(!ricaricata) location.reload();
 }
+/* Lo stato della copia, dalla registrazione del service worker e dai suoi messaggi (riga in «Senza connessione», app5.js).
+   Se c'è un service worker attivo l'app si apre senza rete, anche mentre si prepara una versione più nuova. */
+function leggiStatoCopia(){
+  const r = registrazione; if(!r) return;
+  if(r.active) Object.assign(COPIA_STATO, {stato:'pronta'});
+  else if((r.installing || r.waiting) && COPIA_STATO.stato!=='errore') COPIA_STATO.stato = 'preparazione';
+  if(st.foglio==='senzarete') disegnaFoglio();
+}
+function seguiRegistrazione(r){
+  if(!r || registrazione===r) return;
+  registrazione = r;
+  const segui = w => { if(w) w.addEventListener('statechange', () => {
+    if(w.state==='redundant' && !r.active && COPIA_STATO.stato!=='errore') Object.assign(COPIA_STATO, {stato:'errore', file:'', motivo:'rete'});
+    leggiStatoCopia(); }); };
+  segui(r.installing); r.addEventListener('updatefound', () => { segui(r.installing); leggiStatoCopia(); });
+  leggiStatoCopia();
+}
 function avviaCopia(){
   if(!('serviceWorker' in navigator) || !window.isSecureContext || !VERSIONE) return;
+  navigator.serviceWorker.addEventListener('message', ev => {
+    const d = ev.data; if(!d || d.copia!==true) return;
+    const attivo = registrazione && registrazione.active;
+    if(d.stato==='preparazione' || d.stato==='installata'){ if(!attivo) Object.assign(COPIA_STATO, {stato:'preparazione', fatti:d.fatti, totale:d.totale}); }
+    else if(d.stato==='pronta') COPIA_STATO.stato = 'pronta';
+    else if(d.stato==='errore' && !attivo) Object.assign(COPIA_STATO, {stato:'errore', file:String(d.file||''), motivo:String(d.motivo||''), n:d.n});
+    if(st.foglio==='senzarete') disegnaFoglio();
+  });
+  try{ navigator.serviceWorker.startMessages(); }catch(e){}
+  /* anche senza rete, se c'è già un service worker lo si legge */
+  navigator.serviceWorker.getRegistration().then(seguiRegistrazione).catch(() => {});
   let servita = !!navigator.serviceWorker.controller;   /* alla prima apertura il service worker arriva a pagina aperta: non è una versione nuova */
   /* la versione nuova è entrata in uso (l'ha chiesto questa pagina, in un momento che non disturba): la pagina si ricarica */
   navigator.serviceWorker.addEventListener('controllerchange', () => { if(servita && !paginaInUscita) location.reload(); servita = true; });
@@ -229,7 +257,7 @@ function avviaCopia(){
   fetch('emergenza.json', {cache:'no-store', credentials:'omit'}).then(r => r.ok ? r.json() : null).then(j => {
     if(!j || !Array.isArray(j.scarta)) return;
     if(j.scarta.includes(VERSIONE) || j.scarta.includes('*')) return scartaCopia();
-    return navigator.serviceWorker.register('sw.js').then(r => { registrazione = r; });
+    return navigator.serviceWorker.register('sw.js').then(seguiRegistrazione);
   }).catch(() => {});
 }
 

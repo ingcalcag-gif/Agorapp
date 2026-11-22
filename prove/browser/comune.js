@@ -35,6 +35,9 @@ function server(uscita = 'pubblica', opzioni = {}) {
     const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (opzioni.file && u.startsWith(radici[0][0])) {
       const k = u.slice(radici[0][0].length) || 'index.html', dati = opzioni.file()[k];
+      /* opzioni.stato(percorso): un codice di risposta da dare al posto del file (per esempio 503), oppure 0 */
+      const codice = opzioni.stato ? opzioni.stato(k) : 0;
+      if (codice) { res.writeHead(codice); res.end('risposta di prova'); return; }
       if (dati == null) { res.writeHead(404); res.end('non trovato'); return; }
       /* opzioni.ritardo(percorso): millisecondi di attesa prima di rispondere, per provare le risposte lente */
       const rispondi = () => { res.writeHead(200, { 'content-type': TIPI[path.extname(k)] || 'application/octet-stream', 'cache-control': 'no-cache' }); res.end(dati); };

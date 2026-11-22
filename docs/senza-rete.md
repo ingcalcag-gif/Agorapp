@@ -1,6 +1,6 @@
 # Senza rete, installazione e avvisi delle novità
 
-Voci T-028–T-031 del piano di adeguamento; libro mastro, § 2.2 («L'uso senza rete e le preferenze»), § 3.7 e cap. 30 (scheda «Dati locali»), §§ 29.1 e 32.1 (annuncio delle modifiche), § 3.12 e allegato C.13 (comunicazione pubblica di una violazione). Stato al 21/11/2026, blocco 7.
+Voci T-028–T-031 del piano di adeguamento; libro mastro, § 2.2 («L'uso senza rete e le preferenze»), § 3.7 e cap. 30 (scheda «Dati locali»), §§ 29.1 e 32.1 (annuncio delle modifiche), § 3.12 e allegato C.13 (comunicazione pubblica di una violazione). Stato al 22/11/2026, blocco 7.
 
 ## Che cosa resta sul telefono
 
@@ -19,6 +19,8 @@ Calendario, Off-Grid e preferenze stanno già sul telefono (T-026). Senza rete n
 - **Che cosa conserva.** Tutti i file dell'uscita (pagina, codice, stile, traduzioni, librerie, caratteri, stili e icone della mappa, contenuti d'esempio di Agorà e Progetti in tutte le lingue, pagina delle licenze, manifest e icone). SheetJS, che serve solo all'area riservata, si conserva la prima volta che lo si usa. Non conserva mai file di altri siti.
 - **Che cosa non conserva.** `avvisi.json`, `emergenza.json` e `sw.js`: il telefono li chiede sempre alla rete. Eventi e mappa passano dalla rete com'è e li conservano i loro moduli.
 - **Impronte.** Il montaggio scrive nel service worker l'elenco dei file con l'impronta di ciascuno. Un file entra nella copia solo se la sua impronta corrisponde: se il server consegna un file di un'altra versione, la versione nuova non parte e resta quella di prima. I file che non cambiano tra due versioni non si riscaricano.
+- **Preparazione.** Alla prima apertura il telefono scarica 79 file, circa 3,9 MB, sei alla volta. Un file che non arriva, che il server rifiuta o che non corrisponde si richiede fino a tre volte (la seconda e la terza senza passare dalla memoria del browser); se ancora non va, la copia non si fa e si riprova all'apertura successiva.
+- **A che punto è.** In cima alla guida «Senza connessione» una riga dice se la copia si sta preparando («… 34 file su 79»), se è pronta, oppure se non è riuscita, con il nome del file e il motivo (rete assente, risposta del server, file che non corrisponde alla versione, rimando a un altro sito). Il service worker lo comunica alla pagina con messaggi interni al telefono; la pagina non lo salva.
 - **Aggiornamento silenzioso.** Una versione nuova si prepara mentre l'app è aperta e aspetta: entra in uso quando l'app viene chiusa e riaperta. Entra in uso prima solo se c'è un momento in cui non disturba, cioè quando l'app non è in vista da qualche secondo e la persona non ha nulla di aperto (un foglio, un modulo, la guida): allora la pagina glielo dice e si ricarica. Mentre la persona usa l'app non cambia nulla. Poi i file della versione di prima si cancellano. Nessun avviso: gli avvisi servono solo per le novità che contano (sotto).
 - **Numero di versione.** Sette caratteri ricavati dal contenuto di tutti i file dell'app. Sta nella pagina (`data-versione`), nel service worker e in Impostazioni, in fondo («Versione …»).
 - **Niente che riconosca il telefono.** Richieste senza credenziali e senza parametri che dipendano dal telefono; nessun conteggio.
@@ -72,12 +74,13 @@ Per pubblicare un avviso basta cambiare `avvisi.json` e rimontare: l'avviso arri
 ## Sul collegamento di prova
 
 - Ogni ramo ha il suo indirizzo e quindi il suo service worker; la memoria per i file è in comune tra i rami, ma ogni service worker tocca solo i file del suo indirizzo.
+- Prima di provare senza rete, aprire Impostazioni → Aiuto → «Senza connessione» e aspettare che la riga in cima dica che l'app è pronta: su githack la prima preparazione può richiedere più di un minuto, perché i file di un ramo nuovo non sono ancora nelle sue copie.
 - Dopo un invio sul ramo la versione nuova si prepara alla prima apertura ed entra in uso quando tutte le schede dell'app sono state chiuse e l'app viene riaperta (oppure dopo qualche secondo con l'app non in vista). Il numero in fondo alle Impostazioni dice quale versione è in uso.
 - Il collegamento di prova tiene per qualche minuto le copie dei file: finché non ha tutti i file della versione nuova, il controllo delle impronte la rifiuta e resta quella di prima.
 
 ## Prove
 
 - `prove/senza-rete.js`: manifest e icone, elenco e impronte del service worker, numero di versione, interruttore spento, mappa sul telefono con una memoria finta, avvisi, traduzioni dei testi nuovi.
-- `prove/browser/senza-rete.js`: con il service worker acceso: copia dell'app, uso senza rete, versione manomessa rifiutata, aggiornamento silenzioso, interruttore d'emergenza.
+- `prove/browser/senza-rete.js`: con il service worker acceso: copia dell'app, un file che risponde 503 una volta e si richiede, riga di stato nella guida (preparazione, pronta), uso senza rete, versione manomessa rifiutata, aggiornamento silenzioso, interruttore d'emergenza, telefono nuovo con un file sbagliato (la riga dice quale e perché).
 - `prove/browser/avvisi.js`: avvisi, guida «Senza connessione», invito alla schermata Home.
 - Nelle altre prove nel browser il service worker è spento (`serviceWorkers: 'block'` in `prove/browser/comune.js`), perché usano risposte finte.
