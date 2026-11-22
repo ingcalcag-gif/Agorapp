@@ -70,7 +70,8 @@ function fChiavi(){
         <div class="tasti"><button class="tasto sec" data-az="chiavi-pubbliche-copia">${CH.copiato ? tr('Copiate') : tr('Copia')}</button><button class="tasto sec" data-az="chiavi-pubbliche-file">${tr('Scarica')}</button></div></section>
       <section class="sezione"><div class="tipo">${tr('Copia di riserva')}</div>
         <p class="meta">${tr('Un file cifrato con la frase della Redazione: senza la frase è illeggibile. Tienilo fuori da questo dispositivo, su un supporto cifrato; mai in una chat o nella posta.')}</p>
-        <button class="tasto sec pieno" data-az="chiavi-copia">${tr('Scarica la copia di riserva')}</button></section>
+        <button class="tasto sec pieno" data-az="chiavi-copia">${tr('Scarica la copia di riserva')}</button>
+        <p class="meta">${tr('Per riaprirla serve questa app: su un dispositivo senza chiavi, Chiavi → «Ho già una copia di riserva», poi il file e la frase.')}</p></section>
       <section class="sezione"><div class="tipo">${tr('Cassaforte degli eventi nascosti')}</div>
         <p class="meta">${nCas===1 ? tr('1 password conservata, cifrata.') : tr('{n} password conservate, cifrate.',{n:nCas})} ${tr('Ogni password si cancella da sola quando il suo evento finisce.')}</p>
         <div class="tasti"><button class="tasto sec" data-az="cassaforte-copia">${tr('Scarica la copia')}</button><button class="tasto sec" data-az="cassaforte-file">${tr('Riporta da una copia')}</button></div></section>

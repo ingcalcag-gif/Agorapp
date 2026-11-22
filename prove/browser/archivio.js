@@ -167,7 +167,27 @@ async function prova() {
     const p = await C.ctx.newPage();
     await p.goto(s.url + 'index.html');
     if (!(await eventiCaricati(p, nTorino))) e.errori.push('senza mappa l\'elenco non riceve gli eventi della città scelta');
-  } finally { await C.browser.close(); await s.chiudi(); }
+  } finally { await C.browser.close(); }
+
+  // ---------------- Il browser non ha lo strumento grafico della mappa (WebGL spento) ----------------
+  // È il caso di un computer con l'accelerazione grafica spenta: la mappa non si disegna, l'app lo dice e il resto funziona.
+  const D = await apri(pw, { dl_guida: '1', dl_strati: TUTTI });
+  await D.ctx.addInitScript(() => { const vera = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (tipo, ...a) { return /webgl/i.test(String(tipo)) ? null : vera.call(this, tipo, ...a); }; });
+  try {
+    const p = await D.ctx.newPage();
+    p.on('pageerror', x => e.errori.push('senza WebGL, errore nella pagina: ' + x.message));
+    await p.goto(s.url + 'index.html');
+    if (!(await eventiCaricati(p, nTorino))) e.errori.push('senza WebGL l\'elenco non riceve gli eventi della città scelta');
+    const testo = ((await p.locator('#map').textContent().catch(() => '')) || '').trim();
+    if (testo !== 'Questo browser non riesce a disegnare la mappa. Elenco e calendario funzionano lo stesso.') e.errori.push('senza WebGL l\'app non dice che la mappa non si disegna e che il resto funziona: «' + testo + '»');
+    await p.click('[data-az="elenco"]'); await pausa(500);
+    const righe = await p.locator('#foglio-slot [data-ev]').count();
+    if (righe < nTorino) e.errori.push(`senza WebGL l'elenco mostra ${righe} eventi invece di ${nTorino}`);
+    await p.click('[data-az="chiudi"]').catch(() => {}); await p.click('[data-az="calendario"]'); await pausa(500);
+    if (!(await p.locator('#foglio-slot .foglio').count())) e.errori.push('senza WebGL il calendario non si apre');
+    e.note.push('senza WebGL: la pagina dice che la mappa non si disegna; elenco con ' + righe + ' eventi e calendario funzionano');
+  } finally { await D.browser.close(); await s.chiudi(); }
   return e;
 }
 
