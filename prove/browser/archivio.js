@@ -33,10 +33,12 @@ async function prova() {
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const s = await server('pubblica');
   const indice = require('../../prova/archivio/indice.json');
-  /* Gli eventi dell'archivio di prova che l'app deve mostrare oggi: quelli dei quadranti, tolti quelli finiti da più di tre
-     ore (l'archivio di prova conta i giorni dalla data in cui è stato scritto, quindi i primi eventi escono man mano). */
+  /* Gli eventi dell'archivio di prova che l'app deve mostrare oggi: quelli dei quadranti non ancora finiti (l'archivio di
+     prova conta i giorni dalla data in cui è stato scritto, quindi i primi eventi escono man mano). Un evento finito da
+     meno di tre ore non è nell'elenco finché non si accende «Appena finiti»: contarlo faceva fallire la prova nelle tre
+     ore dopo la fine di un evento (GitHub Actions, 22/11/2026). */
   const visibili = q => { const f = (indice.quadranti[q] || {}).file; if (!f) return 0;
-    return require('../../prova/archivio/' + f).eventi.filter(ev => { const fm = EVF.fineMs(ev); return fm != null && Date.now() <= fm + 3 * 36e5; }).length; };
+    return require('../../prova/archivio/' + f).eventi.filter(ev => { const fm = EVF.fineMs(ev); return fm != null && Date.now() < fm; }).length; };
   const nTorino = visibili('q21-01') + visibili('q21-02'), nMilano = visibili('q22-04');
 
   // ---------------- Archivio di prova del repository ----------------
