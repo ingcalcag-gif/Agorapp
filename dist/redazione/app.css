@@ -73,7 +73,6 @@ p{margin:0}
 .marchio{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;min-height:44px;cursor:pointer}
 .quad{width:30px;height:30px;border-radius:8px;background:var(--verde);color:var(--su-verde);display:flex;align-items:center;justify-content:center}
 .nome{font-family:var(--serif);font-size:20px;line-height:24px}
-.badge-admin{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--su-verde);background:var(--testo);border-radius:999px;padding:2px 8px;border:0;cursor:pointer;min-height:24px}
 .top-dx{display:flex;align-items:center;gap:2px}
 .citta{min-height:44px;background:none;border:0;padding:0 4px;display:flex;align-items:center;cursor:pointer}
 .citta span{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:16px;color:var(--testo-2);border:1px solid var(--linea-forte);border-radius:999px;padding:4px 8px 4px 10px}
@@ -271,7 +270,6 @@ button.dato:last-child{border-bottom:0}
 .richiamo svg{flex-shrink:0;margin-top:1px}
 .og-box{border-radius:12px;padding:10px 12px;background:var(--verde-tenue);display:flex;gap:10px;align-items:flex-start}
 .og-box svg{flex-shrink:0;color:var(--verde);margin-top:1px}
-.admin-box{border-radius:12px;padding:10px 12px;border:1.5px dashed var(--linea-forte);display:flex;flex-direction:column;gap:8px}
 
 /* Campi */
 .campo{min-height:48px;border-radius:12px;border:1.5px solid var(--linea-forte);background:var(--superficie);display:flex;align-items:center;gap:10px;padding:0 12px}
@@ -462,7 +460,6 @@ body{background:var(--fondo)}
 .cal button .oggi-n{color:var(--verde)}
 .cal button.passato{opacity:.55}
 .carta .pr .nt{display:block;font-size:12px;color:var(--carta-2);white-space:pre-wrap}
-.file-nascosto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 /* due tasti per le serie: grandi, con la riga piccola sotto */
 .tasto small{display:block;font-size:12px;font-weight:500;opacity:.85}
 .tasto.col{flex-direction:column;gap:0}
@@ -947,6 +944,15 @@ label.campo:has(#pw){min-width:0}
 /* Demo (T-015): striscia in testa a ogni PDF; bollino delle schede di Agorà e Progetti in Temi */
 .carta .cs{align-self:flex-start;font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--carta-2);border:1px dashed currentColor;border-radius:6px;padding:2px 8px;margin-bottom:6px}
 .t-sez-demo{font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--testo-2);border:1px dashed var(--linea-forte);border-radius:999px;padding:0 6px}
+
+/* Stili degli strumenti della Redazione (T-033): entrano soltanto nell'app della redazione. */
+.badge-red{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--su-verde);background:var(--testo);border-radius:999px;padding:2px 8px;border:0;cursor:pointer;min-height:24px}
+.admin-box{border-radius:12px;padding:10px 12px;border:1.5px dashed var(--linea-forte);display:flex;flex-direction:column;gap:8px}
+.file-nascosto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.red-riquadro{border-radius:12px;padding:12px;border:1.5px solid var(--linea-forte);display:flex;flex-direction:column;gap:6px}
+.red-riga{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--linea)}
+.red-riga>div{display:flex;flex-direction:column;min-width:0}
+.red-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
 
 /* ======================= Misure (solo admin) ======================= */
 /* colori dei grafici: verde in scala (una sola tinta, chiaro → scuro), tre categorie verificate per il daltonismo (validate_palette, 6 ottobre 2026) */

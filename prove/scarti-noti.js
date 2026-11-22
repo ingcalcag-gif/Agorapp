@@ -8,11 +8,9 @@ const s = (prova, chiave, dove, volte, voce, motivo) => ({ prova, chiave, dove, 
 
 module.exports = [
   /* ---------- Nome fuori dalla configurazione (prove/nome.js) ---------- */
-  s('nome', 'agorapp2024', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
-  s('nome', 'agorapp2024', 'Nomeprova/app.js', 1, 'T-033, T-034', 'password di amministrazione scritta nel codice'),
 
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
-  s('indirizzi', 'esempio.it', 'app.js', 1, 'T-033, T-042', "esempio nel modello Excel dell'importazione (amministrazione)"),
+  { ...s('indirizzi', 'esempio.it', 'app.js', 1, 'T-042', "esempio nel modello Excel dell'importazione (app della redazione)"), uscite: ['redazione'] },
   s('indirizzi', 'carto.com/privacy', 'app.js', 2, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),
   s('indirizzi', 'carto.com/privacy', 'index.html', 2, 'T-080', 'testi legali v1.2 in uso'),
   s('indirizzi', 'osmfoundation.org/wiki', 'app.js', 1, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),
@@ -23,7 +21,6 @@ module.exports = [
   /* ---------- Richieste vere del telefono (prove/browser/richieste.js) ---------- */
 
   /* ---------- Chiavi e password nel codice (prove/chiavi.js) ---------- */
-  s('chiavi', 'segreto assegnato a un testo: ADMIN_PW', 'sorgenti/parti/app1.js', 1, 'T-033, T-034', 'password di amministrazione nel codice'),
 
   /* ---------- Parole vietate (prove/parole.js): rivisti con T-013; gli usi innocui sono nell'elenco AMMESSI della prova ---------- */
 

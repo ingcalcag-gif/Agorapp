@@ -140,6 +140,7 @@
     return {
       apri, controllaNovita, forseControlla, carica, eventi,
       regioni: () => (S.indice ? S.indice.regioni : []),
+      quadranti: () => (S.indice ? Object.keys(S.indice.quadranti) : []),   // tutti i quadranti con eventi, dall'indice
       pronto: () => !!S.indice,
       quadrantiConservati: () => [...S.caricati.keys()],
       persistente: () => S.persistente,

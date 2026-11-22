@@ -42,7 +42,7 @@ async function prova() {
   const LENTO = 'licenze/index.html', CAPRICCIOSO = 'licenze/odbl-1.0.txt';
   let primaVolta = true, richiesteCapriccioso = 0;
   const s = await server('pubblica', { file: () => attuale,
-    ritardo: k => (primaVolta && k === LENTO) ? 5000 : (lento && k === 'emergenza.json' && (letture++ % 2)) ? 700 : 0,
+    ritardo: k => (primaVolta && k === LENTO) ? 9000 : (lento && k === 'emergenza.json' && (letture++ % 2)) ? 700 : 0,
     stato: k => k === CAPRICCIOSO && ++richiesteCapriccioso === 1 ? 503 : 0 });
   const F = '#foglio-slot ';
   const g = giorno(1);
@@ -88,9 +88,8 @@ async function prova() {
     if (fuori.length) err('nella copia dell\'app ci sono file di altri indirizzi: ' + fuori.slice(0, 3).join(', '));
     if (chiavi.length !== attesi.length) err(`nella copia dell'app ci sono ${chiavi.length} file, la versione ne ha ${attesi.length} da conservare subito`);
     for (const f of SEMPRE_DALLA_RETE) if (chiavi.some(u => u.split('?')[0] === base + f)) err(`«${f}» è finito nella copia dell'app: deve arrivare sempre dalla rete`);
-    if (!pigri.length || chiavi.some(u => pigri.some(f => decodeURIComponent(u).includes(f)))) err('i file che servono solo all\'area riservata sono stati conservati subito');
-    else { await p.evaluate(f => fetch(f).then(r => r.arrayBuffer()), pigri[0]);
-      if (!(await aspetta(async () => (await nellaCopia()).some(u => decodeURIComponent(u).includes(pigri[0])), 8000))) err('un file che si conserva quando serve non è stato conservato dopo l\'uso'); }
+    /* dal blocco 8 (T-033) i file che si conservano solo quando servono (la libreria di Excel) sono soltanto dell'app della redazione: sezione 6 */
+    if (pigri.length) err('app pubblica: non deve avere file che si conservano solo quando servono: ' + pigri.join(', '));
     if (!(await eventiCaricati(p, 3))) err('in rete gli eventi della zona non arrivano');
     if (!(await aspetta(async () => (await p.evaluate(() => window.AGR.mappa().sulTelefono)).tasselli >= 4))) err('i tasselli della mappa guardata non si conservano sul telefono');
     const c1 = await casse();
@@ -196,6 +195,33 @@ async function prova() {
     if (await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.active); })) err('con un file sbagliato il service worker è entrato in uso');
     e.note.push('telefono nuovo con un file sbagliato: copia non fatta, la guida dice «' + testo.slice(0, 90) + '…»');
   } finally { await nuovo.browser.close(); await s.chiudi(); }
+
+  /* ---------- 6. l'app della redazione (T-033): anche lei si apre senza rete; la libreria di Excel si conserva quando serve ---------- */
+  const R = uscita(cfg, 'redazione'), sr = await server('redazione', { file: () => R });
+  const red = await apri(pw, { dl_guida: '1' }, { serviceWorkers: 'allow' });
+  try {
+    const p = await red.ctx.newPage();
+    p.on('pageerror', x => err('app della redazione, errore nella pagina: ' + x.message));
+    const aspetta = async (fn, ms = 45000) => { const fine = Date.now() + ms; for (;;) { let ok = false; try { ok = await fn(); } catch (x) { ok = false; } if (ok) return true; if (Date.now() > fine) return false; await pausa(300); } };
+    const nellaCopia = () => p.evaluate(async () => (await (await caches.open('dl_app')).keys()).map(r => decodeURIComponent(r.url)));
+    await p.goto(sr.url + 'index.html'); await p.waitForSelector('#badgeRed', { timeout: 15000 });
+    const pigri = pigriDi(R), subito = Object.keys(copiaDi(R)).filter(f => !pigri.includes(f));
+    if (pigri.length !== 1 || !/sheetjs/.test(pigri[0])) err('app della redazione: il file che si conserva solo quando serve deve essere la libreria di Excel (trovati: ' + pigri.join(', ') + ')');
+    if (!(await aspetta(async () => (await nellaCopia()).length === subito.length))) err(`app della redazione: nella copia ci sono ${(await nellaCopia()).length} file, da conservare subito sono ${subito.length}`);
+    let copia = await nellaCopia();
+    if (copia.some(u => !u.startsWith(sr.url))) err('app della redazione: nella sua copia ci sono file di altri indirizzi');
+    if (copia.some(u => pigri.some(f => u.includes(f)))) err('app della redazione: la libreria di Excel è stata conservata subito');
+    if (pigri.length) { await p.evaluate(f => fetch(f).then(r => r.arrayBuffer()), pigri[0]);
+      if (!(await aspetta(async () => (await nellaCopia()).some(u => u.includes(pigri[0])), 8000))) err('app della redazione: la libreria di Excel non si conserva dopo il primo uso'); }
+    /* senza rete: si riapre, con gli strumenti */
+    await aspetta(async () => !!(await p.evaluate(() => navigator.serviceWorker.controller)), 15000);
+    await red.ctx.setOffline(true);
+    await p.reload().catch(() => {});
+    try { await p.waitForSelector('#badgeRed', { timeout: 15000 }); await p.click('#badgeRed'); await p.waitForSelector('#foglio-slot [data-az="chiavi"]', { timeout: 5000 }); }
+    catch (x) { err('app della redazione: senza rete non si riapre con gli strumenti'); }
+    await red.ctx.setOffline(false);
+    e.note.push(`app della redazione: ${subito.length} file nella copia, la libreria di Excel conservata al primo uso; senza rete si riapre con gli strumenti`);
+  } finally { await red.browser.close(); await sr.chiudi(); }
   return e;
 }
 

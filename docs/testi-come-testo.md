@@ -23,8 +23,10 @@ Il rischio è uno solo: un testo scritto apposta, dentro un evento, un file o un
 | Ricerca degli indirizzi (Photon) | Nome, via, numero civico, città, CAP, provincia | Nessuno: è un servizio esterno | Risultati di «Cerca», suggerimenti dei moduli, riquadro «Registriamo questo punto» |
 | Ciò che la persona scrive | Testo cercato, campi dei moduli, nome di una lente | Lunghezze dei campi | Ricerca («Nessun evento con «…»»), moduli, Temi |
 | Altre chiavi della memoria del telefono | Lingua, città, tema, mezzo, strati, combinazioni, lenti (`dl_lenti`), calendario | Solo valori che l'app conosce; per le lenti solo strati e temi dell'app e un nome di 16 caratteri al massimo | Barra degli strati, Temi |
-| File importato nell'area riservata (Excel, CSV, JSON) | Tutte le colonne | Controlli dell'importazione | Anteprima («Riga n: motivo»); gli eventi importati restano nella memoria del telefono |
-| Storico e Misure dell'area riservata (`red_storico`, `red_misure`) | Note, nomi dei giri di prova, azioni, appunti, conteggi | Tipi di operazione conosciuti; conteggi e soglie trattati come numeri | Storico delle operazioni, schede delle Misure |
+| File importato nell'app della redazione (Excel, CSV, JSON) | Tutte le colonne | Controlli dell'importazione | Anteprima («Riga n: motivo»); gli eventi importati restano nella memoria del dispositivo |
+| Storico e Misure dell'app della redazione (`red_storico`, `red_misure`) | Note, nomi dei giri di prova, azioni, appunti, conteggi | Tipi di operazione conosciuti; conteggi e soglie trattati come numeri | Storico delle operazioni, schede delle Misure |
+| Chiavi della Redazione (app della redazione, T-034): nome del dispositivo scritto dalla persona, nome del file della copia scelto dal dispositivo, contenuto di una copia di riserva o di una copia della cassaforte | Nome del dispositivo, nome del file, nomi dei dispositivi e impronte scritti nella copia | Nome: al massimo 40 caratteri, senza caratteri di controllo; la copia si apre solo con la frase e i suoi campi si controllano uno per uno | Schermata «Chiavi», riga delle chiavi negli strumenti |
+| «Viene dal nostro archivio?» (app della redazione, T-037): testo incollato o file aperto dal dispositivo | Tutto il testo | Si cercano soltanto gli identificativi (16 caratteri, trattino, 8 caratteri dell'alfabeto a-z, 2-7) | Esito della verifica, con l'elenco degli identificativi trovati |
 | File degli avvisi delle novità (`avvisi.json`, T-031) | Testo dell'avviso, tipo, testo da aprire | `errori()` (`avvisi.js`): solo campi conosciuti, testo fino a 600 caratteri, tipo e testo da aprire tra quelli previsti; nessun collegamento | Avviso in basso, all'apertura |
 | Mappa (dati di OpenStreetMap nel file della mappa) | Nomi di vie e luoghi | Nessuno | Solo nel disegno della mappa (MapLibre li disegna, non li scrive nella pagina) |
 
@@ -39,10 +41,11 @@ Sono 50, tutti in `sorgenti/parti/`. La prova `prove/testi.js` li conta: se il n
 | `app2.js` | 11 | Messaggi della mappa che non si carica; segnaposto (eventi, gruppi, regioni, tappe); barra del tempo e dei tipi; barra degli strati; invito ad accendere gli strati |
 | `app3.js` | 3 | Il foglio in basso: tutte le viste (strati, elenco, scheda, calendario, anteprima del PDF, moduli) passano da qui |
 | `app4.js` | 9 | Risultati e suggerimenti della ricerca degli indirizzi; riquadro del punto; mirino di «Scegli sulla mappa» |
-| `app5.js` | 9 | Testi legali (dell'app); nome della città; guida; avvisi in alto; avviso delle novità (testo del file degli avvisi, con `esc()`, e lingua) |
-| `app6.js` | 9 | Aggiornamenti dei moduli mentre si scrive (suggerimenti, riquadro del punto, conteggio dei caratteri); pagina di stampa delle carte di Agorà e Progetti |
+| `app5.js` | 8 | Testi legali (dell'app); nome della città; guida; avvisi in alto; avviso delle novità (testo del file degli avvisi, con `esc()`, e lingua) |
+| `app6.js` | 7 | Aggiornamenti del modulo Off-Grid mentre si scrive (suggerimenti, riquadro del punto); pagina di stampa delle carte di Agorà e Progetti |
 | `app7.js` | 2 | Pagina dei Temi e foglio delle lenti |
-| `misure.js` | 2 | Schede delle Misure e loro fumetto |
+| `redazione/misure.js` | 2 | Solo nell'app della redazione: schede delle Misure e loro fumetto |
+| `redazione/strumenti.js` | 3 | Solo nell'app della redazione: aggiornamenti del modulo degli eventi mentre si scrive (ricerca dell'indirizzo, riquadro del punto, conteggio dei caratteri) |
 | `sezioni.js` | 5 | Agorà e Progetti, con i contenuti d'esempio dell'app |
 
 La pagina di stampa del calendario (`stampaPdf`) e quella delle carte non scrivono nella pagina dell'app: costruiscono un documento a parte, con le stesse regole. Il PDF (`creaPdf`) riceve testo semplice.

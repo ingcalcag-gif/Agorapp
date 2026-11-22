@@ -1,5 +1,5 @@
-/* ======================= Storico delle operazioni dell'admin (6 ottobre 2026) =======================
-   Dove sta: in questo telefono, nella memoria del browser (chiave red_storico), come gli eventi
+/* ======================= Storico delle operazioni della Redazione (6 ottobre 2026; nell'app della redazione da T-035) =======================
+   Dove sta: su questo dispositivo, nella memoria del browser (chiave red_storico), come gli eventi
    e le Misure. L'app lo legge da lì: non va su nessun server e un altro telefono non lo vede.
    Cosa tiene: il tipo di operazione, giorno e ora, quanti eventi e il codice dell'evento. Il titolo NON viene salvato:
    lo storico lo legge dall'evento finché l'evento è sulla mappa. Quando l'evento sparisce (3 ore dopo la fine),
@@ -7,13 +7,17 @@
    Si tengono le ultime 1.000 operazioni e al massimo 12 mesi. */
 const STORICO_MAX = 1000, STORICO_GIORNI = 365;
 const OP_STORICO = {
-  entra:['accessi','Entrata in modalità admin'], esci:['accessi','Uscita dalla modalità admin'],
+  /* «entra» ed «esci» sono di quando l'area riservata stava nell'app pubblica: restano per leggere le voci vecchie */
+  entra:['accessi','Entrata nell’area riservata'], esci:['accessi','Uscita dall’area riservata'],
+  'chiavi-crea':['accessi','Chiavi create'], 'chiavi-ripristina':['accessi','Chiavi ripristinate da una copia'], 'chiavi-aggiungi':['accessi','Dispositivo aggiunto da una copia'],
+  'chiavi-copia':['accessi','Copia di riserva delle chiavi scaricata'], 'chiavi-revoca':['accessi','Chiavi di questo dispositivo revocate'],
+  'cassaforte-copia':['accessi','Copia della cassaforte scaricata'], 'cassaforte-riporta':['accessi','Cassaforte riportata da una copia'],
   crea:['eventi','Evento creato'], modifica:['eventi','Evento modificato'], elimina:['eventi','Evento eliminato'], ripristina:['eventi','Eventi ripristinati'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
   misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']
 };
-const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Accessi']];
+const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Chiavi e accessi']];
 const SH = {filtro:'tutte', mostrati:60, conferma:false};
 function storico(){
   const l = MEM.leggi('red_storico', []); if(!Array.isArray(l)) return [];
@@ -45,7 +49,7 @@ function foglioStorico(){
     if(g!==giorno){ giorno = g; righe += `<h3 class="sh-giorno">${esc(lungD(oggiDi(d)))}</h3>`; }
     righe += `<div class="sh-voce sh-${OP_STORICO[x.op][0]}"><span class="sh-ora">${hm(d)}</span><div><b>${tr(OP_STORICO[x.op][1])}</b>${descriviVoce(x)?`<span class="meta">${descriviVoce(x)}</span>`:''}</div></div>`; });
   window.AGR.foglio(`<div class="mz-foglio sh">
-    <button class="link sh-indietro" data-az="admin">${tr('‹ Modalità admin')}</button>
+    <button class="link sh-indietro" data-az="admin">${tr('‹ Strumenti della redazione')}</button>
     <h2>${tr('Storico delle operazioni')}</h2>
     <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave red_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
     <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra lo storico'))}">${GRUPPI_STORICO.map(([k,t]) => `<button data-sh="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(t)} · ${tutte.filter(x => k==='tutte' || OP_STORICO[x.op][0]===k).length}</span></button>`).join('')}</nav>

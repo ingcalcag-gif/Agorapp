@@ -4,7 +4,7 @@
    App della mappa degli eventi — restyling (ramo restyling-app)
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
    Funzioni vere dall'app online OG 1.7: mappa (dal blocco 3 la mappa propria, T-017), indirizzi Photon,
-   GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
+   GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, città,
    5 lingue, testi legali v1.2. I dati sul telefono passano dal modulo della memoria (T-026).
    ===================================================================== */
 const $ = id => document.getElementById(id);
@@ -28,14 +28,16 @@ const nomeFile = () => NOME.toLowerCase().normalize('NFD').replace(/[\u0300-\u03
 const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   ? `<span class="${classe}">${esc(CASELLA)}</span>`
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
-const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
+const EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
 
 /* ---------- Memoria del telefono (T-026; libro mastro, § 3.7 e cap. 30; docs/dati-locali.md) ----------
    Tutto ciò che l'app salva sul telefono passa da MEM, che conosce soltanto le chiavi dell'elenco chiuso
    (sorgenti/moduli/memoria.js): leggi e scrivi per i valori in JSON, testo per i testi, togli per cancellare.
-   Fino al blocco 8 l'area riservata sta ancora in questa app: per questo la memoria comprende le chiavi della Redazione.
+   Le due app montate dallo stesso codice (T-033) aprono la memoria in modo diverso: l'app pubblica conosce soltanto le
+   righe della scheda «Dati locali»; l'app della redazione anche le chiavi dei suoi strumenti.
    avvia(), prima di ogni lettura: i dati salvati con i nomi delle versioni precedenti traslocano sotto i nomi nuovi e
-   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle. */
+   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle; nell'app pubblica si cancellano così anche le
+   chiavi degli strumenti della Redazione rimaste sul telefono da quando l'area riservata stava in questa app. */
 const MEM = MODULI.memoria.crea({redazione:true});
 MEM.avvia();
 
@@ -164,8 +166,8 @@ const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gr
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */
 /* Due provenienze, separate (T-022): gli eventi pubblici arrivano soltanto dall'archivio comune, a quadranti; gli
-   Off-Grid soltanto dalla memoria del telefono. Gli eventi creati o importati qui dall'area riservata restano nella
-   memoria di questo telefono ma non vanno più sulla mappa: si pubblicheranno dall'app della redazione (blocchi 8-10).
+   Off-Grid soltanto dalla memoria del telefono. Gli eventi che la Redazione prepara nella sua app restano nella memoria
+   del suo dispositivo e non vanno sulla mappa finché non si pubblicano (blocchi 9-10).
    Pratiche e Istanze non vanno sulla mappa finché Progetti e Agorà non aprono (T-015). */
 function tipoDi(ev){ return (ev.personal || ev.offgrid) ? 'og' : 'evento'; }
 function vista(ev){
@@ -207,7 +209,7 @@ const st = {
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
-  admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, msgAdmin:null, lente:null, vuoti:false
+  admin:true, eliminati:[], importa:null, msgAdmin:null, guida:null, sbloccati:new Set(), lente:null, vuoti:false
 };
 (function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = MEM.testo('dl_semplice','0')==='1';
@@ -767,7 +769,6 @@ function disegnaChips(){
   $('btnCal').innerHTML = `<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
   requestAnimationFrame(() => { if(typeof bordiChips==='function') bordiChips(); });
   $('btnCal').setAttribute('aria-label', tr('Il mio Calendario'));
-  $('badgeAdmin').hidden = !st.admin;
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
   $('btnPieno').setAttribute('aria-pressed', st.pieno); $('btnPieno').setAttribute('aria-label', st.pieno ? tr('Esci dallo schermo intero') : tr('Mappa a schermo intero'));
   const per = nelPeriodo();
@@ -810,7 +811,7 @@ function posizioni(){
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.aform = null; st.importa = null; st.conferma = null; st.pdf = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
@@ -879,10 +880,11 @@ function disegnaFoglio(){
     strati:fStrati,
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
-    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, aform:fAdminForm, conferma:fConferma,
-    impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, admin:fAdmin, importa:fImporta, temi:fTemi,
+    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, conferma:fConferma,
+    impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
   };
+  Object.assign(F, FOGLI_RED);   /* i fogli degli strumenti della Redazione (sorgenti/redazione/) */
   const fn = F[st.foglio]; if(!fn){ st.foglio = null; slot.innerHTML = ''; return; }
   slot.innerHTML = fn();
   if(stesso){ const f = slot.querySelector('.foglio'); if(f) f.style.animation = 'none'; const c = slot.querySelector('.corpo'); if(c) c.scrollTop = scroll; }
@@ -974,7 +976,6 @@ function descrizione(e){
   const lungo = e.desc.length > 170;
   return `<p class="desc${lungo&&!st.descAperta?' chiusa':''}">${esc(e.desc)}</p>${lungo?`<button class="link" style="min-height:32px;margin-top:-10px" data-az="leggi">${st.descAperta?tr('Mostra meno'):tr('Leggi tutto')}</button>`:''}`;
 }
-const boxAdmin = e => st.admin && e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
 /* ---------- Scheda dell'evento pubblico (T-023; libro mastro, §§ 5.2, 5.3 e 11.3) ----------
    Tutto ciò che serve per andare all'evento sta qui, in forma di testo: nome del luogo e indirizzo su righe proprie, la
@@ -1134,7 +1135,6 @@ const SCRIPT = {};
 function caricaScript(url){ return SCRIPT[url] || (SCRIPT[url] = new Promise((ok, no) => { const x = document.createElement('script'); x.src = url; x.async = true; x.onload = () => ok(); x.onerror = () => { delete SCRIPT[url]; no(new Error('script')); }; document.head.appendChild(x); })); }
 /* Librerie ospitate con l'app, a versione fissa (T-007; sorgenti/vendor/): nessuna richiesta a servizi esterni. */
 const URL_JSPDF = 'lib/jspdf-2.5.1/jspdf.umd.min.js';
-const URL_XLSX = 'lib/sheetjs-0.18.5/xlsx.full.min.js';
 function preparaPdf(){ return lang==='ar' ? Promise.resolve() : caricaScript(URL_JSPDF); }
 function scaricaBlob(blob, nome){ const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
 /* i caratteri dei font standard del PDF (latino): il resto si toglie */
@@ -1453,7 +1453,7 @@ function fForm(){
     ${serie && serie.length>1 ? `<div class="stack-s"><button class="tasto pri pieno col" data-salva-form="una">${tr('Salva solo questa data')}<small>${esc(nomeGiorno(f.giorno))}</small></button><button class="tasto sec pieno col" data-salva-form="serie">${tr('Salva tutta la serie')}<small>${tr('{n} date, ognuna nel suo giorno',{n:serie.length})}</small></button></div>`
       : `<div class="tasti"><button class="tasto sec" data-az="chiudi">${tr('Annulla')}</button><button class="tasto pri" data-salva-form="una">${mod?tr('Salva modifiche'):tr('Salva sulla mappa')}</button></div>`}
     ${mod?`<button class="tasto pericolo pieno" data-elimina="${esc(f.id)}">${tr('Elimina')}</button>`:''}
-    ${st.admin&&!mod?`<button class="link" data-az="admin-ongrid">${tr('Admin: crea invece un evento on-grid completo')} ${freccia}</button>`:''}`;
+    ${!mod?`<button class="link" data-az="admin-ongrid">${tr('Redazione: crea invece un evento on-grid completo')} ${freccia}</button>`:''}`;
   return foglio('forte alto', testa, corpo);
 }
 function salvaForm(modo){
@@ -1529,12 +1529,12 @@ function disegnaPosa(){
     <div class="posa-barra vetro"><div class="tasti"><button class="tasto sec" data-az="posa-annulla">${tr('Annulla')}</button><button class="tasto pri" data-az="posa-ok">${tr('Conferma')}</button></div></div>`;
 }
 function iniziaPosa(chi){
-  const f = chi==='aform' ? st.aform : st.form; if(!f) return;
+  const f = st[chi]; if(!f) return;   /* chi: il nome del modulo aperto nello stato, che è anche il nome del suo foglio */
   st.posa = chi; st.foglio = null; disegnaFoglio(); disegnaPins(); disegnaPosa(); posizioni();
   if(f.pos && map) map.jumpTo({center:[f.pos.lng, f.pos.lat], zoom:Math.max(map.getZoom(), 17), padding:{top:0,bottom:0,left:0,right:0}});
 }
 function finePosa(ok){
-  const chi = st.posa, f = chi==='aform' ? st.aform : st.form; st.posa = null; disegnaPosa();
+  const chi = st.posa, f = st[chi]; st.posa = null; disegnaPosa();
   if(ok && f && map){
     const c = map.getCenter(); f.pos = {lat:c.lat, lng:c.lng}; f.precision = 'map'; if(f.err) f.err.indirizzo = 0;
     /* nessuna ricerca inversa (T-008): resta ciò che la persona ha scritto, altrimenti «Punto scelto sulla mappa» */
@@ -1561,10 +1561,7 @@ function fImpostazioni(){
       <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button>
       <a class="menu-r" href="licenze/index.html" target="_blank" rel="noopener noreferrer"><div><span class="t">${tr('Licenze dei componenti')}</span><span class="meta">${tr('Mappa, librerie e caratteri: testi integrali')}</span></div>${freccia}</a></div>
       <p class="meta">${tr('Scrivici')}: ${casellaHtml('mail')}</p></section>
-    <section class="sezione"><div class="tipo">${tr('Area riservata')}</div>
-      ${st.admin ? `<button class="riga-int" data-az="admin"><div><span class="t">${tr('Sei in modalità admin')}</span><span class="meta">${tr('Eventi on-grid, importa ed esporta in Excel, esci')}</span></div>${freccia}</button>`
-        : st.adminPw ? `<div style="display:flex;gap:8px"><label class="campo${st.adminErr?' errore':''}" style="flex:1"><input id="adminpw" type="password" placeholder="${esc(tr('Password admin'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="entra-admin">${tr('Entra')}</button></div>${st.adminErr?`<span class="err">${tr('Password non riconosciuta.')}</span>`:''}`
-        : `<button class="link" data-az="mostra-admin">${tr('Accesso admin')}</button>`}</section>
+    <section class="sezione"><div class="tipo">${tr('Redazione')}</div><button class="riga-int" data-az="admin"><div><span class="t">${tr('Strumenti della redazione')}</span><span class="meta">${tr('Eventi, Excel, Misure, storico, chiavi')}</span></div>${freccia}</button></section>
     ${VERSIONE ? `<p class="meta" id="versione-app">${tr('Versione {v}',{v:esc(VERSIONE)})}</p>` : ''}`;
   return foglio('forte alto', testa, corpo);
 }
@@ -1650,268 +1647,6 @@ function applicaCitta(id, anima){
   if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
 }
 
-/* ======================= Admin ======================= */
-function fAdmin(){
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Modalità admin')}</h2><p class="meta">${tr('Solo per chi pubblica gli eventi raccolti')}</p></div>${chiudiBtn()}</div>`;
-  const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
-    <div class="menu-lista">
-      <button class="menu-r" data-az="admin-ongrid">${icoCal()}<div><span class="t">${tr('Nuovo evento on-grid')}</span><span class="meta">${tr('Form completo, con strato, sottocategoria, prezzo e indirizzo')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono')}</span></div>${freccia}</button></div>
-    <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo telefono') : tr('{n} operazioni registrate su questo telefono',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo telefono'))(storico().length)}</span></div>${freccia}</button>
-    <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
-    ${st.msgAdmin?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.msgAdmin)}</p>`:''}
-    ${st.eliminati.length?`<p class="meta">${tr('Eliminati in questa sessione: {n}.',{n:st.eliminati.length})} <button class="link" style="min-height:32px" data-az="ripristina">${tr('Ripristina')}</button></p>`:''}
-    <p class="meta">${tr('In modalità admin ogni scheda evento ha «Modifica» ed «Elimina».')}</p>
-    <button class="tasto sec pieno" data-az="esci-admin">${tr('Esci dalla modalità admin')}</button>`;
-  return foglio('forte alto', testa, corpo);
-}
-function esporta(){
-  const dati = events;
-  const blob = new Blob([JSON.stringify({events:dati, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nomeFile()+'_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
-  st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
-}
-/* ======================= Excel: importa, modello, esporta ======================= */
-/* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers.
-   La libreria (SheetJS) si scarica solo quando l'admin la usa. */
-const COLONNE = ['Titolo','Strato','Sottostrato','Descrizione','Data','Ora inizio','Ora fine','Durata','Prezzo','Indirizzo','Latitudine','Longitudine','Link','Nascosto','Password','Provenienza'];
-/* colonne che non si importano: si riconoscono solo per rifiutare la riga che le compila (T-011; § 6.2) */
-const COLONNE_RIFIUTATE = ['Immagine'];
-const ALIAS = {titolo:['title','nome','evento'], strato:['category','categoria','layer'], sottostrato:['sublayer','sottocategoria'], descrizione:['description','descr'], data:['date','giorno'],
-  'ora inizio':['ora','inizio','orario','time','start'], 'ora fine':['fine','end'], durata:['duration'], prezzo:['price','costo'], indirizzo:['address','luogo','dove'],
-  latitudine:['lat','latitude'], longitudine:['lng','lon','long','longitude'], link:['url','sito'], immagine:['image','img','foto'], nascosto:['hidden'], password:['parola segreta'], provenienza:['fonte','origine','source','flusso']};
-const normT = x => String(x==null?'':x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-function chiaveColonna(h){
-  const n = normT(h); if(!n) return null;
-  for(const c of COLONNE.concat(COLONNE_RIFIUTATE)){ const k = c.toLowerCase(); if(n===normT(c) || (ALIAS[k]||[]).some(a => normT(a)===n)) return k; }
-  return null;
-}
-const pad2 = n => String(n).padStart(2,'0');
-function leggiData(v){
-  if(v==null || v==='') return null;
-  if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+pad2(v.getMonth()+1)+'-'+pad2(v.getDate());
-  if(typeof v==='number' && v>20000){ const d = new Date(Math.round((Math.floor(Math.round(v*1440)/1440) - 25569)*864e5)); return d.getUTCFullYear()+'-'+pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate()); }
-  const t = String(v).trim(); let m;
-  if((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return m[1]+'-'+pad2(m[2])+'-'+pad2(m[3]);
-  if((m = t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/))){ const y = m[3].length===2 ? '20'+m[3] : m[3]; return y+'-'+pad2(m[2])+'-'+pad2(m[1]); }
-  return null;
-}
-function leggiOra(v){
-  if(v==null || v==='') return null;
-  if(v instanceof Date && !isNaN(v)) return pad2(v.getHours())+':'+pad2(v.getMinutes());
-  if(typeof v==='number'){ const f = v - Math.floor(v); if(v>=1 && f===0) return v<24 ? pad2(v)+':00' : null; const min = Math.round(f*1440) % 1440; return pad2(Math.floor(min/60))+':'+pad2(min%60); }
-  const m = String(v).trim().match(/^(\d{1,2})(?:[:.h,](\d{2}))?$/i); if(!m || +m[1]>23 || (m[2] && +m[2]>59)) return null;
-  return pad2(m[1])+':'+(m[2]||'00');
-}
-const numero = v => { if(typeof v==='number') return v; const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n) ? n : null; };
-const leggiProv = v => { const n = normT(v); return /consens|diretto|^a$|flusso a/.test(n) ? 'consenso' : /pubblic|^b$|flusso b/.test(n) ? 'pubblica' : ''; };
-const siNo = v => /^(si|sì|s|yes|y|x|1|true|vero)$/i.test(String(v==null?'':v).trim());
-/* strato e sottostrato si riconoscono anche scritti a metà («Conferenze», «conferenze talk») o in un'altra lingua dell'app */
-const parole = x => normT(x).split(' ').filter(w => w && !['e','ed','and','y','et','di','de','of'].includes(w));
-function trova(lista, v, nomi){
-  const n = parole(v); if(!n.length) return null;
-  const forme = x => nomi(x).filter(Boolean).map(parole);
-  const esatto = lista.filter(x => forme(x).some(f => f.join(' ')===n.join(' ')));
-  if(esatto.length) return esatto[0];
-  const parziale = lista.filter(x => forme(x).some(f => n.every(w => f.some(k => k.startsWith(w)))));
-  return parziale.length===1 ? parziale[0] : null;
-}
-const nomiIn = (x, lab) => [x.id, lab].concat(['en','es','fr','ar'].map(g => TR[g] && TR[g][lab]));
-function trovaStrato(v){ return trova(LAYERS, v, l => nomiIn(l, l.label)); }
-function trovaSub(l, v){ return l ? trova(l.sub, v, x => nomiIn(x, x.label)) : null; }
-function leggiImport(file){
-  const nome = (file.name||'').toLowerCase();
-  if(nome.endsWith('.json')) return leggiImportJson(file);
-  st.importa = {fase:'leggo', tot:0, ok:[], scarti:[], avvisi:[], fatti:0, daCercare:0}; apri('importa');
-  const I = st.importa;
-  Promise.all([caricaScript(URL_XLSX), file.arrayBuffer()]).then(([_, buf]) => {
-    if(st.importa!==I) return;
-    const wb = XLSX.read(buf, {type:'array', raw:nome.endsWith('.csv')});
-    const ws = wb.Sheets[wb.SheetNames.find(n => normT(n)==='eventi') || wb.SheetNames[0]];
-    const righe = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
-    const iTesta = righe.findIndex(r => r.filter(c => chiaveColonna(c)).length >= 3);
-    if(iTesta<0){ st.importa = null; st.msgAdmin = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
-    const mappa = righe[iTesta].map(chiaveColonna);
-    const dati = righe.slice(iTesta+1).map((r, k) => { const o = {riga:iTesta+k+2}; mappa.forEach((c, j) => { if(c) o[c] = r[j]; }); return o; })
-      .filter(o => COLONNE.concat(COLONNE_RIFIUTATE).some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
-    I.tot = dati.length;
-    const chiavi = new Set(events.map(e => normT(e.title)+'|'+e.datetime));
-    const daCercare = [];
-    dati.forEach((o, k) => {
-      const no = motivo => I.scarti.push({riga:o.riga, motivo});
-      const titolo = String(o.titolo==null?'':o.titolo).trim().slice(0, TITLE_MAX);
-      if(!titolo) return no(tr('manca il titolo'));
-      if(String(o.immagine==null?'':o.immagine).trim()) return no(tr('colonna «Immagine» compilata: {nome} non pubblica immagini, svuotala e importa di nuovo'));
-      const l = trovaStrato(o.strato); if(!l) return no(o.strato ? tr('strato «{s}» non riconosciuto',{s:o.strato}) : tr('manca lo strato'));
-      const g = leggiData(o.data); if(!g) return no(o.data ? tr('data non leggibile') : tr('manca la data'));
-      const h = leggiOra(o['ora inizio']) || (typeof o.data==='number' && o.data%1 ? leggiOra(o.data) : null); if(!h) return no(tr('manca l’ora di inizio'));
-      const datetime = g+'T'+h, hf = leggiOra(o['ora fine']);
-      let fine = hf ? g+'T'+hf : ''; if(fine && fine<=datetime) fine = piuGiorni(g,1)+'T'+hf;
-      if(new Date(fine||datetime).getTime() < Date.now()) return no(tr('è già passato'));
-      if(chiavi.has(normT(titolo)+'|'+datetime)) return no(tr('c’è già'));
-      chiavi.add(normT(titolo)+'|'+datetime);
-      const sub = trovaSub(l, o.sottostrato); if(o.sottostrato && !sub) I.avvisi.push({riga:o.riga, motivo:tr('sottostrato «{s}» non riconosciuto: lasciato vuoto',{s:o.sottostrato})});
-      const lat = numero(o.latitudine), lng = numero(o.longitudine), coord = lat!=null && lng!=null && Math.abs(lat)<=90 && Math.abs(lng)<=180 && (lat || lng);
-      const indirizzo = String(o.indirizzo==null?'':o.indirizzo).trim();
-      if(!coord && indirizzo.length<3) return no(tr('manca l’indirizzo'));
-      const nascosto = siNo(o.nascosto), pw = String(o.password==null?'':o.password).trim();
-      if(nascosto && !pw) return no(tr('evento nascosto senza password'));
-      const ev = {id:'x'+Date.now().toString(36)+k, title:titolo, category:l.id, sublayer:sub?sub.label:'', description:String(o.descrizione==null?'':o.descrizione).trim().slice(0,500),
-        datetime, end:fine, duration:String(o.durata==null?'':o.durata).trim(), price:String(o.prezzo==null?'':o.prezzo).trim(), link:normLink(String(o.link==null?'':o.link)),
-        hidden:nascosto, hiddenPassword:nascosto?pw:'', offgrid:false, address:indirizzo, addressFull:indirizzo, addrPrecision:coord?'exact':'', addrNum:'', lat:coord?lat:null, lng:coord?lng:null, importato:true, creato:new Date().toISOString(), provenienza:leggiProv(o.provenienza)};
-      if(coord) I.ok.push(ev); else daCercare.push({ev, riga:o.riga});
-    });
-    I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; disegnaFoglio();
-    /* gli indirizzi senza coordinate si cercano con Photon uno alla volta, uno al secondo (T-008) */
-    (async () => {
-      for(const x of daCercare){
-        if(st.importa!==I) return;
-        const q = x.ev.address, pa = parseAddr(q);
-        let r = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); r = res.list[0]; }catch(e){}
-        await new Promise(ok => setTimeout(ok, 1000));
-        if(st.importa!==I) return;
-        if(r){ x.ev.lat = r.lat; x.ev.lng = r.lng; x.ev.addressFull = testoRisultato(r); x.ev.addrPrecision = r.precision||'exact'; x.ev.addrNum = r.hn||''; I.ok.push(x.ev); }
-        else I.scarti.push({riga:x.riga, motivo:tr('indirizzo non trovato: aggiungi latitudine e longitudine')});
-        I.fatti++; if(st.foglio==='importa') disegnaFoglio();
-      }
-      if(st.importa!==I) return;
-      I.fase = 'pronto'; I.scarti.sort((a,b) => a.riga-b.riga); if(st.foglio==='importa') disegnaFoglio();
-    })();
-  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
-}
-function leggiImportJson(file){
-  const r = new FileReader();
-  r.onload = e => {
-    try{ const d = JSON.parse(e.target.result), imp = Array.isArray(d) ? d : (d.events||[]); const ids = new Set(events.map(x => x.id));
-      const scarti = [], conImmagine = x => x && typeof x.image==='string' && x.image.trim();
-      imp.forEach((x, i) => { if(conImmagine(x)) scarti.push({riga:i+1, motivo:tr('evento con un’immagine: {nome} non pubblica immagini, toglila dal file e importa di nuovo')}); });
-      const ok = imp.filter(x => x && !conImmagine(x) && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime)
-        .map(x => { const y = Object.assign({}, x); delete y.image; return y; });
-      st.importa = {fase:'pronto', tot:imp.length, ok, scarti, avvisi:[], json:true}; apri('importa');
-    }catch(err){ st.msgAdmin = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
-  };
-  r.readAsText(file);
-}
-function fImporta(){
-  const I = st.importa;
-  if(I.fase!=='pronto'){
-    const testa = `<div class="riga-titolo"><h2>${tr('Importa eventi da Excel')}</h2>${chiudiBtn('importa-annulla')}</div>`;
-    const corpo = I.fase==='leggo' ? `<p class="caricamento">${tr('Leggo il file…')}</p>`
-      : `<p class="caricamento">${tr('Cerco gli indirizzi senza coordinate: {k} di {n}…',{k:I.fatti, n:I.daCercare})}</p><p class="meta">${tr('Uno al secondo, come chiede il servizio delle mappe. Puoi aspettare qui.')}</p>
-        <button class="tasto sec pieno" data-az="importa-annulla">${tr('Annulla')}</button>`;
-    return foglio('forte', testa, corpo);
-  }
-  const elenco = (l, cls) => l.map(x => `<div class="${cls}">${tr('Riga {r}',{r:x.riga})}: ${esc(x.motivo)}</div>`).join('');
-  const testa = `<div class="riga-titolo"><h2>${tr('Importare {n} eventi?',{n:I.ok.length})}</h2>${chiudiBtn('importa-annulla')}</div>`;
-  const corpo = `<p class="meta">${I.ok.length===I.tot ? tr('Nel file ci sono {n} eventi nuovi.',{n:I.tot}) : tr('Nel file ci sono {t} eventi: {n} sono nuovi e validi, gli altri ci sono già o mancano di dati.',{t:I.tot, n:I.ok.length})}</p>
-    ${I.scarti.length||I.avvisi.length?`<div class="imp-righe">${elenco(I.scarti,'no')}${elenco(I.avvisi,'')}</div>`:''}
-    <div class="tasti"><button class="tasto sec" data-az="importa-annulla">${tr('Annulla')}</button><button class="tasto pri" data-az="importa-ok" ${I.ok.length?'':'disabled'}>${tr('Importa')}</button></div>`;
-  return foglio('forte alto', testa, corpo);
-}
-const ESEMPIO = () => { const d = new Date(); d.setDate(d.getDate()+7); const m = LAYERS.find(l => l.id==='musica') || LAYERS[0];
-  return ['Concerto nel cortile', m.label, (m.sub[0]||{}).label||'', 'Un pomeriggio di musica dal vivo nel cortile, aperto a tutto il quartiere.', d, '18:30', '20:00', '', 'Gratuito', 'Via Giuseppe Mazzini 10, Torino', '', '', 'https://esempio.it', 'no', '', 'Fonte pubblica']; };
-function fileExcel(fogli, nome){
-  return caricaScript(URL_XLSX).then(() => {
-    const wb = XLSX.utils.book_new();
-    fogli.forEach(([n, righe, larg]) => {
-      /* le date come numero di serie di Excel con formato gg/mm/aaaa: niente sorprese di fuso orario */
-      const date = [];
-      const r2 = righe.map((r, i) => r.map((c, j) => { if(c instanceof Date){ date.push([i, j]); return (Date.UTC(c.getFullYear(), c.getMonth(), c.getDate()) - Date.UTC(1899, 11, 30))/864e5; } return c; }));
-      const ws = XLSX.utils.aoa_to_sheet(r2);
-      date.forEach(([i, j]) => { const c = ws[XLSX.utils.encode_cell({r:i, c:j})]; if(c){ c.t = 'n'; c.z = 'dd/mm/yyyy'; } });
-      if(larg) ws['!cols'] = larg.map(w => ({wch:w})); XLSX.utils.book_append_sheet(wb, ws, n); });
-    XLSX.writeFile(wb, nome, {compression:true});
-  });
-}
-const LARG = [28,22,24,48,12,10,10,10,12,34,12,12,26,10,14,20];
-function scaricaModello(){
-  const strati = [['Strato','Sottostrato']].concat(...LAYERS.map(l => l.sub.map((x, i) => [i ? '' : l.label, x.label])));
-  const istr = [['Come compilare il file'],[''],
-    ['Una riga per evento, nel foglio «Eventi». Non cambiare i nomi delle colonne.'],
-    ['Obbligatori: Titolo, Strato, Data, Ora inizio, e Indirizzo oppure Latitudine e Longitudine.'],
-    ['Strato e Sottostrato: scrivili come nel foglio «Strati».'],
-    ['Data: una data (05/11/2026). Ora inizio e Ora fine: 18:30.'],
-    ['Indirizzo: via, numero civico e città. Se mancano le coordinate, '+NOME+' cerca l’indirizzo da sé (uno al secondo).'],
-    ['Nascosto: sì o no. Se sì, serve la Password per sbloccarlo.'],
-    ['Provenienza (facoltativa): «Consenso diretto» se l’organizzatore ti ha dato il consenso, «Fonte pubblica» se l’evento viene da un sito o una pagina pubblica. Serve alle Misure.'],
-    ['Gli eventi già passati, o che ci sono già, non vengono importati.'],
-    ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx.']];
-  fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], nomeFile()+'-modello-eventi.xlsx')
-    .then(() => { st.msgAdmin = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
-    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
-}
-function esportaExcel(){
-  const dati = events.filter(e => !e.personal && !e.offgrid);
-  const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
-    return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
-  fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-excel', {n:dati.length}); st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
-    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
-}
-/* form on-grid dell'admin (stessi campi e controlli dell'app online) */
-const maxDt = () => { const d = new Date(); d.setMonth(d.getMonth()+20); return d; };
-const dtLocal = d => ymd(d)+'T'+hm(d);
-function apriAdminForm(raw){
-  const sub = raw && S[raw.category] ? (S[raw.category].sub.find(s => s.label===raw.sublayer)||{}).id||'' : '';
-  st.aform = raw ? {id:raw.id, raw, titolo:raw.title||'', strato:raw.category||'', sub, desc:raw.description||'', dt:raw.datetime||'', durata:raw.duration||'', prezzo:raw.price||'', link:raw.link||'', indirizzo:raw.address||'', addrFull:raw.addressFull||raw.address||'', pos:{lat:+raw.lat, lng:+raw.lng}, precision:raw.addrPrecision||'exact', hn:raw.addrNum||'', nascosto:!!raw.hidden, pw:raw.hiddenPassword||'', prov:raw.provenienza||'', err:{}}
-    : {id:null, raw:null, titolo:'', strato:'', sub:'', desc:'', dt:'', durata:'', prezzo:'', link:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', nascosto:false, pw:'', prov:'', err:{}};
-  st.sel = null; st.form = null; apri('aform');
-}
-function contaDesc(f){ const n = f.desc.trim().length; return `<span class="conta-car${n>=DESC_MIN?' ok':''}" id="a-conta">${n>=DESC_MIN ? tr('perfetta') : tr('almeno {n} caratteri',{n:DESC_MIN})} · ${n} / 500</span>`; }
-function fAdminForm(){
-  const f = st.aform, E = f.err, l = S[f.strato];
-  const campo = (id, lab, html, err, fac) => `<div class="stack-s"><label class="etich" for="${id}">${lab}${fac?` <span class="fac">${fac}</span>`:''}</label>${html}${err?`<span class="err">${err}</span>`:''}</div>`;
-  const testa = `<div class="riga-titolo"><div><h2>${f.id?tr('Modifica evento on-grid'):tr('Nuovo evento on-grid')}</h2><p class="meta">${tr('Admin · pubblicato sulla mappa di questo telefono')}</p></div>${chiudiBtn('admin')}</div>`;
-  const corpo = `
-    ${campo('a-titolo', tr('Titolo'), `<div class="campo${E.titolo?' errore':''}"><input id="a-titolo" data-acampo="titolo" maxlength="100" value="${esc(f.titolo)}" placeholder="${esc(tr('Nome dell’evento'))}" autocomplete="off"></div>`, E.titolo&&tr('Dai un nome all’evento'))}
-    <div class="due">${campo('a-strato', tr('Strato'), `<div class="campo${E.strato?' errore':''}"><select id="a-strato" data-acampo="strato"><option value="">${tr('— Scegli —')}</option>${LAYERS.map(x => `<option value="${x.id}" ${f.strato===x.id?'selected':''}>${esc(tr(x.label))}</option>`).join('')}</select></div>`, E.strato&&tr('Scegli lo strato'))}
-      ${campo('a-sub', tr('Sottostrato'), `<div class="campo${E.sub?' errore':''}${l?'':' spento'}"><select id="a-sub" data-acampo="sub" ${l?'':'disabled'}><option value="">${tr('— Scegli —')}</option>${l?l.sub.map(s => `<option value="${s.id}" ${f.sub===s.id?'selected':''}>${esc(tr(s.label))}</option>`).join(''):''}</select></div>`, E.sub&&tr('Scegli il sottostrato'))}</div>
-    ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="500" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>${contaDesc(f)}`, E.desc&&tr('Servono almeno 30 caratteri'))}
-    <div class="due">${campo('a-dt', tr('Data e ora'), `<div class="campo${E.dt?' errore':''}"><input id="a-dt" type="datetime-local" data-acampo="dt" value="${esc(f.dt)}" max="${dtLocal(maxDt())}"></div>`, E.dt&&tr('Serve una data futura'))}
-      ${campo('a-durata', tr('Durata'), `<div class="campo${E.durata?' errore':''}"><input id="a-durata" data-acampo="durata" value="${esc(f.durata)}" placeholder="${esc(tr('es. 2 ore'))}"></div>`, E.durata&&tr('Indica la durata'))}</div>
-    <div class="due">${campo('a-prezzo', tr('Prezzo'), `<div class="campo${E.prezzo?' errore':''}"><input id="a-prezzo" data-acampo="prezzo" value="${esc(f.prezzo)}" placeholder="${esc(tr('Gratuito / 10 €'))}"></div>`, E.prezzo&&tr('Indica il prezzo'))}
-      ${campo('a-link', tr('Link'), `<div class="campo"><input id="a-link" type="url" inputmode="url" data-acampo="link" value="${esc(f.link)}" placeholder="https://"></div>`, '', tr('facoltativo'))}</div>
-    ${campo('a-prov', tr('Provenienza'), `<div class="campo"><select id="a-prov" data-acampo="prov"><option value="">${tr('— Non indicata —')}</option><option value="consenso" ${f.prov==='consenso'?'selected':''}>${tr('Consenso diretto dell’organizzatore')}</option><option value="pubblica" ${f.prov==='pubblica'?'selected':''}>${tr('Fonte pubblica')}</option></select></div><span class="meta">${tr('Serve alle Misure: quanta offerta ha il consenso diretto (Flusso A) e quanta viene da fonti pubbliche (Flusso B).')}</span>`, '', tr('facoltativo'))}
-    ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${icoLuogo} ${tr('Scegli sulla mappa')}</button>`, E.indirizzo&&(E.indirizzo===2?tr('Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.'):tr('Scegli un indirizzo dai suggerimenti o dalla mappa')))}
-    <button class="riga-int" data-az="a-nascosto" aria-pressed="${f.nascosto}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Evento nascosto')}</span><span class="meta">${tr('Visibile solo a chi ha la password')}</span></div><span class="interr" aria-hidden="true"></span></button>
-    ${f.nascosto?campo('a-pw', tr('Password per sbloccarlo'), `<div class="campo${E.pw?' errore':''}"><input id="a-pw" data-acampo="pw" value="${esc(f.pw)}" placeholder="${esc(tr('Una parola segreta'))}" autocomplete="off"></div>`, E.pw&&tr('Scegli una password')):''}
-    <div class="tasti"><button class="tasto sec" data-az="admin">${tr('Annulla')}</button><button class="tasto pri" data-az="a-salva">${tr('Salva evento')}</button></div>
-    ${f.id?`<button class="tasto pericolo pieno" data-elimina-admin="${esc(f.id)}">${tr('Elimina')}</button>`:''}`;
-  return foglio('forte alto', testa, corpo);
-}
-function salvaAdmin(){
-  const f = st.aform, E = f.err = {};
-  const durOk = v => { if(!v.trim()) return false; const d2 = v.replace(/un[ao]?\s+po'?\s+di/i,'1').replace(/paio/i,'2').replace(/quarto d'ora/i,'15 min').replace(/mez(?:z)?ora/i,'30 min'); return /(\d+(?:[.,]\d+)?)\s*(h|ora|ore|min|minut)?/i.test(d2); };
-  const t = f.titolo.trim(); if(!t || t.length>TITLE_MAX) E.titolo = 1;
-  if(!f.strato) E.strato = 1; if(!f.sub) E.sub = 1;
-  if(f.desc.trim().length<DESC_MIN) E.desc = 1;
-  const tm = f.dt ? new Date(f.dt).getTime() : NaN; if(!f.dt || isNaN(tm) || (!f.id && tm < Date.now()-3e5) || tm > maxDt().getTime()) E.dt = 1;
-  if(!durOk(f.durata)) E.durata = 1; if(!f.prezzo.trim()) E.prezzo = 1;
-  if(f.nascosto && !f.pw.trim()) E.pw = 1;
-  if(!f.pos && !Object.keys(E).length){
-    const q = f.indirizzo.trim(); if(q.length<3){ E.indirizzo = 1; disegnaFoglio(); return; }
-    const b = $('a-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
-    lookup(parseAddr(q).city ? q : q+', '+cittaObj().n).then(res => { if(st.aform!==f) return;
-      if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; disegnaFoglio(); }
-      else { f.err.indirizzo = 2; disegnaFoglio(); } });
-    return;
-  }
-  if(!f.pos) E.indirizzo = 1;
-  if(Object.keys(E).length){ disegnaFoglio(); const c = document.querySelector('#foglio-slot .errore'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center', behavior:'smooth'}); return; }
-  const l = S[f.strato], sublayer = (l.sub.find(s => s.id===f.sub)||{}).label||'';
-  const campi = {title:t, category:f.strato, sublayer, description:f.desc.trim(), datetime:f.dt, duration:f.durata.trim(), end:'', price:f.prezzo.trim(), link:f.link.trim(),
-    hidden:f.nascosto, hiddenPassword:f.nascosto ? f.pw.trim() : '', offgrid:false, address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng, provenienza:f.prov||''};
-  let id = f.id;
-  if(f.id){ const ev = rawById(f.id); if(ev){ Object.assign(ev, campi); delete ev.image; } misureConta('corretti'); registra('modifica', {id:f.id, s:campi.category}); }
-  else { id = Date.now().toString(); events.push(Object.assign({id, creato:new Date().toISOString()}, campi)); registra('crea', {id, s:campi.category}); }
-  if(campi.hidden) st.sbloccati.add(campi.hiddenPassword);
-  saveEvents(); ricostruisci(); st.aform = null; mzFotografa();
-  const e = byId(id); if(e && !visibile(e)){ st.tempo = 'tutto'; st.salvatiSolo = false; if(e.strato) st.strati.add(e.strato); st.tipi.evento = true; }
-  selezionaEv(id);
-}
-
 /* ======================= Guida alla prima apertura ======================= */
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
@@ -1939,7 +1674,7 @@ function disegnaGuida(){
   ombraGuida();
 }
 
-/* ======================= Avvisi: solo «Annulla» dopo un'eliminazione admin e gli errori veri ======================= */
+/* ======================= Avvisi brevi in basso: un'azione da annullare e gli errori veri ======================= */
 let tt;
 function avviso(msg, azione, errore){
   if(!azione && !errore) return;   /* le spiegazioni andranno nella modalità tutorial */
@@ -2244,6 +1979,507 @@ function clickTemi(b){
   return true;
 }
 
+/* ======================= Strumenti della Redazione (T-033) =======================
+   Questo file e gli altri di sorgenti/redazione/ entrano soltanto nell'app della redazione (dist/redazione/): il
+   montaggio li mette dentro lo stesso modulo dell'app, prima delle interazioni (app6.js). L'app pubblica non ne
+   contiene una riga (libro mastro, § 2.4, «Due app dallo stesso codice»; § 3.11).
+
+   L'app della redazione si apre già con gli strumenti: non c'è più una password scritta nel codice. Chi può aprirla
+   lo decide l'indirizzo protetto (Fase 2); chi può pubblicare lo decide la firma (T-034, blocco 9).
+
+   I pezzi comuni chiamano da qui, dentro i tratti riservati all'app della redazione: FOGLI_RED (i fogli), clickRed, azioneRed, inputRed,
+   cambioRed (le interazioni), boxAdmin (il riquadro nella scheda). */
+const CHIAVI = MODULI.chiavi.crea({deposito:MEM.base});   /* chiavi, cassaforte e marcatore (sorgenti/moduli/chiavi.js) */
+const boxAdmin = e => e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">${tr('Redazione')}</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
+function fAdmin(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Strumenti della redazione')}</h2><p class="meta">${tr('Solo per chi pubblica gli eventi raccolti')}</p></div>${chiudiBtn()}</div>`;
+  const ch = CH.stato, statoChiavi = !ch ? tr('Un attimo…') : ch.ci_sono ? tr('Dispositivo: {d}',{d:esc(ch.dispositivo)}) : ch.revocata ? tr('Revocate su questo dispositivo') : tr('Da creare: servono per salvare e pubblicare gli eventi');
+  const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
+    <div class="menu-lista">
+      <button class="menu-r" data-az="admin-ongrid">${icoCal()}<div><span class="t">${tr('Nuovo evento on-grid')}</span><span class="meta">${tr('Form completo, con strato, sottocategoria, prezzo e indirizzo')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo dispositivo')}</span></div>${freccia}</button></div>
+    <div class="menu-lista">
+      <button class="menu-r" data-az="chiavi">${icoLucchetto(16)}<div><span class="t">${tr('Chiavi')}</span><span class="meta">${statoChiavi}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="verifica">${icoNote}<div><span class="t">${tr('Viene dal nostro archivio?')}</span><span class="meta">${tr('Controlla un identificativo o un file copiato')}</span></div>${freccia}</button></div>
+    <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo dispositivo') : tr('{n} operazioni registrate su questo dispositivo',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo dispositivo'))(storico().length)}</span></div>${freccia}</button>
+    <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
+    ${st.msgAdmin?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.msgAdmin)}</p>`:''}
+    ${st.ultimoId?`<p class="meta">${tr('Identificativo')}: <code class="red-id">${esc(st.ultimoId)}</code> <button class="link" style="min-height:32px" data-az="copia-id">${st.idCopiato?tr('Copiato'):tr('Copia')}</button></p>`:''}
+    ${st.eliminati.length?`<p class="meta">${tr('Eliminati in questa sessione: {n}.',{n:st.eliminati.length})} <button class="link" style="min-height:32px" data-az="ripristina">${tr('Ripristina')}</button></p>`:''}`;
+  return foglio('forte alto', testa, corpo);
+}
+function esporta(){
+  const dati = events;
+  const blob = new Blob([JSON.stringify({events:dati, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nomeFile()+'_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+  st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
+}
+/* ======================= Excel: importa, modello, esporta ======================= */
+/* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers.
+   La libreria (SheetJS) viaggia soltanto con l'app della redazione e si carica solo quando serve. */
+const URL_XLSX = 'lib/sheetjs-0.18.5/xlsx.full.min.js';
+const COLONNE = ['Titolo','Strato','Sottostrato','Descrizione','Data','Ora inizio','Ora fine','Durata','Prezzo','Indirizzo','Latitudine','Longitudine','Link','Nascosto','Password','Provenienza'];
+/* colonne che non si importano: si riconoscono solo per rifiutare la riga che le compila (T-011; § 6.2) */
+const COLONNE_RIFIUTATE = ['Immagine'];
+const ALIAS = {titolo:['title','nome','evento'], strato:['category','categoria','layer'], sottostrato:['sublayer','sottocategoria'], descrizione:['description','descr'], data:['date','giorno'],
+  'ora inizio':['ora','inizio','orario','time','start'], 'ora fine':['fine','end'], durata:['duration'], prezzo:['price','costo'], indirizzo:['address','luogo','dove'],
+  latitudine:['lat','latitude'], longitudine:['lng','lon','long','longitude'], link:['url','sito'], immagine:['image','img','foto'], nascosto:['hidden'], password:['parola segreta'], provenienza:['fonte','origine','source','flusso']};
+const normT = x => String(x==null?'':x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+function chiaveColonna(h){
+  const n = normT(h); if(!n) return null;
+  for(const c of COLONNE.concat(COLONNE_RIFIUTATE)){ const k = c.toLowerCase(); if(n===normT(c) || (ALIAS[k]||[]).some(a => normT(a)===n)) return k; }
+  return null;
+}
+const pad2 = n => String(n).padStart(2,'0');
+function leggiData(v){
+  if(v==null || v==='') return null;
+  if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+pad2(v.getMonth()+1)+'-'+pad2(v.getDate());
+  if(typeof v==='number' && v>20000){ const d = new Date(Math.round((Math.floor(Math.round(v*1440)/1440) - 25569)*864e5)); return d.getUTCFullYear()+'-'+pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate()); }
+  const t = String(v).trim(); let m;
+  if((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return m[1]+'-'+pad2(m[2])+'-'+pad2(m[3]);
+  if((m = t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/))){ const y = m[3].length===2 ? '20'+m[3] : m[3]; return y+'-'+pad2(m[2])+'-'+pad2(m[1]); }
+  return null;
+}
+function leggiOra(v){
+  if(v==null || v==='') return null;
+  if(v instanceof Date && !isNaN(v)) return pad2(v.getHours())+':'+pad2(v.getMinutes());
+  if(typeof v==='number'){ const f = v - Math.floor(v); if(v>=1 && f===0) return v<24 ? pad2(v)+':00' : null; const min = Math.round(f*1440) % 1440; return pad2(Math.floor(min/60))+':'+pad2(min%60); }
+  const m = String(v).trim().match(/^(\d{1,2})(?:[:.h,](\d{2}))?$/i); if(!m || +m[1]>23 || (m[2] && +m[2]>59)) return null;
+  return pad2(m[1])+':'+(m[2]||'00');
+}
+const numero = v => { if(typeof v==='number') return v; const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n) ? n : null; };
+const leggiProv = v => { const n = normT(v); return /consens|diretto|^a$|flusso a/.test(n) ? 'consenso' : /pubblic|^b$|flusso b/.test(n) ? 'pubblica' : ''; };
+const siNo = v => /^(si|sì|s|yes|y|x|1|true|vero)$/i.test(String(v==null?'':v).trim());
+/* strato e sottostrato si riconoscono anche scritti a metà («Conferenze», «conferenze talk») o in un'altra lingua dell'app */
+const parole = x => normT(x).split(' ').filter(w => w && !['e','ed','and','y','et','di','de','of'].includes(w));
+function trova(lista, v, nomi){
+  const n = parole(v); if(!n.length) return null;
+  const forme = x => nomi(x).filter(Boolean).map(parole);
+  const esatto = lista.filter(x => forme(x).some(f => f.join(' ')===n.join(' ')));
+  if(esatto.length) return esatto[0];
+  const parziale = lista.filter(x => forme(x).some(f => n.every(w => f.some(k => k.startsWith(w)))));
+  return parziale.length===1 ? parziale[0] : null;
+}
+const nomiIn = (x, lab) => [x.id, lab].concat(['en','es','fr','ar'].map(g => TR[g] && TR[g][lab]));
+function trovaStrato(v){ return trova(LAYERS, v, l => nomiIn(l, l.label)); }
+function trovaSub(l, v){ return l ? trova(l.sub, v, x => nomiIn(x, x.label)) : null; }
+function leggiImport(file){
+  const nome = (file.name||'').toLowerCase();
+  if(nome.endsWith('.json')) return leggiImportJson(file);
+  st.importa = {fase:'leggo', tot:0, ok:[], scarti:[], avvisi:[], fatti:0, daCercare:0}; apri('importa');
+  const I = st.importa;
+  Promise.all([caricaScript(URL_XLSX), file.arrayBuffer()]).then(([_, buf]) => {
+    if(st.importa!==I) return;
+    const wb = XLSX.read(buf, {type:'array', raw:nome.endsWith('.csv')});
+    const ws = wb.Sheets[wb.SheetNames.find(n => normT(n)==='eventi') || wb.SheetNames[0]];
+    const righe = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+    const iTesta = righe.findIndex(r => r.filter(c => chiaveColonna(c)).length >= 3);
+    if(iTesta<0){ st.importa = null; st.msgAdmin = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
+    const mappa = righe[iTesta].map(chiaveColonna);
+    const dati = righe.slice(iTesta+1).map((r, k) => { const o = {riga:iTesta+k+2}; mappa.forEach((c, j) => { if(c) o[c] = r[j]; }); return o; })
+      .filter(o => COLONNE.concat(COLONNE_RIFIUTATE).some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
+    I.tot = dati.length;
+    const chiavi = new Set(events.map(e => normT(e.title)+'|'+e.datetime));
+    const daCercare = [];
+    dati.forEach((o, k) => {
+      const no = motivo => I.scarti.push({riga:o.riga, motivo});
+      const titolo = String(o.titolo==null?'':o.titolo).trim().slice(0, TITLE_MAX);
+      if(!titolo) return no(tr('manca il titolo'));
+      if(String(o.immagine==null?'':o.immagine).trim()) return no(tr('colonna «Immagine» compilata: {nome} non pubblica immagini, svuotala e importa di nuovo'));
+      const l = trovaStrato(o.strato); if(!l) return no(o.strato ? tr('strato «{s}» non riconosciuto',{s:o.strato}) : tr('manca lo strato'));
+      const g = leggiData(o.data); if(!g) return no(o.data ? tr('data non leggibile') : tr('manca la data'));
+      const h = leggiOra(o['ora inizio']) || (typeof o.data==='number' && o.data%1 ? leggiOra(o.data) : null); if(!h) return no(tr('manca l’ora di inizio'));
+      const datetime = g+'T'+h, hf = leggiOra(o['ora fine']);
+      let fine = hf ? g+'T'+hf : ''; if(fine && fine<=datetime) fine = piuGiorni(g,1)+'T'+hf;
+      if(new Date(fine||datetime).getTime() < Date.now()) return no(tr('è già passato'));
+      if(chiavi.has(normT(titolo)+'|'+datetime)) return no(tr('c’è già'));
+      chiavi.add(normT(titolo)+'|'+datetime);
+      const sub = trovaSub(l, o.sottostrato); if(o.sottostrato && !sub) I.avvisi.push({riga:o.riga, motivo:tr('sottostrato «{s}» non riconosciuto: lasciato vuoto',{s:o.sottostrato})});
+      const lat = numero(o.latitudine), lng = numero(o.longitudine), coord = lat!=null && lng!=null && Math.abs(lat)<=90 && Math.abs(lng)<=180 && (lat || lng);
+      const indirizzo = String(o.indirizzo==null?'':o.indirizzo).trim();
+      if(!coord && indirizzo.length<3) return no(tr('manca l’indirizzo'));
+      const nascosto = siNo(o.nascosto), pw = String(o.password==null?'':o.password).trim();
+      if(nascosto && !pw) return no(tr('evento nascosto senza password'));
+      const ev = {id:'x'+Date.now().toString(36)+k, title:titolo, category:l.id, sublayer:sub?sub.label:'', description:String(o.descrizione==null?'':o.descrizione).trim().slice(0,500),
+        datetime, end:fine, duration:String(o.durata==null?'':o.durata).trim(), price:String(o.prezzo==null?'':o.prezzo).trim(), link:normLink(String(o.link==null?'':o.link)),
+        hidden:nascosto, hiddenPassword:nascosto?pw:'', offgrid:false, address:indirizzo, addressFull:indirizzo, addrPrecision:coord?'exact':'', addrNum:'', lat:coord?lat:null, lng:coord?lng:null, importato:true, creato:new Date().toISOString(), provenienza:leggiProv(o.provenienza)};
+      if(coord) I.ok.push(ev); else daCercare.push({ev, riga:o.riga});
+    });
+    I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; disegnaFoglio();
+    /* gli indirizzi senza coordinate si cercano con Photon uno alla volta, uno al secondo (T-008) */
+    (async () => {
+      for(const x of daCercare){
+        if(st.importa!==I) return;
+        const q = x.ev.address, pa = parseAddr(q);
+        let r = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); r = res.list[0]; }catch(e){}
+        await new Promise(ok => setTimeout(ok, 1000));
+        if(st.importa!==I) return;
+        if(r){ x.ev.lat = r.lat; x.ev.lng = r.lng; x.ev.addressFull = testoRisultato(r); x.ev.addrPrecision = r.precision||'exact'; x.ev.addrNum = r.hn||''; I.ok.push(x.ev); }
+        else I.scarti.push({riga:x.riga, motivo:tr('indirizzo non trovato: aggiungi latitudine e longitudine')});
+        I.fatti++; if(st.foglio==='importa') disegnaFoglio();
+      }
+      if(st.importa!==I) return;
+      I.fase = 'pronto'; I.scarti.sort((a,b) => a.riga-b.riga); if(st.foglio==='importa') disegnaFoglio();
+    })();
+  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
+}
+function leggiImportJson(file){
+  const r = new FileReader();
+  r.onload = e => {
+    try{ const d = JSON.parse(e.target.result), imp = Array.isArray(d) ? d : (d.events||[]); const ids = new Set(events.map(x => x.id));
+      const scarti = [], conImmagine = x => x && typeof x.image==='string' && x.image.trim();
+      imp.forEach((x, i) => { if(conImmagine(x)) scarti.push({riga:i+1, motivo:tr('evento con un’immagine: {nome} non pubblica immagini, toglila dal file e importa di nuovo')}); });
+      const ok = imp.filter(x => x && !conImmagine(x) && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime)
+        .map(x => { const y = Object.assign({}, x); delete y.image; return y; });
+      st.importa = {fase:'pronto', tot:imp.length, ok, scarti, avvisi:[], json:true}; apri('importa');
+    }catch(err){ st.msgAdmin = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
+  };
+  r.readAsText(file);
+}
+function fImporta(){
+  const I = st.importa;
+  if(I.fase!=='pronto'){
+    const testa = `<div class="riga-titolo"><h2>${tr('Importa eventi da Excel')}</h2>${chiudiBtn('importa-annulla')}</div>`;
+    const corpo = I.fase==='leggo' ? `<p class="caricamento">${tr('Leggo il file…')}</p>`
+      : I.fase==='salvo' ? `<p class="caricamento">${tr('Salvo gli eventi…')}</p>`
+      : `<p class="caricamento">${tr('Cerco gli indirizzi senza coordinate: {k} di {n}…',{k:I.fatti, n:I.daCercare})}</p><p class="meta">${tr('Uno al secondo, come chiede il servizio delle mappe. Puoi aspettare qui.')}</p>
+        <button class="tasto sec pieno" data-az="importa-annulla">${tr('Annulla')}</button>`;
+    return foglio('forte', testa, corpo);
+  }
+  const elenco = (l, cls) => l.map(x => `<div class="${cls}">${tr('Riga {r}',{r:x.riga})}: ${esc(x.motivo)}</div>`).join('');
+  const testa = `<div class="riga-titolo"><h2>${tr('Importare {n} eventi?',{n:I.ok.length})}</h2>${chiudiBtn('importa-annulla')}</div>`;
+  const corpo = `<p class="meta">${I.ok.length===I.tot ? tr('Nel file ci sono {n} eventi nuovi.',{n:I.tot}) : tr('Nel file ci sono {t} eventi: {n} sono nuovi e validi, gli altri ci sono già o mancano di dati.',{t:I.tot, n:I.ok.length})}</p>
+    ${I.scarti.length||I.avvisi.length?`<div class="imp-righe">${elenco(I.scarti,'no')}${elenco(I.avvisi,'')}</div>`:''}
+    <div class="tasti"><button class="tasto sec" data-az="importa-annulla">${tr('Annulla')}</button><button class="tasto pri" data-az="importa-ok" ${I.ok.length?'':'disabled'}>${tr('Importa')}</button></div>`;
+  return foglio('forte alto', testa, corpo);
+}
+const ESEMPIO = () => { const d = new Date(); d.setDate(d.getDate()+7); const m = LAYERS.find(l => l.id==='musica') || LAYERS[0];
+  return ['Concerto nel cortile', m.label, (m.sub[0]||{}).label||'', 'Un pomeriggio di musica dal vivo nel cortile, aperto a tutto il quartiere.', d, '18:30', '20:00', '', 'Gratuito', 'Via Giuseppe Mazzini 10, Torino', '', '', 'https://esempio.it', 'no', '', 'Fonte pubblica']; };
+function fileExcel(fogli, nome){
+  return caricaScript(URL_XLSX).then(() => {
+    const wb = XLSX.utils.book_new();
+    fogli.forEach(([n, righe, larg]) => {
+      /* le date come numero di serie di Excel con formato gg/mm/aaaa: niente sorprese di fuso orario */
+      const date = [];
+      const r2 = righe.map((r, i) => r.map((c, j) => { if(c instanceof Date){ date.push([i, j]); return (Date.UTC(c.getFullYear(), c.getMonth(), c.getDate()) - Date.UTC(1899, 11, 30))/864e5; } return c; }));
+      const ws = XLSX.utils.aoa_to_sheet(r2);
+      date.forEach(([i, j]) => { const c = ws[XLSX.utils.encode_cell({r:i, c:j})]; if(c){ c.t = 'n'; c.z = 'dd/mm/yyyy'; } });
+      if(larg) ws['!cols'] = larg.map(w => ({wch:w})); XLSX.utils.book_append_sheet(wb, ws, n); });
+    XLSX.writeFile(wb, nome, {compression:true});
+  });
+}
+const LARG = [28,22,24,48,12,10,10,10,12,34,12,12,26,10,14,20];
+function scaricaModello(){
+  const strati = [['Strato','Sottostrato']].concat(...LAYERS.map(l => l.sub.map((x, i) => [i ? '' : l.label, x.label])));
+  const istr = [['Come compilare il file'],[''],
+    ['Una riga per evento, nel foglio «Eventi». Non cambiare i nomi delle colonne.'],
+    ['Obbligatori: Titolo, Strato, Data, Ora inizio, e Indirizzo oppure Latitudine e Longitudine.'],
+    ['Strato e Sottostrato: scrivili come nel foglio «Strati».'],
+    ['Data: una data (05/11/2026). Ora inizio e Ora fine: 18:30.'],
+    ['Indirizzo: via, numero civico e città. Se mancano le coordinate, '+NOME+' cerca l’indirizzo da sé (uno al secondo).'],
+    ['Nascosto: sì o no. Se sì, serve la Password per sbloccarlo.'],
+    ['Provenienza (facoltativa): «Consenso diretto» se l’organizzatore ti ha dato il consenso, «Fonte pubblica» se l’evento viene da un sito o una pagina pubblica. Serve alle Misure.'],
+    ['Gli eventi già passati, o che ci sono già, non vengono importati.'],
+    ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx.']];
+  fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], nomeFile()+'-modello-eventi.xlsx')
+    .then(() => { st.msgAdmin = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
+    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+}
+function esportaExcel(){
+  const dati = events.filter(e => !e.personal && !e.offgrid);
+  const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
+    return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
+  fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
+    .then(() => { registra('esporta-excel', {n:dati.length}); st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
+    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+}
+/* modulo degli eventi on-grid della Redazione (stessi campi e controlli dell'app online; lo sostituisce il blocco 10) */
+const maxDt = () => { const d = new Date(); d.setMonth(d.getMonth()+20); return d; };
+const dtLocal = d => ymd(d)+'T'+hm(d);
+function apriAdminForm(raw){
+  const sub = raw && S[raw.category] ? (S[raw.category].sub.find(s => s.label===raw.sublayer)||{}).id||'' : '';
+  st.aform = raw ? {id:raw.id, raw, titolo:raw.title||'', strato:raw.category||'', sub, desc:raw.description||'', dt:raw.datetime||'', durata:raw.duration||'', prezzo:raw.price||'', link:raw.link||'', indirizzo:raw.address||'', addrFull:raw.addressFull||raw.address||'', pos:{lat:+raw.lat, lng:+raw.lng}, precision:raw.addrPrecision||'exact', hn:raw.addrNum||'', nascosto:!!raw.hidden, pw:raw.hiddenPassword||'', prov:raw.provenienza||'', err:{}}
+    : {id:null, raw:null, titolo:'', strato:'', sub:'', desc:'', dt:'', durata:'', prezzo:'', link:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', nascosto:false, pw:'', prov:'', err:{}};
+  st.sel = null; st.form = null; apri('aform');
+}
+function contaDesc(f){ const n = f.desc.trim().length; return `<span class="conta-car${n>=DESC_MIN?' ok':''}" id="a-conta">${n>=DESC_MIN ? tr('perfetta') : tr('almeno {n} caratteri',{n:DESC_MIN})} · ${n} / 500</span>`; }
+function fAdminForm(){
+  const f = st.aform, E = f.err, l = S[f.strato];
+  const campo = (id, lab, html, err, fac) => `<div class="stack-s"><label class="etich" for="${id}">${lab}${fac?` <span class="fac">${fac}</span>`:''}</label>${html}${err?`<span class="err">${err}</span>`:''}</div>`;
+  const testa = `<div class="riga-titolo"><div><h2>${f.id?tr('Modifica evento on-grid'):tr('Nuovo evento on-grid')}</h2><p class="meta">${tr('Redazione · resta su questo dispositivo finché non si pubblica')}</p></div>${chiudiBtn('admin')}</div>`;
+  const corpo = `
+    ${campo('a-titolo', tr('Titolo'), `<div class="campo${E.titolo?' errore':''}"><input id="a-titolo" data-acampo="titolo" maxlength="100" value="${esc(f.titolo)}" placeholder="${esc(tr('Nome dell’evento'))}" autocomplete="off"></div>`, E.titolo&&tr('Dai un nome all’evento'))}
+    <div class="due">${campo('a-strato', tr('Strato'), `<div class="campo${E.strato?' errore':''}"><select id="a-strato" data-acampo="strato"><option value="">${tr('— Scegli —')}</option>${LAYERS.map(x => `<option value="${x.id}" ${f.strato===x.id?'selected':''}>${esc(tr(x.label))}</option>`).join('')}</select></div>`, E.strato&&tr('Scegli lo strato'))}
+      ${campo('a-sub', tr('Sottostrato'), `<div class="campo${E.sub?' errore':''}${l?'':' spento'}"><select id="a-sub" data-acampo="sub" ${l?'':'disabled'}><option value="">${tr('— Scegli —')}</option>${l?l.sub.map(s => `<option value="${s.id}" ${f.sub===s.id?'selected':''}>${esc(tr(s.label))}</option>`).join(''):''}</select></div>`, E.sub&&tr('Scegli il sottostrato'))}</div>
+    ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="500" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>${contaDesc(f)}`, E.desc&&tr('Servono almeno 30 caratteri'))}
+    <div class="due">${campo('a-dt', tr('Data e ora'), `<div class="campo${E.dt?' errore':''}"><input id="a-dt" type="datetime-local" data-acampo="dt" value="${esc(f.dt)}" max="${dtLocal(maxDt())}"></div>`, E.dt&&tr('Serve una data futura'))}
+      ${campo('a-durata', tr('Durata'), `<div class="campo${E.durata?' errore':''}"><input id="a-durata" data-acampo="durata" value="${esc(f.durata)}" placeholder="${esc(tr('es. 2 ore'))}"></div>`, E.durata&&tr('Indica la durata'))}</div>
+    <div class="due">${campo('a-prezzo', tr('Prezzo'), `<div class="campo${E.prezzo?' errore':''}"><input id="a-prezzo" data-acampo="prezzo" value="${esc(f.prezzo)}" placeholder="${esc(tr('Gratuito / 10 €'))}"></div>`, E.prezzo&&tr('Indica il prezzo'))}
+      ${campo('a-link', tr('Link'), `<div class="campo"><input id="a-link" type="url" inputmode="url" data-acampo="link" value="${esc(f.link)}" placeholder="https://"></div>`, '', tr('facoltativo'))}</div>
+    ${campo('a-prov', tr('Provenienza'), `<div class="campo"><select id="a-prov" data-acampo="prov"><option value="">${tr('— Non indicata —')}</option><option value="consenso" ${f.prov==='consenso'?'selected':''}>${tr('Consenso diretto dell’organizzatore')}</option><option value="pubblica" ${f.prov==='pubblica'?'selected':''}>${tr('Fonte pubblica')}</option></select></div><span class="meta">${tr('Serve alle Misure: quanta offerta ha il consenso diretto (Flusso A) e quanta viene da fonti pubbliche (Flusso B).')}</span>`, '', tr('facoltativo'))}
+    ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${icoLuogo} ${tr('Scegli sulla mappa')}</button>`, E.indirizzo&&(E.indirizzo===2?tr('Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.'):tr('Scegli un indirizzo dai suggerimenti o dalla mappa')))}
+    <button class="riga-int" data-az="a-nascosto" aria-pressed="${f.nascosto}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Evento nascosto')}</span><span class="meta">${tr('Visibile solo a chi ha la password')}</span></div><span class="interr" aria-hidden="true"></span></button>
+    ${f.nascosto?campo('a-pw', tr('Password per sbloccarlo'), `<div class="campo${E.pw?' errore':''}"><input id="a-pw" data-acampo="pw" value="${esc(f.pw)}" placeholder="${esc(tr('Una parola segreta'))}" autocomplete="off"></div>`, E.pw&&tr('Scegli una password')):''}
+    <div class="tasti"><button class="tasto sec" data-az="admin">${tr('Annulla')}</button><button class="tasto pri" data-az="a-salva">${tr('Salva evento')}</button></div>
+    ${E.chiavi?`<p class="err" role="alert">${tr('Per salvare un evento servono le chiavi della Redazione: Strumenti della redazione → Chiavi.')}</p>`:''}
+    ${f.id?`<button class="tasto pericolo pieno" data-elimina-admin="${esc(f.id)}">${tr('Elimina')}</button>`:''}`;
+  return foglio('forte alto', testa, corpo);
+}
+function salvaAdmin(){
+  const f = st.aform, E = f.err = {};
+  const durOk = v => { if(!v.trim()) return false; const d2 = v.replace(/un[ao]?\s+po'?\s+di/i,'1').replace(/paio/i,'2').replace(/quarto d'ora/i,'15 min').replace(/mez(?:z)?ora/i,'30 min'); return /(\d+(?:[.,]\d+)?)\s*(h|ora|ore|min|minut)?/i.test(d2); };
+  const t = f.titolo.trim(); if(!t || t.length>TITLE_MAX) E.titolo = 1;
+  if(!f.strato) E.strato = 1; if(!f.sub) E.sub = 1;
+  if(f.desc.trim().length<DESC_MIN) E.desc = 1;
+  const tm = f.dt ? new Date(f.dt).getTime() : NaN; if(!f.dt || isNaN(tm) || (!f.id && tm < Date.now()-3e5) || tm > maxDt().getTime()) E.dt = 1;
+  if(!durOk(f.durata)) E.durata = 1; if(!f.prezzo.trim()) E.prezzo = 1;
+  if(f.nascosto && !f.pw.trim()) E.pw = 1;
+  if(!f.pos && !Object.keys(E).length){
+    const q = f.indirizzo.trim(); if(q.length<3){ E.indirizzo = 1; disegnaFoglio(); return; }
+    const b = $('a-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
+    lookup(parseAddr(q).city ? q : q+', '+cittaObj().n).then(res => { if(st.aform!==f) return;
+      if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; disegnaFoglio(); }
+      else { f.err.indirizzo = 2; disegnaFoglio(); } });
+    return;
+  }
+  if(!f.pos) E.indirizzo = 1;
+  if(Object.keys(E).length){ disegnaFoglio(); const c = document.querySelector('#foglio-slot .errore'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center', behavior:'smooth'}); return; }
+  const l = S[f.strato], sublayer = (l.sub.find(s => s.id===f.sub)||{}).label||'';
+  const campi = {title:t, category:f.strato, sublayer, description:f.desc.trim(), datetime:f.dt, duration:f.durata.trim(), end:'', price:f.prezzo.trim(), link:f.link.trim(),
+    hidden:f.nascosto, hiddenPassword:f.nascosto ? f.pw.trim() : '', offgrid:false, address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng, provenienza:f.prov||''};
+  /* Un evento nuovo riceve l'identificativo con il marcatore (T-037): servono le chiavi della Redazione. */
+  const fatto = id => {
+    if(campi.hidden) st.sbloccati.add(campi.hiddenPassword);
+    saveEvents(); ricostruisci(); st.aform = null;
+    st.ultimoId = id; st.msgAdmin = tr('Evento salvato su questo dispositivo: va sulla mappa quando si pubblica.'); apri('admin');
+  };
+  if(f.id){ const ev = rawById(f.id); if(ev){ Object.assign(ev, campi); delete ev.image; } misureConta('corretti'); registra('modifica', {id:f.id, s:campi.category}); fatto(f.id); return; }
+  CHIAVI.nuovoId().then(id => { if(st.aform!==f) return;
+    events.push(Object.assign({id, creato:new Date().toISOString()}, campi)); registra('crea', {id, s:campi.category}); fatto(id);
+  }).catch(() => { if(st.aform!==f) return; f.err = {chiavi:1}; disegnaFoglio(); });
+}
+
+/* ======================= Agganci dai pezzi comuni ======================= */
+const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fAdminForm, chiavi:fChiavi, verifica:fVerifica};
+/* un tocco: true se era per gli strumenti della Redazione */
+function clickRed(t){
+  if(t.dataset.mz!=null && clickMisure(t)) return true;
+  const d = t.dataset;
+  if(d.modificaAdmin){ const r = rawById(d.modificaAdmin); if(r) apriAdminForm(r); return true; }
+  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); registra('elimina', {id:r.id, s:r.category}); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return true; }
+  return false;
+}
+function azioneRed(az, t){
+  if(azioneChiavi(az, t)) return;
+  switch(az){
+    case 'scegli-mappa-a': iniziaPosa('aform'); break;
+    case 'copia-id': if(st.ultimoId) copiaTesto(st.ultimoId).then(ok => { st.idCopiato = !!ok; if(st.foglio==='admin') disegnaFoglio(); }); break;
+    case 'admin': st.importa = null; st.aform = null; if(st.sezione!=='mappa') vaiSezione('mappa'); apri('admin'); break;
+    case 'admin-misure': apriMisure(); break;
+    case 'admin-modello': scaricaModello(); break;
+    case 'admin-esporta-json': esporta(); registra('esporta-json'); break;
+    case 'admin-storico': SH.filtro = 'tutte'; SH.mostrati = 60; SH.conferma = false; foglioStorico(); break;
+    case 'admin-ongrid': apriAdminForm(null); break;
+    case 'admin-importa': $('fileImporta').click(); break;
+    case 'importa-annulla': st.importa = null; apri('admin'); break;
+    case 'importa-ok': { const I = st.importa; if(!I || I.fase!=='pronto') break;
+      /* gli eventi nuovi ricevono l'identificativo con il marcatore (T-037); gli Off-Grid di una copia in JSON tengono il loro */
+      I.fase = 'salvo'; disegnaFoglio();
+      Promise.all(I.ok.map(ev => ev.personal || ev.offgrid || MODULI.chiavi.ID.test(String(ev.id)) ? null : CHIAVI.nuovoId().then(id => { ev.id = id; }))).then(() => { if(st.importa!==I) return;
+        const n = I.ok.length; registra('importa', {n}); events = events.concat(I.ok); saveEvents(); ricostruisci(); st.importa = null; st.msgAdmin = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto();
+      }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Per salvare un evento servono le chiavi della Redazione: Strumenti della redazione → Chiavi.'); apri('admin'); });
+      break; }
+    case 'admin-esporta': esportaExcel(); break;
+    case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
+    case 'a-salva': salvaAdmin(); break;
+    case 'ripristina': if(st.eliminati.length){ registra('ripristina', {n:st.eliminati.length}); st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
+  }
+}
+/* un campo dei moduli della Redazione: true se era suo */
+function inputRed(el){
+  if(inputChiavi(el)) return true;
+  if(el.dataset.acampo && st.aform){
+    const c = el.dataset.acampo, f = st.aform; f[c] = el.type==='checkbox' ? el.checked : el.value;
+    if(c==='indirizzo'){ f.pos = null; f.precision = ''; f.addrFull = ''; $('a-punto').innerHTML = ''; chiediSuggerimenti(el.value, 'a', 'a-sugg'); }
+    if(c==='desc'){ const x = $('a-conta'); if(x) x.outerHTML = contaDesc(f); }
+    if(f.err && f.err[c] && String(el.value).trim()){ f.err[c] = 0; el.closest('.campo') && el.closest('.campo').classList.remove('errore'); }
+    return true;
+  }
+  return false;
+}
+function cambioRed(el){
+  if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return true; }
+  if(el.dataset.acampo==='sub' && st.aform){ st.aform.sub = el.value; return true; }
+  return false;
+}
+$('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
+
+/* ======================= Chiavi della Redazione: le schermate (T-034, T-037) =======================
+   La schermata «Chiavi» e lo strumento «Viene dal nostro archivio?». Le chiavi le fa e le tiene il modulo
+   sorgenti/moduli/chiavi.js; qui ci sono soltanto ciò che si vede e i comandi.
+   Nulla di segreto passa da qui tranne la frase mentre la si scrive: non si salva, e si dimentica appena è servita. */
+const CH = {stato:null, vista:'', modulo:{nome:'', frase:'', ripeti:''}, copia:null, errore:'', lavoro:false, msg:'', revoca:false, avviso:null,
+  cassaforte:null, scopo:'', ver:{testo:'', esito:null, errore:''}};
+const ERRORI_CHIAVI = {
+  'frase-corta':() => tr('La frase deve avere almeno {n} caratteri.',{n:MODULI.chiavi.FRASE_MIN}),
+  'frase-diversa':() => tr('Le due frasi non sono uguali.'),
+  nome:() => tr('Dai un nome al dispositivo (al massimo {n} caratteri).',{n:MODULI.chiavi.NOME_MAX}),
+  frase:() => tr('La frase non apre questa copia: controlla la frase e il file.'),
+  file:() => tr('Il file non è quello giusto: serve la copia fatta da questa app.'),
+  browser:() => tr('Questo browser non può conservare le chiavi: prova con un altro browser, non in navigazione privata.'),
+  'ci-sono':() => tr('Su questo dispositivo le chiavi ci sono già.'),
+  mancano:() => tr('Prima crea le chiavi.')
+};
+const erroreChiavi = e => (ERRORI_CHIAVI[e && e.motivo] || (() => tr('Non è riuscito: riprova.')))();
+function aggiornaChiavi(){
+  return CHIAVI.stato().then(s => { CH.stato = s; }, e => { CH.stato = {ci_sono:false, guasto:true, revocata:null}; })
+    .then(() => CH.stato.ci_sono ? CHIAVI.cassaforte.pulisci().then(r => { CH.cassaforte = r; }, () => { CH.cassaforte = null; }) : null)
+    .then(() => { if(st.foglio==='chiavi' || st.foglio==='admin') disegnaFoglio(); });
+}
+function scaricaTesto(testo, nome){ scaricaBlob(new Blob([testo], {type:'application/json'}), nome); }
+const dataChiavi = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(dloc(), {day:'numeric', month:'long', year:'numeric'}); };
+
+function fChiavi(){
+  const s = CH.stato, m = CH.modulo;
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Chiavi')}</h2><p class="meta">${tr('Firma, cifratura, marcatore e cassaforte della Redazione')}</p></div>${chiudiBtn('admin')}</div>`;
+  const err = CH.errore ? `<p class="err" role="alert">${esc(CH.errore)}</p>` : '';
+  const msg = CH.msg ? `<p class="meta" role="status" style="color:var(--testo)">${esc(CH.msg)}</p>` : '';
+  const campo = (id, lab, html, nota) => `<div class="stack-s"><label class="etich" for="${id}">${lab}</label>${html}${nota?`<span class="meta">${nota}</span>`:''}</div>`;
+  const cNome = campo('ch-nome', tr('Nome di questo dispositivo'), `<div class="campo"><input id="ch-nome" data-ch="nome" maxlength="${MODULI.chiavi.NOME_MAX}" value="${esc(m.nome)}" placeholder="${esc(tr('es. Portatile della redazione'))}" autocomplete="off"></div>`, tr('Serve a riconoscerlo quando lo si revoca.'));
+  const cFrase = (id, c, lab, nota) => campo(id, lab, `<div class="campo"><input id="${id}" data-ch="${c}" type="password" value="${esc(m[c])}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>`, nota);
+  let corpo;
+  if(!s) corpo = `<p class="caricamento">${tr('Un attimo…')}</p>`;
+  else if(s.guasto) corpo = `<p class="err" role="alert">${ERRORI_CHIAVI.browser()}</p>`;
+  else if(CH.lavoro) corpo = `<p class="caricamento">${tr('Preparo le chiavi: ci vuole qualche secondo…')}</p>`;
+  else if(!s.ci_sono && CH.vista==='copia'){
+    corpo = `<p>${tr('Scegli il file della copia di riserva delle chiavi e scrivi la frase con cui è stata cifrata.')}</p>
+      <button class="tasto sec pieno" data-az="chiavi-file">${CH.copia ? tr('File scelto: {f}',{f:esc(CH.copia.nome)}) : tr('Scegli il file della copia')}</button>
+      ${cFrase('ch-frase', 'frase', tr('Frase della copia'))}
+      ${err}
+      <button class="tasto pri pieno" data-az="chiavi-ripristina">${tr('Ripristina su questo dispositivo')}</button>
+      <p class="meta">${tr('Per quando il dispositivo di prima è perso o cambiato: qui tornano le stesse chiavi, firma compresa.')}</p>
+      ${cNome}
+      <button class="tasto sec pieno" data-az="chiavi-aggiungi">${tr('Aggiungi come dispositivo in più')}</button>
+      <p class="meta">${tr('Per lavorare da due dispositivi: questo riceve le chiavi comuni e una firma sua, che si può revocare da sola.')}</p>
+      <button class="link" data-az="chiavi-vista-crea">${tr('‹ Crea chiavi nuove')}</button>`;
+  }
+  else if(!s.ci_sono){
+    const rev = s.revocata ? `<div class="red-riquadro" role="note"><b>${tr('Le chiavi di questo dispositivo sono revocate.')}</b><span class="meta">${tr('Dispositivo «{d}», firma {i}, revocata il {g}. Consegna l’avviso di revoca allo sportello: da quel momento la firma non vale più.',{d:esc(s.revocata.dispositivo), i:esc(s.revocata.impronta), g:esc(dataChiavi(s.revocata.quando))})}</span>
+        <div class="tasti"><button class="tasto sec" data-az="chiavi-revoca-file">${tr('Scarica l’avviso di revoca')}</button></div></div>` : '';
+    corpo = `${rev}${msg}
+      <p>${tr('Le chiavi nascono su questo dispositivo e la loro parte segreta non ne esce. Servono per salvare gli eventi con l’identificativo giusto, per firmare ciò che si pubblica e per leggere le segnalazioni.')}</p>
+      ${cNome}
+      ${cFrase('ch-frase', 'frase', tr('Frase della Redazione'), tr('Almeno {n} caratteri: per esempio quattro o cinque parole a caso. Protegge la copia di riserva. Non si salva da nessuna parte: se la dimentichi, la copia non si apre più.',{n:MODULI.chiavi.FRASE_MIN}))}
+      ${cFrase('ch-ripeti', 'ripeti', tr('Ripeti la frase'))}
+      ${err}
+      <button class="tasto pri pieno" data-az="chiavi-crea">${tr('Crea le chiavi')}</button>
+      <button class="link" data-az="chiavi-vista-copia">${tr('Ho già una copia di riserva')} ${freccia}</button>`;
+  }
+  else {
+    const cas = CH.cassaforte, nCas = cas ? cas.restano : 0;
+    const noti = (s.noti||[]).map((n, i) => `<div class="red-riga"><div><span class="t">${esc(n.dispositivo)}</span><span class="meta">${tr('Firma {i}',{i:esc(n.impronta)})}</span></div><button class="link" data-az="chiavi-revoca-altro" data-i="${i}">${tr('Avviso di revoca')}</button></div>`).join('');
+    corpo = `${msg}
+      <div class="red-riquadro"><b>${esc(s.dispositivo)}</b><span class="meta">${tr('Chiavi create il {g}',{g:esc(dataChiavi(s.creato))})}</span>
+        <span class="meta">${tr('Firma')}: <code class="red-id">${esc(s.firma.impronta)}</code></span><span class="meta">${tr('Cifratura')}: <code class="red-id">${esc(s.cifratura.impronta)}</code></span></div>
+      <section class="sezione"><div class="tipo">${tr('Parti pubbliche')}</div>
+        <p class="meta">${tr('Sono ciò che si consegna agli sportelli: servono a riconoscere la firma e a cifrare le segnalazioni. Non contengono nulla di segreto.')}</p>
+        <div class="tasti"><button class="tasto sec" data-az="chiavi-pubbliche-copia">${CH.copiato ? tr('Copiate') : tr('Copia')}</button><button class="tasto sec" data-az="chiavi-pubbliche-file">${tr('Scarica')}</button></div></section>
+      <section class="sezione"><div class="tipo">${tr('Copia di riserva')}</div>
+        <p class="meta">${tr('Un file cifrato con la frase della Redazione: senza la frase è illeggibile. Tienilo fuori da questo dispositivo, su un supporto cifrato; mai in una chat o nella posta.')}</p>
+        <button class="tasto sec pieno" data-az="chiavi-copia">${tr('Scarica la copia di riserva')}</button></section>
+      <section class="sezione"><div class="tipo">${tr('Cassaforte degli eventi nascosti')}</div>
+        <p class="meta">${nCas===1 ? tr('1 password conservata, cifrata.') : tr('{n} password conservate, cifrate.',{n:nCas})} ${tr('Ogni password si cancella da sola quando il suo evento finisce.')}</p>
+        <div class="tasti"><button class="tasto sec" data-az="cassaforte-copia">${tr('Scarica la copia')}</button><button class="tasto sec" data-az="cassaforte-file">${tr('Riporta da una copia')}</button></div></section>
+      ${noti ? `<section class="sezione"><div class="tipo">${tr('Altri dispositivi della Redazione')}</div>${noti}</section>` : ''}
+      ${err}
+      <section class="sezione"><div class="tipo">${tr('Revoca')}</div>
+      ${CH.revoca ? `<div class="red-riquadro" role="alert"><b>${tr('Revocare questo dispositivo?')}</b><span class="meta">${tr('Le chiavi si cancellano da qui e non si possono più usare: per continuare servirà la copia di riserva con la frase, oppure chiavi nuove. Poi va consegnato allo sportello l’avviso di revoca.')}</span>
+          <div class="tasti"><button class="tasto sec" data-az="chiavi-revoca-no">${tr('Annulla')}</button><button class="tasto pericolo" data-az="chiavi-revoca-ok">${tr('Sì, revoca')}</button></div></div>`
+        : `<button class="link" style="color:var(--rosso,#B3261E)" data-az="chiavi-revoca">${tr('Revoca questo dispositivo')}</button>`}</section>`;
+  }
+  return foglio('forte alto', testa, corpo);
+}
+
+/* «Viene dal nostro archivio?» (T-037): un identificativo, oppure un testo o un file copiato. */
+function fVerifica(){
+  const V = CH.ver, e = V.esito;
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Viene dal nostro archivio?')}</h2><p class="meta">${tr('Il marcatore negli identificativi degli eventi lo riconosce solo chi ha la chiave')}</p></div>${chiudiBtn('admin')}</div>`;
+  const elenco = l => l.slice(0, 20).map(x => `<code class="red-id">${esc(x)}</code>`).join(' ') + (l.length > 20 ? ' …' : '');
+  const esito = !e ? '' : !e.trovati ? `<div class="red-riquadro" role="status"><b>${tr('Nessun identificativo nel testo.')}</b><span class="meta">${tr('Un identificativo è fatto di 16 caratteri, un trattino e altri 8.')}</span></div>`
+    : `<div class="red-riquadro" role="status"><b>${e.trovati===1 ? (e.nostri.length ? tr('Sì: viene dal nostro archivio.') : tr('No: non viene dal nostro archivio.')) : tr('{n} identificativi: {s} vengono dal nostro archivio, {a} no.',{n:e.trovati, s:e.nostri.length, a:e.altri.length})}</b>
+        ${e.trovati>1 && e.nostri.length ? `<span class="meta">${tr('Dal nostro archivio')}: ${elenco(e.nostri)}</span>` : ''}${e.trovati>1 && e.altri.length ? `<span class="meta">${tr('Non nostri')}: ${elenco(e.altri)}</span>` : ''}
+        <span class="meta">${tr('Vale per gli identificativi creati con le chiavi di questa Redazione.')}</span></div>`;
+  const corpo = `<div class="stack-s"><label class="etich" for="ver-testo">${tr('Identificativo o testo copiato')}</label><div class="campo"><textarea id="ver-testo" data-ch="verifica" rows="4" autocomplete="off" spellcheck="false">${esc(V.testo)}</textarea></div></div>
+    ${V.errore ? `<p class="err" role="alert">${esc(V.errore)}</p>` : ''}
+    <div class="tasti"><button class="tasto sec" data-az="verifica-file">${tr('Apri un file')}</button><button class="tasto pri" data-az="verifica-ok">${tr('Controlla')}</button></div>
+    ${esito}`;
+  return foglio('forte alto', testa, corpo);
+}
+function controllaVerifica(){
+  const V = CH.ver; V.errore = ''; V.esito = null;
+  CHIAVI.controllaTesto(V.testo).then(r => { V.esito = r; }, e => { V.errore = erroreChiavi(e); }).then(() => { if(st.foglio==='verifica') disegnaFoglio(); });
+}
+
+function scegliFileRed(scopo){ CH.scopo = scopo; $('fileRed').click(); }
+$('fileRed').addEventListener('change', function(){
+  const f = this.files && this.files[0], scopo = CH.scopo; this.value = ''; if(!f) return;
+  if(f.size > 20e6){ CH.errore = tr('Il file è troppo grande.'); CH.ver.errore = CH.errore; disegnaFoglio(); return; }
+  const r = new FileReader();
+  r.onload = () => {
+    const testo = String(r.result||'');
+    if(scopo==='chiavi'){ CH.copia = {nome:f.name, testo}; CH.errore = ''; disegnaFoglio(); }
+    else if(scopo==='cassaforte'){ CH.errore = ''; CH.msg = '';
+      CHIAVI.cassaforte.ripristina(testo).then(x => { CH.msg = tr('Cassaforte: {n} password riportate, {s} scartate.',{n:x.rientrate, s:x.scartate}); registra('cassaforte-riporta', {n:x.rientrate}); }, e => { CH.errore = erroreChiavi(e); }).then(aggiornaChiavi); }
+    else if(scopo==='verifica'){ CH.ver.testo = testo.slice(0, 2e6); if(st.foglio==='verifica') disegnaFoglio(); controllaVerifica(); }
+  };
+  r.onerror = () => { CH.errore = tr('Il file non si legge.'); disegnaFoglio(); };
+  r.readAsText(f);
+});
+
+/* i comandi delle due schermate: true se il comando era loro */
+function azioneChiavi(az, t){
+  const m = CH.modulo, pulito = () => { m.frase = ''; m.ripeti = ''; };
+  const lavora = p => { CH.lavoro = true; CH.errore = ''; CH.msg = ''; disegnaFoglio();
+    return p.then(msg => { pulito(); CH.copia = null; CH.vista = ''; CH.msg = msg; MEM.tieni(); }, e => { CH.errore = erroreChiavi(e); }).then(() => { CH.lavoro = false; return aggiornaChiavi(); }); };
+  switch(az){
+    case 'chiavi': CH.errore = ''; CH.msg = ''; CH.revoca = false; CH.copiato = false; apri('chiavi'); aggiornaChiavi(); break;
+    case 'chiavi-vista-copia': CH.vista = 'copia'; CH.errore = ''; disegnaFoglio(); break;
+    case 'chiavi-vista-crea': CH.vista = ''; CH.errore = ''; disegnaFoglio(); break;
+    case 'chiavi-crea': lavora(CHIAVI.genera(m.frase, m.ripeti, m.nome).then(() => { registra('chiavi-crea'); return tr('Chiavi create. Scarica subito la copia di riserva e conservala fuori da questo dispositivo.'); })); break;
+    case 'chiavi-file': scegliFileRed('chiavi'); break;
+    case 'chiavi-ripristina': case 'chiavi-aggiungi': {
+      if(!CH.copia){ CH.errore = tr('Scegli prima il file della copia.'); disegnaFoglio(); break; }
+      const modo = az==='chiavi-aggiungi' ? 'aggiungi' : 'ripristina';
+      lavora(CHIAVI.daCopia(CH.copia.testo, m.frase, modo, m.nome).then(() => { registra('chiavi-'+modo); return modo==='aggiungi' ? tr('Dispositivo aggiunto: consegna allo sportello le sue parti pubbliche e scarica la sua copia di riserva.') : tr('Chiavi ripristinate su questo dispositivo.'); }));
+      break; }
+    case 'chiavi-copia': CHIAVI.copia().then(c => { scaricaTesto(c.testo, c.nome); registra('chiavi-copia'); CH.msg = tr('Copia di riserva scaricata: {f}',{f:c.nome}); }, e => { CH.errore = erroreChiavi(e); }).then(() => disegnaFoglio()); break;
+    case 'chiavi-pubbliche-copia': CHIAVI.pubbliche().then(p => copiaTesto(JSON.stringify(p, null, 1))).then(ok => { CH.copiato = !!ok; if(!ok) CH.errore = tr('Non riesco a copiare: usa «Scarica».'); }, e => { CH.errore = erroreChiavi(e); }).then(() => disegnaFoglio()); break;
+    case 'chiavi-pubbliche-file': CHIAVI.pubbliche().then(p => scaricaTesto(JSON.stringify(p, null, 1)+'\n', 'chiavi-pubbliche-'+p.creato.slice(0,10)+'.json'), e => { CH.errore = erroreChiavi(e); disegnaFoglio(); }); break;
+    case 'chiavi-revoca': CH.revoca = true; disegnaFoglio(); break;
+    case 'chiavi-revoca-no': CH.revoca = false; disegnaFoglio(); break;
+    case 'chiavi-revoca-ok': CH.revoca = false; CHIAVI.revoca().then(a => { CH.avviso = a; registra('chiavi-revoca'); CH.msg = ''; }, e => { CH.errore = erroreChiavi(e); }).then(aggiornaChiavi); break;
+    case 'chiavi-revoca-file': { const a = CH.stato && CH.stato.revocata; if(a) scaricaTesto(JSON.stringify(a, null, 1)+'\n', 'revoca-'+String(a.quando).slice(0,10)+'.json'); break; }
+    case 'chiavi-revoca-altro': { const n = CH.stato && (CH.stato.noti||[])[+(t && t.dataset.i)];
+      if(n){ const a = CHIAVI.avvisoRevoca(n.dispositivo, n.impronta); scaricaTesto(JSON.stringify(a, null, 1)+'\n', 'revoca-'+a.quando.slice(0,10)+'.json'); } break; }
+    case 'cassaforte-copia': CHIAVI.cassaforte.copia().then(c => { scaricaTesto(c.testo, c.nome); registra('cassaforte-copia'); CH.msg = tr('Copia della cassaforte scaricata: {f}',{f:c.nome}); }, e => { CH.errore = erroreChiavi(e); }).then(() => disegnaFoglio()); break;
+    case 'cassaforte-file': scegliFileRed('cassaforte'); break;
+    case 'verifica': CH.ver.errore = ''; apri('verifica'); break;
+    case 'verifica-ok': controllaVerifica(); break;
+    case 'verifica-file': scegliFileRed('verifica'); break;
+    default: return false;
+  }
+  return true;
+}
+function inputChiavi(el){
+  const c = el.dataset.ch; if(!c) return false;
+  if(c==='verifica') CH.ver.testo = el.value; else CH.modulo[c] = el.value;
+  return true;
+}
+/* all'apertura: lo stato delle chiavi e la pulizia della cassaforte (le password degli eventi finiti si cancellano) */
+aggiornaChiavi();
+
 /* Le 50 domande della tabella «KPI di misurazione senza tracciamento» (file Excel di Lorenzo) (6 ottobre 2026): stato, conformità UE e IT, obblighi.
    Valutazioni di Claude, non parere legale.
    lor/lorD/lorNota: decisione e note di Lorenzo (file restituito il 6 ottobre 2026); risposta: risposte di Claude alle note. Standard: dove UE e Italia divergono vale la regola UE. */
@@ -2251,12 +2487,16 @@ const MZ_KPI = [{"n": 1, "area": "A · Offerta di eventi", "q": "Quanti eventi s
 /* nome e casella dalla configurazione */
 MZ_KPI.forEach(k => Object.keys(k).forEach(c => { if(typeof k[c]==='string') k[c] = k[c].split('{nome}').join(NOME).split('{casella}').join(CASELLA); }));
 
-/* ======================= Misure (solo admin): si misura la città, non le persone =======================
-   Tranche 1 (6 ottobre 2026). Tutto resta sul telefono dell'admin, nella chiave red_misure:
-   - totali del giorno calcolati dagli eventi on-grid (mai copia degli eventi: l'informativa promette che spariscono 3 ore dopo la fine);
-   - numeri inseriti a mano (richieste da Netlify, azioni di comunicazione, rimozioni, segnalazioni, test, interviste);
+/* ======================= Misure (app della redazione): si misura la città, non le persone =======================
+   Voce T-035 del piano di adeguamento; libro mastro, cap. 4 (§§ 4.1, 4.2, 4.4). Stanno sul dispositivo della redazione,
+   nella chiave red_misure:
+   - totali del giorno calcolati dagli eventi dell'archivio pubblicato, letti dall'indice e dai quadranti (mai una copia
+     degli eventi: restano solo i conteggi);
+   - numeri inseriti a mano (richieste al sito, azioni di comunicazione, rimozioni, segnalazioni, test, interviste);
    - soglie, stato delle decisioni, decisioni sul catalogo delle 50 domande.
-   Nessun dato degli utenti, nessuna rete. I pulsanti volontari «Mi interessa» della seconda tranche sono stati tolti con T-010. */
+   Nessun dato degli utenti. Soglie minime (§ 4.4): nel pannello un valore sotto i 5 casi compare come «meno di 5»,
+   anche nei grafici; nel file che si esporta, e che può uscire dal progetto, un valore sotto i 10 casi compare come
+   «meno di 10». I totali del fornitore si aggiungono in Fase 2 (T-069), senza chiavi dell'account nell'app. */
 let MZ = null;
 function mz(){
   if(MZ) return MZ;
@@ -2292,9 +2532,31 @@ const kpiDi = n => MZ_KPI.find(k => k.n==n);
 function perchePronto(n){ const k = kpiDi(n); return k && k.risposta ? k.risposta.replace(/^Spazio pronto e vuoto, come hai chiesto\. /,'') : tr('In studio: si accende quando sarà chiaro come farlo restando conformi.'); }
 function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.assign({}, m.lib[n]||{}, campi, {agg:oggi()}); mzSalva(); }
 
-/* ---------- quale evento conta ---------- */
-const mzReale = e => e && typeof e==='object' && !e.personal && !e.offgrid && e.datetime && isFinite(+e.lat) && isFinite(+e.lng);
-function mzEventi(){ return events.filter(e => mzReale(e)).filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
+/* ---------- quale evento conta ----------
+   Le Misure contano gli eventi dell'archivio pubblicato, non quelli nella memoria del dispositivo (T-035; § 4.2). Li
+   legge un lettore suo (sorgenti/moduli/archivio.js), che non conserva nulla: l'indice e tutti i quadranti che
+   l'indice nomina. Di ogni evento tiene, finché il pannello è aperto, soltanto ciò che serve ai conteggi. Lo storico
+   delle pubblicazioni si aggiunge quando esisterà (T-039). */
+let MZ_EVENTI = [];
+const MZ_ARCH = {stato:'', quadranti:0, quando:null, lettore:null};
+const daArchivioMz = ev => ({id:ev.id, category:ev.strato, datetime:new Date(FORMATO.istante(ev.inizio)).toISOString(), lat:ev.lat, lng:ev.lng,
+  price:ev.prezzo||'', address:ev.indirizzo||'', addressFull:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · ')});
+function mzLeggiArchivio(){
+  if(!ARCHIVIO_DOVE || !MODULI.archivio || !window.fetch){ MZ_ARCH.stato = 'assente'; return Promise.resolve(false); }
+  if(!MZ_ARCH.lettore) MZ_ARCH.lettore = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window)});
+  const A = MZ_ARCH.lettore; if(!MZ_ARCH.quando) MZ_ARCH.stato = 'leggo';
+  return A.controllaNovita().then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => {
+    MZ_EVENTI = A.eventi().map(x => daArchivioMz(x.ev)); MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
+  }).catch(() => { MZ_ARCH.stato = MZ_ARCH.quando ? 'vecchio' : 'errore'; return false; });
+}
+function mzEventi(){ return MZ_EVENTI.filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
+/* una riga che dice da dove vengono i numeri degli eventi e a quando sono aggiornati */
+function rigaArchivioMz(){
+  const t = {leggo:tr('Leggo l’archivio degli eventi…'), assente:tr('Nessun archivio degli eventi da leggere: i conteggi degli eventi restano vuoti.'),
+    errore:tr('L’archivio degli eventi non risponde: i conteggi degli eventi restano vuoti finché non torna la rete.'),
+    vecchio:tr('L’archivio degli eventi non risponde: i conteggi sono quelli dell’ultima lettura.')}[MZ_ARCH.stato];
+  return `<p class="meta mz-archivio" role="status">${t || tr('Eventi letti dall’archivio pubblicato: {n}, in {q} quadranti · lettura delle {o}',{n:nfm(MZ_EVENTI.length), q:MZ_ARCH.quadranti, o:MZ_ARCH.quando ? hm(MZ_ARCH.quando) : '–'})}</p>`;
+}
 function cittaDi(e){
   let best = 'altro', bd = 1e9; const la = +e.lat, ln = +e.lng;
   CITTA.forEach(c => {
@@ -2319,7 +2581,8 @@ const fasciaDi = h => (FASCE_MZ.find(f => (h>=f[2] && h<f[3]) || (h+24>=f[2] && 
 
 /* ---------- la fotografia del giorno: solo totali ---------- */
 function mzFotografa(){
-  const m = mz(), g = oggi(), L = events.filter(e => mzReale(e));
+  if(MZ_ARCH.stato!=='letto') return;   /* senza una lettura riuscita dell'archivio non c'è nulla da fotografare */
+  const m = mz(), g = oggi(), L = MZ_EVENTI;
   const per = f => { const o = {}; L.forEach(e => { const k = f(e); if(k!=null) o[k] = (o[k]||0)+1; }); return o; };
   m.giorni[g] = {tot:L.length, citta:per(cittaDi), strati:per(e => e.category||'?'), prov:per(e => e.provenienza||'nd'), imp:L.filter(e => e.importato).length, grat:L.filter(gratuitoMz).length};
   L.forEach(e => { if(m.visti[e.id]) return; const c = creatoDi(e), gc = c ? ymd(new Date(c)) : g; m.visti[e.id] = gc; m.creati[gc] = (m.creati[gc]||0)+1; });
@@ -2327,7 +2590,7 @@ function mzFotografa(){
   const limG = piuGiorni(g,-400); Object.keys(m.giorni).forEach(k => { if(k<limG) delete m.giorni[k]; });
   mzSalva();
 }
-function misureConta(tipo){ if(!st.admin) return; const m = mz(), g = oggi(); m.correzioni[g] = m.correzioni[g]||{c:0, r:0}; m.correzioni[g][tipo==='rimossi'?'r':'c']++; mzSalva(); }
+function misureConta(tipo){ const m = mz(), g = oggi(); m.correzioni[g] = m.correzioni[g]||{c:0, r:0}; m.correzioni[g][tipo==='rimossi'?'r':'c']++; mzSalva(); }
 
 /* ---------- periodi ---------- */
 const mzGiorni = n => { const out = [], g = oggi(); for(let i=n-1;i>=0;i--) out.push(piuGiorni(g,-i)); return out; };
@@ -2335,6 +2598,12 @@ const mzGiorni = n => { const out = [], g = oggi(); for(let i=n-1;i>=0;i--) out.
 const numMz = x => { const n = Number(x); return isFinite(n) ? n : 0; };
 const somma = (o, giorni, f) => giorni.reduce((s,g) => s + (o && o[g]!=null ? numMz(f ? f(o[g]) : o[g]) : 0), 0);
 const nf = n => n==null ? '–' : Number(n).toLocaleString('it-IT');
+/* Soglie minime (libro mastro, § 4.4; decisione del 31/10/2026): 5 casi per ciò che resta interno, 10 per ciò che esce. */
+const SOGLIA_INTERNA = 5, SOGLIA_ESTERNA = 10;
+const sottoSoglia = (n, s) => typeof n==='number' && n>0 && n<s;
+const nfm = n => n==null ? '–' : sottoSoglia(Number(n), SOGLIA_INTERNA) ? tr('meno di 5') : nf(n);   /* un conteggio nel pannello */
+const vm = v => sottoSoglia(v, SOGLIA_INTERNA) ? SOGLIA_INTERNA/2 : v;                             /* lo stesso conteggio in un grafico */
+const fuoriMz = n => sottoSoglia(n, SOGLIA_ESTERNA) ? tr('meno di 10') : n;                         /* un conteggio nel file esportato */
 const n1 = x => String(Math.round(x*10)/10).replace('.',',');
 const brevD = s => dIso(s).toLocaleDateString(dloc(), {day:'numeric', month:'short'}).replace('.','');
 const lungD = s => dIso(s).toLocaleDateString(dloc(), {weekday:'short', day:'numeric', month:'short'}).replace(/\./g,'');
@@ -2358,8 +2627,8 @@ function mzStato(){
   const corr = somma(m.correzioni, gP, x => (x.c||0)+(x.r||0));
   const ric = gP.map(g => m.richieste[g]).filter(v => v!=null);
   return {L, zone, sotto, prov, anticipo, nuovi7, nuoviP, corr, ric, mediaRic: ric.length ? Math.round(ric.reduce((a,b)=>a+b,0)/ric.length) : null,
-    qualita: nuoviP ? corr/nuoviP*100 : null, segn: somma(m.segnalazioni, gP), grat: L.length ? Math.round(L.filter(gratuitoMz).length/L.length*100) : null,
-    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, events.filter(e => mzReale(e) && cittaDi(e)===c.id).length])};
+    qualita: nuoviP>=SOGLIA_INTERNA ? corr/nuoviP*100 : null, segn: somma(m.segnalazioni, gP), grat: L.length>=SOGLIA_INTERNA ? Math.round(L.filter(gratuitoMz).length/L.length*100) : null,
+    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, MZ_EVENTI.filter(e => cittaDi(e)===c.id).length])};
 }
 function effettoAzione(a){
   const m = mz(), media = arr => { const v = arr.filter(x => x!=null); return v.length>=2 ? v.reduce((p,q)=>p+q,0)/v.length : null; };
@@ -2373,12 +2642,12 @@ function decisioniMz(S){
   const firma = (id, s) => id+'|'+s;
   if(S.L.some(e => cittaDi(e)==='torino') && S.sotto.length) out.push({id:firma('zone', S.sotto.map(q=>q.n).join(',')), liv:'crit', st:tr('Da fare'),
     tit: S.sotto.length===1 ? tr('Una zona di Torino resta sotto {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}) : tr('{n} zone di Torino restano sotto {s} eventi nei prossimi 7 giorni',{n:S.sotto.length, s:m.soglie.zona}),
-    perche: S.sotto.slice(0,8).map(q => q.n+' ('+S.zone[q.n]+')').join(', ')+(S.sotto.length>8?'…':'')+'. '+tr('Lì la mappa sembra vuota: è l’asimmetria informativa che {nome} vuole ridurre.'),
+    perche: S.sotto.slice(0,8).map(q => q.n+' ('+nfm(S.zone[q.n])+')').join(', ')+(S.sotto.length>8?'…':'')+'. '+tr('Lì la mappa sembra vuota: è l’asimmetria informativa che {nome} vuole ridurre.'),
     azione: tr('Cerca fonti in quelle zone: biblioteche, circoli, parrocchie, spazi associativi.'), kpi:[5,12]});
-  const vuote = CITTA.filter(c => !events.some(e => mzReale(e) && cittaDi(e)===c.id));
+  const vuote = MZ_ARCH.stato==='letto' ? CITTA.filter(c => !MZ_EVENTI.some(e => cittaDi(e)===c.id)) : [];
   if(vuote.length) out.push({id:firma('citta', vuote.map(c=>c.id).join(',')), liv:'warn', st:tr('Da valutare'), tit: tr('Città senza eventi: {c}',{c:vuote.map(c=>c.n).join(', ')}),
     perche: tr('Chi sceglie una di queste città trova la mappa vuota.'), azione: tr('Scegli la prossima città da riempire, anche con l’import dai siti dei Comuni.'), kpi:[3,10]});
-  if(S.nuovi7 < m.soglie.nuovi) out.push({id:firma('ritmo', oggi()), liv:'warn', st:tr('Sotto obiettivo'), tit: tr('{n} eventi nuovi negli ultimi 7 giorni (obiettivo {o})',{n:S.nuovi7, o:m.soglie.nuovi}),
+  if(S.nuovi7 < m.soglie.nuovi) out.push({id:firma('ritmo', oggi()), liv:'warn', st:tr('Sotto obiettivo'), tit: tr('{n} eventi nuovi negli ultimi 7 giorni (obiettivo {o})',{n:nfm(S.nuovi7), o:m.soglie.nuovi}),
     perche: tr('Il ritmo di raccolta decide quanto la mappa resta viva.'), azione: tr('Riprendi la lista delle fonti o prova un nuovo import.'), kpi:[2,10]});
   const tot = S.prov.consenso+S.prov.pubblica+S.prov.nd;
   if(tot && S.prov.nd/tot > .5) out.push({id:firma('prov', String(Math.round(S.prov.nd/tot*10))), liv:'warn', st:tr('Da fare'), tit: tr('Per {p} % degli eventi manca la provenienza',{p:Math.round(S.prov.nd/tot*100)}),
@@ -2432,8 +2701,8 @@ function studioSezioneMz(sez){
 }
 const vuotoMz = t => `<p class="mz-nota">${t}</p>`;
 function hbarMz(items, col){
-  const max = Math.max(1, ...items.map(x => x[1]));
-  return `<div class="mz-hbar">${items.map(([k,v]) => `<span class="mz-nome">${esc(k)}</span><span class="mz-riga"><span class="mz-barra${v===0?' zero':''}" style="width:${v===0?0:Math.max(2,v/max*78)}%;${col?'background:'+col:''}"></span><span class="mz-v${v===0?' vuota':''}">${v===0?tr('vuota'):nf(v)}</span></span>`).join('')}</div>`;
+  const max = Math.max(1, ...items.map(x => vm(x[1])));
+  return `<div class="mz-hbar">${items.map(([k,v]) => `<span class="mz-nome">${esc(k)}</span><span class="mz-riga"><span class="mz-barra${v===0?' zero':''}" style="width:${v===0?0:Math.max(2,vm(v)/max*78)}%;${col?'background:'+col:''}"></span><span class="mz-v${v===0?' vuota':''}">${v===0?tr('vuota'):nfm(v)}</span></span>`).join('')}</div>`;
 }
 const LINEE_MZ = {};
 function niceStepMz(mx){ const raw = Math.max(1,mx)/4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw/p; return Math.max(1,(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p); }
@@ -2443,7 +2712,7 @@ function lineaMz(id, serie, giorni, opt){
   const vals = serie.flatMap(s => s.v).filter(v => v!=null);
   if(!vals.length) return vuotoMz(opt.vuoto || tr('Ancora nessun dato in questo periodo.'));
   const step = niceStepMz(Math.max(...vals)), mx = Math.ceil(Math.max(...vals)/step)*step || step;
-  const x = i => pl + (W-pl-pr)*(n===1 ? .5 : i/(n-1)), y = v => pt + (H-pt-pb)*(1 - v/mx);
+  const x = i => pl + (W-pl-pr)*(n===1 ? .5 : i/(n-1)), y = v => pt + (H-pt-pb)*(1 - v/mx), yp = v => y(vm(v));   /* yp: un conteggio sotto soglia sta a mezza soglia */
   LINEE_MZ[id] = {serie, giorni, W, H, pl, pr, pt, x, azioni:opt.azioni||[]};
   let o = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(serie.map(s => s.nome).join(', '))}" data-mzline="${id}" style="touch-action:pan-y">`;
   for(let v=0; v<=mx; v+=step) o += `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" class="mz-griglia"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${nf(v)}</text>`;
@@ -2451,18 +2720,18 @@ function lineaMz(id, serie, giorni, opt){
   for(let i=n-1; i>=0; i-=tick) o += `<text x="${x(i)}" y="${H-6}" text-anchor="${i===n-1?'end':i===0?'start':'middle'}">${brevD(giorni[i])}</text>`;
   (opt.azioni||[]).forEach(a => { o += `<line x1="${x(a.i)}" x2="${x(a.i)}" y1="${pt}" y2="${H-pb}" class="mz-az"/><circle cx="${x(a.i)}" cy="${pt}" r="4" class="mz-az-p"/>`; });
   serie.forEach(s => {
-    let d = '', pen = false; s.v.forEach((v,i) => { if(v==null){ pen = false; return; } d += `${pen?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; });
-    if(serie.length===1 && !s.v.some(v => v==null) && n>1) o += `<path d="M${x(0)},${y(0)}L${s.v.map((v,i) => x(i).toFixed(1)+','+y(v).toFixed(1)).join('L')}L${x(n-1)},${y(0)}Z" fill="${s.col}" opacity=".1"/>`;
+    let d = '', pen = false; s.v.forEach((v,i) => { if(v==null){ pen = false; return; } d += `${pen?'L':'M'}${x(i).toFixed(1)},${yp(v).toFixed(1)}`; pen = true; });
+    if(serie.length===1 && !s.v.some(v => v==null) && n>1) o += `<path d="M${x(0)},${y(0)}L${s.v.map((v,i) => x(i).toFixed(1)+','+yp(v).toFixed(1)).join('L')}L${x(n-1)},${y(0)}Z" fill="${s.col}" opacity=".1"/>`;
     o += `<path d="${d}" fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    s.v.forEach((v,i) => { const solo = v!=null && (i===0 || s.v[i-1]==null) && (i===n-1 || s.v[i+1]==null); if(solo) o += `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${s.col}"/>`; });
+    s.v.forEach((v,i) => { const solo = v!=null && (i===0 || s.v[i-1]==null) && (i===n-1 || s.v[i+1]==null); if(solo) o += `<circle cx="${x(i)}" cy="${yp(v)}" r="3" fill="${s.col}"/>`; });
     let li = s.v.length-1; while(li>0 && s.v[li]==null) li--;
-    if(s.v[li]!=null) o += `<circle cx="${x(li)}" cy="${y(s.v[li])}" r="4" fill="${s.col}" class="mz-anello"/>`;
+    if(s.v[li]!=null) o += `<circle cx="${x(li)}" cy="${yp(s.v[li])}" r="4" fill="${s.col}" class="mz-anello"/>`;
   });
   o += `<line class="mz-mirino" x1="0" x2="0" y1="${pt}" y2="${H-pb}" opacity="0"/><rect x="${pl}" y="${pt}" width="${W-pl-pr}" height="${H-pt-pb}" fill="transparent"/></svg>`;
   return o;
 }
 function tabLineaMz(serie, giorni){
-  return `<div class="mz-scorri" style="max-height:280px"><table class="mz-tab"><tr><th>${tr('Giorno')}</th>${serie.map(s => `<th class="n">${esc(s.nome)}</th>`).join('')}</tr>${giorni.map((g,i) => `<tr><td>${lungD(g)}</td>${serie.map(s => `<td class="n">${s.v[i]==null?`<span class="meta">${tr('nessun dato')}</span>`:nf(s.v[i])}</td>`).join('')}</tr>`).reverse().join('')}</table></div>`;
+  return `<div class="mz-scorri" style="max-height:280px"><table class="mz-tab"><tr><th>${tr('Giorno')}</th>${serie.map(s => `<th class="n">${esc(s.nome)}</th>`).join('')}</tr>${giorni.map((g,i) => `<tr><td>${lungD(g)}</td>${serie.map(s => `<td class="n">${s.v[i]==null?`<span class="meta">${tr('nessun dato')}</span>`:nfm(s.v[i])}</td>`).join('')}</tr>`).reverse().join('')}</table></div>`;
 }
 const decCls = l => ({crit:'crit', warn:'warn', ok:'ok', neu:'neu'})[l]||'neu';
 
@@ -2475,15 +2744,16 @@ function disegnaMisure(){
   const conFiltri = MS.scheda!=='libreria';
   const ambito = MS.ambito==='tutte' ? tr('Tutte le città') : nomeCitta(citta);
   el.innerHTML = `<div class="mz-testa">
-      <div class="mz-barra-t"><button class="mz-icona" data-mz="esci" aria-label="${esc(tr('Torna all’admin'))}">${mzIco.indietro}</button><h1>${tr('Misure')}</h1>
+      <div class="mz-barra-t"><button class="mz-icona" data-mz="esci" aria-label="${esc(tr('Torna agli strumenti della redazione'))}">${mzIco.indietro}</button><h1>${tr('Misure')}</h1>
         <button class="mz-chip" data-mz="ambito" aria-label="${esc(tr('Cambia ambito: {a}',{a:ambito}))}"><span>${esc(ambito)}</span></button>
         <button class="mz-icona" data-mz="fonti" aria-label="${esc(tr('Da dove vengono i numeri'))}">${mzIco.info}</button></div>
       ${conFiltri?`<div class="seg mz-periodo" role="group" aria-label="${esc(tr('Periodo'))}">${[7,30,90].map(p => `<button data-mz="periodo" data-v="${p}" aria-pressed="${MS.periodo===p}">${tr(PER_MZ[p])}</button>`).join('')}</div>`:''}
       <nav class="mz-schede" aria-label="${esc(tr('Sezioni delle misure'))}">${SCHEDE_MZ.map(([k,t]) => `<button data-mz="scheda" data-v="${k}" aria-pressed="${MS.scheda===k}"><span>${tr(t)}</span></button>`).join('')}</nav>
     </div>
     <div class="mz-corpo">
+      ${MS.scheda==='libreria' ? '' : rigaArchivioMz()}
       ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, libreria:vLibreriaMz})[MS.scheda]()}
-      <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave red_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
+      <p class="meta mz-piede">${tr('Le misure restano su questo dispositivo (chiave red_misure) e si esportano in Excel: nel file i valori sotto i 10 casi compaiono come «meno di 10». Nessun dato sulle persone che usano l’app.')}</p>
       <button class="tasto sec pieno" data-mz="esporta">${tr('Esporta le misure in Excel')}</button>
     </div>`;
   el.scrollTop = y;
@@ -2494,22 +2764,22 @@ function vPanoramicaMz(){
   const m = mz(), S = mzStato(), g = mzGiorni(MS.periodo), att = serieAttivi(g);
   const oggiN = S.L.length, prima = att[Math.max(0, att.length-8)];
   const zTot = QUARTIERI.length, zOk = zTot - S.sotto.length;
-  const totP = S.prov.consenso+S.prov.pubblica+S.prov.nd, quotaCons = totP ? Math.round(S.prov.consenso/totP*100) : null;
+  const totP = S.prov.consenso+S.prov.pubblica+S.prov.nd, quotaCons = totP>=SOGLIA_INTERNA ? Math.round(S.prov.consenso/totP*100) : null;   /* niente percentuali su meno di 5 casi */
   const rimP = m.rimozioni.filter(r => (r.ric||'').slice(0,10) >= g[0]), rimOk = rimP.filter(r => { const h = oreTra(r.ric, r.eva); return h!=null && h<=48; }).length;
   const decs = decisioniMz(S).filter(d => on(d.kpi[0]));
   const sp = att.filter(v => v!=null);
   return `<h2 class="mz-h1">${tr('Il polso della città')}</h2>
     <p class="meta">${tr('Si misura la città, non le persone.')} ${esc(MS.ambito==='tutte'?tr('Tutte le città'):nomeCitta(citta))} · ${tr('ultimi {p}',{p:tr(PER_MZ[MS.periodo])})} · ${tr('aggiornato adesso')}</p>
-    ${on(1)?`<div class="mz-card mz-hero"><div><div class="mz-lab">${tr('Eventi attivi oggi')}</div><div class="mz-num">${nf(oggiN)}</div>
-      ${prima!=null?`<span class="mz-delta ${oggiN>=prima?'su':'giu'}">${oggiN>=prima?mzIco.su:mzIco.giu} ${oggiN>=prima?'+':'−'}${Math.abs(oggiN-prima)} ${tr('rispetto a 7 giorni fa')}</span>`:`<span class="meta">${tr('Il confronto arriva dopo qualche giorno di misure.')}</span>`}</div>
+    ${on(1)?`<div class="mz-card mz-hero"><div><div class="mz-lab">${tr('Eventi attivi oggi')}</div><div class="mz-num">${nfm(oggiN)}</div>
+      ${prima!=null?`<span class="mz-delta ${oggiN>=prima?'su':'giu'}">${oggiN>=prima?mzIco.su:mzIco.giu} ${oggiN>=prima?'+':'−'}${nfm(Math.abs(oggiN-prima))} ${tr('rispetto a 7 giorni fa')}</span>`:`<span class="meta">${tr('Il confronto arriva dopo qualche giorno di misure.')}</span>`}</div>
       ${sp.length>1?`<div class="mz-spark">${sparkMz(sp)}</div>`:''}<div>${fonteMz('ev')}</div></div>`:''}
     <h2 class="mz-h2">${tr('Indicatori')}</h2><p class="meta">${tr('Ognuno riassume più domande della libreria. Toccali per vedere quali; accendi e spegni le misure dalla libreria.')}</p>
     <div class="mz-griglia2">
       ${mzTile(tr('Copertura delle zone'), `${zOk}<small> ${tr('su {n}',{n:zTot})}</small>`, tr('zone di Torino con almeno {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}), 'ev', zOk/zTot, zOk<zTot, [5,3])}
-      ${mzTile(tr('Ritmo di raccolta'), `${nf(S.nuovi7)}<small> / ${tr('sett.')}</small>`, tr('eventi nuovi inseriti da te ({nome}), non nuovi utenti · obiettivo {o}',{o:m.soglie.nuovi}), 'ev', S.nuovi7/m.soglie.nuovi, S.nuovi7<m.soglie.nuovi, [2,10,12])}
-      ${mzTile(tr('Solidità delle fonti'), quotaCons==null?'–':`${quotaCons}<small> %</small>`, tr('eventi con consenso diretto')+(rimP.length?' · '+tr('rimozioni entro 48 h: {a} su {b}',{a:rimOk, b:rimP.length}):''), 'ev', quotaCons==null?null:quotaCons/100, false, [6,15,13])}
-      ${mzTile(tr('Richieste al sito'), S.mediaRic==null?'–':`${nf(S.mediaRic)}<small> / ${tr('giorno')}</small>`, S.mediaRic==null?tr('copia i numeri da Netlify in «Accessi»'):tr('media del periodo · un indice, non persone'), 'man', null, false, [18,20])}
-      ${mzTile(tr('Qualità dei dati'), S.qualita==null?'–':`${n1(S.qualita)}<small> %</small>`, tr('eventi corretti o rimossi sui nuovi · {n} segnalazioni',{n:S.segn}), 'ev', null, false, [11,16])}
+      ${mzTile(tr('Ritmo di raccolta'), `${nfm(S.nuovi7)}<small> / ${tr('sett.')}</small>`, tr('eventi nuovi inseriti da te ({nome}), non nuovi utenti · obiettivo {o}',{o:m.soglie.nuovi}), 'ev', S.nuovi7/m.soglie.nuovi, S.nuovi7<m.soglie.nuovi, [2,10,12])}
+      ${mzTile(tr('Solidità delle fonti'), quotaCons==null?'–':`${quotaCons}<small> %</small>`, tr('eventi con consenso diretto')+(rimP.length?' · '+tr('rimozioni entro 48 h: {a} su {b}',{a:nfm(rimOk), b:nfm(rimP.length)}):''), 'ev', quotaCons==null?null:quotaCons/100, false, [6,15,13])}
+      ${mzTile(tr('Richieste al sito'), S.mediaRic==null?'–':`${nfm(S.mediaRic)}<small> / ${tr('giorno')}</small>`, S.mediaRic==null?tr('copia i numeri da Netlify in «Accessi»'):tr('media del periodo · un indice, non persone'), 'man', null, false, [18,20])}
+      ${mzTile(tr('Qualità dei dati'), S.qualita==null?'–':`${n1(S.qualita)}<small> %</small>`, tr('eventi corretti o rimossi sui nuovi · {n} segnalazioni',{n:nfm(S.segn)}), 'ev', null, false, [11,16])}
     </div>
     <h2 class="mz-h2">${tr('Cosa decidere adesso')}</h2><p class="meta">${tr('Ogni misura serve a una decisione. Le soglie le scegli tu.')}</p>
     <div class="mz-pila">${decs.length ? decs.map(d => `<article class="mz-dec"><span class="mz-stato ${decCls(d.liv)}">${d.liv==='crit'||d.liv==='warn'?mzIco.avviso:''}${d.st}</span><h3>${esc(d.tit)}</h3><p class="mz-perche">${esc(d.perche)}</p><p class="mz-azione">${esc(d.azione)}</p>
@@ -2521,7 +2791,7 @@ function vPanoramicaMz(){
     <button class="tasto sec pieno" data-mz="scheda" data-v="libreria" data-f="eliminato">${tr('Vedi le misure eliminate')}</button>
     ${studioSezioneMz('panoramica')}`;
 }
-function sparkMz(v){ const W = 150, H = 48, mn = Math.min(...v), mx = Math.max(...v); const x = i => i/(v.length-1)*(W-8)+4, y = a => H-5-(a-mn)/((mx-mn)||1)*(H-12);
+function sparkMz(v){ v = v.map(vm); const W = 150, H = 48, mn = Math.min(...v), mx = Math.max(...v); const x = i => i/(v.length-1)*(W-8)+4, y = a => H-5-(a-mn)/((mx-mn)||1)*(H-12);
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-hidden="true"><path d="${v.map((a,i) => `${i?'L':'M'}${x(i).toFixed(1)},${y(a).toFixed(1)}`).join('')}" fill="none" class="mz-spark-l" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(v.length-1)}" cy="${y(v[v.length-1])}" r="4" class="mz-spark-p"/></svg>`; }
 
 function vOffertaMz(){
@@ -2534,17 +2804,17 @@ function vOffertaMz(){
   return `<h2 class="mz-h1">${tr('Offerta di eventi')}</h2><p class="meta">${tr('Calcolato dagli eventi che pubblichi: nessun utente coinvolto. Si conservano solo i totali del giorno, non gli eventi.')}</p>
     ${mzBox('attivi', tr('Eventi attivi ogni giorno'), lineaMz('attivi', [{nome:tr('Eventi attivi'), v:att, col:'var(--verde)'}], g, {vuoto:tr('Il grafico si riempie un giorno alla volta: ogni volta che apri le Misure si salva il totale del giorno.')})+`<p class="meta">${tr('Un giorno in cui l’admin non apre le Misure resta un buco.')}</p>`, tabLineaMz([{nome:tr('Eventi attivi'), v:att}], g), 'ev', [1])}
     <div class="mz-griglia2">
-      ${mzTile(tr('Nuovi nel periodo'), nf(S.nuoviP), tr('inseriti da te ({nome}), non nuovi utenti · ultimi 7 giorni: {n}',{n:S.nuovi7}), 'ev', null, false, [2])}
+      ${mzTile(tr('Nuovi nel periodo'), nfm(S.nuoviP), tr('inseriti da te ({nome}), non nuovi utenti · ultimi 7 giorni: {n}',{n:S.nuovi7}), 'ev', null, false, [2])}
       ${mzTile(tr('Anticipo medio'), S.anticipo==null?'–':`${n1(S.anticipo)}<small> ${tr('giorni')}</small>`, tr('tra pubblicazione e inizio'), 'ev', null, false, [9])}
       ${mzTile(tr('Gratuiti'), S.grat==null?'–':`${S.grat}<small> %</small>`, tr('eventi con ingresso libero'), 'ev', null, false, [7])}
-      ${mzTile(tr('Da import Excel'), nf(S.imp), tr('eventi attivi arrivati da un file'), 'ev', null, false, [10])}
+      ${mzTile(tr('Da import Excel'), nfm(S.imp), tr('eventi attivi arrivati da un file'), 'ev', null, false, [10])}
     </div>
     ${mzBox('citta', tr('Eventi attivi per città'), hbarMz(S.perCitta), null, 'ev', [3])}
-    ${mzBox('zone', tr('Zone di Torino · eventi nei prossimi 7 giorni'), zoneMz(S), `<table class="mz-tab"><tr><th>${tr('Zona')}</th><th class="n">${tr('Eventi')}</th></tr>${QUARTIERI.map(q => `<tr><td>${esc(q.n)}</td><td class="n">${S.zone[q.n]}</td></tr>`).join('')}</table>`, 'ev', [5])}
+    ${mzBox('zone', tr('Zone di Torino · eventi nei prossimi 7 giorni'), zoneMz(S), `<table class="mz-tab"><tr><th>${tr('Zona')}</th><th class="n">${tr('Eventi')}</th></tr>${QUARTIERI.map(q => `<tr><td>${esc(q.n)}</td><td class="n">${nfm(S.zone[q.n])}</td></tr>`).join('')}</table>`, 'ev', [5])}
     ${mzBox('strati', tr('Eventi attivi per strato'), hbarMz(strati)+`<p class="meta">${tr('Gli strati più sottili sono quelli da cercare.')}</p>`, null, 'ev', [4])}
-    ${mzBox('prov', tr('Da dove arrivano gli eventi'), tot ? `<div class="mz-stack" role="img" aria-label="${esc(fa.map(f => f[0]+' '+f[1]).join(', '))}">${fa.filter(f => f[1]).map(f => `<i style="width:${f[1]/tot*100}%;background:${f[2]}" data-mztip="<b>${esc(f[0])}</b><br>${f[1]} ${tr('eventi')} · ${Math.round(f[1]/tot*100)} %"></i>`).join('')}</div>
-      <div class="mz-legenda">${fa.map(f => `<span><i style="background:${f[2]}"></i>${esc(f[0])} · ${Math.round(f[1]/tot*100)} %</span>`).join('')}</div><p class="meta">${tr('Più consenso diretto = base giuridica più solida (art. 6(1)(a) GDPR). La provenienza si indica nel form dell’evento o nella colonna «Provenienza» dell’Excel.')}</p>` : vuotoMz(tr('Nessun evento attivo.')),
-      `<table class="mz-tab"><tr><th>${tr('Provenienza')}</th><th class="n">${tr('Eventi')}</th></tr>${fa.map(f => `<tr><td>${esc(f[0])}</td><td class="n">${f[1]}</td></tr>`).join('')}</table>`, 'ev', [6])}
+    ${mzBox('prov', tr('Da dove arrivano gli eventi'), tot ? `<div class="mz-stack" role="img" aria-label="${esc(fa.map(f => f[0]+' '+nfm(f[1])).join(', '))}">${fa.filter(f => f[1]).map(f => `<i style="width:${f[1]/tot*100}%;background:${f[2]}" data-mztip="<b>${esc(f[0])}</b><br>${nfm(f[1])} ${tr('eventi')}${tot>=SOGLIA_INTERNA?' · '+Math.round(f[1]/tot*100)+' %':''}"></i>`).join('')}</div>
+      <div class="mz-legenda">${fa.map(f => `<span><i style="background:${f[2]}"></i>${esc(f[0])}${tot>=SOGLIA_INTERNA?' · '+Math.round(f[1]/tot*100)+' %':''}</span>`).join('')}</div><p class="meta">${tr('Più consenso diretto = base giuridica più solida (art. 6(1)(a) GDPR). La provenienza si indica nel form dell’evento o nella colonna «Provenienza» dell’Excel.')}</p>` : vuotoMz(tr('Nessun evento attivo.')),
+      `<table class="mz-tab"><tr><th>${tr('Provenienza')}</th><th class="n">${tr('Eventi')}</th></tr>${fa.map(f => `<tr><td>${esc(f[0])}</td><td class="n">${nfm(f[1])}</td></tr>`).join('')}</table>`, 'ev', [6])}
     ${mzBox('heat', tr('Quando ci sono eventi'), `<div class="mz-heat"><span></span>${ordine.map(d => `<span class="mz-h c">${esc(GG[(d+6)%7])}</span>`).join('')}${FASCE_MZ.map((f,r) => `<span class="mz-h">${tr(f[1])}</span>${ordine.map(d => { const c = (d+6)%7, v = heat[r][c], lv = v ? Math.min(5, Math.ceil(v/hmax*5)) : 0; return `<button style="background:var(--mz-s${lv});color:${lv>=4?'var(--su-verde)':'var(--testo)'}" data-mztip="<b>${esc(GG[c])} · ${tr(f[1])}</b><br>${v} ${tr('eventi')}" aria-label="${esc(GG[c]+' '+tr(f[1])+': '+v)}">${v||''}</button>`; }).join('')}`).join('')}</div>
       <div class="mz-scala"><span>0</span><span class="mz-rampa">${[0,1,2,3,4,5].map(i => `<i style="background:var(--mz-s${i})"></i>`).join('')}</span><span>${hmax}</span></div>`,
       `<div class="mz-scorri"><table class="mz-tab"><tr><th></th>${ordine.map(d => `<th class="n">${esc(GG[(d+6)%7])}</th>`).join('')}</tr>${FASCE_MZ.map((f,r) => `<tr><td>${tr(f[1])}</td>${ordine.map(d => `<td class="n">${heat[r][(d+6)%7]}</td>`).join('')}</tr>`).join('')}</table></div>`, 'ev', [8])}
@@ -2554,7 +2824,7 @@ function vOffertaMz(){
 function zoneMz(S){
   const max = Math.max(1, ...Object.values(S.zone)), s = mz().soglie.zona;
   return `<div class="mz-zone">${QUARTIERI.map(q => { const v = S.zone[q.n], sotto = v < s, lv = sotto ? 0 : Math.min(5, Math.max(1, Math.ceil(v/max*5)));
-    return `<button class="${sotto?'sotto':''}" style="background:var(--mz-s${lv});color:${lv>=4?'var(--su-verde)':'var(--testo)'}" data-mztip="<b>${esc(q.n)}</b><br>${v} ${tr('eventi')}${sotto?' · '+tr('sotto soglia'):''}" aria-label="${esc(q.n+': '+v+(sotto?', '+tr('sotto soglia'):''))}"><span class="mz-zn">${esc(q.n)}</span><span class="mz-zv">${v}${sotto?` <small>· ${tr('sotto soglia')}</small>`:''}</span></button>`; }).join('')}</div>
+    return `<button class="${sotto?'sotto':''}" style="background:var(--mz-s${lv});color:${lv>=4?'var(--su-verde)':'var(--testo)'}" data-mztip="<b>${esc(q.n)}</b><br>${nfm(v)} ${tr('eventi')}${sotto?' · '+tr('sotto soglia'):''}" aria-label="${esc(q.n+': '+nfm(v)+(sotto?', '+tr('sotto soglia'):''))}"><span class="mz-zn">${esc(q.n)}</span><span class="mz-zv">${nfm(v)}${sotto?` <small>· ${tr('sotto soglia')}</small>`:''}</span></button>`; }).join('')}</div>
     <div class="mz-scala"><span>${tr('meno')}</span><span class="mz-rampa">${[0,1,2,3,4,5].map(i => `<i style="background:var(--mz-s${i})"></i>`).join('')}</span><span>${tr('più')}</span><span style="margin-left:auto">${tr('tratteggio = sotto soglia ({s})',{s})}</span></div>
     <p class="meta">${tr('Sono le zone dei «vuoti» della mappa: rettangoli provvisori, i confini veri delle circoscrizioni sono rimandati.')}</p>`;
 }
@@ -2566,10 +2836,10 @@ function vReteMz(){
   const rim = m.rimozioni.slice().sort((a,b) => (b.ric||'').localeCompare(a.ric||''));
   return `<h2 class="mz-h1">${tr('Rete di organizzatori e luoghi')}</h2><p class="meta">${tr('Conteggi su ciò che gestisci già. Niente nomi.')}</p>
     <div class="mz-griglia2">
-      ${mzTile(tr('Eventi con consenso diretto'), nf(S.prov.consenso), tr('organizzatori che pubblicano con te'), 'ev', null, false, [13])}
-      ${mzTile(tr('Luoghi sulla mappa'), nf(luoghi), tr('indirizzi distinti degli eventi attivi'), 'ev', null, false, [17])}
-      ${mzTile(tr('Segnalazioni ricevute'), nf(segnP), tr('eventi non validi, nel periodo'), 'mail', null, false, [16])}
-      ${mzTile(tr('Richieste di rimozione'), nf(m.rimozioni.length), tr('registrate in tutto'), 'reg', null, false, [15])}
+      ${mzTile(tr('Eventi con consenso diretto'), nfm(S.prov.consenso), tr('organizzatori che pubblicano con te'), 'ev', null, false, [13])}
+      ${mzTile(tr('Luoghi sulla mappa'), nfm(luoghi), tr('indirizzi distinti degli eventi attivi'), 'ev', null, false, [17])}
+      ${mzTile(tr('Segnalazioni ricevute'), nfm(segnP), tr('eventi non validi, nel periodo'), 'mail', null, false, [16])}
+      ${mzTile(tr('Richieste di rimozione'), nfm(m.rimozioni.length), tr('registrate in tutto'), 'reg', null, false, [15])}
     </div>
     ${on(16)?`<div class="mz-card"><h3>${tr('Una segnalazione arrivata')}</h3><p class="meta">${tr('Un evento non valido segnalato su {casella}. Si conta solo il numero, non chi scrive.',{casella:CASELLA})}</p>
       <div class="tasti"><button class="tasto sec" data-mz="segn-meno" ${m.segnalazioni[oggi()]?'':'disabled'}>${tr('Togli l’ultima')}</button><button class="tasto pri" data-mz="segn-piu">${tr('+1 oggi')}${m.segnalazioni[oggi()]?' · '+m.segnalazioni[oggi()]:''}</button></div></div>`:''}
@@ -2627,10 +2897,10 @@ function vQualitaMz(){
 
 function vImpattoMz(){
   const m = mz(), G = m.giri.slice().reverse(), u = G[0];
-  const fr = (t, v, tot, k) => !on(k) ? '' : `<button class="mz-tile" data-mz="kpiset" data-k="${k}" data-l="${esc(t)}"><span class="mz-fr"><span>${t}</span><b>${v} ${tr('su')} ${tot}</b></span><span class="mz-barre" aria-hidden="true">${Array.from({length:Math.min(tot,30)}, (_,i) => `<i class="${i<Math.round(v/tot*Math.min(tot,30))?'on':''}"></i>`).join('')}</span></button>`;
+  const fr = (t, v, tot, k) => !on(k) ? '' : `<button class="mz-tile" data-mz="kpiset" data-k="${k}" data-l="${esc(t)}"><span class="mz-fr"><span>${t}</span><b>${nfm(v)} ${tr('su')} ${nfm(tot)}</b></span>${sottoSoglia(v, SOGLIA_INTERNA) || sottoSoglia(tot-v, SOGLIA_INTERNA) || tot<SOGLIA_INTERNA ? '' : `<span class="mz-barre" aria-hidden="true">${Array.from({length:Math.min(tot,30)}, (_,i) => `<i class="${i<Math.round(v/tot*Math.min(tot,30))?'on':''}"></i>`).join('')}</span>`}</button>`;
   if(![35,37,44,45,47].some(on)) return `<h2 class="mz-h1">${tr('Impatto')}</h2>${studioSezioneMz('impatto')}`;
   return `<h2 class="mz-h1">${tr('Impatto')}</h2><p class="meta">${tr('Si chiede alle persone, con il loro consenso. Con pochi partecipanti si mostrano i conteggi, non le percentuali.')}</p>
-    ${u ? `<div class="mz-card"><div class="mz-lab">${esc(brevD(u.d))}</div><h3>${esc(u.titolo||tr('Giro di interviste'))} · ${tr('{n} persone',{n:u.n})}</h3><div class="mz-pila">
+    ${u ? `<div class="mz-card"><div class="mz-lab">${esc(brevD(u.d))}</div><h3>${esc(u.titolo||tr('Giro di interviste'))} · ${tr('{n} persone',{n:nfm(u.n)})}</h3><div class="mz-pila">
       ${fr(tr('Hanno scoperto eventi che non conoscevano'), u.scoperto, u.n, 44)}${fr(tr('Sono andate davvero a un evento trovato qui'), u.andato, u.n, 45)}${fr(tr('Hanno completato la guida iniziale senza aiuto'), u.guida, u.n, 35)}${fr(tr('Hanno creato un Off-Grid al primo tentativo'), u.og, u.n, 37)}</div>
       ${on(47)&&u.cons!=null&&u.cons!==''?`<p class="meta">${tr('Lo consiglierebbero: mediana {c} su 10.',{c:u.cons})}</p>`:''}${fonteMz('int')}</div>` : vuotoMz(tr('Nessun giro di interviste registrato. Dopo il lancio: 8–10 persone, stessa traccia di domande, così i giri si confrontano.'))}
     <div class="mz-card"><h3>${tr('Registra un giro di prova sul campo')}</h3><form class="mz-form" data-mzform="giro">
@@ -2725,21 +2995,26 @@ function esportaMisure(){
   const cit = CITTA.map(c => c.id);
   const G = [[tr('Giorno'), tr('Eventi attivi'), ...CITTA.map(c => c.n), tr('Da import'), tr('Gratuiti'), tr('Consenso diretto'), tr('Fonte pubblica'), tr('Provenienza non indicata'), tr('Nuovi creati'), tr('Corretti'), tr('Rimossi'), tr('Richieste (Netlify)'), tr('Segnalazioni'), tr('Azioni di comunicazione')]]
     .concat(giorni.map(g => { const x = m.giorni[g]||{}, c = m.correzioni[g]||{}; return [dIso(g), x.tot!=null?x.tot:'', ...cit.map(id => x.citta ? (x.citta[id]||0) : ''), x.imp!=null?x.imp:'', x.grat!=null?x.grat:'',
-      x.prov?(x.prov.consenso||0):'', x.prov?(x.prov.pubblica||0):'', x.prov?(x.prov.nd||0):'', m.creati[g]||0, c.c||0, c.r||0, m.richieste[g]!=null?m.richieste[g]:'', m.segnalazioni[g]||0, m.azioni.filter(a => a.d===g).map(a => a.t).join(' · ')]; }));
-  const R = [[tr('Ricevuta'), tr('Evasa'), tr('Ore')]].concat(m.rimozioni.map(r => [r.ric, r.eva||'', oreTra(r.ric, r.eva)==null?'':oreTra(r.ric, r.eva)]));
+      x.prov?(x.prov.consenso||0):'', x.prov?(x.prov.pubblica||0):'', x.prov?(x.prov.nd||0):'', m.creati[g]||0, c.c||0, c.r||0, m.richieste[g]!=null?m.richieste[g]:'', m.segnalazioni[g]||0].map((v, i) => i ? fuoriMz(v) : v).concat([m.azioni.filter(a => a.d===g).map(a => a.t).join(' · ')]); }));
+  /* le richieste di rimozione escono come totali per mese, non una per riga: sono fatti di persone (§ 4.4) */
+  const perMese = {}; m.rimozioni.forEach(r => { const k = String(r.ric||'').slice(0,7); if(!/^\d{4}-\d{2}$/.test(k)) return; const o = perMese[k] = perMese[k]||{n:0, ok:0}; o.n++; const h = oreTra(r.ric, r.eva); if(h!=null && h<=48) o.ok++; });
+  const R = [[tr('Mese'), tr('Richieste di rimozione'), tr('Evase entro 48 ore')]].concat(Object.keys(perMese).sort().map(k => [k, fuoriMz(perMese[k].n), perMese[k].n<SOGLIA_ESTERNA ? '' : fuoriMz(perMese[k].ok)]));
   const V = [[tr('Versione'), tr('Data'), tr('Secondi')]].concat(m.versioni.map(v => [v.v, dIso(v.d), v.s]));
   const P = [[tr('Data'), tr('Rete e telefono'), tr('Esito'), tr('Nota')]].concat(m.prove.map(p => [dIso(p.d), p.rete, p.ok?tr('Caricata'):tr('Non caricata'), p.nota||'']));
-  const I = [[tr('Data'), tr('Giro'), tr('Persone'), tr('Scoperto eventi nuovi'), tr('Andati a un evento'), tr('Guida senza aiuto'), tr('Off-Grid al primo tentativo'), tr('Mediana consiglio')]].concat(m.giri.map(x => [dIso(x.d), x.titolo||'', x.n, x.scoperto, x.andato, x.guida, x.og, x.cons==null?'':x.cons]));
+  const I = [[tr('Data'), tr('Giro'), tr('Persone'), tr('Scoperto eventi nuovi'), tr('Andati a un evento'), tr('Guida senza aiuto'), tr('Off-Grid al primo tentativo'), tr('Mediana consiglio')]].concat(m.giri.map(x => { const p = Number(x.n), c = v => p<SOGLIA_ESTERNA ? '' : fuoriMz(Number(v)); return [dIso(x.d), x.titolo||'', fuoriMz(p), c(x.scoperto), c(x.andato), c(x.guida), c(x.og), p<SOGLIA_ESTERNA || x.cons==null ? '' : x.cons]; }));
   const C = [['N.', tr('Domanda'), tr('Sezione'), tr('Stato'), tr('Nella sezione'), tr('Decisione di Lorenzo'), tr('Note di Lorenzo'), tr('Risposta di Claude'), tr('Appunti di studio'), tr('Data appunti'), tr('Ultimo cambio di stato'), tr('UE'), tr('IT')]]
     .concat(MZ_KPI.map(k => { const x = (m.lib||{})[k.n]||{}, s = libStato(k.n); return [k.n, k.q, tr(NOMI_SEZ[sezioneKpi(k)]), tr(STATI_LIB[s]), s==='operativo' ? (HA_PANNELLO.has(k.n) ? (libVisibile(k.n)?tr('Visibile'):tr('Nascosta')) : tr('Pannello da costruire')) : '', k.lorD||'', k.lorNota||'', k.risposta||'', x.appunti||'', x.appuntiD?dIso(x.appuntiD):'', x.stato?dIso(x.agg):'', k.eu, k.it]; }));
   const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico]];
-  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
+  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [12,22,20]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
     .then(() => { registra('esporta-misure'); avviso(tr('Misure esportate: {f}',{f:nomeFile()+'_misure_'+oggi()+'.xlsx'}), null, true); })
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
 
 /* ---------- apertura e interazioni ---------- */
-function apriMisure(){ mzFotografa(); vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
+function apriMisure(){
+  vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0;
+  mzLeggiArchivio().then(() => { mzFotografa(); if(st.sezione==='misure') disegnaMisure(); });
+}
 function salvaAppuntiMz(n){ const ta = $('mz-app-'+n), x = (mz().lib||{})[n]||{}; if(ta && ta.value.trim()!==(x.appunti||'')) libSet(n, {appunti:ta.value.trim(), appuntiD:oggi()}); }
 function clickMisure(t){
   const d = t.dataset, m = mz(), a = d.mz; if(!a) return false;
@@ -2809,7 +3084,7 @@ function nascondiTipMz(){ if(tipMz) tipMz.style.opacity = 0; }
       let i = Math.round((px - L.pl)/(L.W - L.pl - L.pr)*(n-1)); i = Math.max(0, Math.min(n-1, i));
       const mi = svg.querySelector('.mz-mirino'), xx = L.x(i); mi.setAttribute('x1', xx); mi.setAttribute('x2', xx); mi.setAttribute('opacity', .5);
       const az = L.azioni.filter(a => a.i===i).map(a => `<br>● ${esc(a.t)}`).join('');
-      mostraTipMz(`<b>${esc(lungD(L.giorni[i]))}</b>${L.serie.map(s => `<br>${esc(s.nome)}: ${s.v[i]==null?tr('nessun dato'):nf(s.v[i])}`).join('')}${az}`, r.left + xx/L.W*r.width, r.top + 10); return; }
+      mostraTipMz(`<b>${esc(lungD(L.giorni[i]))}</b>${L.serie.map(s => `<br>${esc(s.nome)}: ${s.v[i]==null?tr('nessun dato'):nfm(s.v[i])}`).join('')}${az}`, r.left + xx/L.W*r.width, r.top + 10); return; }
     const t = ev.target.closest && ev.target.closest('[data-mztip]');
     if(t){ const r = t.getBoundingClientRect(); mostraTipMz(t.dataset.mztip, r.left + r.width/2, r.top); } else nascondiTipMz();
   });
@@ -2819,8 +3094,8 @@ function nascondiTipMz(){ if(tipMz) tipMz.style.opacity = 0; }
   $('foglio-slot').addEventListener('input', ev => { const s = ev.target.dataset && ev.target.dataset.mzs; if(!s) return; const m = mz(); m.soglie[s] = +ev.target.value; mzSalva(); const o = $('mzo-'+s); if(o) o.textContent = (s==='carico'?n1(m.soglie[s]):m.soglie[s])+(s==='carico'?' s':''); if(st.sezione==='misure') disegnaMisure(); });
 })();
 
-/* ======================= Storico delle operazioni dell'admin (6 ottobre 2026) =======================
-   Dove sta: in questo telefono, nella memoria del browser (chiave red_storico), come gli eventi
+/* ======================= Storico delle operazioni della Redazione (6 ottobre 2026; nell'app della redazione da T-035) =======================
+   Dove sta: su questo dispositivo, nella memoria del browser (chiave red_storico), come gli eventi
    e le Misure. L'app lo legge da lì: non va su nessun server e un altro telefono non lo vede.
    Cosa tiene: il tipo di operazione, giorno e ora, quanti eventi e il codice dell'evento. Il titolo NON viene salvato:
    lo storico lo legge dall'evento finché l'evento è sulla mappa. Quando l'evento sparisce (3 ore dopo la fine),
@@ -2828,13 +3103,17 @@ function nascondiTipMz(){ if(tipMz) tipMz.style.opacity = 0; }
    Si tengono le ultime 1.000 operazioni e al massimo 12 mesi. */
 const STORICO_MAX = 1000, STORICO_GIORNI = 365;
 const OP_STORICO = {
-  entra:['accessi','Entrata in modalità admin'], esci:['accessi','Uscita dalla modalità admin'],
+  /* «entra» ed «esci» sono di quando l'area riservata stava nell'app pubblica: restano per leggere le voci vecchie */
+  entra:['accessi','Entrata nell’area riservata'], esci:['accessi','Uscita dall’area riservata'],
+  'chiavi-crea':['accessi','Chiavi create'], 'chiavi-ripristina':['accessi','Chiavi ripristinate da una copia'], 'chiavi-aggiungi':['accessi','Dispositivo aggiunto da una copia'],
+  'chiavi-copia':['accessi','Copia di riserva delle chiavi scaricata'], 'chiavi-revoca':['accessi','Chiavi di questo dispositivo revocate'],
+  'cassaforte-copia':['accessi','Copia della cassaforte scaricata'], 'cassaforte-riporta':['accessi','Cassaforte riportata da una copia'],
   crea:['eventi','Evento creato'], modifica:['eventi','Evento modificato'], elimina:['eventi','Evento eliminato'], ripristina:['eventi','Eventi ripristinati'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
   misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']
 };
-const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Accessi']];
+const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Chiavi e accessi']];
 const SH = {filtro:'tutte', mostrati:60, conferma:false};
 function storico(){
   const l = MEM.leggi('red_storico', []); if(!Array.isArray(l)) return [];
@@ -2866,7 +3145,7 @@ function foglioStorico(){
     if(g!==giorno){ giorno = g; righe += `<h3 class="sh-giorno">${esc(lungD(oggiDi(d)))}</h3>`; }
     righe += `<div class="sh-voce sh-${OP_STORICO[x.op][0]}"><span class="sh-ora">${hm(d)}</span><div><b>${tr(OP_STORICO[x.op][1])}</b>${descriviVoce(x)?`<span class="meta">${descriviVoce(x)}</span>`:''}</div></div>`; });
   window.AGR.foglio(`<div class="mz-foglio sh">
-    <button class="link sh-indietro" data-az="admin">${tr('‹ Modalità admin')}</button>
+    <button class="link sh-indietro" data-az="admin">${tr('‹ Strumenti della redazione')}</button>
     <h2>${tr('Storico delle operazioni')}</h2>
     <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave red_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
     <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra lo storico'))}">${GRUPPI_STORICO.map(([k,t]) => `<button data-sh="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(t)} · ${tutte.filter(x => k==='tutte' || OP_STORICO[x.op][0]===k).length}</span></button>`).join('')}</nav>
@@ -2908,7 +3187,7 @@ $('app').addEventListener('click', ev => {
   if(t.tagName==='A') return;
   if(t.closest('.sez-temi') && clickTemi(t)) return;
   if(t.closest('.sez-agora,.sez-progetti,.sez-proposta')) return;
-  if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */
+  if(clickRed(t)) return;   /* strumenti della Redazione (sorgenti/redazione/) */
   const d = t.dataset;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
   if(d.regione){ const [lng, lat] = d.regione.split(',').map(Number); if(map && isFinite(lng) && isFinite(lat)) map.flyTo({center:[lng, lat], zoom:12, duration:800}); return; }
@@ -2925,11 +3204,12 @@ $('app').addEventListener('click', ev => {
   if(d.salva){ if(inCal(d.salva)) delete calEvents[d.salva]; else calEvents[d.salva] = true; saveCal(); tutto(); if(st.foglio==='scheda') disegnaFoglio(); return; }
   if(d.si!=null){ const i = +d.si;
     if(sugg.dove==='cerca') return scegliLuogo(i);
-    const r = sugg.lista[i], f = sugg.dove==='a' ? st.aform : st.form; if(!r || !f) return;
+    /* pre: «f» per il modulo Off-Grid; nell'app della redazione anche «a» per il modulo degli eventi */
+    const pre = sugg.dove==='a' ? 'a' : 'f', r = sugg.lista[i], f = pre==='a' ? st.aform : st.form; if(!r || !f) return;
     f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; if(f.err) f.err.indirizzo = 0;
-    const inp = $(sugg.dove==='a' ? 'a-indirizzo' : 'f-indirizzo'); if(inp) inp.value = f.indirizzo;
-    const box = $(sugg.dove==='a' ? 'a-sugg' : 'f-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
-    const pb = $(sugg.dove==='a' ? 'a-punto' : 'f-punto'); if(pb) pb.innerHTML = boxPunto(f);
+    const inp = $(pre+'-indirizzo'); if(inp) inp.value = f.indirizzo;
+    const box = $(pre+'-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
+    const pb = $(pre+'-punto'); if(pb) pb.innerHTML = boxPunto(f);
     return; }
   if(d.copiaIndirizzo){ copiaIndirizzo(d.copiaIndirizzo); return; }
   if(d.giorno){ if(!st.da || st.a){ st.da = d.giorno; st.a = null; } else if(d.giorno < st.da){ st.da = d.giorno; } else { st.a = d.giorno; } disegnaFoglio(); return; }
@@ -2943,8 +3223,6 @@ $('app').addEventListener('click', ev => {
   if(d.modifica){ const r = rawById(d.modifica); if(r) apriForm(r); return; }
   if(d.elimina){ st.conferma = {id:d.elimina}; st.foglio = 'conferma'; disegnaFoglio(); return; }
   if(d.eliminaOk){ elimina(st.conferma.id, d.eliminaOk); return; }
-  if(d.modificaAdmin){ const r = rawById(d.modificaAdmin); if(r) apriAdminForm(r); return; }
-  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); registra('elimina', {id:r.id, s:r.category}); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return; }
   if(d.salvaForm){ salvaForm(d.salvaForm); return; }
   if(d.fgiorno){ st.form.giorno = d.fgiorno; if(st.form.fino < d.fgiorno) st.form.fino = piuMesi(d.fgiorno,3); disegnaFoglio(); return; }
   if(d.togliLink!=null){ st.form.links.splice(+d.togliLink,1); if(!st.form.links.length) st.form.links = ['']; disegnaFoglio(); return; }
@@ -2981,7 +3259,6 @@ $('app').addEventListener('click', ev => {
     case 'home': vaiSezione('mappa'); st.foglio = null; st.sel = null; st.cercaQui = null; disegnaFoglio(); tutto(); vaiCitta(true); break;
     case 'nuovo': apriForm(null); break;
     case 'scegli-mappa': iniziaPosa('form'); break;
-    case 'scegli-mappa-a': iniziaPosa('aform'); break;
     case 'posa-annulla': finePosa(false); break;
     case 'posa-ok': finePosa(true); break;
     case 'aiuto': st.form.aiuto = !st.form.aiuto; disegnaFoglio(); break;
@@ -2997,7 +3274,7 @@ $('app').addEventListener('click', ev => {
     case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
       if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
     case 'citta': apri('citta'); break;
-    case 'impostazioni': st.sel = null; st.msgAdmin = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
+    case 'impostazioni': st.sel = null; st.msgAdmin = null; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
     case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
@@ -3008,22 +3285,7 @@ $('app').addEventListener('click', ev => {
     case 'novita-ok': novitaVista(false); break;
     case 'novita-leggi': novitaVista(true); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
-    case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
-    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
-    case 'admin': st.importa = null; st.aform = null; apri('admin'); break;
-    case 'admin-misure': apriMisure(); break;
-    case 'esci-admin': registra('esci'); st.admin = false; st.msgAdmin = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
-    case 'admin-modello': scaricaModello(); break;
-    case 'admin-esporta-json': esporta(); registra('esporta-json'); break;
-    case 'admin-storico': SH.filtro = 'tutte'; SH.mostrati = 60; SH.conferma = false; foglioStorico(); break;
-    case 'admin-ongrid': apriAdminForm(null); break;
-    case 'admin-importa': $('fileImporta').click(); break;
-    case 'importa-annulla': st.importa = null; apri('admin'); break;
-    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; registra('importa', {n}); events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.msgAdmin = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
-    case 'admin-esporta': esportaExcel(); break;
-    case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
-    case 'a-salva': salvaAdmin(); break;
-    case 'ripristina': if(st.eliminati.length){ registra('ripristina', {n:st.eliminati.length}); st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
+    default: azioneRed(d.az, t);
   }
 });
 /* il trattino si trascina: il pannello segue il dito */
@@ -3044,19 +3306,12 @@ function bordiChips(){
 }
 $('chips').addEventListener('scroll', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); }, {passive:true});
 window.addEventListener('resize', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); });
-$('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
 /* campi: aggiornano lo stato senza ridisegnare il foglio (il cursore resta dov'è) */
 $('foglio-slot').addEventListener('input', ev => {
   const el = ev.target;
   if(el.id==='tz-q'){ TM.q = el.value; const d = $('tz-lente'); if(d) d.innerHTML = lenteDentro(); return; }
   if(el.id==='q'){ st.q = el.value; $('risultati').innerHTML = risultatiEventi(); chiediSuggerimenti(el.value, 'cerca', 'risultati-luoghi'); return; }
-  if(el.dataset.acampo && st.aform){
-    const c = el.dataset.acampo, f = st.aform; f[c] = el.type==='checkbox' ? el.checked : el.value;
-    if(c==='indirizzo'){ f.pos = null; f.precision = ''; f.addrFull = ''; $('a-punto').innerHTML = ''; chiediSuggerimenti(el.value, 'a', 'a-sugg'); }
-    if(c==='desc'){ const x = $('a-conta'); if(x) x.outerHTML = contaDesc(f); }
-    if(f.err && f.err[c] && String(el.value).trim()){ f.err[c] = 0; el.closest('.campo') && el.closest('.campo').classList.remove('errore'); }
-    return;
-  }
+  if(inputRed(el)) return;
   if(!st.form) return;
   if(el.dataset.link!=null){ st.form.links[+el.dataset.link] = el.value; return; }
   const c = el.dataset.campo; if(!c) return;
@@ -3069,8 +3324,7 @@ $('foglio-slot').addEventListener('input', ev => {
 });
 $('foglio-slot').addEventListener('change', ev => {
   const el = ev.target;
-  if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return; }
-  if(el.dataset.acampo==='sub' && st.aform){ st.aform.sub = el.value; return; }
+  if(cambioRed(el)) return;
   if(!st.form) return;
   const c = el.dataset.campo;
   if(c==='rep' || c==='giorno' || c==='fino'){ st.form[c] = el.value; if(c==='giorno' && el.value && (!st.form.fino || st.form.fino < el.value)) st.form.fino = piuMesi(el.value,3); disegnaFoglio(); }
@@ -3079,9 +3333,8 @@ $('foglio-slot').addEventListener('keydown', ev => {
   if(ev.key!=='Enter') return;
   if(ev.target.id==='tz-nome'){ ev.preventDefault(); const b = document.querySelector('[data-tz="salva-ok"]'); if(b) b.click(); return; }
   if(ev.target.id==='pw'){ ev.preventDefault(); document.querySelector('[data-az="sblocca"]').click(); }
-  else if(ev.target.id==='adminpw'){ ev.preventDefault(); document.querySelector('[data-az="entra-admin"]').click(); }
   else if(ev.target.id==='q'){ ev.preventDefault(); clearTimeout(sugg.t); cercaInvio(); }
-  else if(ev.target.id==='f-indirizzo' || ev.target.id==='a-indirizzo'){ ev.preventDefault(); const b = document.querySelector('#'+(ev.target.id==='f-indirizzo'?'f':'a')+'-sugg [data-si]'); if(b) b.click(); }
+  else if(ev.target.id==='f-indirizzo' || ev.target.id==='a-indirizzo'){ ev.preventDefault(); const b = document.querySelector('#'+ev.target.id.charAt(0)+'-sugg [data-si]'); if(b) b.click(); }
 });
 document.addEventListener('keydown', ev => { if(ev.key==='Escape'){
   if(st.pieno && !st.foglio){ $('btnPieno').click(); return; }

@@ -2,7 +2,7 @@
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; /*@red*/st.aform = null; st.importa = null; /*@fine*/st.conferma = null; st.pdf = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
@@ -71,10 +71,11 @@ function disegnaFoglio(){
     strati:fStrati,
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
-    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, aform:fAdminForm, conferma:fConferma,
-    impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, admin:fAdmin, importa:fImporta, temi:fTemi,
+    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, conferma:fConferma,
+    impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
   };
+  /*@red*/Object.assign(F, FOGLI_RED);   /* i fogli degli strumenti della Redazione (sorgenti/redazione/) *//*@fine*/
   const fn = F[st.foglio]; if(!fn){ st.foglio = null; slot.innerHTML = ''; return; }
   slot.innerHTML = fn();
   if(stesso){ const f = slot.querySelector('.foglio'); if(f) f.style.animation = 'none'; const c = slot.querySelector('.corpo'); if(c) c.scrollTop = scroll; }
@@ -166,7 +167,6 @@ function descrizione(e){
   const lungo = e.desc.length > 170;
   return `<p class="desc${lungo&&!st.descAperta?' chiusa':''}">${esc(e.desc)}</p>${lungo?`<button class="link" style="min-height:32px;margin-top:-10px" data-az="leggi">${st.descAperta?tr('Mostra meno'):tr('Leggi tutto')}</button>`:''}`;
 }
-const boxAdmin = e => st.admin && e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
 /* ---------- Scheda dell'evento pubblico (T-023; libro mastro, §§ 5.2, 5.3 e 11.3) ----------
    Tutto ciò che serve per andare all'evento sta qui, in forma di testo: nome del luogo e indirizzo su righe proprie, la
@@ -203,7 +203,7 @@ function fScheda(e){
         ${e.prezzo?`<div class="dato dato-prezzo">${icoPrezzo}<div><span class="t">${esc(e.prezzo)}</span><span class="meta">${tr('Prezzo indicato dalla fonte')}</span></div></div>`:''}</div>
       ${descrizione(e)}
       <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
-        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>${boxAdmin(e)}`;
+        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>/*@red*/${boxAdmin(e)}/*@fine*/`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(normLink).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';
@@ -326,7 +326,6 @@ const SCRIPT = {};
 function caricaScript(url){ return SCRIPT[url] || (SCRIPT[url] = new Promise((ok, no) => { const x = document.createElement('script'); x.src = url; x.async = true; x.onload = () => ok(); x.onerror = () => { delete SCRIPT[url]; no(new Error('script')); }; document.head.appendChild(x); })); }
 /* Librerie ospitate con l'app, a versione fissa (T-007; sorgenti/vendor/): nessuna richiesta a servizi esterni. */
 const URL_JSPDF = 'lib/jspdf-2.5.1/jspdf.umd.min.js';
-const URL_XLSX = 'lib/sheetjs-0.18.5/xlsx.full.min.js';
 function preparaPdf(){ return lang==='ar' ? Promise.resolve() : caricaScript(URL_JSPDF); }
 function scaricaBlob(blob, nome){ const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
 /* i caratteri dei font standard del PDF (latino): il resto si toglie */

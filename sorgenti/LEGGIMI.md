@@ -9,7 +9,19 @@ npm run build
 Il montaggio legge soltanto i file di `sorgenti/` e scrive due uscite:
 
 - `dist/pubblica/`: l'app pubblica, la sola cartella che il sito pubblica;
-- `dist/redazione/`: l'app della redazione. Fino al blocco 8 del piano di adeguamento è uguale alla pubblica.
+- `dist/redazione/`: l'app della redazione: lo stesso codice, con in più gli strumenti di `sorgenti/redazione/` (T-033).
+
+## Due app dallo stesso codice (T-033)
+
+Nell'app pubblica non entra nessuna riga degli strumenti della Redazione (libro mastro, § 2.4). Funziona così:
+
+- i file di `sorgenti/redazione/` entrano soltanto nell'app della redazione: `strumenti.js` (foglio degli strumenti, importazione ed esportazione Excel, modulo degli eventi), `chiavi-viste.js` (schermata «Chiavi» e «Viene dal nostro archivio?»), `misure_kpi.js`, `misure.js`, `storico.js`, e gli stili `style_redazione.css` e `style_misure.css`. Il montaggio li mette nello stesso modulo dell'app, dopo `app7` e prima di `app6`;
+- nei pezzi comuni (`parti/`) i pochi punti che riguardano una sola app sono segnati con tre segni, scritti ciascuno dentro un commento di JavaScript o CSS, oppure di HTML: `@red` apre un tratto solo della redazione, `@pub` un tratto solo della pubblica, `@fine` lo chiude. Il montaggio toglie i tratti dell'altra app e i segni; i tratti non si annidano, e un tratto non chiuso ferma il montaggio;
+- il modulo `moduli/chiavi.js` (chiavi, cassaforte, marcatore) entra soltanto nel `moduli.js` dell'app della redazione; SheetJS (`vendor/elenco.js`, `solo: 'redazione'`) viaggia soltanto con lei, e la sua riga sta soltanto nella sua pagina delle licenze;
+- le traduzioni dell'app pubblica escono senza i testi che compaiono soltanto negli strumenti della Redazione;
+- l'app della redazione ha manifest e icone propri (`icone/redazione-*.png`), chiede di non essere indicizzata (`<meta name="robots">` e `robots.txt`) e non è collegata dall'app pubblica. Si apre già con gli strumenti: non c'è più una password nel codice. Chi la può aprire lo deciderà l'indirizzo protetto (Fase 2); chi può pubblicare, la firma (`docs/chiavi-redazione.md`).
+
+La prova `prove/due-app.js` controlla tutto questo sulle uscite montate. Chi aggiunge uno strumento della Redazione lo scrive in `sorgenti/redazione/` e lo aggancia da `FOGLI_RED`, `clickRed`, `azioneRed`, `inputRed` o `cambioRed` (in `strumenti.js`), senza toccare i pezzi comuni.
 
 Il sito pubblica soltanto `dist/pubblica/` (lo dice `netlify.toml`). Versioni archiviate (`versioni/`), sorgenti e strumenti restano nel repository ma non vanno sul sito: un file che l'app deve scaricare dal sito va montato dentro `dist/pubblica/`.
 
@@ -47,15 +59,15 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 - `vendor/`: librerie e caratteri di terzi a versione fissa, con `elenco.js` (impronte) e `caratteri.css`.
 - `parti/body.html`: struttura della pagina.
 - `parti/legali_it.html`: testi legali italiani in uso (versione 1.2), come modelli `<template>`.
-- `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`, `style_misure`. `parti/css_mock.css` non entra nel montaggio.
-- `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, `misure_kpi`, `misure`, `storico`, `app6` (app1 apre, app6 chiude).
+- `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`; nell'app della redazione seguono `redazione/style_redazione.css` e `redazione/style_misure.css`. `parti/css_mock.css` non entra nel montaggio.
+- `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, poi (solo nell'app della redazione) i file di `redazione/`, infine `app6` (app1 apre, app6 chiude).
   - app1: dati (con `MEM`, la memoria del telefono), stato, filtri, lingue (`tr()`);
   - app2: icone, mappa MapLibre, segnaposto;
   - app3: fogli (Strati, Elenco, schede, Calendario, PDF);
   - app4: Cerca, Scegli i giorni, Off-Grid, conferme;
-  - app5: impostazioni, amministrazione, Excel, guida;
+  - app5: impostazioni, guida, avvisi, sezioni, tema e lingua;
   - app7: Temi;
-  - misure, misure_kpi, storico: Misure e storico nell'amministrazione;
+  - `redazione/`: strumenti, chiavi, Misure e storico dell'app della redazione;
   - app6: tocchi (`data-az`), tastiera, avvio.
 - `parti/sezioni.js`: Agorà e Progetti in forma dimostrativa, montato a parte in `sezioni.js`; i contenuti d'esempio arrivano da `anteprime/` (sezione qui sotto).
 - `parti/traduzioni.js`: testi in EN ES FR AR (`window.AGR_TR`, chiave = testo italiano, una riga di JSON).

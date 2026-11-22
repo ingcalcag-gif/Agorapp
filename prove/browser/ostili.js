@@ -101,13 +101,14 @@ const STORICO = () => [{ t: new Date().toISOString(), op: 'importa', n: 2, x: 'n
 const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizione-luogo', 'prezzo', 'fonte', 'vicino', 'vicino-luogo', 'regione',
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
-  'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima'];
+  'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
   const pw = playwright();
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
-  const s = await server('pubblica');
+  const s = await server('pubblica'), sr = await server('redazione');   // dal blocco 8 gli strumenti della Redazione stanno nella sua app (T-033)
+  let base = s.url;
   const trovati = [], viste = [];
   /* Ciò che non deve mai succedere in una pagina dell'app. */
   const esamina = () => ({ eseguito: window.__ostile || null,
@@ -148,7 +149,7 @@ async function prova() {
         let ml; Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return ml; },
           set(v) { const M = v.Map; v.Map = function (...a) { const m = new M(...a); window.__mappaProva = m; return m; }; v.Map.prototype = M.prototype; ml = v; } }); });
       const controlla = async vista => annota(vista, await p.evaluate(esamina));
-      const avvia = async () => { await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]');
+      const avvia = async () => { await p.goto(base + 'index.html'); await p.waitForSelector('[data-az="elenco"]');
         if (!(await eventiCaricati(p, 3))) e.errori.push('gli eventi dell\'archivio non arrivano'); await pausa(400); };
       const tocca = async (sel, vista, facoltativo) => {
         const l = p.locator(sel).first();
@@ -276,17 +277,27 @@ async function prova() {
       for (const sez of ['progetti', 'agora']) { await avvia(); if (await tocca('[data-sez="' + sez + '"]', sez)) { await pausa(1500); await controlla('sezione ' + sez); } }
     });
 
-    /* ---------- L'area riservata: importazione, storico, Misure ---------- */
+    /* ---------- L'app della redazione: chiavi, importazione, modulo, storico, Misure, verifica ---------- */
+    base = sr.url;
     await sessione(Object.assign(memoriaOstile(), { red_storico: STORICO(), red_misure: misureOstili() }), {}, async ({ p, controlla, avvia, tocca }) => {
       const F = '#foglio-slot ';
-      /* la password dell'area riservata sta ancora nel codice (scarto noto, T-033 e T-034): la prova la legge da lì */
-      const m = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'sorgenti', 'parti', 'app1.js'), 'utf8').match(/ADMIN_PW = '([^']+)'/);
-      if (!m) { e.note.push('area riservata: la password non è più nel codice, le viste riservate vanno provate con le chiavi della redazione (blocco 8)'); return; }
-      const entra = async () => { await avvia();
-        if (!(await tocca('[data-az="impostazioni"]', 'impostazioni') && await tocca(F + '[data-az="mostra-admin"]', 'accesso riservato'))) return false;
-        await p.locator('#adminpw').fill(m[1]); return tocca(F + '[data-az="entra-admin"]', 'area riservata'); };
+      /* l'app della redazione si apre già con gli strumenti: nessuna password nel codice (T-033) */
+      const entra = async () => { await avvia(); return tocca('#badgeRed', 'strumenti della redazione'); };
+      /* le chiavi, con un nome di dispositivo ostile: servono per importare e per salvare gli eventi (T-034, T-037) */
+      if (await entra() && await tocca(F + '[data-az="chiavi"]', 'chiavi')) {
+        await pausa(500); await controlla('chiavi, da creare');
+        await p.fill('#ch-nome', B_('chiavi-nome')); await p.fill('#ch-frase', 'una frase inventata per la prova'); await p.fill('#ch-ripeti', 'una frase inventata per la prova');
+        await tocca(F + '[data-az="chiavi-crea"]', 'chiavi, crea');
+        try { await p.waitForSelector(F + '[data-az="chiavi-copia"]', { timeout: 20000 }); } catch (err) { e.errori.push('chiavi: dopo «Crea le chiavi» la schermata delle chiavi non arriva'); }
+        await controlla('chiavi, create');
+        if (await entra()) await controlla('strumenti, con le chiavi');
+        if (await tocca(F + '[data-az="verifica"]', 'verifica')) {
+          await p.fill('#ver-testo', 'testo copiato ' + O_('ver-testo') + ' abcdefghijklmnop-abcdefgh ' + ID_EV);
+          await tocca(F + '[data-az="verifica-ok"]', 'verifica, controlla'); await pausa(500); await controlla('verifica, esito');
+        }
+      }
       if (!(await entra())) return;
-      await controlla('area riservata');
+      await controlla('strumenti della redazione');
       await p.setInputFiles('#fileImporta', { name: 'eventi-inventati.csv', mimeType: 'text/csv', buffer: fileDaImportare() });
       try { await p.waitForFunction(() => { const x = window.AGR.stato.importa; return x && x.fase === 'pronto'; }, null, { timeout: 20000 }); } catch (err) { e.errori.push('importazione: l\'anteprima del file non arriva'); }
       await pausa(300); await controlla('importazione, anteprima');
@@ -313,7 +324,7 @@ async function prova() {
       }
     });
   } finally {
-    await s.chiudi();
+    await s.chiudi(); await sr.chiudi();
   }
   confronta(e, 'ostili', trovati);
   /* ogni fonte di testi ostili deve essere arrivata davvero in una pagina, come testo: altrimenti la prova non prova nulla */

@@ -6,7 +6,7 @@ $('app').addEventListener('click', ev => {
   if(t.tagName==='A') return;
   if(t.closest('.sez-temi') && clickTemi(t)) return;
   if(t.closest('.sez-agora,.sez-progetti,.sez-proposta')) return;
-  if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */
+  /*@red*/if(clickRed(t)) return;   /* strumenti della Redazione (sorgenti/redazione/) *//*@fine*/
   const d = t.dataset;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
   if(d.regione){ const [lng, lat] = d.regione.split(',').map(Number); if(map && isFinite(lng) && isFinite(lat)) map.flyTo({center:[lng, lat], zoom:12, duration:800}); return; }
@@ -23,11 +23,12 @@ $('app').addEventListener('click', ev => {
   if(d.salva){ if(inCal(d.salva)) delete calEvents[d.salva]; else calEvents[d.salva] = true; saveCal(); tutto(); if(st.foglio==='scheda') disegnaFoglio(); return; }
   if(d.si!=null){ const i = +d.si;
     if(sugg.dove==='cerca') return scegliLuogo(i);
-    const r = sugg.lista[i], f = sugg.dove==='a' ? st.aform : st.form; if(!r || !f) return;
+    /* pre: «f» per il modulo Off-Grid; nell'app della redazione anche «a» per il modulo degli eventi */
+    const pre = /*@red*/sugg.dove==='a' ? 'a' : /*@fine*/'f', r = sugg.lista[i], f = /*@red*/pre==='a' ? st.aform : /*@fine*/st.form; if(!r || !f) return;
     f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; if(f.err) f.err.indirizzo = 0;
-    const inp = $(sugg.dove==='a' ? 'a-indirizzo' : 'f-indirizzo'); if(inp) inp.value = f.indirizzo;
-    const box = $(sugg.dove==='a' ? 'a-sugg' : 'f-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
-    const pb = $(sugg.dove==='a' ? 'a-punto' : 'f-punto'); if(pb) pb.innerHTML = boxPunto(f);
+    const inp = $(pre+'-indirizzo'); if(inp) inp.value = f.indirizzo;
+    const box = $(pre+'-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
+    const pb = $(pre+'-punto'); if(pb) pb.innerHTML = boxPunto(f);
     return; }
   if(d.copiaIndirizzo){ copiaIndirizzo(d.copiaIndirizzo); return; }
   if(d.giorno){ if(!st.da || st.a){ st.da = d.giorno; st.a = null; } else if(d.giorno < st.da){ st.da = d.giorno; } else { st.a = d.giorno; } disegnaFoglio(); return; }
@@ -41,8 +42,6 @@ $('app').addEventListener('click', ev => {
   if(d.modifica){ const r = rawById(d.modifica); if(r) apriForm(r); return; }
   if(d.elimina){ st.conferma = {id:d.elimina}; st.foglio = 'conferma'; disegnaFoglio(); return; }
   if(d.eliminaOk){ elimina(st.conferma.id, d.eliminaOk); return; }
-  if(d.modificaAdmin){ const r = rawById(d.modificaAdmin); if(r) apriAdminForm(r); return; }
-  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); registra('elimina', {id:r.id, s:r.category}); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return; }
   if(d.salvaForm){ salvaForm(d.salvaForm); return; }
   if(d.fgiorno){ st.form.giorno = d.fgiorno; if(st.form.fino < d.fgiorno) st.form.fino = piuMesi(d.fgiorno,3); disegnaFoglio(); return; }
   if(d.togliLink!=null){ st.form.links.splice(+d.togliLink,1); if(!st.form.links.length) st.form.links = ['']; disegnaFoglio(); return; }
@@ -79,7 +78,6 @@ $('app').addEventListener('click', ev => {
     case 'home': vaiSezione('mappa'); st.foglio = null; st.sel = null; st.cercaQui = null; disegnaFoglio(); tutto(); vaiCitta(true); break;
     case 'nuovo': apriForm(null); break;
     case 'scegli-mappa': iniziaPosa('form'); break;
-    case 'scegli-mappa-a': iniziaPosa('aform'); break;
     case 'posa-annulla': finePosa(false); break;
     case 'posa-ok': finePosa(true); break;
     case 'aiuto': st.form.aiuto = !st.form.aiuto; disegnaFoglio(); break;
@@ -95,7 +93,7 @@ $('app').addEventListener('click', ev => {
     case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
       if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
     case 'citta': apri('citta'); break;
-    case 'impostazioni': st.sel = null; st.msgAdmin = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
+    case 'impostazioni': st.sel = null; /*@red*/st.msgAdmin = null; /*@fine*/apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
     case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
@@ -106,22 +104,7 @@ $('app').addEventListener('click', ev => {
     case 'novita-ok': novitaVista(false); break;
     case 'novita-leggi': novitaVista(true); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
-    case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
-    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
-    case 'admin': st.importa = null; st.aform = null; apri('admin'); break;
-    case 'admin-misure': apriMisure(); break;
-    case 'esci-admin': registra('esci'); st.admin = false; st.msgAdmin = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
-    case 'admin-modello': scaricaModello(); break;
-    case 'admin-esporta-json': esporta(); registra('esporta-json'); break;
-    case 'admin-storico': SH.filtro = 'tutte'; SH.mostrati = 60; SH.conferma = false; foglioStorico(); break;
-    case 'admin-ongrid': apriAdminForm(null); break;
-    case 'admin-importa': $('fileImporta').click(); break;
-    case 'importa-annulla': st.importa = null; apri('admin'); break;
-    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; registra('importa', {n}); events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.msgAdmin = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
-    case 'admin-esporta': esportaExcel(); break;
-    case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
-    case 'a-salva': salvaAdmin(); break;
-    case 'ripristina': if(st.eliminati.length){ registra('ripristina', {n:st.eliminati.length}); st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
+    /*@red*/default: azioneRed(d.az, t);/*@fine*/
   }
 });
 /* il trattino si trascina: il pannello segue il dito */
@@ -142,19 +125,12 @@ function bordiChips(){
 }
 $('chips').addEventListener('scroll', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); }, {passive:true});
 window.addEventListener('resize', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); });
-$('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
 /* campi: aggiornano lo stato senza ridisegnare il foglio (il cursore resta dov'è) */
 $('foglio-slot').addEventListener('input', ev => {
   const el = ev.target;
   if(el.id==='tz-q'){ TM.q = el.value; const d = $('tz-lente'); if(d) d.innerHTML = lenteDentro(); return; }
   if(el.id==='q'){ st.q = el.value; $('risultati').innerHTML = risultatiEventi(); chiediSuggerimenti(el.value, 'cerca', 'risultati-luoghi'); return; }
-  if(el.dataset.acampo && st.aform){
-    const c = el.dataset.acampo, f = st.aform; f[c] = el.type==='checkbox' ? el.checked : el.value;
-    if(c==='indirizzo'){ f.pos = null; f.precision = ''; f.addrFull = ''; $('a-punto').innerHTML = ''; chiediSuggerimenti(el.value, 'a', 'a-sugg'); }
-    if(c==='desc'){ const x = $('a-conta'); if(x) x.outerHTML = contaDesc(f); }
-    if(f.err && f.err[c] && String(el.value).trim()){ f.err[c] = 0; el.closest('.campo') && el.closest('.campo').classList.remove('errore'); }
-    return;
-  }
+  /*@red*/if(inputRed(el)) return;/*@fine*/
   if(!st.form) return;
   if(el.dataset.link!=null){ st.form.links[+el.dataset.link] = el.value; return; }
   const c = el.dataset.campo; if(!c) return;
@@ -167,8 +143,7 @@ $('foglio-slot').addEventListener('input', ev => {
 });
 $('foglio-slot').addEventListener('change', ev => {
   const el = ev.target;
-  if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return; }
-  if(el.dataset.acampo==='sub' && st.aform){ st.aform.sub = el.value; return; }
+  /*@red*/if(cambioRed(el)) return;/*@fine*/
   if(!st.form) return;
   const c = el.dataset.campo;
   if(c==='rep' || c==='giorno' || c==='fino'){ st.form[c] = el.value; if(c==='giorno' && el.value && (!st.form.fino || st.form.fino < el.value)) st.form.fino = piuMesi(el.value,3); disegnaFoglio(); }
@@ -177,9 +152,8 @@ $('foglio-slot').addEventListener('keydown', ev => {
   if(ev.key!=='Enter') return;
   if(ev.target.id==='tz-nome'){ ev.preventDefault(); const b = document.querySelector('[data-tz="salva-ok"]'); if(b) b.click(); return; }
   if(ev.target.id==='pw'){ ev.preventDefault(); document.querySelector('[data-az="sblocca"]').click(); }
-  else if(ev.target.id==='adminpw'){ ev.preventDefault(); document.querySelector('[data-az="entra-admin"]').click(); }
   else if(ev.target.id==='q'){ ev.preventDefault(); clearTimeout(sugg.t); cercaInvio(); }
-  else if(ev.target.id==='f-indirizzo' || ev.target.id==='a-indirizzo'){ ev.preventDefault(); const b = document.querySelector('#'+(ev.target.id==='f-indirizzo'?'f':'a')+'-sugg [data-si]'); if(b) b.click(); }
+  else if(ev.target.id==='f-indirizzo'/*@red*/ || ev.target.id==='a-indirizzo'/*@fine*/){ ev.preventDefault(); const b = document.querySelector('#'+ev.target.id.charAt(0)+'-sugg [data-si]'); if(b) b.click(); }
 });
 document.addEventListener('keydown', ev => { if(ev.key==='Escape'){
   if(st.pieno && !st.foglio){ $('btnPieno').click(); return; }
@@ -201,7 +175,7 @@ let registrazione = null, paginaInUscita = false;
 window.addEventListener('pagehide', () => { paginaInUscita = true; });
 window.addEventListener('pageshow', () => { paginaInUscita = false; });
 const versioneInAttesa = () => registrazione && registrazione.waiting && navigator.serviceWorker.controller ? registrazione.waiting : null;
-const nonDisturba = () => !paginaInUscita && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa';
+const nonDisturba = () => !paginaInUscita && document.visibilityState==='hidden' && !st.foglio && !st.form && /*@red*/!st.aform && /*@fine*/!st.posa && st.guida==null && st.sezione==='mappa';
 function passaAllaVersioneNuova(){
   if(versioneInAttesa() && nonDisturba()) setTimeout(() => { const w = versioneInAttesa(); if(w && nonDisturba()){ try{ w.postMessage('attiva'); }catch(e){} } }, 3000);
 }

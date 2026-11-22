@@ -67,7 +67,8 @@ function prova() {
   for (const v of M.ELENCO) {
     if (!/^(?:dl|red)_[a-z]+$/.test(v.nome)) err(`elenco: «${v.nome}» non ha la forma dl_… o red_…`);
     if (nomeServizio && v.nome.toLowerCase().includes(nomeServizio)) err(`elenco: «${v.nome}» contiene il nome del servizio`);
-    if (!['memoria', 'file'].includes(v.dove)) err(`elenco: «${v.nome}» ha un «dove» sconosciuto`);
+    if (!['memoria', 'file', 'base'].includes(v.dove)) err(`elenco: «${v.nome}» ha un «dove» sconosciuto`);
+    if (v.dove === 'base' && !v.redazione) err(`elenco: «${v.nome}» sta nella base di dati, che è solo dell'app della redazione`);
     if (v.dove === 'memoria' && !['json', 'testo'].includes(v.forma)) err(`elenco: «${v.nome}» non dice se è un testo o un valore in JSON`);
     if (!v.cosa) err(`elenco: «${v.nome}» non dice che cosa contiene`);
     if (v.redazione) { if (!v.nome.startsWith('red_') || v.riga) err(`elenco: «${v.nome}» è della Redazione: si chiama red_… e non sta nella scheda`); }
@@ -92,7 +93,7 @@ function prova() {
     const mem = memoriaFinta({ ...vecchi, ...tolteMem, ...ALTRE }), ses = memoriaFinta({ ...tolteSes, altra: 'x' }), cas = casseFinte();
     const A = M.crea({ redazione: true, memoria: mem, sessione: ses, casse: cas });
     const fatto = A.avvia();
-    const atteso = { ...ALTRE }; inMemoria.forEach(v => { atteso[v.nome] = vecchi[v.prima]; });
+    const atteso = { ...ALTRE, [M.SEGNO_REDAZIONE]: '1' }; inMemoria.forEach(v => { atteso[v.nome] = vecchi[v.prima]; });   // l'app della redazione lascia il suo segno
     if (!uguali(oggetto(mem), Object.fromEntries(Object.entries(atteso).sort()))) err('trasloco: la memoria dopo l\'avvio non è quella attesa: ' + JSON.stringify(oggetto(mem)));
     if (!uguali(fatto.traslocate.slice().sort(), inMemoria.map(v => v.nome).sort())) err('trasloco: avvia() non dice tutte le chiavi traslocate');
     if (!uguali(oggetto(ses), { altra: 'x' })) err('trasloco: la memoria della scheda non è stata ripulita, o è stata toccata una chiave di altri');
@@ -115,16 +116,16 @@ function prova() {
   {  // il nome nuovo c'è già: vale quello
     const mem = memoriaFinta({ agorapp_lang: 'fr', dl_lingua: 'es' });
     M.crea({ redazione: true, memoria: mem, sessione: null, casse: null }).avvia();
-    if (!uguali(oggetto(mem), { dl_lingua: 'es' })) err('trasloco: se il nome nuovo c\'è già deve valere quello, e il nome di prima sparire');
+    if (!uguali(oggetto(mem), { dl_lingua: 'es', red_qui: '1' })) err('trasloco: se il nome nuovo c\'è già deve valere quello, e il nome di prima sparire');
   }
   {  // senza spazio il nome di prima resta, e al prossimo avvio si riprova
     let piena = true;   // non c'è posto per le chiavi nuove; ciò che c'era può tornare al suo posto
     const mem = memoriaFinta({ agorapp_events: '[1]' }, k => piena && k.startsWith('dl_'));
     const A = M.crea({ redazione: true, memoria: mem, sessione: null, casse: null });
-    if (A.avvia().traslocate.length || !uguali(oggetto(mem), { agorapp_events: '[1]' })) err('trasloco senza spazio: il dato di prima deve restare dov\'è');
+    if (A.avvia().traslocate.length || !uguali(oggetto(mem), { agorapp_events: '[1]', red_qui: '1' })) err('trasloco senza spazio: il dato di prima deve restare dov\'è');
     if (A.scrivi('dl_tema', 'dark') !== false) err('scrivi: senza spazio deve rispondere false');
     piena = false;
-    if (!uguali(A.avvia().traslocate, ['dl_eventi']) || !uguali(oggetto(mem), { dl_eventi: '[1]' })) err('trasloco: tornato lo spazio, il dato deve traslocare');
+    if (!uguali(A.avvia().traslocate, ['dl_eventi']) || !uguali(oggetto(mem), { dl_eventi: '[1]', red_qui: '1' })) err('trasloco: tornato lo spazio, il dato deve traslocare');
   }
   {  // un telefono quasi pieno: il trasloco non occupa mai, nemmeno per un momento, più spazio di prima
     const grande = 'x'.repeat(1000);
@@ -132,15 +133,22 @@ function prova() {
     const mem = memoriaFinta({ agorapp_events: grande });
     const scrivi = mem.setItem;
     mem.setItem = (k, v) => { scrivi(k, v); massimo = Math.max(massimo, [...mem.dati.values()].reduce((n, x) => n + x.length, 0)); };
-    M.crea({ redazione: true, memoria: mem, sessione: null, casse: null }).avvia();
+    M.crea({ redazione: false, memoria: mem, sessione: null, casse: null }).avvia();
     if (mem.dati.get('dl_eventi') !== grande || massimo > grande.length) err('trasloco: su un telefono quasi pieno il dato deve passare al nome nuovo senza occupare spazio in più');
   }
   {  // un'app senza area riservata: le chiavi della Redazione si cancellano senza leggerle
     const red = M.ELENCO.filter(v => v.redazione);
-    const semi = {}; red.forEach(v => { semi[v.nome] = '1'; semi[v.prima] = '2'; });
+    const semi = {}; red.filter(v => v.dove === 'memoria' && v.nome !== M.SEGNO_REDAZIONE).forEach(v => { semi[v.nome] = '1'; if (v.prima) semi[v.prima] = '2'; });
     const mem = memoriaFinta({ ...semi, agorapp_lang: 'en' }), cas = casseFinte();
-    const P = M.crea({ redazione: false, memoria: mem, sessione: null, casse: cas });
+    const P = M.crea({ redazione: false, memoria: mem, sessione: null, casse: cas, base: null });
     P.avvia();
+    if (P.base) err('app senza area riservata: non deve poter aprire la base di dati della Redazione');
+    {  // sullo stesso indirizzo c'è anche l'app della redazione (collegamento di prova): il suo segno ferma la pulizia
+      const m2 = memoriaFinta({ ...semi, [M.SEGNO_REDAZIONE]: '1', agorapp_lang: 'en' });
+      const fatto = M.crea({ redazione: false, memoria: m2, sessione: null, casse: null, base: null }).avvia();
+      if (!fatto.redazioneQui || !uguali(oggetto(m2), Object.fromEntries(Object.entries({ ...semi, [M.SEGNO_REDAZIONE]: '1', dl_lingua: 'en' }).sort()))) err('due app sullo stesso indirizzo: con il segno della redazione le sue chiavi non si toccano: ' + JSON.stringify(oggetto(m2)));
+      if (m2.lette.some(k => k in semi)) err('due app sullo stesso indirizzo: l\'app pubblica ha letto le chiavi della Redazione');
+    }
     if (!uguali(oggetto(mem), { dl_lingua: 'en' })) err('app senza area riservata: le chiavi della Redazione restano sul telefono: ' + JSON.stringify(oggetto(mem)));
     if (mem.lette.some(k => k in semi)) err('app senza area riservata: le chiavi della Redazione sono state lette prima di cancellarle');
     for (const v of red) if (!lancia(() => P.leggi(v.nome)) || !lancia(() => P.scrivi(v.nome, 1))) err(`app senza area riservata: «${v.nome}» si può ancora usare`);
@@ -175,7 +183,7 @@ function prova() {
   for (const [f, t] of Object.entries(testi)) {
     for (const m of t.matchAll(/\bMEM\s*\.\s*([A-Za-z_$][\w$]*)\s*(\(\s*([^,)]*))?/g)) {
       const dove = `sorgenti/${f}, riga ${riga(t, m.index)}`;
-      if (m[1] === 'file' || m[1] === 'avvia') continue;
+      if (['file', 'avvia', 'base', 'tieni'].includes(m[1])) continue;   // base: la consegna intera al modulo delle chiavi; tieni: non salva nulla
       if (!FORME[m[1]]) { err(`${dove}: MEM.${m[1]} non è una funzione della memoria`); continue; }
       const lit = (m[3] || '').trim().match(/^'([^'\\]*)'$/);
       if (!lit) { err(`${dove}: MEM.${m[1]}(…) deve nominare la chiave per esteso, tra apici`); continue; }
@@ -197,6 +205,14 @@ function prova() {
     /* la memoria si crea una volta nell'app (app1.js) e una nel service worker (sw.js), che è un programma a parte */
     for (const m of t.matchAll(/\bmemoria\s*\.\s*crea\s*\(/g)) if (!/^(parti\/app1\.js|sw\.js)$/.test(f)) err(`sorgenti/${f}, riga ${riga(t, m.index)}: la memoria si crea solo in app1.js e in sw.js`);
   }
+  /* la base di dati la usa soltanto il modulo delle chiavi, con le voci «base» dell'elenco, tra apici */
+  for (const [f, t] of Object.entries(testi)) for (const m of t.matchAll(/\bdep\s*\.\s*(?:leggi|scrivi|togli)\s*\(\s*([^,)]*)/g)) {
+    const lit = m[1].trim().match(/^'([^'\\]*)'$/), v = lit && M.ELENCO.find(x => x.nome === lit[1]);
+    if (f !== 'moduli/chiavi.js' || !v || v.dove !== 'base') err(`sorgenti/${f}, riga ${riga(t, m.index)}: la base di dati si usa solo nel modulo delle chiavi, con un nome dell'elenco tra apici`);
+    else { usate.set(v.nome, (usate.get(v.nome) || 0) + 1); usi++; }
+  }
+  /* il segno dell'app della redazione lo scrive e lo guarda il modulo stesso */
+  if (M.ELENCO.some(v => v.nome === M.SEGNO_REDAZIONE && v.redazione)) usate.set(M.SEGNO_REDAZIONE, 1); else err('elenco: manca il segno dell\'app della redazione');
   for (const v of M.ELENCO) if (!usate.has(v.nome)) err(`elenco: «${v.nome}» non è usata da nessun file dei sorgenti: una voce in più è uno scarto`);
   const moduli = fs.readFileSync(path.join(SORGENTI, 'build.js'), 'utf8').match(/const JS_MODULI = \[([^\]]*)\]/);
   if (!moduli || !moduli[1].includes('\'memoria.js\'')) err('sorgenti/build.js: memoria.js non è tra i moduli montati');

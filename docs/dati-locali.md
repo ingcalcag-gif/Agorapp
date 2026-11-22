@@ -39,7 +39,7 @@ Le chiavi dell'app pubblica. «Memoria» è la memoria del browser a coppie chia
 | `dl_mappa` | file | La mappa delle zone che hai guardato | I tasselli della mappa disegnati, uno per uno, e la copia del piccolo indice della mappa (T-029) | Quando l'app disegna un tassello che non aveva | Fino a 50 MB, poi i più vecchi lasciano posto ai nuovi; a ogni versione nuova della mappa i tasselli di prima si cancellano |
 | `dl_archivio` | file | Gli eventi delle zone che hai aperto | L'indice dell'archivio e i file dei quadranti scaricati per le zone consultate (T-022) | Quando la mappa si ferma su una zona e a ogni controllo delle novità | Un file si cancella quando l'indice non lo nomina più; gli eventi finiti da più di tre ore l'app non li mostra |
 
-Fino ai blocchi 8-10 `dl_eventi` contiene anche gli eventi creati o importati dall'area riservata, che non vanno sulla mappa (piano, criterio d'ordine 6): passeranno all'app della redazione.
+Nell'app pubblica `dl_eventi` contiene soltanto gli Off-Grid della persona. Nell'app della redazione, fino al blocco 10, contiene anche gli eventi che la Redazione prepara o importa, che non vanno sulla mappa finché non si pubblicano (piano, criterio d'ordine 6).
 
 Prima del blocco 6 le chiavi portavano il nome del servizio. I nomi di prima sono, nell'ordine della tabella: `agorapp_events`, `agorapp_cal`, `agorapp_theme`, `agorapp_lang`, `agorapp_layers`, `agorapp_city`, `agorapp_simple`, `agorapp_day_mode`, `agorapp_presets`, `agorapp_temi_slots`, `agorapp_guida`, `agorapp_archivio`.
 
@@ -53,12 +53,21 @@ La scheda (§ 30.2) ha sette righe. Sei sono nell'elenco; l'ultima arriva con la
 
 ## Strumenti della Redazione
 
-Le chiavi dell'area riservata. Il libro mastro le tiene fuori dalla scheda, perché stanno sul dispositivo della redazione e non sul terminale di un utente (§ 3.7). Fino al blocco 8 l'area riservata sta ancora nell'app pubblica, che per questo crea la memoria con `redazione: true`; le due chiavi si scrivono soltanto dopo l'accesso all'area riservata. Dal blocco 8 (T-033) l'app pubblica creerà la memoria senza la Redazione: all'avvio il modulo cancellerà le due chiavi, senza leggerle, dai telefoni che le avessero (è la «pulizia di Misure e storico dal telefono pubblico» di T-026), e l'app della redazione ripartirà vuota (QB-11).
+Le chiavi degli strumenti della Redazione. Il libro mastro le tiene fuori dalla scheda, perché stanno sul dispositivo della redazione e non sul terminale di un utente (§ 3.7). Dal blocco 8 (T-033) le app sono due: l'app pubblica crea la memoria con `redazione: false` e non può né leggere né scrivere queste chiavi; l'app della redazione la crea con `redazione: true`.
+
+A ogni apertura l'app pubblica cancella, senza leggerle, le chiavi di Misure e storico rimaste sul telefono da quando l'area riservata stava nell'app pubblica (`red_misure`, `red_storico` e i loro nomi di prima). La base di dati non la apre mai.
+
+Due app sullo stesso indirizzo. Sul sito vero le due app stanno a indirizzi diversi e ciascuna ha la sua memoria. Sul collegamento di prova stanno sullo stesso indirizzo e la memoria è una sola: lì l'app pubblica cancellerebbe Misure e storico dell'app della redazione di prova. Per questo l'app della redazione, all'avvio, scrive il segno `red_qui`; l'app pubblica guarda soltanto se il segno c'è e, se c'è, non tocca le chiavi della Redazione. Su un telefono dove l'app della redazione non è mai stata aperta il segno non c'è, e la pulizia scatta.
 
 | Chiave | Dove | Che cosa contiene | Prima si chiamava |
 | --- | --- | --- | --- |
-| `red_storico` | memoria | Storico delle operazioni dell'area riservata: tipo, giorno e ora, numero di eventi, identificativo dell'evento | `agorapp_storico` |
+| `red_storico` | memoria | Storico delle operazioni della Redazione: tipo, giorno e ora, numero di eventi, identificativo dell'evento | `agorapp_storico` |
 | `red_misure` | memoria | Misure: totali del giorno, numeri inseriti a mano, soglie, stato del catalogo | `agorapp_misure` |
+| `red_qui` | memoria | Il segno che su questo indirizzo c'è l'app della redazione: il solo valore `1` | nessuno |
+| `red_chiavi` | base di dati | Le chiavi della Redazione (firma, cifratura, registro delle fonti, marcatore, cassaforte), tenute dal browser come chiavi non estraibili; le loro parti pubbliche; la copia di riserva, cifrata con la frase; il nome del dispositivo e la data. Dopo una revoca: soltanto l'avviso di revoca (T-034; `docs/chiavi-redazione.md`) | nessuno |
+| `red_cassaforte` | base di dati | Le password degli eventi nascosti, cifrate una per una con la chiave della cassaforte, con il momento in cui l'evento finisce: da allora la voce si cancella (T-034) | nessuno |
+
+«Base di dati» è la base di dati del browser (per chi conosce i nomi: IndexedDB), che può conservare chiavi di cifratura non estraibili; la base si chiama `red_strumenti` e la usa soltanto l'app della redazione, attraverso il modulo della memoria (`MEM.base`) e il modulo delle chiavi (`sorgenti/moduli/chiavi.js`). Quando si creano o si ripristinano le chiavi, l'app chiede al browser di non cancellare da sé i dati di quell'indirizzo (`MEM.tieni`): è una richiesta, non un dato salvato.
 
 ## Chiavi tolte
 
@@ -95,6 +104,6 @@ La verifica chiesta dal § 30.3 («che la tabella corrisponda a ciò che l'app s
 - Le righe «L'app», «Gli eventi delle zone che hai aperto», «La mappa delle zone che hai guardato», «I tuoi eventi Off-Grid» e «Il tuo calendario» corrispondono a ciò che l'app salva (le prime tre dal blocco 7, T-029).
 - La riga delle preferenze va aggiornata, nel § 3.7 e nel § 30.2, come deciso con QB-5: l'app salva tema, lingua, città, strati visibili e combinazioni, lenti, Modalità semplice, mezzo della giornata, guida già vista e avvisi delle novità già visti (T-031).
 - La riga «Gli eventi nascosti che hai sbloccato» descrive una funzione non ancora costruita (T-046): fino ad allora l'app salva meno di ciò che la scheda dice.
-- Il testo di riferimento nomina, tra parentesi, tre strumenti (localStorage, IndexedDB e Cache Storage): oggi l'app usa il primo e il terzo.
+- Il testo di riferimento nomina, tra parentesi, tre strumenti (localStorage, IndexedDB e Cache Storage): l'app pubblica usa il primo e il terzo; il secondo lo usa soltanto l'app della redazione, per le sue chiavi (blocco 8).
 - Gli Off-Grid restano 92 giorni dopo la fine («tre mesi» nella scheda).
-- Fino al blocco 8 il telefono di chi entra nell'area riservata dall'app pubblica contiene anche le due chiavi della Redazione.
+- Dal blocco 8 (T-033) l'app pubblica non ha più un'area riservata e non scrive nessuna chiave della Redazione; a ogni apertura cancella, senza leggerle, quelle di Misure e storico rimaste da prima.

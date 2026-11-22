@@ -15,7 +15,9 @@
    3. Usare l'app non lascia tracce: riaprirla più volte, muovere la mappa, aprire schede, cercare eventi e indirizzi
       non cambia nulla nella memoria del browser (nessun contatore delle visite, nessun registro di ricerche o di
       spostamenti, nessun identificativo).
-   4. Nell'area riservata compaiono le chiavi della Redazione, e soltanto quelle.
+   4. Due app (T-033): l'app pubblica cancella Misure e storico rimasti da prima e non ha accessi riservati; se sullo
+      stesso indirizzo c'è l'app della redazione, non tocca le sue chiavi; l'app della redazione tiene le sue chiavi
+      della memoria e, nella base di dati, le chiavi di cifratura non estraibili. Nient'altro.
    Dati inventati; ogni richiesta verso l'esterno è bloccata. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
@@ -228,28 +230,71 @@ async function prova() {
       } finally { await browser.close(); }
     }
 
-    /* ---------- 4. l'area riservata ---------- */
+    /* ---------- 4. due app (T-033): l'app pubblica ripulisce, l'app della redazione ha le sue chiavi ---------- */
     {
-      const pwAdmin = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'sorgenti', 'parti', 'app1.js'), 'utf8').match(/ADMIN_PW = '([^']+)'/);
-      if (!pwAdmin) e.note.push('area riservata: la password non è più nel codice; le chiavi della Redazione vanno provate nell\'app della redazione (blocco 8)');
-      else {
-        const { browser, ctx } = await apri(pw, { dl_guida: '1' });
-        try {
-          const p = await ctx.newPage(); const { avvia, tocca, conta } = await strumenti(ctx, p);
-          await avvia();
-          if (await tocca('[data-az="impostazioni"]', 'impostazioni') && await tocca(F + '[data-az="mostra-admin"]', 'accesso riservato')) {
-            await p.locator('#adminpw').fill(pwAdmin[1]);
-            if (await tocca(F + '[data-az="entra-admin"]', 'area riservata')) {
-              await pausa(500);
-              const inv = await conta();
-              maiNiente('nell\'area riservata', inv, PUBBLICHE.concat(REDAZIONE));
-              const mancanti = REDAZIONE.filter(k => !(k in inv.mem));
-              if (mancanti.length) err('area riservata: entrando non compaiono le chiavi della Redazione ' + mancanti.join(', '));
-              else e.note.push('entrando nell\'area riservata compaiono ' + REDAZIONE.join(' e ') + ', e nient\'altro');
-            }
-          }
-        } finally { await browser.close(); }
-      }
+      /* 4a. un telefono su cui l'area riservata era stata usata dall'app pubblica: Misure e storico spariscono */
+      const resti = { red_storico: '[]', red_misure: '{}', agorapp_storico: '[]', agorapp_misure: '{}' };
+      const { browser, ctx } = await apri(pw, Object.assign({ dl_guida: '1' }, resti));
+      try {
+        const p = await ctx.newPage(); const { avvia, tocca, conta } = await strumenti(ctx, p);
+        await avvia();
+        const inv = await conta(), rimaste = Object.keys(resti).filter(k => k in inv.mem);
+        if (rimaste.length) err('app pubblica: le chiavi della Redazione rimaste da prima non sono state cancellate: ' + rimaste.join(', '));
+        maiNiente('app pubblica con i resti dell\'area riservata', inv, PUBBLICHE);
+        if (await tocca('[data-az="impostazioni"]', 'impostazioni')) {
+          const accesso = await p.locator(F + '[data-az="admin"], ' + F + '[data-az="mostra-admin"], #adminpw, #badgeRed').count();
+          if (accesso) err('app pubblica: nelle Impostazioni c\'è ancora un accesso agli strumenti della Redazione');
+        }
+        e.note.push('app pubblica: Misure e storico rimasti da prima si cancellano all\'apertura; nessun accesso riservato');
+      } finally { await browser.close(); }
+    }
+    {
+      /* 4b. sullo stesso indirizzo c'è anche l'app della redazione (collegamento di prova): il suo segno ferma la pulizia */
+      const sue = { red_qui: '1', red_storico: '[{"t":"2026-11-20T10:00:00.000Z","op":"crea"}]', red_misure: '{"v":1}' };
+      const { browser, ctx } = await apri(pw, Object.assign({ dl_guida: '1' }, sue));
+      try {
+        const p = await ctx.newPage(); const { avvia, conta } = await strumenti(ctx, p);
+        await avvia();
+        const inv = await conta();
+        for (const [k, v] of Object.entries(sue)) if (inv.mem[k] !== v) err('due app sullo stesso indirizzo: l\'app pubblica ha toccato «' + k + '» dell\'app della redazione');
+      } finally { await browser.close(); }
+    }
+    {
+      /* 4c. l'app della redazione: il suo segno, Misure e storico, e le chiavi nella base di dati; nient'altro */
+      const sr = await server('redazione');
+      const { browser, ctx } = await apri(pw, { dl_guida: '1' });
+      try {
+        const p = await ctx.newPage(); const { tocca, conta } = await strumenti(ctx, p);
+        await p.goto(sr.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); await eventiCaricati(p, 1); await pausa(400);
+        let inv = await conta();
+        if (inv.mem.red_qui !== '1') err('app della redazione: all\'apertura non lascia il suo segno (red_qui)');
+        if (inv.basi.some(b => b !== 'red_strumenti')) err('app della redazione: basi di dati fuori elenco: ' + inv.basi.join(', '));
+        if (await tocca('#badgeRed', 'strumenti della redazione') && await tocca(F + '[data-az="chiavi"]', 'chiavi')) {
+          await p.fill('#ch-nome', 'Dispositivo di prova'); await p.fill('#ch-frase', 'una frase inventata per la prova'); await p.fill('#ch-ripeti', 'una frase inventata per la prova');
+          await tocca(F + '[data-az="chiavi-crea"]', 'crea le chiavi');
+          try { await p.waitForSelector(F + '[data-az="chiavi-copia"]', { timeout: 20000 }); } catch (x) { err('app della redazione: le chiavi non si creano'); }
+        }
+        if (await tocca('#badgeRed', 'strumenti della redazione') && await tocca(F + '[data-az="admin-misure"]', 'Misure')) { await pausa(1500); await tocca('[data-mz="esci"]', 'Misure, esci'); }
+        inv = await conta();
+        const ammesse = PUBBLICHE.concat(M.ELENCO.filter(v => v.redazione && v.dove === 'memoria').map(v => v.nome));
+        const fuori = Object.keys(inv.mem).filter(k => !ammesse.includes(k));
+        if (fuori.length) err('app della redazione: nella memoria del browser ci sono chiavi fuori elenco: ' + fuori.join(', '));
+        for (const k of ['red_qui', 'red_storico', 'red_misure']) if (!(k in inv.mem)) err('app della redazione: dopo chiavi e Misure manca «' + k + '»');
+        if (inv.basi.length !== 1 || inv.basi[0] !== 'red_strumenti') err('app della redazione: la base di dati degli strumenti deve essere una sola, «red_strumenti» (trovate: ' + (inv.basi.join(', ') || 'nessuna') + ')');
+        if (inv.cookie) err('app della redazione: ha scritto un cookie');
+        if (inv.ses.filter(k => k !== SEME).length) err('app della redazione: usa la memoria della scheda');
+        /* nella base di dati: soltanto le voci dell'elenco, e le parti segrete come chiavi non estraibili */
+        const voci = await p.evaluate(() => new Promise((ok, no) => { const r = indexedDB.open('red_strumenti'); r.onerror = () => no(r.error);
+          r.onsuccess = () => { const db = r.result, t = db.transaction('voci'), d = t.objectStore('voci'), k = d.getAllKeys(), v = d.get('red_chiavi');
+            t.oncomplete = () => { const c = (v.result || {}).chiavi || {}; db.close();
+              ok({ nomi: [...db.objectStoreNames], chiavi: k.result, segrete: ['firma', 'cifratura'].map(n => c[n] && c[n].privata).concat([c.registro, c.marcatore, c.cassaforte]).map(x => !!x && x instanceof CryptoKey && x.extractable === false),
+                testo: JSON.stringify(v.result, (n, x) => x instanceof CryptoKey ? '[chiave]' : x) }); }; }; }));
+        const attese = M.ELENCO.filter(v => v.dove === 'base').map(v => v.nome);
+        if (voci.nomi.join() !== 'voci' || voci.chiavi.some(k => !attese.includes(k))) err('app della redazione: nella base di dati ci sono voci fuori elenco: ' + voci.chiavi.join(', '));
+        if (voci.segrete.length !== 5 || voci.segrete.some(x => !x)) err('app della redazione: le parti segrete delle chiavi devono essere chiavi non estraibili del browser');
+        if (/una frase inventata/.test(voci.testo)) err('app della redazione: la frase è stata salvata');
+        e.note.push('app della redazione: red_qui, red_storico e red_misure nella memoria; ' + voci.chiavi.join(' e ') + ' nella base di dati red_strumenti, con cinque chiavi non estraibili; la frase non si salva');
+      } finally { await browser.close(); await sr.chiudi(); }
     }
   } finally { await s.chiudi(); }
   return e;

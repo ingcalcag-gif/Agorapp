@@ -109,11 +109,12 @@ function cercaIn(testo, lingua, dove, trovati) {
 function prova() {
   const e = esito('Parole vietate');
   const trovati = [];
-  const PARTI = path.join(RADICE, 'sorgenti', 'parti');
-  for (const f of elencaFile(PARTI)) {
+  const PARTI = path.join(RADICE, 'sorgenti', 'parti'), REDAZIONE = path.join(RADICE, 'sorgenti', 'redazione');
+  /* i pezzi dell'app e, dal blocco 8, gli strumenti della Redazione (sorgenti/redazione/, T-033) */
+  for (const [cartella, nome] of [[PARTI, 'sorgenti/parti/'], [REDAZIONE, 'sorgenti/redazione/']]) for (const f of elencaFile(cartella)) {
     if (f === 'traduzioni.js' || f === 'css_mock.css' || /\.css$/.test(f)) continue;
-    const t = fs.readFileSync(path.join(PARTI, f), 'utf8');
-    cercaIn(f.endsWith('.html') ? senzaCommentiHtml(t) : senzaCommenti(t), 'it', 'sorgenti/parti/' + f, trovati);
+    const t = fs.readFileSync(path.join(cartella, f), 'utf8');
+    cercaIn(f.endsWith('.html') ? senzaCommentiHtml(t) : senzaCommenti(t), 'it', nome + f, trovati);
   }
   const TR = JSON.parse(fs.readFileSync(path.join(PARTI, 'traduzioni.js'), 'utf8').replace(/^window\.AGR_TR=/, '').replace(/;\s*$/, ''));
   for (const l of ['en', 'es', 'fr', 'ar']) cercaIn(Object.values(TR[l]).join('\n'), l, 'traduzioni.js:' + l, trovati);
@@ -126,7 +127,7 @@ function prova() {
   confronta(e, 'parole', trovati);
   // Una frase ammessa che non si trova più va tolta dall'elenco, così l'elenco resta vero.
   for (const [l, frase] of AMMESSI) {
-    const dove = l === 'it' ? elencaFile(PARTI).filter(f => f !== 'traduzioni.js').map(f => fs.readFileSync(path.join(PARTI, f), 'utf8')).join('\n') + '\n' + ATESTI.join('\n')
+    const dove = l === 'it' ? elencaFile(PARTI).filter(f => f !== 'traduzioni.js').map(f => fs.readFileSync(path.join(PARTI, f), 'utf8')).concat(elencaFile(REDAZIONE).map(f => fs.readFileSync(path.join(REDAZIONE, f), 'utf8'))).join('\n') + '\n' + ATESTI.join('\n')
       : Object.values(TR[l] || {}).join('\n') + '\n' + Object.values(LEG[l] || {}).join('\n') + '\n' + Object.values(ATR[l] || {}).join('\n');
     if (!dove.includes(frase)) e.errori.push(`frase ammessa che non c'è più (${l}): «${frase}»: toglila da AMMESSI in prove/parole.js`);
   }

@@ -1,0 +1,8 @@
+/* Stili degli strumenti della Redazione (T-033): entrano soltanto nell'app della redazione. */
+.badge-red{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--su-verde);background:var(--testo);border-radius:999px;padding:2px 8px;border:0;cursor:pointer;min-height:24px}
+.admin-box{border-radius:12px;padding:10px 12px;border:1.5px dashed var(--linea-forte);display:flex;flex-direction:column;gap:8px}
+.file-nascosto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.red-riquadro{border-radius:12px;padding:12px;border:1.5px solid var(--linea-forte);display:flex;flex-direction:column;gap:6px}
+.red-riga{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--linea)}
+.red-riga>div{display:flex;flex-direction:column;min-width:0}
+.red-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}

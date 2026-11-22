@@ -24,7 +24,7 @@ const TESTO = require(path.join(SORGENTI, 'moduli', 'testo.js'));
 /* Quante volte ogni file dei sorgenti scrive codice nella pagina (innerHTML, outerHTML, insertAdjacentHTML,
    document.write). Ogni punto è rivisto in docs/testi-come-testo.md: chi ne aggiunge uno lo rivede, lo annota lì e
    aggiorna questo numero. */
-const SCRITTURE = { 'app2.js': 11, 'app3.js': 3, 'app4.js': 9, 'app5.js': 9, 'app6.js': 9, 'app7.js': 2, 'misure.js': 2, 'sezioni.js': 5 };
+const SCRITTURE = { 'app2.js': 11, 'app3.js': 3, 'app4.js': 9, 'app5.js': 8, 'app6.js': 7, 'app7.js': 2, 'sezioni.js': 5, 'redazione/misure.js': 2, 'redazione/strumenti.js': 3 };
 const RE_SCRITTURE = /\b(?:innerHTML|outerHTML|insertAdjacentHTML)\b|document\.write(?:ln)?\s*\(/g;
 
 function prova() {
@@ -42,6 +42,7 @@ function prova() {
   /* i sorgenti che costruiscono pagine: i pezzi dell'app, i moduli e il montaggio (non le librerie di terzi) */
   const file = [];
   for (const f of fs.readdirSync(PARTI)) if (/\.(js|html)$/.test(f)) file.push(['parti/' + f, path.join(PARTI, f)]);
+  for (const f of fs.readdirSync(path.join(SORGENTI, 'redazione'))) if (/\.(js|html)$/.test(f)) file.push(['redazione/' + f, path.join(SORGENTI, 'redazione', f)]);   // strumenti della Redazione (T-033)
   for (const f of fs.readdirSync(path.join(SORGENTI, 'moduli'))) if (/\.js$/.test(f)) file.push(['moduli/' + f, path.join(SORGENTI, 'moduli', f)]);
   for (const f of ['build.js', 'licenze.js', 'contenuti_esempio.js', 'config.js']) if (fs.existsSync(path.join(SORGENTI, f))) file.push([f, path.join(SORGENTI, f)]);
   const testi = file.map(([nome, p]) => [nome, fs.readFileSync(p, 'utf8')]);
@@ -69,7 +70,7 @@ function prova() {
 
   /* 5. inventario delle scritture nella pagina */
   const trovate = {};
-  for (const [nome, t] of testi) { if (!/^parti\/.*\.js$/.test(nome)) continue; const n = (t.match(RE_SCRITTURE) || []).length; if (n) trovate[nome.slice(6)] = n; }
+  for (const [nome, t] of testi) { if (!/^(parti|redazione)\/.*\.js$/.test(nome)) continue; const n = (t.match(RE_SCRITTURE) || []).length; if (n) trovate[nome.replace(/^parti\//, '')] = n; }
   for (const f of new Set(Object.keys(SCRITTURE).concat(Object.keys(trovate)))) {
     if ((SCRITTURE[f] || 0) !== (trovate[f] || 0)) e.errori.push(`${f}: ${trovate[f] || 0} punti che scrivono nella pagina, l'inventario ne prevede ${SCRITTURE[f] || 0}: rivedi i punti nuovi (testi esterni solo con esc()), annotali in docs/testi-come-testo.md e aggiorna SCRITTURE in prove/testi.js`);
   }

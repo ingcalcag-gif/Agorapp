@@ -5,14 +5,21 @@
    che salva è descritto nella scheda «Dati locali» (cap. 30). § 30.1, scelta 2: una riga in più o in meno è uno scarto.
    Per questo tutto ciò che l'app salva passa da qui: la memoria del browser (per chi conosce i nomi: localStorage), la
    memoria del browser per i file (Cache Storage), dove stanno anche la copia dell'app scritta dal service worker e i
-   tasselli della mappa (T-029), e, quando servirà, la base di dati del browser (IndexedDB). Nessun altro file dei sorgenti nomina questi strumenti: lo controlla la prova
+   tasselli della mappa (T-029), e la base di dati del browser (IndexedDB), che usa soltanto l'app della redazione per le
+   sue chiavi e per la cassaforte (T-034). Nessun altro file dei sorgenti nomina questi strumenti: lo controlla la prova
    prove/memoria.js; la prova prove/browser/memoria.js controlla che cosa il telefono contiene davvero dopo un giro
    completo nell'app.
 
    ELENCO è l'elenco chiuso: una chiave che non c'è non si legge e non si scrive (il modulo si ferma con un errore).
    Ogni voce dice in quale riga della scheda «Dati locali» rientra. Le voci con «redazione» sono strumenti della
    Redazione (§ 3.7: stanno sul dispositivo della redazione, non nella scheda): esistono solo se l'app è creata con
-   redazione: true; altrimenti, all'avvio, si cancellano.
+   redazione: true, cioè nell'app della redazione (T-033); l'app pubblica, all'avvio, cancella senza leggerle quelle
+   che stanno nella memoria del browser (Misure e storico di quando l'area riservata stava nell'app pubblica).
+
+   Due app sullo stesso indirizzo. Sul sito vero le due app stanno a indirizzi diversi e ciascuna ha la sua memoria. Sul
+   collegamento di prova stanno invece sullo stesso indirizzo e la memoria è una sola: lì l'app pubblica non deve
+   cancellare Misure e storico dell'app della redazione di prova. Per questo l'app della redazione lascia un segno
+   (red_qui) e l'app pubblica, se lo trova, non cancella le chiavi della Redazione: guarda solo se il segno c'è.
 
    Le chiavi non contengono il nome del servizio, così un cambio di nome non cancella nulla (T-078). «prima» è il nome
    che la chiave aveva nelle versioni precedenti: all'avvio il valore trasloca sotto il nome nuovo, una volta sola, e il
@@ -41,11 +48,12 @@
     nascosti: 'Gli eventi nascosti che hai sbloccato'
   };
 
-  /* dove: «memoria» (memoria del browser, coppie chiave-valore) oppure «file» (memoria del browser per i file).
-     forma: «json» o «testo», per le voci della memoria. */
+  /* dove: «memoria» (memoria del browser, coppie chiave-valore), «file» (memoria del browser per i file) oppure
+     «base» (base di dati del browser: conserva anche le chiavi di cifratura non estraibili, che nella memoria a
+     coppie non possono stare). forma: «json» o «testo», per le voci della memoria. */
   const ELENCO = [
     { nome: 'dl_eventi', dove: 'memoria', forma: 'json', riga: 'offgrid', prima: 'agorapp_events',
-      cosa: 'Gli eventi Off-Grid della persona. Fino ai blocchi 8-10 anche gli eventi creati o importati dall\'area riservata, che non vanno sulla mappa' },
+      cosa: 'Gli eventi Off-Grid della persona. Nell\'app della redazione, fino al blocco 10, anche gli eventi che la Redazione prepara o importa, che non vanno sulla mappa' },
     { nome: 'dl_calendario', dove: 'memoria', forma: 'json', riga: 'calendario', prima: 'agorapp_cal',
       cosa: 'Gli identificativi degli eventi messi nel calendario' },
     { nome: 'dl_tema', dove: 'memoria', forma: 'testo', riga: 'preferenze', prima: 'agorapp_theme', cosa: 'Tema chiaro o scuro' },
@@ -63,10 +71,18 @@
     { nome: 'dl_archivio', dove: 'file', riga: 'zone', prima: 'agorapp_archivio',
       cosa: 'Indice e quadranti dell\'archivio degli eventi scaricati per le zone consultate (T-022)' },
     { nome: 'red_storico', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_storico',
-      cosa: 'Storico delle operazioni dell\'area riservata' },
+      cosa: 'Storico delle operazioni della Redazione' },
     { nome: 'red_misure', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_misure',
-      cosa: 'Misure dell\'area riservata: totali, numeri inseriti a mano, soglie' }
+      cosa: 'Misure della Redazione: totali, numeri inseriti a mano, soglie' },
+    { nome: 'red_qui', dove: 'memoria', forma: 'testo', redazione: true,
+      cosa: 'Segno che su questo indirizzo c\'è l\'app della redazione: serve solo dove le due app condividono l\'indirizzo (collegamento di prova)' },
+    { nome: 'red_chiavi', dove: 'base', redazione: true,
+      cosa: 'Le chiavi della Redazione (firma, cifratura, registro delle fonti, marcatore, cassaforte), non estraibili, e la loro copia di riserva cifrata con la frase (T-034)' },
+    { nome: 'red_cassaforte', dove: 'base', redazione: true,
+      cosa: 'La cassaforte cifrata delle password degli eventi nascosti, cancellate alla fine dell\'evento (T-034)' }
   ];
+  /* Il segno dell'app della redazione e la base di dati dei suoi strumenti. */
+  const SEGNO_REDAZIONE = 'red_qui', BASE = 'red_strumenti', DEPOSITO = 'voci';
 
   /* Chiavi di funzioni tolte dall'app: si cancellano all'avvio senza leggerle. dove: «memoria» oppure «sessione»
      (la memoria che dura finché la scheda del browser resta aperta, che l'app non usa più). */
@@ -90,15 +106,16 @@
     try { return radice[nome] || null; } catch (e) { return null; }
   }
 
-  /* crea({redazione, memoria, sessione, casse}): la memoria di un'app.
-     redazione: true se l'app contiene gli strumenti della Redazione. memoria, sessione e casse sono gli strumenti del
-     browser; nelle prove, finti. Se mancano, il modulo prende quelli del browser in cui gira. */
+  /* crea({redazione, memoria, sessione, casse, base}): la memoria di un'app.
+     redazione: true se l'app contiene gli strumenti della Redazione. memoria, sessione, casse e base sono gli strumenti
+     del browser; nelle prove, finti. Se mancano, il modulo prende quelli del browser in cui gira. */
   function crea(o) {
     o = o || {};
     const redazione = !!o.redazione;
     const mem = 'memoria' in o ? o.memoria : strumento('localStorage');
     const ses = 'sessione' in o ? o.sessione : strumento('sessionStorage');
     const cas = 'casse' in o ? o.casse : (strumento('isSecureContext') ? strumento('caches') : null);
+    const idb = 'base' in o ? o.base : strumento('indexedDB');
 
     function voce(k, dove) {
       const v = PER_CHIAVE.get(k);
@@ -136,13 +153,46 @@
        la offre (indirizzo non sicuro, navigazione privata): chi la usa lavora allora senza copia sul telefono. */
     const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); }, delete: nome => { voce(nome, 'file'); return cas.delete(nome); } } : null;
 
+    /* La base di dati: soltanto nell'app della redazione, e soltanto per le voci «base» dell'elenco. Conserva i valori
+       così come sono (anche le chiavi di cifratura non estraibili). null se il browser non la offre. */
+    function conBase(modo, lavoro) {
+      return new Promise((ok, no) => {
+        let r;
+        try { r = idb.open(BASE, 1); } catch (e) { return no(e); }
+        r.onupgradeneeded = () => { r.result.createObjectStore(DEPOSITO); };
+        r.onerror = () => no(r.error || new Error('la base di dati non si apre'));
+        r.onblocked = () => no(new Error('la base di dati è occupata'));
+        r.onsuccess = () => {
+          const db = r.result;
+          let t, richiesta;
+          try { t = db.transaction(DEPOSITO, modo); richiesta = lavoro(t.objectStore(DEPOSITO)); } catch (e) { db.close(); return no(e); }
+          t.oncomplete = () => { db.close(); ok(richiesta ? richiesta.result : undefined); };
+          t.onerror = t.onabort = () => { db.close(); no(t.error || new Error('la base di dati non risponde')); };
+        };
+      });
+    }
+    const base = redazione && idb ? {
+      leggi: k => { voce(k, 'base'); return conBase('readonly', d => d.get(k)); },
+      scrivi: (k, v) => { voce(k, 'base'); return conBase('readwrite', d => d.put(v, k)); },
+      togli: k => { voce(k, 'base'); return conBase('readwrite', d => d.delete(k)); }
+    } : null;
+    /* Chiede al browser di non cancellare da sé i dati di questo indirizzo (le chiavi della Redazione). Non salva nulla. */
+    async function tieni() {
+      try { const n = strumento('navigator'); return !!(n && n.storage && n.storage.persist && await n.storage.persist()); } catch (e) { return false; }
+    }
+
     /* All'avvio, prima di leggere qualunque cosa: trasloco dei nomi vecchi e pulizia. Restituisce le chiavi traslocate.
        Tocca soltanto le chiavi che conosce: sullo stesso indirizzo possono esserci dati di altre pagine. Le chiavi
        delle funzioni tolte e, in un'app senza area riservata, quelle della Redazione si cancellano senza leggerle. */
     function avvia() {
-      const fatto = { traslocate: [] };
+      const fatto = { traslocate: [], redazioneQui: false };
+      if (redazione) metti(SEGNO_REDAZIONE, '1');
+      /* sullo stesso indirizzo c'è anche l'app della redazione (collegamento di prova): le sue chiavi non si toccano */
+      else fatto.redazioneQui = prendi(SEGNO_REDAZIONE) != null;
       for (const v of ELENCO) {
+        if (v.dove === 'base') continue;   // la base di dati la apre soltanto l'app della redazione
         const fuori = v.redazione && !redazione;   // strumenti della Redazione su un'app che non li ha
+        if (fuori && fatto.redazioneQui) continue;
         if (v.dove === 'memoria') {
           if (fuori) {
             for (const k of [v.prima, v.nome]) if (k) via(k);   // senza leggerle
@@ -170,8 +220,8 @@
       return fatto;
     }
 
-    return { leggi, testo, scrivi, togli, file, avvia, redazione };
+    return { leggi, testo, scrivi, togli, file, base, tieni, avvia, redazione };
   }
 
-  return { RIGHE, ELENCO, TOLTE, chiavi, crea };
+  return { RIGHE, ELENCO, TOLTE, SEGNO_REDAZIONE, chiavi, crea };
 });

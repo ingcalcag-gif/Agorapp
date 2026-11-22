@@ -43,7 +43,12 @@ const RISORSA_ESTERNA = /https?:\/\/[^\s"'`<>()\\]+?\.(?:m?js|css|woff2?|ttf|otf
 /* File che il montaggio produce da sé, e file di terzi annotati in sorgenti/vendor/elenco.js.
    Ogni altro file nell'uscita è un componente da elencare. */
 const FILE_PROPRI = /^(index\.html|config\.js|app\.css|app\.js|moduli\.js|traduzioni\.js|sezioni\.js|licenze\/[a-z0-9.-]+\.(txt|css|html)|lib\/caratteri\/caratteri\.css|anteprime\/(it|en|es|fr|ar)\.json|mappa\/correzioni\.geojson|sw\.js|manifest\.webmanifest|avvisi\.json|emergenza\.json|icone\/icona-(180|192|512)\.png)$/;
-const FILE_VENDOR = new Set(VENDOR.flatMap(c => Object.keys(c.file).concat(c.nomeLicenza || 'LICENSE.txt').map(f => 'lib/' + c.cartella + '/' + f)));
+/* Un componente con «solo» viaggia con una sola app (T-033: SheetJS soltanto con l'app della redazione). */
+const delVendor = u => VENDOR.filter(c => !c.solo || c.solo === u);
+const fileVendor = u => new Set(delVendor(u).flatMap(c => Object.keys(c.file).concat(c.nomeLicenza || 'LICENSE.txt').map(f => 'lib/' + c.cartella + '/' + f)));
+const FILE_VENDOR_TUTTI = fileVendor(null).size ? new Set(VENDOR.flatMap(c => Object.keys(c.file).concat(c.nomeLicenza || 'LICENSE.txt').map(f => 'lib/' + c.cartella + '/' + f))) : new Set();
+/* robots.txt: solo nell'app della redazione, che chiede di non essere indicizzata. */
+const SOLO_REDAZIONE = /^robots\.txt$/;
 
 function prova() {
   const e = esito('Componenti di terzi e licenze');
@@ -62,7 +67,9 @@ function prova() {
   for (const u of USCITE) {
     const file = leggiUscita(u);
     if (!Object.keys(file).length) { e.errori.push(`uscita dist/${u}/ vuota: lancia npm run build`); continue; }
-    for (const f of Object.keys(file)) if (!FILE_PROPRI.test(f) && !FILE_VENDOR.has(f)) e.errori.push(`dist/${u}/${f}: file che il montaggio non produce da sé; se è un componente di terzi, aggiungi la riga e il riconoscimento in prove/componenti.js`);
+    const FILE_VENDOR = fileVendor(u);
+    for (const f of Object.keys(file)) if (FILE_VENDOR_TUTTI.has(f) && !FILE_VENDOR.has(f)) e.errori.push(`dist/${u}/${f}: questo componente non viaggia con l'app ${u}`);
+    for (const f of Object.keys(file)) if (!FILE_PROPRI.test(f) && !FILE_VENDOR.has(f) && !(u === 'redazione' && SOLO_REDAZIONE.test(f))) e.errori.push(`dist/${u}/${f}: file che il montaggio non produce da sé; se è un componente di terzi, aggiungi la riga e il riconoscimento in prove/componenti.js`);
     // I testi dell'app (non le licenze, non le librerie di terzi) e l'elenco dei percorsi dei file.
     const testo = Object.entries(file).filter(([f]) => !f.startsWith('licenze/') && (!f.startsWith('lib/') || f.endsWith('.css') && f.startsWith('lib/caratteri/')))
       .map(([, t]) => t).concat(Object.keys(file).map(f => '/' + f)).join('\n');
@@ -84,13 +91,20 @@ function prova() {
       if (!noto) e.errori.push(`dist/${u}: risorsa esterna non riconosciuta ${url}: aggiungi il componente all'elenco e il riconoscimento in prove/componenti.js`);
     }
 
-    for (const r of righe) for (const t of r['Testo'].split(',').map(s => s.trim()).filter(Boolean)) {
+    /* le righe dei componenti che viaggiano con questa app: la sua pagina delle licenze nomina quelli, e solo quelli */
+    const fuori = VENDOR.filter(c => c.solo && c.solo !== u).map(c => c.licenza);
+    const sue = righe.filter(r => !r['Testo'].split(',').map(s => s.trim()).some(t => fuori.includes(t)));
+    for (const r of righe) if (!sue.includes(r)) {
+      if (file['licenze/index.html'] && file['licenze/index.html'].includes('>' + r['Componente'].replace(/`/g, '').replace(/&/g, '&amp;') + '<')) e.errori.push(`dist/${u}/licenze/index.html nomina «${r['Componente']}», che non viaggia con questa app`);
+      for (const t of r['Testo'].split(',').map(s => s.trim()).filter(Boolean)) if (('licenze/' + t) in file) e.errori.push(`dist/${u}/licenze/${t}: testo di un componente che non viaggia con questa app`);
+    }
+    for (const r of sue) for (const t of r['Testo'].split(',').map(s => s.trim()).filter(Boolean)) {
       const src = path.join(RADICE, 'licenze', t);
       if (!fs.existsSync(src)) { e.errori.push(`manca licenze/${t} (${r['Componente']})`); continue; }
       if (file['licenze/' + t] !== fs.readFileSync(src, 'utf8')) e.errori.push(`dist/${u}/licenze/${t} non è uguale a licenze/${t}: rimonta`);
     }
     if (!file['licenze/index.html']) e.errori.push(`dist/${u}/licenze/index.html mancante`);
-    else for (const r of righe) if (!file['licenze/index.html'].includes('>' + r['Componente'].replace(/`/g, '').replace(/&/g, '&amp;') + '<'))
+    else for (const r of sue) if (!file['licenze/index.html'].includes('>' + r['Componente'].replace(/`/g, '').replace(/&/g, '&amp;') + '<'))
       e.errori.push(`dist/${u}/licenze/index.html non nomina «${r['Componente']}»: rimonta`);
   }
 

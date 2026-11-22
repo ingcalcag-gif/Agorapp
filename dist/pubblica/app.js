@@ -4,7 +4,7 @@
    App della mappa degli eventi — restyling (ramo restyling-app)
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
    Funzioni vere dall'app online OG 1.7: mappa (dal blocco 3 la mappa propria, T-017), indirizzi Photon,
-   GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
+   GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, città,
    5 lingue, testi legali v1.2. I dati sul telefono passano dal modulo della memoria (T-026).
    ===================================================================== */
 const $ = id => document.getElementById(id);
@@ -28,15 +28,17 @@ const nomeFile = () => NOME.toLowerCase().normalize('NFD').replace(/[\u0300-\u03
 const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   ? `<span class="${classe}">${esc(CASELLA)}</span>`
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
-const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
+const EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
 
 /* ---------- Memoria del telefono (T-026; libro mastro, § 3.7 e cap. 30; docs/dati-locali.md) ----------
    Tutto ciò che l'app salva sul telefono passa da MEM, che conosce soltanto le chiavi dell'elenco chiuso
    (sorgenti/moduli/memoria.js): leggi e scrivi per i valori in JSON, testo per i testi, togli per cancellare.
-   Fino al blocco 8 l'area riservata sta ancora in questa app: per questo la memoria comprende le chiavi della Redazione.
+   Le due app montate dallo stesso codice (T-033) aprono la memoria in modo diverso: l'app pubblica conosce soltanto le
+   righe della scheda «Dati locali»; l'app della redazione anche le chiavi dei suoi strumenti.
    avvia(), prima di ogni lettura: i dati salvati con i nomi delle versioni precedenti traslocano sotto i nomi nuovi e
-   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle. */
-const MEM = MODULI.memoria.crea({redazione:true});
+   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle; nell'app pubblica si cancellano così anche le
+   chiavi degli strumenti della Redazione rimaste sul telefono da quando l'area riservata stava in questa app. */
+const MEM = MODULI.memoria.crea({redazione:false});
 MEM.avvia();
 
 /* ---------- Lingue ---------- */
@@ -111,7 +113,7 @@ let calEvents = MEM.leggi('dl_calendario', {}); if(!calEvents || typeof calEvent
 /* dal calendario escono gli eventi tolti qui sopra e ogni voce d'esempio della demo (demo-…), anche senza evento */
 (function(){ const via = Object.keys(calEvents).filter(id => IDS_TOLTI.includes(id) || /^demo-/.test(id));
   if(via.length){ via.forEach(id => delete calEvents[id]); MEM.scrivi('dl_calendario', calEvents); } })();
-function saveEvents(){ if(!MEM.scrivi('dl_eventi', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
+function saveEvents(){ if(!MEM.scrivi('dl_eventi', events)) avviso(tr('Spazio esaurito sul telefono: elimina qualche evento.'), null, true); }
 function saveCal(){ MEM.scrivi('dl_calendario', calEvents); }
 const inCal = id => !!calEvents[id];
 
@@ -164,8 +166,8 @@ const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gr
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */
 /* Due provenienze, separate (T-022): gli eventi pubblici arrivano soltanto dall'archivio comune, a quadranti; gli
-   Off-Grid soltanto dalla memoria del telefono. Gli eventi creati o importati qui dall'area riservata restano nella
-   memoria di questo telefono ma non vanno più sulla mappa: si pubblicheranno dall'app della redazione (blocchi 8-10).
+   Off-Grid soltanto dalla memoria del telefono. Gli eventi che la Redazione prepara nella sua app restano nella memoria
+   del suo dispositivo e non vanno sulla mappa finché non si pubblicano (blocchi 9-10).
    Pratiche e Istanze non vanno sulla mappa finché Progetti e Agorà non aprono (T-015). */
 function tipoDi(ev){ return (ev.personal || ev.offgrid) ? 'og' : 'evento'; }
 function vista(ev){
@@ -206,8 +208,8 @@ const st = {
   strati:new Set(), subOff:new Set(), aperto:null, preset:0,
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
-  pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
-  admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, msgAdmin:null, lente:null, vuoti:false
+  pieno:false, sezione:'mappa', form:null, conferma:null, legale:'privacy', semplice:false,
+  guida:null, sbloccati:new Set(), lente:null, vuoti:false
 };
 (function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = MEM.testo('dl_semplice','0')==='1';
@@ -767,7 +769,6 @@ function disegnaChips(){
   $('btnCal').innerHTML = `<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
   requestAnimationFrame(() => { if(typeof bordiChips==='function') bordiChips(); });
   $('btnCal').setAttribute('aria-label', tr('Il mio Calendario'));
-  $('badgeAdmin').hidden = !st.admin;
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
   $('btnPieno').setAttribute('aria-pressed', st.pieno); $('btnPieno').setAttribute('aria-label', st.pieno ? tr('Esci dallo schermo intero') : tr('Mappa a schermo intero'));
   const per = nelPeriodo();
@@ -810,7 +811,7 @@ function posizioni(){
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.importa = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.conferma = null; st.pdf = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
@@ -879,10 +880,11 @@ function disegnaFoglio(){
     strati:fStrati,
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
-    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, aform:fAdminForm, conferma:fConferma,
-    impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, admin:fAdmin, importa:fImporta, temi:fTemi,
+    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, conferma:fConferma,
+    impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
   };
+  
   const fn = F[st.foglio]; if(!fn){ st.foglio = null; slot.innerHTML = ''; return; }
   slot.innerHTML = fn();
   if(stesso){ const f = slot.querySelector('.foglio'); if(f) f.style.animation = 'none'; const c = slot.querySelector('.corpo'); if(c) c.scrollTop = scroll; }
@@ -974,7 +976,6 @@ function descrizione(e){
   const lungo = e.desc.length > 170;
   return `<p class="desc${lungo&&!st.descAperta?' chiusa':''}">${esc(e.desc)}</p>${lungo?`<button class="link" style="min-height:32px;margin-top:-10px" data-az="leggi">${st.descAperta?tr('Mostra meno'):tr('Leggi tutto')}</button>`:''}`;
 }
-const boxAdmin = e => st.admin && e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">Admin</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
 const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
 /* ---------- Scheda dell'evento pubblico (T-023; libro mastro, §§ 5.2, 5.3 e 11.3) ----------
    Tutto ciò che serve per andare all'evento sta qui, in forma di testo: nome del luogo e indirizzo su righe proprie, la
@@ -1011,7 +1012,7 @@ function fScheda(e){
         ${e.prezzo?`<div class="dato dato-prezzo">${icoPrezzo}<div><span class="t">${esc(e.prezzo)}</span><span class="meta">${tr('Prezzo indicato dalla fonte')}</span></div></div>`:''}</div>
       ${descrizione(e)}
       <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
-        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>${boxAdmin(e)}`;
+        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(normLink).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';
@@ -1134,7 +1135,6 @@ const SCRIPT = {};
 function caricaScript(url){ return SCRIPT[url] || (SCRIPT[url] = new Promise((ok, no) => { const x = document.createElement('script'); x.src = url; x.async = true; x.onload = () => ok(); x.onerror = () => { delete SCRIPT[url]; no(new Error('script')); }; document.head.appendChild(x); })); }
 /* Librerie ospitate con l'app, a versione fissa (T-007; sorgenti/vendor/): nessuna richiesta a servizi esterni. */
 const URL_JSPDF = 'lib/jspdf-2.5.1/jspdf.umd.min.js';
-const URL_XLSX = 'lib/sheetjs-0.18.5/xlsx.full.min.js';
 function preparaPdf(){ return lang==='ar' ? Promise.resolve() : caricaScript(URL_JSPDF); }
 function scaricaBlob(blob, nome){ const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
 /* i caratteri dei font standard del PDF (latino): il resto si toglie */
@@ -1453,7 +1453,7 @@ function fForm(){
     ${serie && serie.length>1 ? `<div class="stack-s"><button class="tasto pri pieno col" data-salva-form="una">${tr('Salva solo questa data')}<small>${esc(nomeGiorno(f.giorno))}</small></button><button class="tasto sec pieno col" data-salva-form="serie">${tr('Salva tutta la serie')}<small>${tr('{n} date, ognuna nel suo giorno',{n:serie.length})}</small></button></div>`
       : `<div class="tasti"><button class="tasto sec" data-az="chiudi">${tr('Annulla')}</button><button class="tasto pri" data-salva-form="una">${mod?tr('Salva modifiche'):tr('Salva sulla mappa')}</button></div>`}
     ${mod?`<button class="tasto pericolo pieno" data-elimina="${esc(f.id)}">${tr('Elimina')}</button>`:''}
-    ${st.admin&&!mod?`<button class="link" data-az="admin-ongrid">${tr('Admin: crea invece un evento on-grid completo')} ${freccia}</button>`:''}`;
+    `;
   return foglio('forte alto', testa, corpo);
 }
 function salvaForm(modo){
@@ -1529,12 +1529,12 @@ function disegnaPosa(){
     <div class="posa-barra vetro"><div class="tasti"><button class="tasto sec" data-az="posa-annulla">${tr('Annulla')}</button><button class="tasto pri" data-az="posa-ok">${tr('Conferma')}</button></div></div>`;
 }
 function iniziaPosa(chi){
-  const f = chi==='aform' ? st.aform : st.form; if(!f) return;
+  const f = st[chi]; if(!f) return;   /* chi: il nome del modulo aperto nello stato, che è anche il nome del suo foglio */
   st.posa = chi; st.foglio = null; disegnaFoglio(); disegnaPins(); disegnaPosa(); posizioni();
   if(f.pos && map) map.jumpTo({center:[f.pos.lng, f.pos.lat], zoom:Math.max(map.getZoom(), 17), padding:{top:0,bottom:0,left:0,right:0}});
 }
 function finePosa(ok){
-  const chi = st.posa, f = chi==='aform' ? st.aform : st.form; st.posa = null; disegnaPosa();
+  const chi = st.posa, f = st[chi]; st.posa = null; disegnaPosa();
   if(ok && f && map){
     const c = map.getCenter(); f.pos = {lat:c.lat, lng:c.lng}; f.precision = 'map'; if(f.err) f.err.indirizzo = 0;
     /* nessuna ricerca inversa (T-008): resta ciò che la persona ha scritto, altrimenti «Punto scelto sulla mappa» */
@@ -1561,10 +1561,7 @@ function fImpostazioni(){
       <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button>
       <a class="menu-r" href="licenze/index.html" target="_blank" rel="noopener noreferrer"><div><span class="t">${tr('Licenze dei componenti')}</span><span class="meta">${tr('Mappa, librerie e caratteri: testi integrali')}</span></div>${freccia}</a></div>
       <p class="meta">${tr('Scrivici')}: ${casellaHtml('mail')}</p></section>
-    <section class="sezione"><div class="tipo">${tr('Area riservata')}</div>
-      ${st.admin ? `<button class="riga-int" data-az="admin"><div><span class="t">${tr('Sei in modalità admin')}</span><span class="meta">${tr('Eventi on-grid, importa ed esporta in Excel, esci')}</span></div>${freccia}</button>`
-        : st.adminPw ? `<div style="display:flex;gap:8px"><label class="campo${st.adminErr?' errore':''}" style="flex:1"><input id="adminpw" type="password" placeholder="${esc(tr('Password admin'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="entra-admin">${tr('Entra')}</button></div>${st.adminErr?`<span class="err">${tr('Password non riconosciuta.')}</span>`:''}`
-        : `<button class="link" data-az="mostra-admin">${tr('Accesso admin')}</button>`}</section>
+    
     ${VERSIONE ? `<p class="meta" id="versione-app">${tr('Versione {v}',{v:esc(VERSIONE)})}</p>` : ''}`;
   return foglio('forte alto', testa, corpo);
 }
@@ -1650,268 +1647,6 @@ function applicaCitta(id, anima){
   if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
 }
 
-/* ======================= Admin ======================= */
-function fAdmin(){
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Modalità admin')}</h2><p class="meta">${tr('Solo per chi pubblica gli eventi raccolti')}</p></div>${chiudiBtn()}</div>`;
-  const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
-    <div class="menu-lista">
-      <button class="menu-r" data-az="admin-ongrid">${icoCal()}<div><span class="t">${tr('Nuovo evento on-grid')}</span><span class="meta">${tr('Form completo, con strato, sottocategoria, prezzo e indirizzo')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo telefono')}</span></div>${freccia}</button></div>
-    <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo telefono') : tr('{n} operazioni registrate su questo telefono',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo telefono'))(storico().length)}</span></div>${freccia}</button>
-    <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
-    ${st.msgAdmin?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.msgAdmin)}</p>`:''}
-    ${st.eliminati.length?`<p class="meta">${tr('Eliminati in questa sessione: {n}.',{n:st.eliminati.length})} <button class="link" style="min-height:32px" data-az="ripristina">${tr('Ripristina')}</button></p>`:''}
-    <p class="meta">${tr('In modalità admin ogni scheda evento ha «Modifica» ed «Elimina».')}</p>
-    <button class="tasto sec pieno" data-az="esci-admin">${tr('Esci dalla modalità admin')}</button>`;
-  return foglio('forte alto', testa, corpo);
-}
-function esporta(){
-  const dati = events;
-  const blob = new Blob([JSON.stringify({events:dati, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nomeFile()+'_'+oggi()+'.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
-  st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
-}
-/* ======================= Excel: importa, modello, esporta ======================= */
-/* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers.
-   La libreria (SheetJS) si scarica solo quando l'admin la usa. */
-const COLONNE = ['Titolo','Strato','Sottostrato','Descrizione','Data','Ora inizio','Ora fine','Durata','Prezzo','Indirizzo','Latitudine','Longitudine','Link','Nascosto','Password','Provenienza'];
-/* colonne che non si importano: si riconoscono solo per rifiutare la riga che le compila (T-011; § 6.2) */
-const COLONNE_RIFIUTATE = ['Immagine'];
-const ALIAS = {titolo:['title','nome','evento'], strato:['category','categoria','layer'], sottostrato:['sublayer','sottocategoria'], descrizione:['description','descr'], data:['date','giorno'],
-  'ora inizio':['ora','inizio','orario','time','start'], 'ora fine':['fine','end'], durata:['duration'], prezzo:['price','costo'], indirizzo:['address','luogo','dove'],
-  latitudine:['lat','latitude'], longitudine:['lng','lon','long','longitude'], link:['url','sito'], immagine:['image','img','foto'], nascosto:['hidden'], password:['parola segreta'], provenienza:['fonte','origine','source','flusso']};
-const normT = x => String(x==null?'':x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-function chiaveColonna(h){
-  const n = normT(h); if(!n) return null;
-  for(const c of COLONNE.concat(COLONNE_RIFIUTATE)){ const k = c.toLowerCase(); if(n===normT(c) || (ALIAS[k]||[]).some(a => normT(a)===n)) return k; }
-  return null;
-}
-const pad2 = n => String(n).padStart(2,'0');
-function leggiData(v){
-  if(v==null || v==='') return null;
-  if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+pad2(v.getMonth()+1)+'-'+pad2(v.getDate());
-  if(typeof v==='number' && v>20000){ const d = new Date(Math.round((Math.floor(Math.round(v*1440)/1440) - 25569)*864e5)); return d.getUTCFullYear()+'-'+pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate()); }
-  const t = String(v).trim(); let m;
-  if((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return m[1]+'-'+pad2(m[2])+'-'+pad2(m[3]);
-  if((m = t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/))){ const y = m[3].length===2 ? '20'+m[3] : m[3]; return y+'-'+pad2(m[2])+'-'+pad2(m[1]); }
-  return null;
-}
-function leggiOra(v){
-  if(v==null || v==='') return null;
-  if(v instanceof Date && !isNaN(v)) return pad2(v.getHours())+':'+pad2(v.getMinutes());
-  if(typeof v==='number'){ const f = v - Math.floor(v); if(v>=1 && f===0) return v<24 ? pad2(v)+':00' : null; const min = Math.round(f*1440) % 1440; return pad2(Math.floor(min/60))+':'+pad2(min%60); }
-  const m = String(v).trim().match(/^(\d{1,2})(?:[:.h,](\d{2}))?$/i); if(!m || +m[1]>23 || (m[2] && +m[2]>59)) return null;
-  return pad2(m[1])+':'+(m[2]||'00');
-}
-const numero = v => { if(typeof v==='number') return v; const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n) ? n : null; };
-const leggiProv = v => { const n = normT(v); return /consens|diretto|^a$|flusso a/.test(n) ? 'consenso' : /pubblic|^b$|flusso b/.test(n) ? 'pubblica' : ''; };
-const siNo = v => /^(si|sì|s|yes|y|x|1|true|vero)$/i.test(String(v==null?'':v).trim());
-/* strato e sottostrato si riconoscono anche scritti a metà («Conferenze», «conferenze talk») o in un'altra lingua dell'app */
-const parole = x => normT(x).split(' ').filter(w => w && !['e','ed','and','y','et','di','de','of'].includes(w));
-function trova(lista, v, nomi){
-  const n = parole(v); if(!n.length) return null;
-  const forme = x => nomi(x).filter(Boolean).map(parole);
-  const esatto = lista.filter(x => forme(x).some(f => f.join(' ')===n.join(' ')));
-  if(esatto.length) return esatto[0];
-  const parziale = lista.filter(x => forme(x).some(f => n.every(w => f.some(k => k.startsWith(w)))));
-  return parziale.length===1 ? parziale[0] : null;
-}
-const nomiIn = (x, lab) => [x.id, lab].concat(['en','es','fr','ar'].map(g => TR[g] && TR[g][lab]));
-function trovaStrato(v){ return trova(LAYERS, v, l => nomiIn(l, l.label)); }
-function trovaSub(l, v){ return l ? trova(l.sub, v, x => nomiIn(x, x.label)) : null; }
-function leggiImport(file){
-  const nome = (file.name||'').toLowerCase();
-  if(nome.endsWith('.json')) return leggiImportJson(file);
-  st.importa = {fase:'leggo', tot:0, ok:[], scarti:[], avvisi:[], fatti:0, daCercare:0}; apri('importa');
-  const I = st.importa;
-  Promise.all([caricaScript(URL_XLSX), file.arrayBuffer()]).then(([_, buf]) => {
-    if(st.importa!==I) return;
-    const wb = XLSX.read(buf, {type:'array', raw:nome.endsWith('.csv')});
-    const ws = wb.Sheets[wb.SheetNames.find(n => normT(n)==='eventi') || wb.SheetNames[0]];
-    const righe = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
-    const iTesta = righe.findIndex(r => r.filter(c => chiaveColonna(c)).length >= 3);
-    if(iTesta<0){ st.importa = null; st.msgAdmin = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
-    const mappa = righe[iTesta].map(chiaveColonna);
-    const dati = righe.slice(iTesta+1).map((r, k) => { const o = {riga:iTesta+k+2}; mappa.forEach((c, j) => { if(c) o[c] = r[j]; }); return o; })
-      .filter(o => COLONNE.concat(COLONNE_RIFIUTATE).some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
-    I.tot = dati.length;
-    const chiavi = new Set(events.map(e => normT(e.title)+'|'+e.datetime));
-    const daCercare = [];
-    dati.forEach((o, k) => {
-      const no = motivo => I.scarti.push({riga:o.riga, motivo});
-      const titolo = String(o.titolo==null?'':o.titolo).trim().slice(0, TITLE_MAX);
-      if(!titolo) return no(tr('manca il titolo'));
-      if(String(o.immagine==null?'':o.immagine).trim()) return no(tr('colonna «Immagine» compilata: {nome} non pubblica immagini, svuotala e importa di nuovo'));
-      const l = trovaStrato(o.strato); if(!l) return no(o.strato ? tr('strato «{s}» non riconosciuto',{s:o.strato}) : tr('manca lo strato'));
-      const g = leggiData(o.data); if(!g) return no(o.data ? tr('data non leggibile') : tr('manca la data'));
-      const h = leggiOra(o['ora inizio']) || (typeof o.data==='number' && o.data%1 ? leggiOra(o.data) : null); if(!h) return no(tr('manca l’ora di inizio'));
-      const datetime = g+'T'+h, hf = leggiOra(o['ora fine']);
-      let fine = hf ? g+'T'+hf : ''; if(fine && fine<=datetime) fine = piuGiorni(g,1)+'T'+hf;
-      if(new Date(fine||datetime).getTime() < Date.now()) return no(tr('è già passato'));
-      if(chiavi.has(normT(titolo)+'|'+datetime)) return no(tr('c’è già'));
-      chiavi.add(normT(titolo)+'|'+datetime);
-      const sub = trovaSub(l, o.sottostrato); if(o.sottostrato && !sub) I.avvisi.push({riga:o.riga, motivo:tr('sottostrato «{s}» non riconosciuto: lasciato vuoto',{s:o.sottostrato})});
-      const lat = numero(o.latitudine), lng = numero(o.longitudine), coord = lat!=null && lng!=null && Math.abs(lat)<=90 && Math.abs(lng)<=180 && (lat || lng);
-      const indirizzo = String(o.indirizzo==null?'':o.indirizzo).trim();
-      if(!coord && indirizzo.length<3) return no(tr('manca l’indirizzo'));
-      const nascosto = siNo(o.nascosto), pw = String(o.password==null?'':o.password).trim();
-      if(nascosto && !pw) return no(tr('evento nascosto senza password'));
-      const ev = {id:'x'+Date.now().toString(36)+k, title:titolo, category:l.id, sublayer:sub?sub.label:'', description:String(o.descrizione==null?'':o.descrizione).trim().slice(0,500),
-        datetime, end:fine, duration:String(o.durata==null?'':o.durata).trim(), price:String(o.prezzo==null?'':o.prezzo).trim(), link:normLink(String(o.link==null?'':o.link)),
-        hidden:nascosto, hiddenPassword:nascosto?pw:'', offgrid:false, address:indirizzo, addressFull:indirizzo, addrPrecision:coord?'exact':'', addrNum:'', lat:coord?lat:null, lng:coord?lng:null, importato:true, creato:new Date().toISOString(), provenienza:leggiProv(o.provenienza)};
-      if(coord) I.ok.push(ev); else daCercare.push({ev, riga:o.riga});
-    });
-    I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; disegnaFoglio();
-    /* gli indirizzi senza coordinate si cercano con Photon uno alla volta, uno al secondo (T-008) */
-    (async () => {
-      for(const x of daCercare){
-        if(st.importa!==I) return;
-        const q = x.ev.address, pa = parseAddr(q);
-        let r = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); r = res.list[0]; }catch(e){}
-        await new Promise(ok => setTimeout(ok, 1000));
-        if(st.importa!==I) return;
-        if(r){ x.ev.lat = r.lat; x.ev.lng = r.lng; x.ev.addressFull = testoRisultato(r); x.ev.addrPrecision = r.precision||'exact'; x.ev.addrNum = r.hn||''; I.ok.push(x.ev); }
-        else I.scarti.push({riga:x.riga, motivo:tr('indirizzo non trovato: aggiungi latitudine e longitudine')});
-        I.fatti++; if(st.foglio==='importa') disegnaFoglio();
-      }
-      if(st.importa!==I) return;
-      I.fase = 'pronto'; I.scarti.sort((a,b) => a.riga-b.riga); if(st.foglio==='importa') disegnaFoglio();
-    })();
-  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
-}
-function leggiImportJson(file){
-  const r = new FileReader();
-  r.onload = e => {
-    try{ const d = JSON.parse(e.target.result), imp = Array.isArray(d) ? d : (d.events||[]); const ids = new Set(events.map(x => x.id));
-      const scarti = [], conImmagine = x => x && typeof x.image==='string' && x.image.trim();
-      imp.forEach((x, i) => { if(conImmagine(x)) scarti.push({riga:i+1, motivo:tr('evento con un’immagine: {nome} non pubblica immagini, toglila dal file e importa di nuovo')}); });
-      const ok = imp.filter(x => x && !conImmagine(x) && !ids.has(x.id) && typeof x.lat==='number' && typeof x.lng==='number' && x.lat>=-90 && x.lat<=90 && x.lng>=-180 && x.lng<=180 && x.title && x.datetime)
-        .map(x => { const y = Object.assign({}, x); delete y.image; return y; });
-      st.importa = {fase:'pronto', tot:imp.length, ok, scarti, avvisi:[], json:true}; apri('importa');
-    }catch(err){ st.msgAdmin = tr('Il file non si legge: controlla che sia un JSON di {nome}.'); apri('admin'); }
-  };
-  r.readAsText(file);
-}
-function fImporta(){
-  const I = st.importa;
-  if(I.fase!=='pronto'){
-    const testa = `<div class="riga-titolo"><h2>${tr('Importa eventi da Excel')}</h2>${chiudiBtn('importa-annulla')}</div>`;
-    const corpo = I.fase==='leggo' ? `<p class="caricamento">${tr('Leggo il file…')}</p>`
-      : `<p class="caricamento">${tr('Cerco gli indirizzi senza coordinate: {k} di {n}…',{k:I.fatti, n:I.daCercare})}</p><p class="meta">${tr('Uno al secondo, come chiede il servizio delle mappe. Puoi aspettare qui.')}</p>
-        <button class="tasto sec pieno" data-az="importa-annulla">${tr('Annulla')}</button>`;
-    return foglio('forte', testa, corpo);
-  }
-  const elenco = (l, cls) => l.map(x => `<div class="${cls}">${tr('Riga {r}',{r:x.riga})}: ${esc(x.motivo)}</div>`).join('');
-  const testa = `<div class="riga-titolo"><h2>${tr('Importare {n} eventi?',{n:I.ok.length})}</h2>${chiudiBtn('importa-annulla')}</div>`;
-  const corpo = `<p class="meta">${I.ok.length===I.tot ? tr('Nel file ci sono {n} eventi nuovi.',{n:I.tot}) : tr('Nel file ci sono {t} eventi: {n} sono nuovi e validi, gli altri ci sono già o mancano di dati.',{t:I.tot, n:I.ok.length})}</p>
-    ${I.scarti.length||I.avvisi.length?`<div class="imp-righe">${elenco(I.scarti,'no')}${elenco(I.avvisi,'')}</div>`:''}
-    <div class="tasti"><button class="tasto sec" data-az="importa-annulla">${tr('Annulla')}</button><button class="tasto pri" data-az="importa-ok" ${I.ok.length?'':'disabled'}>${tr('Importa')}</button></div>`;
-  return foglio('forte alto', testa, corpo);
-}
-const ESEMPIO = () => { const d = new Date(); d.setDate(d.getDate()+7); const m = LAYERS.find(l => l.id==='musica') || LAYERS[0];
-  return ['Concerto nel cortile', m.label, (m.sub[0]||{}).label||'', 'Un pomeriggio di musica dal vivo nel cortile, aperto a tutto il quartiere.', d, '18:30', '20:00', '', 'Gratuito', 'Via Giuseppe Mazzini 10, Torino', '', '', 'https://esempio.it', 'no', '', 'Fonte pubblica']; };
-function fileExcel(fogli, nome){
-  return caricaScript(URL_XLSX).then(() => {
-    const wb = XLSX.utils.book_new();
-    fogli.forEach(([n, righe, larg]) => {
-      /* le date come numero di serie di Excel con formato gg/mm/aaaa: niente sorprese di fuso orario */
-      const date = [];
-      const r2 = righe.map((r, i) => r.map((c, j) => { if(c instanceof Date){ date.push([i, j]); return (Date.UTC(c.getFullYear(), c.getMonth(), c.getDate()) - Date.UTC(1899, 11, 30))/864e5; } return c; }));
-      const ws = XLSX.utils.aoa_to_sheet(r2);
-      date.forEach(([i, j]) => { const c = ws[XLSX.utils.encode_cell({r:i, c:j})]; if(c){ c.t = 'n'; c.z = 'dd/mm/yyyy'; } });
-      if(larg) ws['!cols'] = larg.map(w => ({wch:w})); XLSX.utils.book_append_sheet(wb, ws, n); });
-    XLSX.writeFile(wb, nome, {compression:true});
-  });
-}
-const LARG = [28,22,24,48,12,10,10,10,12,34,12,12,26,10,14,20];
-function scaricaModello(){
-  const strati = [['Strato','Sottostrato']].concat(...LAYERS.map(l => l.sub.map((x, i) => [i ? '' : l.label, x.label])));
-  const istr = [['Come compilare il file'],[''],
-    ['Una riga per evento, nel foglio «Eventi». Non cambiare i nomi delle colonne.'],
-    ['Obbligatori: Titolo, Strato, Data, Ora inizio, e Indirizzo oppure Latitudine e Longitudine.'],
-    ['Strato e Sottostrato: scrivili come nel foglio «Strati».'],
-    ['Data: una data (05/11/2026). Ora inizio e Ora fine: 18:30.'],
-    ['Indirizzo: via, numero civico e città. Se mancano le coordinate, '+NOME+' cerca l’indirizzo da sé (uno al secondo).'],
-    ['Nascosto: sì o no. Se sì, serve la Password per sbloccarlo.'],
-    ['Provenienza (facoltativa): «Consenso diretto» se l’organizzatore ti ha dato il consenso, «Fonte pubblica» se l’evento viene da un sito o una pagina pubblica. Serve alle Misure.'],
-    ['Gli eventi già passati, o che ci sono già, non vengono importati.'],
-    ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx.']];
-  fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], nomeFile()+'-modello-eventi.xlsx')
-    .then(() => { st.msgAdmin = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
-    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
-}
-function esportaExcel(){
-  const dati = events.filter(e => !e.personal && !e.offgrid);
-  const riga = e => { const [g, h] = String(e.datetime||'').split('T'); const S = LAYERS.find(l => l.id===e.category);
-    return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
-  fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-excel', {n:dati.length}); st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
-    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
-}
-/* form on-grid dell'admin (stessi campi e controlli dell'app online) */
-const maxDt = () => { const d = new Date(); d.setMonth(d.getMonth()+20); return d; };
-const dtLocal = d => ymd(d)+'T'+hm(d);
-function apriAdminForm(raw){
-  const sub = raw && S[raw.category] ? (S[raw.category].sub.find(s => s.label===raw.sublayer)||{}).id||'' : '';
-  st.aform = raw ? {id:raw.id, raw, titolo:raw.title||'', strato:raw.category||'', sub, desc:raw.description||'', dt:raw.datetime||'', durata:raw.duration||'', prezzo:raw.price||'', link:raw.link||'', indirizzo:raw.address||'', addrFull:raw.addressFull||raw.address||'', pos:{lat:+raw.lat, lng:+raw.lng}, precision:raw.addrPrecision||'exact', hn:raw.addrNum||'', nascosto:!!raw.hidden, pw:raw.hiddenPassword||'', prov:raw.provenienza||'', err:{}}
-    : {id:null, raw:null, titolo:'', strato:'', sub:'', desc:'', dt:'', durata:'', prezzo:'', link:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', nascosto:false, pw:'', prov:'', err:{}};
-  st.sel = null; st.form = null; apri('aform');
-}
-function contaDesc(f){ const n = f.desc.trim().length; return `<span class="conta-car${n>=DESC_MIN?' ok':''}" id="a-conta">${n>=DESC_MIN ? tr('perfetta') : tr('almeno {n} caratteri',{n:DESC_MIN})} · ${n} / 500</span>`; }
-function fAdminForm(){
-  const f = st.aform, E = f.err, l = S[f.strato];
-  const campo = (id, lab, html, err, fac) => `<div class="stack-s"><label class="etich" for="${id}">${lab}${fac?` <span class="fac">${fac}</span>`:''}</label>${html}${err?`<span class="err">${err}</span>`:''}</div>`;
-  const testa = `<div class="riga-titolo"><div><h2>${f.id?tr('Modifica evento on-grid'):tr('Nuovo evento on-grid')}</h2><p class="meta">${tr('Admin · pubblicato sulla mappa di questo telefono')}</p></div>${chiudiBtn('admin')}</div>`;
-  const corpo = `
-    ${campo('a-titolo', tr('Titolo'), `<div class="campo${E.titolo?' errore':''}"><input id="a-titolo" data-acampo="titolo" maxlength="100" value="${esc(f.titolo)}" placeholder="${esc(tr('Nome dell’evento'))}" autocomplete="off"></div>`, E.titolo&&tr('Dai un nome all’evento'))}
-    <div class="due">${campo('a-strato', tr('Strato'), `<div class="campo${E.strato?' errore':''}"><select id="a-strato" data-acampo="strato"><option value="">${tr('— Scegli —')}</option>${LAYERS.map(x => `<option value="${x.id}" ${f.strato===x.id?'selected':''}>${esc(tr(x.label))}</option>`).join('')}</select></div>`, E.strato&&tr('Scegli lo strato'))}
-      ${campo('a-sub', tr('Sottostrato'), `<div class="campo${E.sub?' errore':''}${l?'':' spento'}"><select id="a-sub" data-acampo="sub" ${l?'':'disabled'}><option value="">${tr('— Scegli —')}</option>${l?l.sub.map(s => `<option value="${s.id}" ${f.sub===s.id?'selected':''}>${esc(tr(s.label))}</option>`).join(''):''}</select></div>`, E.sub&&tr('Scegli il sottostrato'))}</div>
-    ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="500" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>${contaDesc(f)}`, E.desc&&tr('Servono almeno 30 caratteri'))}
-    <div class="due">${campo('a-dt', tr('Data e ora'), `<div class="campo${E.dt?' errore':''}"><input id="a-dt" type="datetime-local" data-acampo="dt" value="${esc(f.dt)}" max="${dtLocal(maxDt())}"></div>`, E.dt&&tr('Serve una data futura'))}
-      ${campo('a-durata', tr('Durata'), `<div class="campo${E.durata?' errore':''}"><input id="a-durata" data-acampo="durata" value="${esc(f.durata)}" placeholder="${esc(tr('es. 2 ore'))}"></div>`, E.durata&&tr('Indica la durata'))}</div>
-    <div class="due">${campo('a-prezzo', tr('Prezzo'), `<div class="campo${E.prezzo?' errore':''}"><input id="a-prezzo" data-acampo="prezzo" value="${esc(f.prezzo)}" placeholder="${esc(tr('Gratuito / 10 €'))}"></div>`, E.prezzo&&tr('Indica il prezzo'))}
-      ${campo('a-link', tr('Link'), `<div class="campo"><input id="a-link" type="url" inputmode="url" data-acampo="link" value="${esc(f.link)}" placeholder="https://"></div>`, '', tr('facoltativo'))}</div>
-    ${campo('a-prov', tr('Provenienza'), `<div class="campo"><select id="a-prov" data-acampo="prov"><option value="">${tr('— Non indicata —')}</option><option value="consenso" ${f.prov==='consenso'?'selected':''}>${tr('Consenso diretto dell’organizzatore')}</option><option value="pubblica" ${f.prov==='pubblica'?'selected':''}>${tr('Fonte pubblica')}</option></select></div><span class="meta">${tr('Serve alle Misure: quanta offerta ha il consenso diretto (Flusso A) e quanta viene da fonti pubbliche (Flusso B).')}</span>`, '', tr('facoltativo'))}
-    ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${icoLuogo} ${tr('Scegli sulla mappa')}</button>`, E.indirizzo&&(E.indirizzo===2?tr('Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.'):tr('Scegli un indirizzo dai suggerimenti o dalla mappa')))}
-    <button class="riga-int" data-az="a-nascosto" aria-pressed="${f.nascosto}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Evento nascosto')}</span><span class="meta">${tr('Visibile solo a chi ha la password')}</span></div><span class="interr" aria-hidden="true"></span></button>
-    ${f.nascosto?campo('a-pw', tr('Password per sbloccarlo'), `<div class="campo${E.pw?' errore':''}"><input id="a-pw" data-acampo="pw" value="${esc(f.pw)}" placeholder="${esc(tr('Una parola segreta'))}" autocomplete="off"></div>`, E.pw&&tr('Scegli una password')):''}
-    <div class="tasti"><button class="tasto sec" data-az="admin">${tr('Annulla')}</button><button class="tasto pri" data-az="a-salva">${tr('Salva evento')}</button></div>
-    ${f.id?`<button class="tasto pericolo pieno" data-elimina-admin="${esc(f.id)}">${tr('Elimina')}</button>`:''}`;
-  return foglio('forte alto', testa, corpo);
-}
-function salvaAdmin(){
-  const f = st.aform, E = f.err = {};
-  const durOk = v => { if(!v.trim()) return false; const d2 = v.replace(/un[ao]?\s+po'?\s+di/i,'1').replace(/paio/i,'2').replace(/quarto d'ora/i,'15 min').replace(/mez(?:z)?ora/i,'30 min'); return /(\d+(?:[.,]\d+)?)\s*(h|ora|ore|min|minut)?/i.test(d2); };
-  const t = f.titolo.trim(); if(!t || t.length>TITLE_MAX) E.titolo = 1;
-  if(!f.strato) E.strato = 1; if(!f.sub) E.sub = 1;
-  if(f.desc.trim().length<DESC_MIN) E.desc = 1;
-  const tm = f.dt ? new Date(f.dt).getTime() : NaN; if(!f.dt || isNaN(tm) || (!f.id && tm < Date.now()-3e5) || tm > maxDt().getTime()) E.dt = 1;
-  if(!durOk(f.durata)) E.durata = 1; if(!f.prezzo.trim()) E.prezzo = 1;
-  if(f.nascosto && !f.pw.trim()) E.pw = 1;
-  if(!f.pos && !Object.keys(E).length){
-    const q = f.indirizzo.trim(); if(q.length<3){ E.indirizzo = 1; disegnaFoglio(); return; }
-    const b = $('a-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
-    lookup(parseAddr(q).city ? q : q+', '+cittaObj().n).then(res => { if(st.aform!==f) return;
-      if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; disegnaFoglio(); }
-      else { f.err.indirizzo = 2; disegnaFoglio(); } });
-    return;
-  }
-  if(!f.pos) E.indirizzo = 1;
-  if(Object.keys(E).length){ disegnaFoglio(); const c = document.querySelector('#foglio-slot .errore'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center', behavior:'smooth'}); return; }
-  const l = S[f.strato], sublayer = (l.sub.find(s => s.id===f.sub)||{}).label||'';
-  const campi = {title:t, category:f.strato, sublayer, description:f.desc.trim(), datetime:f.dt, duration:f.durata.trim(), end:'', price:f.prezzo.trim(), link:f.link.trim(),
-    hidden:f.nascosto, hiddenPassword:f.nascosto ? f.pw.trim() : '', offgrid:false, address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng, provenienza:f.prov||''};
-  let id = f.id;
-  if(f.id){ const ev = rawById(f.id); if(ev){ Object.assign(ev, campi); delete ev.image; } misureConta('corretti'); registra('modifica', {id:f.id, s:campi.category}); }
-  else { id = Date.now().toString(); events.push(Object.assign({id, creato:new Date().toISOString()}, campi)); registra('crea', {id, s:campi.category}); }
-  if(campi.hidden) st.sbloccati.add(campi.hiddenPassword);
-  saveEvents(); ricostruisci(); st.aform = null; mzFotografa();
-  const e = byId(id); if(e && !visibile(e)){ st.tempo = 'tutto'; st.salvatiSolo = false; if(e.strato) st.strati.add(e.strato); st.tipi.evento = true; }
-  selezionaEv(id);
-}
-
 /* ======================= Guida alla prima apertura ======================= */
 const GUIDA = () => [
   {t:tr('Benvenuto su {nome}'), d:tr('La mappa degli eventi della città. Il cerchio è un evento, il verde pieno un tuo appuntamento. Qui li accendi e spegni.'), el:'tipiMappa'},
@@ -1939,7 +1674,7 @@ function disegnaGuida(){
   ombraGuida();
 }
 
-/* ======================= Avvisi: solo «Annulla» dopo un'eliminazione admin e gli errori veri ======================= */
+/* ======================= Avvisi brevi in basso: un'azione da annullare e gli errori veri ======================= */
 let tt;
 function avviso(msg, azione, errore){
   if(!azione && !errore) return;   /* le spiegazioni andranno nella modalità tutorial */
@@ -1975,12 +1710,12 @@ function apriCalendario(vista, giorno){
 function vaiSezione(s, daNav){
   if(st.pieno) return;
   const stessa = st.sezione===s;
-  if(st.foglio || st.posa){ st.posa = null; disegnaPosa(); st.foglio = null; st.sel = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; }
+  if(st.foglio || st.posa){ st.posa = null; disegnaPosa(); st.foglio = null; st.sel = null; st.gruppo = null; st.form = null; st.conferma = null; st.pdf = null; }
   disegnaFoglio();
   st.sezione = s; $('app').dataset.sez = s;
   $('area').hidden = s!=='mappa';
-  ['progetti','agora','temi','misure'].forEach(k => { $('pagina-'+k).hidden = s!==k; });
-  if(s==='misure') disegnaMisure();
+  ['progetti','agora','temi'].forEach(k => { $('pagina-'+k).hidden = s!==k; });
+  
   if(s==='temi'){ if(stessa && daNav){ TM.vista = 'esplora'; $('pagina-temi').scrollTop = 0; } disegnaTemi(); }
   const mod = s==='agora' ? window.AGR.agora : s==='progetti' ? window.AGR.progetti : null;
   if(mod){ if(stessa && daNav) mod.home(); else mod.ridisegna(); }
@@ -2244,662 +1979,6 @@ function clickTemi(b){
   return true;
 }
 
-/* Le 50 domande della tabella «KPI di misurazione senza tracciamento» (file Excel di Lorenzo) (6 ottobre 2026): stato, conformità UE e IT, obblighi.
-   Valutazioni di Claude, non parere legale.
-   lor/lorD/lorNota: decisione e note di Lorenzo (file restituito il 6 ottobre 2026); risposta: risposte di Claude alle note. Standard: dove UE e Italia divergono vale la regola UE. */
-const MZ_KPI = [{"n": 1, "area": "A · Offerta di eventi", "q": "Quanti eventi sono attivi sulla mappa ogni giorno?", "calc": "Conteggio giornaliero degli eventi non scaduti, preso dall'admin alla stessa ora.", "dec": "Se una città ha abbastanza offerta per essere promossa o va prima riempita.", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena: misura la città, non le persone.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "È il KPI più solido che hai: dipende solo da te.", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "Trasformiamo la narrarativa di nessun archivio storico in \"nessun tipo di profilazione, raccolti solo dati tecnici aggregati\"; sostenere questo con degli esempi già nell'informativa", "risposta": "Annotato per l’informativa che faremo dopo l’MVP. I totali delle Misure sono già solo numeri aggregati, senza dati sulle persone."}, {"n": 2, "area": "A · Offerta di eventi", "q": "Quanti eventi nuovi entrano ogni settimana?", "calc": "Somma settimanale degli inserimenti (manuali + import).", "dec": "Quanto tempo dedicare alla raccolta; se serve aiuto o automazione.", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Misura il tuo carico di lavoro: utile anche per il Business Plan (costo operativo per città).", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "Rendere chiaro che si tratta del contatore di nuovi eventi inseriti da {nome} (in questo caso da me), e non dai nuovi utenti", "risposta": "Fatto: l’indicatore ora dice «eventi nuovi inseriti da te ({nome})», non nuovi utenti."}, {"n": 3, "area": "A · Offerta di eventi", "q": "Come si distribuiscono gli eventi tra le città?", "calc": "Eventi attivi per città, settimanale.", "dec": "Quali città sono 'vuote' (task Release MVP) e dove concentrare la raccolta.", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Risponde alla voce 'città vuote di eventi' del piano MVP.", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "", "risposta": ""}, {"n": 4, "area": "A · Offerta di eventi", "q": "Come si distribuiscono gli eventi per categoria/strato?", "calc": "Eventi attivi per strato, settimanale.", "dec": "Su quali tipi di fonte cercare per bilanciare l'offerta.", "ut": "Media", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena: dà visibilità a ciò che è sottorappresentato (orizzontalità).", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "", "risposta": ""}, {"n": 5, "area": "A · Offerta di eventi", "q": "In quali quartieri ci sono più o meno eventi?", "calc": "Eventi per circoscrizione/quartiere, mensile, dalle coordinate degli eventi.", "dec": "Dove la città è 'invisibile'; base del Report della Città.", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena: è la mission (asimmetria informativa) resa misurabile.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Il Report della Città può poggiare sull'offerta (cosa succede) invece che sulla domanda (chi guarda): zero rischio.", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Come faccio a decidere i quartieri di ogni città? Segnare i limiti dei vari quartieri e circoscrizioni è un lavoraccio che va moltitplicato per il numero di città. Quello che farei è mantenere l'impostazione dei vuoti e avere delle heat-map della densità di eventi, tali densità suddivise anche per strato. Per ora la domanda rimane in fase di studio: capire a livello tecnico cosa è fattibile.", "risposta": "Fattibile senza backend: la libreria della mappa (MapLibre) ha uno strato «mappa di densità» che colora dove ci sono più eventi, calcolato sul telefono, anche per strato; nessun confine di quartiere da disegnare. Per vedere l’andamento nel tempo basterebbe salvare ogni giorno, nei totali dell’admin, una griglia di densità a celle di circa 500 m. Da decidere: solo nelle Misure o anche sulla mappa pubblica, accanto ai vuoti."}, {"n": 6, "area": "A · Offerta di eventi", "q": "Quanti eventi arrivano da consenso diretto e quanti da fonti pubbliche?", "calc": "Quota Flusso A / Flusso B sul totale, mensile.", "dec": "Quanto spingere il contatto diretto con gli organizzatori (base giuridica più solida).", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Dati degli organizzatori già trattati; si conta solo il flusso.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Indicatore di rischio legale: più Flusso A = meno esposizione.", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "Aggiungere un campo nel menù di inserimento on-grid dell'admin riguardo se l'evento che si sta inserendo deriva da un contatto diretto oppure no.", "risposta": ""}, {"n": 7, "area": "A · Offerta di eventi", "q": "Quanti eventi sono gratuiti?", "calc": "Quota di eventi con ingresso libero (se il campo esiste).", "dec": "Coerenza con il principio di accesso libero; argomento per i bandi.", "ut": "Media", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Più avanti", "fase": "MVP", "um": "No", "note": "Solo se l'evento ha già un campo prezzo; non aggiungerlo apposta.", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "non mi sembra un valore giocabile ai bandi, anzi: io ad un bando mi vanterei di riuscire a portare avanti eventi culturali a pagamento. Ciò dimostra che si può vivere d'arte etc etc", "risposta": "D’accordo, resta in studio. Si può rovesciare la lettura: la quota di eventi a pagamento come segno che la cultura riesce a sostenersi."}, {"n": 8, "area": "A · Offerta di eventi", "q": "In quali giorni e fasce orarie ci sono eventi?", "calc": "Distribuzione degli eventi per giorno della settimana e fascia oraria.", "dec": "Fasce scoperte da segnalare nel Report della Città o alle istituzioni.", "ut": "Media", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Più avanti", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "Perché Claude valuta di farlo più in la?", "risposta": "Nessun motivo legale: l’avevo messa più avanti solo per priorità. Ora è operativa (Offerta → Quando ci sono eventi)."}, {"n": 9, "area": "A · Offerta di eventi", "q": "Con quanto anticipo vengono pubblicati gli eventi?", "calc": "Giorni medi tra inserimento e inizio evento.", "dec": "Se l'app serve a pianificare o solo all'ultimo minuto; frequenza di aggiornamento.", "ut": "Media", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Più avanti", "fase": "MVP", "um": "No", "note": "Richiede di salvare la data di inserimento come campo dell'evento (si cancella con l'evento).", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Richiede un backend?", "risposta": "No, niente backend: si calcola dalla data di inserimento che l’app salva sugli eventi nuovi (campo «creato») sul telefono dell’admin. Per gli eventi inseriti prima del 6 ottobre la data si ricava, quando possibile, dal codice dell’evento."}, {"n": 10, "area": "A · Offerta di eventi", "q": "Quanti eventi arrivano dall'import dei siti comunali?", "calc": "Eventi importati via Excel / totale, per Comune.", "dec": "Se estendere l'import ad altri Comuni (test Empoli).", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Lega il KPI al lavoro di import già avviato.", "soglia": "No", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Lo spirito della domanda va bene ma va affinata la domanda: non \"da siti comunali\" ma \"eventi istituzionali\" robe del comune e delle istituzioni in generale. Studiare definizione di questo tipo di eventi per avere un KPI chiaro", "risposta": "Proposta per lo studio: un campo «Promotore» nell’evento (istituzionale: Comune, Regione, scuole, biblioteche e musei pubblici, altri enti pubblici · associazione o terzo settore · privato). Il KPI diventa «quota di eventi istituzionali». L’elenco preciso va definito insieme."}, {"n": 11, "area": "A · Offerta di eventi", "q": "Quanti eventi vengono corretti o rimossi dopo la pubblicazione?", "calc": "Conteggio mensile di modifiche/rimozioni fatte dall'admin.", "dec": "Affidabilità delle fonti; quali fonti abbandonare.", "ut": "Media", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti; si tiene solo il contatore, non l'evento.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Più avanti", "fase": "MVP", "um": "No", "note": "Non tenere copia degli eventi rimossi: l'informativa promette che spariscono 3 ore dopo la fine.", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "", "risposta": ""}, {"n": 12, "area": "A · Offerta di eventi", "q": "Quante fonti monitori e quanti eventi rende ognuna?", "calc": "Elenco fonti con eventi pubblicati per fonte, mensile.", "dec": "Quali fonti tenere nella lista di raccolta.", "ut": "Media", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Fonti = enti/siti. Se una fonte è una persona fisica, aggregare.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "sospeso", "lorD": "Sospesa", "lorNota": "Tale domanda non rappresenta un KPI possibile od una domanda che genera delle statistiche. Tale elenco rimane in mano a me in maniera privata", "risposta": "D’accordo: l’elenco delle fonti resta tuo, fuori dalle Misure."}, {"n": 13, "area": "B · Organizzatori e luoghi", "q": "Quanti organizzatori distinti pubblicano tramite consenso diretto?", "calc": "Conteggio mensile degli organizzatori Flusso A.", "dec": "Dimensione della rete; potenziale per 'Rete dei Luoghi Vivi' (B2B).", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Organizzatori già trattati per il consenso; si usa solo il conteggio.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "rimandato", "lorD": "Rimandata a Fase 2", "lorNota": "", "risposta": ""}, {"n": 14, "area": "B · Organizzatori e luoghi", "q": "Quanti organizzatori tornano a pubblicare?", "calc": "Organizzatori con almeno 2 eventi in 3 mesi / totale.", "dec": "Fidelizzazione della rete; prova per il modello B2B.", "ut": "Media", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Sì: collega lo stesso organizzatore nel tempo.", "eu": "Giallo", "euM": "Riuso di dati degli organizzatori per una finalità statistica: compatibilità ex art. 6(4) e art. 89 GDPR; informativa art. 13(3).", "it": "Giallo", "itM": "Come UE; nessuna norma italiana più restrittiva nota.", "obl": "Aggiungere la finalità statistica all'informativa per gli organizzatori.", "coer": "Buona, se resta interno e aggregato.", "par": "Più avanti", "fase": "MVP", "um": "Sì", "note": "Usare dati raccolti come prova del consenso per una statistica è un nuovo fine: va verificata la compatibilità (art. 6(4) GDPR) e scritta nell'informativa.", "soglia": "No", "lor": "rimandato", "lorD": "Rimandata a Fase 2", "lorNota": "", "risposta": ""}, {"n": 15, "area": "B · Organizzatori e luoghi", "q": "Quante richieste di rimozione o opposizione ricevi, e in quanto tempo le evadi?", "calc": "Registro semplice: data richiesta, data evasione (≤ 48 h promesse).", "dec": "Se la promessa delle 48 h regge; prova di accountability.", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Sì, chi fa la richiesta: già trattato per gestirla.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno di nuovo: è già un obbligo di accountability.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "È di fatto un obbligo: dimostrare che rispetti i diritti (art. 5(2), art. 12 GDPR).", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "", "risposta": ""}, {"n": 16, "area": "B · Organizzatori e luoghi", "q": "Quante segnalazioni di eventi non validi arrivano?", "calc": "Email ricevute su {casella} per evento errato, mensile.", "dec": "Qualità dei dati; quali fonti sono inaffidabili.", "ut": "Media", "met": "LV · Invio volontario dell'utente (tocco esplicito)", "dati": "Sì, l'email di chi segnala (già prevista dall'informativa).", "eu": "Verde", "euM": "Art. 5(3): esenzione per il servizio esplicitamente richiesto (l'utente sceglie di inviare). GDPR: l'IP transita su Netlify; informativa art. 13 sul nuovo invio; nessun dato oltre il +1.", "it": "Verde", "itM": "Art. 122: invio richiesto dall'utente. Basta aggiornare l'informativa (oggi dice 'Nessun server').", "obl": "Nessuno: il canale è già nell'informativa.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Canale già dichiarato nelle Note legali: non serve niente di nuovo.", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "", "risposta": ""}, {"n": 17, "area": "B · Organizzatori e luoghi", "q": "Quanti luoghi/spazi distinti compaiono sulla mappa?", "calc": "Conteggio mensile dei luoghi unici con almeno un evento.", "dec": "Lista dei potenziali clienti 'Rete dei Luoghi Vivi'.", "ut": "Alta", "met": "L0 · Dati sul contenuto (nessun utente)", "dati": "Nessuno degli utenti.", "eu": "Verde", "euM": "Nessun dato degli utenti: GDPR non riguarda gli utenti; art. 5(3) Dir. 2002/58/CE non coinvolto (nessun accesso al dispositivo). Eventuali dati degli organizzatori sono già coperti da consenso (art. 6(1)(a)) o legittimo interesse (art. 6(1)(f), Balancing test).", "it": "Verde", "itM": "Art. 122 Codice Privacy non coinvolto; nessun nuovo trattamento sugli utenti.", "obl": "Nessuno. Consigliata una frase in informativa: si tengono solo conteggi aggregati, non i dati degli eventi (oggi dice 'nessun archivio storico').", "coer": "Piena: nessuna visibilità a pagamento, solo censimento.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Nota importante: finora {nome} parla di eventi ma non parla di luoghi. ", "risposta": "Giusto: oggi un «luogo» è solo l’indirizzo di un evento. Prima di contarli bisogna decidere se i luoghi diventano un oggetto dell’app, che è anche la base della «Rete dei Luoghi Vivi»."}, {"n": 18, "area": "C · Adozione", "q": "Quante richieste riceve il sito ogni giorno?", "calc": "Richieste/banda dal pannello Netlify, annotate ogni giorno (Free = 24 h).", "dec": "Se il lancio funziona; dato per Smart&Start.", "ut": "Alta", "met": "L1 · Totali aggregati dell'hosting (Netlify)", "dati": "IP trattati da Netlify, mai visti da te.", "eu": "Giallo", "euM": "Netlify tratta già gli IP per servire il sito (IP = dato personale, CGUE C-582/14 Breyer). Leggere solo totali aggregati non crea un dato personale nelle tue mani (CGUE C-413/23 P, 4.9.2025), ma Netlify va dichiarato come responsabile (art. 28) con base per il trasferimento extra-UE. La richiesta della pagina è necessaria alla trasmissione: art. 5(3) esente.", "it": "Giallo", "itM": "Stesso quadro UE. Oggi l'informativa non nomina Netlify tra i servizi che ricevono l'IP: da aggiungere.", "obl": "Dichiarare Netlify nell'informativa; verificare DPA di Netlify e base del trasferimento USA (DPF o SCC). Sul piano Free i dati restano 24 ore: annotarli a mano o passare a un piano a pagamento.", "coer": "Buona: è un totale, non un comportamento.", "par": "Misurare ora", "fase": "MVP", "um": "Sì", "note": "Richieste ≠ persone: una visita fa molte richieste. Va presentato come indice, non come 'utenti'. Verificare cosa esattamente mostra il widget Free.", "soglia": "No", "lor": "segnaposto", "lorD": "Implementare vuoto", "lorNota": "Da capire bene: il KPI è fondamentale ma forse non compliant. La mia scelta definita è: implementiamo il KPI lasciandolo vuoto; avremo cosi lo spazio già pronto per quando saremo pronti a renderlo operativo. Spiegare sulla piattaforma, brevemente, perché è in fase di studio", "risposta": "Spazio pronto e vuoto, come hai chiesto. Perché è in studio: i numeri di Netlify vengono dai registri delle richieste, che contengono gli indirizzi IP dei visitatori. Leggerne solo i totali è probabilmente lecito, ma va verificato cosa registra Netlify e per quanto, e va scritto nell’informativa."}, {"n": 19, "area": "C · Adozione", "q": "Quanta banda consuma il sito e quando ci sono picchi?", "calc": "Banda giornaliera e picchi dal pannello Netlify.", "dec": "Capacità e costi (prova di carico del piano MVP).", "ut": "Media", "met": "L1 · Totali aggregati dell'hosting (Netlify)", "dati": "IP trattati da Netlify, mai visti da te.", "eu": "Giallo", "euM": "Netlify tratta già gli IP per servire il sito (IP = dato personale, CGUE C-582/14 Breyer). Leggere solo totali aggregati non crea un dato personale nelle tue mani (CGUE C-413/23 P, 4.9.2025), ma Netlify va dichiarato come responsabile (art. 28) con base per il trasferimento extra-UE. La richiesta della pagina è necessaria alla trasmissione: art. 5(3) esente.", "it": "Giallo", "itM": "Stesso quadro UE. Oggi l'informativa non nomina Netlify tra i servizi che ricevono l'IP: da aggiungere.", "obl": "Dichiarare Netlify nell'informativa; verificare DPA di Netlify e base del trasferimento USA (DPF o SCC). Sul piano Free i dati restano 24 ore: annotarli a mano o passare a un piano a pagamento.", "coer": "Piena.", "par": "Più avanti", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "segnaposto", "lorD": "Implementare vuoto", "lorNota": "Da capire bene: il KPI è fondamentale ma forse non compliant. La mia scelta definita è: implementiamo il KPI lasciandolo vuoto; avremo cosi lo spazio già pronto per quando saremo pronti a renderlo operativo. Spiegare sulla piattaforma, brevemente, perché è in fase di studio", "risposta": "Spazio pronto e vuoto, come hai chiesto. Stesso motivo della riga 18: la banda viene dagli stessi registri di Netlify."}, {"n": 20, "area": "C · Adozione", "q": "Le azioni di comunicazione fanno salire gli accessi?", "calc": "Confronto delle richieste giornaliere prima e dopo un post, un volantino o un incontro.", "dec": "Quali canali di comunicazione funzionano.", "ut": "Alta", "met": "L1 · Totali aggregati dell'hosting (Netlify)", "dati": "IP trattati da Netlify, mai visti da te.", "eu": "Giallo", "euM": "Netlify tratta già gli IP per servire il sito (IP = dato personale, CGUE C-582/14 Breyer). Leggere solo totali aggregati non crea un dato personale nelle tue mani (CGUE C-413/23 P, 4.9.2025), ma Netlify va dichiarato come responsabile (art. 28) con base per il trasferimento extra-UE. La richiesta della pagina è necessaria alla trasmissione: art. 5(3) esente.", "it": "Giallo", "itM": "Stesso quadro UE. Oggi l'informativa non nomina Netlify tra i servizi che ricevono l'IP: da aggiungere.", "obl": "Dichiarare Netlify nell'informativa; verificare DPA di Netlify e base del trasferimento USA (DPF o SCC). Sul piano Free i dati restano 24 ore: annotarli a mano o passare a un piano a pagamento.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "Sì", "note": "Non usare parametri UTM o link diversi per canale: per l'EDPB il tracciamento via URL rientra nell'art. 5(3). Basta il confronto per data.", "soglia": "No", "lor": "segnaposto", "lorD": "Implementare vuoto", "lorNota": "Da capire bene: il KPI è fondamentale ma forse non compliant. La mia scelta definita è: implementiamo il KPI lasciandolo vuoto; avremo cosi lo spazio già pronto per quando saremo pronti a renderlo operativo. Spiegare sulla piattaforma, brevemente, perché è in fase di studio", "risposta": "Spazio pronto e vuoto, come hai chiesto. Dipende dalla riga 18: senza i numeri delle richieste non si vede l’effetto delle azioni di comunicazione."}, {"n": 21, "area": "C · Adozione", "q": "Quanti visitatori unici ci sono al giorno?", "calc": "Richiede di distinguere le persone (hash di IP + browser con 'sale' giornaliero).", "dec": "Nessuna in più rispetto alle richieste totali.", "ut": "Bassa", "met": "L3 · Analytics cookieless di terzi", "dati": "Sì: l'hash resta un dato personale per chi lo calcola.", "eu": "Arancio", "euM": "Come L2, più un nuovo responsabile art. 28 (DPA) che tratta IP/hash giornalieri: restano dati personali per il fornitore (C-413/23 P). A livello UE probabile consenso.", "it": "Giallo", "itM": "Garante 2021: senza consenso solo se il terzo maschera almeno il 4° ottetto dell'IP e non incrocia/cede i dati; nuovo fornitore in informativa.", "obl": "Nuovo fornitore + DPA + informativa; a livello UE probabile consenso: OLTRE SOGLIA.", "coer": "Debole: serve a contare persone, non città.", "par": "Non misurare", "fase": "Mai", "um": "Sì", "note": "Il guadagno informativo rispetto alle richieste totali non vale l'esposizione.", "soglia": "Sì", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Perché non è in linea con i nostri principi?", "risposta": "Il problema non è il fine ma il metodo: per contare persone «uniche» bisogna riconoscere lo stesso telefono da un giorno all’altro, con un’impronta calcolata da IP e browser. È un identificativo, anche se temporaneo: per questo è oltre la tua soglia (dato personale e accesso al dispositivo per l’EDPB)."}, {"n": 22, "area": "C · Adozione", "q": "Da quale paese o regione arrivano le visite?", "calc": "Geolocalizzazione dell'IP.", "dec": "Nessuna: la città scelta nell'app (riga 32) è più utile.", "ut": "Bassa", "met": "L3 · Analytics cookieless di terzi", "dati": "Sì, IP.", "eu": "Arancio", "euM": "Come L2, più un nuovo responsabile art. 28 (DPA) che tratta IP/hash giornalieri: restano dati personali per il fornitore (C-413/23 P). A livello UE probabile consenso.", "it": "Giallo", "itM": "Garante 2021: senza consenso solo se il terzo maschera almeno il 4° ottetto dell'IP e non incrocia/cede i dati; nuovo fornitore in informativa.", "obl": "Nuovo fornitore + DPA + informativa; a livello UE probabile consenso: OLTRE SOGLIA.", "coer": "Debole.", "par": "Non misurare", "fase": "Mai", "um": "No", "note": "Sostituita da 'città selezionata nell'app'.", "soglia": "Sì", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Credo che potrebbe essere importante, faccio un esempio: si scopre che molte persone di zone rurali dove non c'è niente guardano cosa c'è in città e partecipano ad eventi nelle città vicine diminuendo cosi il loro carico di solitudine legato alla vita in una zona rurale. E' difficile sapere di eventi stando fuori dal loro contesto, {nome} potrebbe risolvere il problema.", "risposta": "L’esempio è forte e coerente con la missione. Due strade: geolocalizzare l’IP (dato personale e accesso al dispositivo: oltre soglia) oppure chiederlo in modo volontario, per esempio «da dove vieni?» con il comune scelto dall’elenco, insieme alle altre misure volontarie."}, {"n": 23, "area": "C · Adozione", "q": "Da quali siti arrivano le visite?", "calc": "Intestazione 'referrer' delle richieste.", "dec": "Quali siti partner mandano persone.", "ut": "Media", "met": "L3 · Analytics cookieless di terzi", "dati": "Indiretti: il referrer può contenere URL con dati.", "eu": "Arancio", "euM": "Come L2, più un nuovo responsabile art. 28 (DPA) che tratta IP/hash giornalieri: restano dati personali per il fornitore (C-413/23 P). A livello UE probabile consenso.", "it": "Giallo", "itM": "Garante 2021: senza consenso solo se il terzo maschera almeno il 4° ottetto dell'IP e non incrocia/cede i dati; nuovo fornitore in informativa.", "obl": "Nuovo fornitore + DPA + informativa; a livello UE probabile consenso: OLTRE SOGLIA.", "coer": "Accettabile se aggregato.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": "Netlify Free non lo mostra; servirebbe uno strumento di terzi.", "soglia": "Sì", "lor": "rimandato", "lorD": "Rimandata a Fase 2", "lorNota": "Non ho capito cosa misura ed a cosa serve", "risposta": "Il «referrer» è l’indirizzo della pagina da cui una persona arriva su {nome}, per esempio un link sul sito di un’associazione. Servirebbe a sapere quali siti ci mandano persone. Lo invia il browser da solo; leggerlo richiede comunque i registri di Netlify."}, {"n": 24, "area": "C · Adozione", "q": "Quante visite arrivano da telefono e quante da computer?", "calc": "Lettura dello user-agent.", "dec": "Poco: l'app è già pensata per il telefono.", "ut": "Bassa", "met": "L3 · Analytics cookieless di terzi", "dati": "Sì, lo user-agent contribuisce all'impronta del dispositivo.", "eu": "Arancio", "euM": "Come L2, più un nuovo responsabile art. 28 (DPA) che tratta IP/hash giornalieri: restano dati personali per il fornitore (C-413/23 P). A livello UE probabile consenso.", "it": "Giallo", "itM": "Garante 2021: senza consenso solo se il terzo maschera almeno il 4° ottetto dell'IP e non incrocia/cede i dati; nuovo fornitore in informativa.", "obl": "Nuovo fornitore + DPA + informativa; a livello UE probabile consenso: OLTRE SOGLIA.", "coer": "Debole.", "par": "Non misurare", "fase": "Mai", "um": "No", "note": "Vicino al fingerprinting: non serve.", "soglia": "Sì", "lor": "sospeso", "lorD": "Sospesa", "lorNota": "", "risposta": ""}, {"n": 25, "area": "C · Adozione", "q": "Quante persone installano {nome} sulla schermata home?", "calc": "Evento 'installazione' della PWA inviato da script.", "dec": "Se investire nell'esperienza da app.", "ut": "Bassa", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Neutra.", "par": "Non misurare", "fase": "Dopo società / on-grid", "um": "No", "note": null, "soglia": "Sì", "lor": "sospeso", "lorD": "Sospesa", "lorNota": "", "risposta": ""}, {"n": 26, "area": "D · Uso delle sezioni", "q": "Quante volte viene aperta Agorà (demo)?", "calc": "+1 aggregato inviato da script a ogni apertura, senza identificativo.", "dec": "Se c'è interesse sufficiente per aprire l'on-grid.", "ut": "Alta", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito sul fornitore.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Accettabile se solo totali giornalieri.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": "Alternativa preferibile ora: il pulsante volontario della riga 27.", "soglia": "Sì", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Davvero non si riesce ad avvicinarsi alla compliance  in nessun modo per avere questo dato?", "risposta": "Una strada esiste: se il contenuto di Agorà si scaricasse dal sito solo quando la persona apre Agorà, quella richiesta sarebbe necessaria al servizio che ha chiesto (esenzione dell’art. 5(3)), e contarla sul server senza salvare l’IP sarebbe un conteggio di richieste già necessarie. Rischio: se il contenuto si separa apposta per contare, un’autorità può leggerlo come un aggiramento. Da valutare con un professionista."}, {"n": 27, "area": "D · Uso delle sezioni", "q": "Quante persone premono 'Mi interessa, apritela' nella demo di Agorà?", "calc": "Pulsante volontario: un tocco invia solo '+1 Agorà'. Nessuna email, nessun ID.", "dec": "Quando e se aprire le iscrizioni all'on-grid.", "ut": "Alta", "met": "LV · Invio volontario dell'utente (tocco esplicito)", "dati": "IP in transito su Netlify.", "eu": "Verde", "euM": "Art. 5(3): esenzione per il servizio esplicitamente richiesto (l'utente sceglie di inviare). GDPR: l'IP transita su Netlify; informativa art. 13 sul nuovo invio; nessun dato oltre il +1.", "it": "Verde", "itM": "Art. 122: invio richiesto dall'utente. Basta aggiornare l'informativa (oggi dice 'Nessun server').", "obl": "Un endpoint (Netlify Forms o Function): primo pezzo 'server'. Aggiornare l'informativa. Non chiedere email.", "coer": "Piena: è un gesto esplicito, non sorveglianza.", "par": "Misurare ora", "fase": "MVP", "um": "Sì", "note": "Il KPI migliore per le sezioni demo. Non trasformarlo in lista d'attesa con email (oltre soglia). Limitare a un tocco per dispositivo senza salvare nulla è difficile: accettare qualche doppione.", "soglia": "No", "lor": "eliminato", "lorD": "Eliminata: pulsanti tolti dal sito", "lorNota": "", "risposta": "17/11/2026: i pulsanti volontari sono stati tolti dal sito con la voce T-010 del piano di adeguamento (libro mastro, § 2.4; decisioni del 29 e del 30/10/2026)."}, {"n": 28, "area": "D · Uso delle sezioni", "q": "Quante persone premono 'Mi interessa' nella demo di Progetti?", "calc": "Come riga 27, per Progetti.", "dec": "Priorità tra Agorà e Progetti.", "ut": "Alta", "met": "LV · Invio volontario dell'utente (tocco esplicito)", "dati": "IP in transito su Netlify.", "eu": "Verde", "euM": "Art. 5(3): esenzione per il servizio esplicitamente richiesto (l'utente sceglie di inviare). GDPR: l'IP transita su Netlify; informativa art. 13 sul nuovo invio; nessun dato oltre il +1.", "it": "Verde", "itM": "Art. 122: invio richiesto dall'utente. Basta aggiornare l'informativa (oggi dice 'Nessun server').", "obl": "Un endpoint (Netlify Forms o Function): primo pezzo 'server'. Aggiornare l'informativa. Non chiedere email.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "Sì", "note": "Stesso endpoint della riga 27.", "soglia": "No", "lor": "eliminato", "lorD": "Eliminata: pulsanti tolti dal sito", "lorNota": "", "risposta": "17/11/2026: i pulsanti volontari sono stati tolti dal sito con la voce T-010 del piano di adeguamento (libro mastro, § 2.4; decisioni del 29 e del 30/10/2026)."}, {"n": 29, "area": "D · Uso delle sezioni", "q": "Quali strati/categorie vengono accesi?", "calc": "+1 aggregato per strato acceso, giornaliero.", "dec": "Quali categorie curare di più.", "ut": "Media", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Accettabile se aggregato; i gusti dei singoli non devono mai esistere.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": null, "soglia": "Sì", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Io lo implementerei, non capisco perché devo usare l'IP. Mi interessa che viene premuto il tasto mica aggregare il comportamento di un utente. E poi anche in caso, perché è oltre soglia? Mi pare che stiamo tenendo i KPI di dati aggregati", "risposta": "L’IP non lo usiamo noi: viaggia con qualunque messaggio che un telefono manda a un server, come il mittente su una busta. Il nodo è la norma europea sull’accesso al dispositivo (art. 5(3) ePrivacy): se l’app fa partire da sola un messaggio quando tocchi un tasto che serve ad altro (accendere uno strato, aprire il calendario), serve il consenso, anche se poi teniamo solo totali. L’aggregazione risolve il GDPR (nessun dato personale salvato), non l’ePrivacy. Nel «Mi interessa» invece il tocco è proprio la richiesta di mandarci il +1, e vale l’esenzione. In Italia il Garante tratta le statistiche aggregate come strumenti tecnici; a livello UE l’EDPB no: con lo standard UE che hai scelto resta oltre soglia."}, {"n": 30, "area": "D · Uso delle sezioni", "q": "Quanto si usano il calendario e 'La mia giornata'?", "calc": "+1 aggregato all'apertura.", "dec": "Se la vista giornata merita altro sviluppo.", "ut": "Media", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Accettabile.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": "Ora si può capire meglio con test sul campo (riga 44-47).", "soglia": "Sì", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Io lo implementerei, non capisco perché devo usare l'IP. Mi interessa che viene premuto il tasto mica aggregare il comportamento di un utente. E poi anche in caso, perché è oltre soglia? Mi pare che stiamo tenendo i KPI di dati aggregati", "risposta": "L’IP non lo usiamo noi: viaggia con qualunque messaggio che un telefono manda a un server, come il mittente su una busta. Il nodo è la norma europea sull’accesso al dispositivo (art. 5(3) ePrivacy): se l’app fa partire da sola un messaggio quando tocchi un tasto che serve ad altro (accendere uno strato, aprire il calendario), serve il consenso, anche se poi teniamo solo totali. L’aggregazione risolve il GDPR (nessun dato personale salvato), non l’ePrivacy. Nel «Mi interessa» invece il tocco è proprio la richiesta di mandarci il +1, e vale l’esenzione. In Italia il Garante tratta le statistiche aggregate come strumenti tecnici; a livello UE l’EDPB no: con lo standard UE che hai scelto resta oltre soglia."}, {"n": 31, "area": "D · Uso delle sezioni", "q": "Cosa cercano le persone nella barra di ricerca?", "calc": "Testi digitati nella ricerca luoghi/indirizzi.", "dec": "Nessuna che giustifichi il rischio.", "ut": "Bassa", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "Sì: un indirizzo cercato può essere casa propria.", "eu": "Rosso", "euM": "Il contenuto della ricerca può essere un dato personale (indirizzo); art. 5(3) + art. 6 senza base adeguata.", "it": "Rosso", "itM": "Come UE.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Contraria: rivela interessi e luoghi personali.", "par": "Non misurare", "fase": "Mai", "um": "No", "note": "Nota a margine: oggi quei testi vanno già a Photon (komoot) e Nominatim, non dichiarati nell'informativa.", "soglia": "Sì", "lor": "sospeso", "lorD": "Sospesa", "lorNota": "Ricordarsi di mettere nell'informativa la roba di Photon etc", "risposta": "Annotato per la prossima informativa: Photon, Nominatim, Google Fonts, unpkg e cdnjs ricevono l’IP e vanno elencati."}, {"n": 32, "area": "D · Uso delle sezioni", "q": "Quale città scelgono le persone nell'app?", "calc": "+1 aggregato per città selezionata, giornaliero.", "dec": "In quali città promuovere e raccogliere eventi.", "ut": "Alta", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Buona: misura la domanda per città, non le persone.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": "Meglio della geolocalizzazione IP. Nell'MVP si può approssimare con il pulsante 'Vorrei {nome} nella mia città' (volontario).", "soglia": "Sì", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Io lo implementerei, non capisco perché devo usare l'IP. Mi interessa che viene premuto il tasto mica aggregare il comportamento di un utente. E poi anche in caso, perché è oltre soglia? Mi pare che stiamo tenendo i KPI di dati aggregati", "risposta": "Vale la risposta della riga 29. Il pulsante volontario «Vorrei {nome} qui» resta: è una richiesta esplicita della persona, non un conteggio automatico. 17/11/2026: il pulsante è stato tolto dal sito con la voce T-010."}, {"n": 33, "area": "D · Uso delle sezioni", "q": "Quali lingue vengono usate?", "calc": "+1 aggregato per lingua selezionata.", "dec": "Su quali traduzioni investire.", "ut": "Media", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Accettabile.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": null, "soglia": "Sì", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Io lo implementerei, non capisco perché devo usare l'IP. Mi interessa che viene premuto il tasto mica aggregare il comportamento di un utente. E poi anche in caso, perché è oltre soglia? Mi pare che stiamo tenendo i KPI di dati aggregati", "risposta": "L’IP non lo usiamo noi: viaggia con qualunque messaggio che un telefono manda a un server, come il mittente su una busta. Il nodo è la norma europea sull’accesso al dispositivo (art. 5(3) ePrivacy): se l’app fa partire da sola un messaggio quando tocchi un tasto che serve ad altro (accendere uno strato, aprire il calendario), serve il consenso, anche se poi teniamo solo totali. L’aggregazione risolve il GDPR (nessun dato personale salvato), non l’ePrivacy. Nel «Mi interessa» invece il tocco è proprio la richiesta di mandarci il +1, e vale l’esenzione. In Italia il Garante tratta le statistiche aggregate come strumenti tecnici; a livello UE l’EDPB no: con lo standard UE che hai scelto resta oltre soglia."}, {"n": 34, "area": "D · Uso delle sezioni", "q": "Quante persone usano la modalità semplice?", "calc": "+1 aggregato all'attivazione.", "dec": "Investimento in accessibilità.", "ut": "Media", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Accettabile; da non usare per inferire caratteristiche delle persone.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": null, "soglia": "Sì", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Io lo implementerei, non capisco perché devo usare l'IP. Mi interessa che viene premuto il tasto mica aggregare il comportamento di un utente. E poi anche in caso, perché è oltre soglia? Mi pare che stiamo tenendo i KPI di dati aggregati", "risposta": "L’IP non lo usiamo noi: viaggia con qualunque messaggio che un telefono manda a un server, come il mittente su una busta. Il nodo è la norma europea sull’accesso al dispositivo (art. 5(3) ePrivacy): se l’app fa partire da sola un messaggio quando tocchi un tasto che serve ad altro (accendere uno strato, aprire il calendario), serve il consenso, anche se poi teniamo solo totali. L’aggregazione risolve il GDPR (nessun dato personale salvato), non l’ePrivacy. Nel «Mi interessa» invece il tocco è proprio la richiesta di mandarci il +1, e vale l’esenzione. In Italia il Garante tratta le statistiche aggregate come strumenti tecnici; a livello UE l’EDPB no: con lo standard UE che hai scelto resta oltre soglia."}, {"n": 35, "area": "D · Uso delle sezioni", "q": "Quante persone completano la guida iniziale?", "calc": "Aperture della guida vs arrivi all'ultima schermata.", "dec": "Se rifare la guida/tutorial.", "ut": "Media", "met": "L0Q · Ricerca qualitativa volontaria", "dati": "Dei partecipanti ai test.", "eu": "Verde", "euM": "Partecipazione volontaria e informata: consenso art. 6(1)(a) + informativa art. 13 GDPR; nessun accesso al dispositivo dell'utente.", "it": "Verde", "itM": "Consenso e informativa (artt. 13 GDPR, Codice Privacy); conservare i consensi.", "obl": "Informativa e modulo di consenso per i partecipanti; conservare i consensi; non registrare audio se non indispensabile.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Meglio osservarlo in test sul campo con 5-8 persone che contarlo da remoto.", "soglia": "No", "lor": "operativo", "lorD": "Implementare", "lorNota": "", "risposta": "Operativa come misura dei test sul campo: registri quante persone, in un giro di prova, completano la guida senza aiuto. Nessun dato dalle app degli utenti."}, {"n": 36, "area": "E · Off-Grid e PDF", "q": "Quanti eventi Off-Grid vengono creati?", "calc": "+1 aggregato alla conferma, mai il contenuto dell'evento.", "dec": "Se il percorso del tasto + è capito e usato.", "ut": "Alta", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito; il contenuto resta sul dispositivo.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Accettabile solo come totale.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": "Per l'MVP: test sul campo. Il contenuto Off-Grid non deve mai lasciare il telefono.", "soglia": "Sì", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Io lo implementerei, non capisco perché devo usare l'IP. Mi interessa che viene premuto il tasto mica aggregare il comportamento di un utente. E poi anche in caso, perché è oltre soglia? Mi pare che stiamo tenendo i KPI di dati aggregati", "risposta": "L’IP non lo usiamo noi: viaggia con qualunque messaggio che un telefono manda a un server, come il mittente su una busta. Il nodo è la norma europea sull’accesso al dispositivo (art. 5(3) ePrivacy): se l’app fa partire da sola un messaggio quando tocchi un tasto che serve ad altro (accendere uno strato, aprire il calendario), serve il consenso, anche se poi teniamo solo totali. L’aggregazione risolve il GDPR (nessun dato personale salvato), non l’ePrivacy. Nel «Mi interessa» invece il tocco è proprio la richiesta di mandarci il +1, e vale l’esenzione. In Italia il Garante tratta le statistiche aggregate come strumenti tecnici; a livello UE l’EDPB no: con lo standard UE che hai scelto resta oltre soglia."}, {"n": 37, "area": "E · Off-Grid e PDF", "q": "Quante persone abbandonano la creazione di un evento?", "calc": "Avviati vs completati, aggregati.", "dec": "Dove semplificare il form.", "ut": "Media", "met": "L0Q · Ricerca qualitativa volontaria", "dati": "Dei partecipanti ai test.", "eu": "Verde", "euM": "Partecipazione volontaria e informata: consenso art. 6(1)(a) + informativa art. 13 GDPR; nessun accesso al dispositivo dell'utente.", "it": "Verde", "itM": "Consenso e informativa (artt. 13 GDPR, Codice Privacy); conservare i consensi.", "obl": "Informativa e modulo di consenso per i partecipanti; conservare i consensi; non registrare audio se non indispensabile.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Un funnel remoto (L2) a livello UE è Arancio; nei test sul campo lo vedi meglio e senza rischi.", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Tutte le misure volontarie vanno aggregate; teniamole tutte in fase di studio in modo tale da proporle coerentemente", "risposta": "D’accordo: in studio, da proporre insieme alle altre misure volontarie in un’unica richiesta coerente."}, {"n": 38, "area": "E · Off-Grid e PDF", "q": "Quante volte si stampa la giornata in PDF?", "calc": "+1 aggregato alla generazione del PDF.", "dec": "Se mantenere/migliorare la stampa.", "ut": "Bassa", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "IP in transito.", "eu": "Arancio", "euM": "EDPB Linee guida 2/2023 (v2, ott. 2024): uno script che fa inviare un segnale al browser è 'accesso' al dispositivo → art. 5(3). Nella lettura EDPB la misura d'audience non è 'strettamente necessaria' → consenso, salvo esenzioni nazionali (CNIL in Francia: da verificare). Standard UE più severo di quello italiano.", "it": "Giallo", "itM": "Garante, provv. n. 231 del 10.6.2021 (GU 9.7.2021): analytics usati solo per statistiche aggregate su un solo sito, senza identificazione, assimilati ai tecnici → nessun consenso, solo informativa.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Neutra.", "par": "Non misurare", "fase": "Dopo società / on-grid", "um": "No", "note": "Nessuna decisione imminente dipende da questo numero.", "soglia": "Sì", "lor": "studio", "lorD": "in fase di studio", "lorNota": "Io lo implementerei, non capisco perché devo usare l'IP. Mi interessa che viene premuto il tasto mica aggregare il comportamento di un utente. E poi anche in caso, perché è oltre soglia? Mi pare che stiamo tenendo i KPI di dati aggregati", "risposta": "L’IP non lo usiamo noi: viaggia con qualunque messaggio che un telefono manda a un server, come il mittente su una busta. Il nodo è la norma europea sull’accesso al dispositivo (art. 5(3) ePrivacy): se l’app fa partire da sola un messaggio quando tocchi un tasto che serve ad altro (accendere uno strato, aprire il calendario), serve il consenso, anche se poi teniamo solo totali. L’aggregazione risolve il GDPR (nessun dato personale salvato), non l’ePrivacy. Nel «Mi interessa» invece il tocco è proprio la richiesta di mandarci il +1, e vale l’esenzione. In Italia il Garante tratta le statistiche aggregate come strumenti tecnici; a livello UE l’EDPB no: con lo standard UE che hai scelto resta oltre soglia."}, {"n": 39, "area": "E · Off-Grid e PDF", "q": "Quanto si usa l'Ordine delle Fate (link #fate)?", "calc": "Conteggio dei link aperti.", "dec": "Nessuna prima del check legale della funzione.", "ut": "Bassa", "met": "L2 · Contatore aggregato via script (senza ID)", "dati": "Il link contiene un evento cifrato: qualunque conteggio toccherebbe il contenuto.", "eu": "Arancio", "euM": "Non valutabile prima del check legale sulla funzione di condivisione.", "it": "Arancio", "itM": "Come UE.", "obl": "Backend minimo; informativa; valutare registro (art. 30(5) GDPR: esonero solo per trattamenti occasionali). A livello UE probabile banner: OLTRE SOGLIA.", "coer": "Da valutare.", "par": "Non misurare", "fase": "Dopo società / on-grid", "um": "Sì", "note": "Prima serve il check legale da zero sulla funzione (nota infrastruttura, sezione 8).", "soglia": "Sì", "lor": "sospeso", "lorD": "Sospesa", "lorNota": "Fuori dai nostri scopi di ora", "risposta": "D’accordo: sospesa."}, {"n": 40, "area": "F · Qualità tecnica", "q": "Quanto ci mette l'app a caricarsi?", "calc": "Lighthouse/WebPageTest su telefono di prova, a ogni versione.", "dec": "Se alleggerire file, librerie e mappa.", "ut": "Alta", "met": "L0T · Test interno (nessun utente reale)", "dati": "Nessuno.", "eu": "Verde", "euM": "Misura fatta su dispositivi propri, senza utenti: fuori da GDPR e da art. 5(3).", "it": "Verde", "itM": "Nessun interessato coinvolto.", "obl": "Nessuno.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Il file è 0,5-0,7 MB: va tenuto d'occhio a ogni rilascio.", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Voglio capire come è realizzato questo test ", "risposta": "Si usa Lighthouse, lo strumento dentro Chrome (F12 → Lighthouse): carica la pagina simulando un telefono di fascia media su rete 4G lenta e misura dopo quanti secondi compare il primo contenuto. Lo fai tu o lo faccio io sui nostri telefoni: nessun utente coinvolto."}, {"n": 41, "area": "F · Qualità tecnica", "q": "Quanti errori JavaScript capitano agli utenti?", "calc": "Invio automatico degli errori a un servizio (tipo Sentry).", "dec": "Correggere bug che non vedi.", "ut": "Media", "met": "L3 · Analytics cookieless di terzi", "dati": "Sì: IP, browser, a volte dati della pagina.", "eu": "Arancio", "euM": "Come L2, più un nuovo responsabile art. 28 (DPA) che tratta IP/hash giornalieri: restano dati personali per il fornitore (C-413/23 P). A livello UE probabile consenso.", "it": "Giallo", "itM": "Garante 2021: senza consenso solo se il terzo maschera almeno il 4° ottetto dell'IP e non incrocia/cede i dati; nuovo fornitore in informativa.", "obl": "Nuovo fornitore + DPA + informativa; a livello UE probabile consenso: OLTRE SOGLIA.", "coer": "Debole.", "par": "Non misurare", "fase": "Dopo società / on-grid", "um": "No", "note": "Ora: test interni su più telefoni + segnalazioni volontarie (riga 16).", "soglia": "Sì", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Non ho capito cosa misura ed a cosa serve", "risposta": "Misura i guasti del codice che capitano sui telefoni degli utenti (una funzione che si blocca). Servirebbe a correggere bug che noi non vediamo. Richiede un servizio esterno che riceve dati dai telefoni: oltre soglia."}, {"n": 42, "area": "F · Qualità tecnica", "q": "Quante volte la mappa non si carica?", "calc": "Prove periodiche da reti diverse + segnalazioni volontarie.", "dec": "Se cambiare fornitore di mappe o ospitare le librerie in casa.", "ut": "Media", "met": "L0T · Test interno (nessun utente reale)", "dati": "Nessuno.", "eu": "Verde", "euM": "Misura fatta su dispositivi propri, senza utenti: fuori da GDPR e da art. 5(3).", "it": "Verde", "itM": "Nessun interessato coinvolto.", "obl": "Nessuno.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Ospitare in casa font e librerie (oggi da Google Fonts e unpkg) riduce sia i guasti sia gli IP mandati a terzi.", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Non ho capito cosa misura ed a cosa serve", "risposta": "Misura se la mappa riesce a caricarsi su reti e telefoni diversi: le librerie della mappa arrivano da server esterni che alcune reti bloccano. Serve a decidere se ospitare quelle librerie dentro il sito. Si fa con prove nostre."}, {"n": 43, "area": "F · Qualità tecnica", "q": "L'app funziona con rete lenta o assente?", "calc": "Test con throttling del browser.", "dec": "Priorità alla modalità offline.", "ut": "Media", "met": "L0T · Test interno (nessun utente reale)", "dati": "Nessuno.", "eu": "Verde", "euM": "Misura fatta su dispositivi propri, senza utenti: fuori da GDPR e da art. 5(3).", "it": "Verde", "itM": "Nessun interessato coinvolto.", "obl": "Nessuno.", "coer": "Piena: accessibilità.", "par": "Più avanti", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Non ho capito cosa misura ed a cosa serve", "risposta": "Verifica se l’app funziona con connessione lenta o assente, per esempio in metropolitana. Calendario e Off-Grid funzionano già senza rete perché stanno sul telefono; mappa e PDF no. Serve a decidere se investire in una modalità senza rete. Prove nostre."}, {"n": 44, "area": "G · Impatto e qualitativo", "q": "Le persone scoprono eventi che non conoscevano?", "calc": "Domanda in interviste o in un sondaggio volontario anonimo.", "dec": "Prova della mission (asimmetria informativa); argomento per Smart&Start.", "ut": "Alta", "met": "L0Q · Ricerca qualitativa volontaria", "dati": "Dei partecipanti, con consenso.", "eu": "Verde", "euM": "Partecipazione volontaria e informata: consenso art. 6(1)(a) + informativa art. 13 GDPR; nessun accesso al dispositivo dell'utente.", "it": "Verde", "itM": "Consenso e informativa (artt. 13 GDPR, Codice Privacy); conservare i consensi.", "obl": "Informativa e modulo di consenso per i partecipanti; conservare i consensi; non registrare audio se non indispensabile.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Hai già un metodo (interviste trascritte e analizzate): ripeterlo dopo il lancio.", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Tutte le misure volontarie vanno aggregate; teniamole tutte in fase di studio in modo tale da proporle coerentemente", "risposta": "D’accordo: in studio, da proporre insieme alle altre misure volontarie."}, {"n": 45, "area": "G · Impatto e qualitativo", "q": "Le persone sono andate davvero a un evento trovato su {nome}?", "calc": "Domanda in intervista o sondaggio volontario.", "dec": "Impatto reale sulla partecipazione.", "ut": "Alta", "met": "L0Q · Ricerca qualitativa volontaria", "dati": "Dei partecipanti, con consenso.", "eu": "Verde", "euM": "Partecipazione volontaria e informata: consenso art. 6(1)(a) + informativa art. 13 GDPR; nessun accesso al dispositivo dell'utente.", "it": "Verde", "itM": "Consenso e informativa (artt. 13 GDPR, Codice Privacy); conservare i consensi.", "obl": "Informativa e modulo di consenso per i partecipanti; conservare i consensi; non registrare audio se non indispensabile.", "coer": "Piena.", "par": "Misurare ora", "fase": "MVP", "um": "No", "note": "Non reintrodurre 'Ci vado' nell'app: era stato tolto per motivi legali.", "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Tutte le misure volontarie vanno aggregate; teniamole tutte in fase di studio in modo tale da proporle coerentemente", "risposta": "D’accordo: in studio, da proporre insieme alle altre misure volontarie."}, {"n": 46, "area": "G · Impatto e qualitativo", "q": "{nome} riduce la sensazione di solitudine?", "calc": "Questionario validato (es. scala breve sulla solitudine), prima/dopo.", "dec": "Impatto sociale per bandi e Report della Città.", "ut": "Alta", "met": "L0Q · Ricerca qualitativa volontaria", "dati": "Sì, e potenzialmente dati sulla salute (benessere psicologico).", "eu": "Arancio", "euM": "Possibili dati di categoria particolare (art. 9 GDPR): consenso esplicito, garanzie, probabile DPIA.", "it": "Arancio", "itM": "Come UE; Codice Privacy e regole deontologiche per la ricerca scientifica.", "obl": "Consenso esplicito art. 9(2)(a), DPIA probabile, partner di ricerca.", "coer": "Piena come fine, delicata come mezzo.", "par": "Più avanti", "fase": "Dopo società / on-grid", "um": "Sì", "note": "Un questionario sulla solitudine può toccare dati sulla salute (art. 9 GDPR). Da fare con un partner universitario e il suo comitato etico.", "soglia": "Sì", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Tutte le misure volontarie vanno aggregate; teniamole tutte in fase di studio in modo tale da proporle coerentemente", "risposta": "D’accordo: in studio. In più qui servono il consenso esplicito e un partner di ricerca (possibili dati sulla salute, art. 9 GDPR)."}, {"n": 47, "area": "G · Impatto e qualitativo", "q": "Le persone consiglierebbero {nome}?", "calc": "Domanda 0-10 in sondaggio volontario.", "dec": "Qualità percepita; confronto tra versioni.", "ut": "Media", "met": "L0Q · Ricerca qualitativa volontaria", "dati": "Dei partecipanti, con consenso.", "eu": "Verde", "euM": "Partecipazione volontaria e informata: consenso art. 6(1)(a) + informativa art. 13 GDPR; nessun accesso al dispositivo dell'utente.", "it": "Verde", "itM": "Consenso e informativa (artt. 13 GDPR, Codice Privacy); conservare i consensi.", "obl": "Informativa e modulo di consenso per i partecipanti; conservare i consensi; non registrare audio se non indispensabile.", "coer": "Piena.", "par": "Più avanti", "fase": "MVP", "um": "No", "note": null, "soglia": "No", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Tutte le misure volontarie vanno aggregate; teniamole tutte in fase di studio in modo tale da proporle coerentemente", "risposta": "D’accordo: in studio, da proporre insieme alle altre misure volontarie."}, {"n": 48, "area": "H · Esclusi per principio", "q": "Quanto tempo passano le persone nell'app?", "calc": "Durata delle sessioni.", "dec": "Nessuna compatibile con {nome}.", "ut": "Bassa", "met": "L3 · Analytics cookieless di terzi", "dati": "Sì.", "eu": "Arancio", "euM": "Come L2, più un nuovo responsabile art. 28 (DPA) che tratta IP/hash giornalieri: restano dati personali per il fornitore (C-413/23 P). A livello UE probabile consenso.", "it": "Giallo", "itM": "Garante 2021: senza consenso solo se il terzo maschera almeno il 4° ottetto dell'IP e non incrocia/cede i dati; nuovo fornitore in informativa.", "obl": "Nuovo fornitore + DPA + informativa; a livello UE probabile consenso: OLTRE SOGLIA.", "coer": "Contraria al principio anti-dipendenza: premierebbe il design che trattiene.", "par": "Non misurare", "fase": "Mai", "um": "No", "note": "{nome} funziona se le persone escono e vanno all'evento, non se restano sullo schermo.", "soglia": "Sì", "lor": "studio", "lorD": "In fase di studio", "lorNota": "Proprio per evitare che le persone stiano molto tempo nell'app, bisogna capire quanto tempo passano dentro l'app", "risposta": "Ottimo punto, coerente con l’anti-dipendenza: misurare per tenere basso il tempo. Due strade: solo sul telefono, mostrato alla persona come il «Tempo di utilizzo» di Android (nessun invio, utile anche a lei); oppure totali per noi, con lo stesso nodo ePrivacy delle misure automatiche. Per lo studio propongo la prima, più eventualmente una risposta volontaria."}, {"n": 49, "area": "H · Esclusi per principio", "q": "Quante volte la stessa persona torna (retention, DAU/MAU)?", "calc": "Richiede un identificativo persistente per persona.", "dec": "Nessuna compatibile.", "ut": "Bassa", "met": "L4 · Tracciamento individuale", "dati": "Sì: identificativo persistente.", "eu": "Rosso", "euM": "Identificativo persistente o profilazione: consenso art. 5(3) e art. 6(1)(a), probabile DPIA art. 35, registro art. 30. Escluso.", "it": "Rosso", "itM": "Consenso con banner a pulsanti paritari (Garante 2021), registro, DPIA. Escluso.", "obl": "Consenso, banner, registro, DPIA: ESCLUSO.", "coer": "Contraria: metrica di engagement.", "par": "Non misurare", "fase": "Mai", "um": "No", "note": null, "soglia": "Sì", "lor": "sospeso", "lorD": "Sospesa", "lorNota": "", "risposta": ""}, {"n": 50, "area": "H · Esclusi per principio", "q": "Dove cliccano le persone sulla mappa (heatmap)?", "calc": "Coordinate di ogni tocco inviate al server.", "dec": "Nessuna che giustifichi il rischio.", "ut": "Bassa", "met": "L4 · Tracciamento individuale", "dati": "Sì: i punti toccati rivelano interessi e luoghi personali.", "eu": "Rosso", "euM": "Identificativo persistente o profilazione: consenso art. 5(3) e art. 6(1)(a), probabile DPIA art. 35, registro art. 30. Escluso.", "it": "Rosso", "itM": "Consenso con banner a pulsanti paritari (Garante 2021), registro, DPIA. Escluso.", "obl": "Consenso, banner, registro, DPIA: ESCLUSO.", "coer": "Contraria: profilazione geografica.", "par": "Non misurare", "fase": "Mai", "um": "No", "note": "Già escluso nello studio DEV 3.", "soglia": "Sì", "lor": "sospeso", "lorD": "Sospesa", "lorNota": "", "risposta": ""}];
-/* nome e casella dalla configurazione */
-MZ_KPI.forEach(k => Object.keys(k).forEach(c => { if(typeof k[c]==='string') k[c] = k[c].split('{nome}').join(NOME).split('{casella}').join(CASELLA); }));
-
-/* ======================= Misure (solo admin): si misura la città, non le persone =======================
-   Tranche 1 (6 ottobre 2026). Tutto resta sul telefono dell'admin, nella chiave red_misure:
-   - totali del giorno calcolati dagli eventi on-grid (mai copia degli eventi: l'informativa promette che spariscono 3 ore dopo la fine);
-   - numeri inseriti a mano (richieste da Netlify, azioni di comunicazione, rimozioni, segnalazioni, test, interviste);
-   - soglie, stato delle decisioni, decisioni sul catalogo delle 50 domande.
-   Nessun dato degli utenti, nessuna rete. I pulsanti volontari «Mi interessa» della seconda tranche sono stati tolti con T-010. */
-let MZ = null;
-function mz(){
-  if(MZ) return MZ;
-  const d = MEM.leggi('red_misure', null) || {};
-  MZ = Object.assign({v:1, giorni:{}, visti:{}, creati:{}, richieste:{}, azioni:[], rimozioni:[], segnalazioni:{}, correzioni:{}, versioni:[], prove:[], giri:[], rete:{},
-    soglie:{}, stati:{}, mie:{}}, d);
-  MZ.soglie = Object.assign({zona:2, nuovi:50, carico:3}, MZ.soglie||{}); delete MZ.soglie.interesse;   /* soglia dei pulsanti volontari, tolta con T-010 */
-  /* le soglie sono numeri positivi: un valore diverso nella memoria del telefono torna a quello di partenza (T-024) */
-  Object.entries({zona:2, nuovi:50, carico:3}).forEach(([k,v]) => { const n = Number(MZ.soglie[k]); MZ.soglie[k] = isFinite(n) && n>0 ? n : v; });
-  return MZ;
-}
-function mzSalva(){ if(!MEM.scrivi('red_misure', MZ)) avviso(tr('Spazio esaurito sul telefono: esporta le misure in Excel.'), null, true); }
-const MS = {scheda:'panoramica', periodo:30, ambito:'tutte', filtroCat:'operativo', sezLib:'', vista:{}};
-
-/* ---------- Libreria delle misure: ogni domanda del catalogo ha uno stato e, se operativa, si accende e spegne ----------
-   stati: operativo (si vede nella sua sezione se è accesa) · studio · sospeso · eliminato */
-const HA_PANNELLO = new Set([1,2,3,4,5,6,7,8,9,10,11,13,15,16,17,18,20,35,37,40,42,43,44,45,47]);   /* 27, 28 e 32 (pulsanti volontari) tolti con T-010 */
-const SEZ_DI_AREA = {A:'offerta', B:'rete', C:'accessi', D:'accessi', E:'accessi', F:'qualita', G:'impatto', H:'panoramica'};
-const SEZ_KPI = {35:'impatto', 37:'impatto'};   /* misure dei test sul campo: il loro pannello sta in Impatto */
-const sezioneKpi = k => SEZ_KPI[k.n] || SEZ_DI_AREA[(k.area||'').trim().charAt(0)] || 'panoramica';
-const STATI_LIB = {operativo:'Operativa', segnaposto:'Spazio pronto', studio:'In studio', rimandato:'Fase 2', sospeso:'Sospesa', eliminato:'Eliminata'};
-const STATO_CLS = {operativo:'ok', segnaposto:'warn', studio:'neu', rimandato:'neu', sospeso:'crit', eliminato:'crit'};
-const statoDaDecisione = d => d==='Misurare ora' ? 'operativo' : d==='Più avanti' ? 'studio' : d==='Non misurare' ? 'eliminato' : d==='Da discutere' ? 'sospeso' : null;
-function libStato(n){
-  const m = mz(), x = (m.lib||{})[n]; if(x && x.stato) return x.stato;
-  const k = MZ_KPI.find(y => y.n==n); if(!k) return 'studio';
-  return k.lor || statoDaDecisione(k.par) || 'studio';   /* decisione di Lorenzo nel file del 6 ottobre */
-}
-const libVisibile = n => { const x = (mz().lib||{})[n]; return !x || x.visibile!==false; };
-const on = n => libStato(n)==='operativo' && libVisibile(n) && HA_PANNELLO.has(n);
-const pronto = n => libStato(n)==='segnaposto' && libVisibile(n);
-const kpiDi = n => MZ_KPI.find(k => k.n==n);
-function perchePronto(n){ const k = kpiDi(n); return k && k.risposta ? k.risposta.replace(/^Spazio pronto e vuoto, come hai chiesto\. /,'') : tr('In studio: si accende quando sarà chiaro come farlo restando conformi.'); }
-function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.assign({}, m.lib[n]||{}, campi, {agg:oggi()}); mzSalva(); }
-
-/* ---------- quale evento conta ---------- */
-const mzReale = e => e && typeof e==='object' && !e.personal && !e.offgrid && e.datetime && isFinite(+e.lat) && isFinite(+e.lng);
-function mzEventi(){ return events.filter(e => mzReale(e)).filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
-function cittaDi(e){
-  let best = 'altro', bd = 1e9; const la = +e.lat, ln = +e.lng;
-  CITTA.forEach(c => {
-    if(c.bounds){ const [[w,s],[E,n]] = c.bounds; if(ln>=w && ln<=E && la>=s && la<=n){ bd = 0; best = c.id; } return; }
-    const d = Math.hypot(la-c.center[0], (ln-c.center[1])*Math.cos(c.center[0]*Math.PI/180))*111;
-    if(d<bd){ bd = d; best = c.id; }
-  });
-  return bd<=35 ? best : 'altro';
-}
-const nomeCitta = id => (CITTA.find(c => c.id===id)||{n:tr('Altrove')}).n;
-const zonaDi = e => (QUARTIERI.find(q => +e.lat>=q.la[0] && +e.lat<q.la[1] && +e.lng>=q.ln[0] && +e.lng<q.ln[1])||{}).n || null;
-function creatoDi(e){
-  if(e.creato){ const t = Date.parse(e.creato); if(!isNaN(t)) return t; }
-  const id = String(e.id||''); let m;
-  if(/^\d{12,14}$/.test(id)) return +id;
-  if((m = id.match(/^x([0-9a-z]{8})/))){ const t = parseInt(m[1],36); if(t>1.5e12 && t<4e12) return t; }
-  return null;
-}
-const gratuitoMz = e => /^(gratuit|gratis|free|ingresso libero|libero|offerta libera|0\s*€?$)/i.test(String(e.price||'').trim());
-const FASCE_MZ = [['mattina','Mattina',6,12],['pomeriggio','Pomeriggio',12,18],['sera','Sera',18,23],['notte','Notte',23,30]];
-const fasciaDi = h => (FASCE_MZ.find(f => (h>=f[2] && h<f[3]) || (h+24>=f[2] && h+24<f[3]))||FASCE_MZ[3])[0];
-
-/* ---------- la fotografia del giorno: solo totali ---------- */
-function mzFotografa(){
-  const m = mz(), g = oggi(), L = events.filter(e => mzReale(e));
-  const per = f => { const o = {}; L.forEach(e => { const k = f(e); if(k!=null) o[k] = (o[k]||0)+1; }); return o; };
-  m.giorni[g] = {tot:L.length, citta:per(cittaDi), strati:per(e => e.category||'?'), prov:per(e => e.provenienza||'nd'), imp:L.filter(e => e.importato).length, grat:L.filter(gratuitoMz).length};
-  L.forEach(e => { if(m.visti[e.id]) return; const c = creatoDi(e), gc = c ? ymd(new Date(c)) : g; m.visti[e.id] = gc; m.creati[gc] = (m.creati[gc]||0)+1; });
-  const lim = piuGiorni(g,-120); Object.keys(m.visti).forEach(id => { if(m.visti[id]<lim) delete m.visti[id]; });
-  const limG = piuGiorni(g,-400); Object.keys(m.giorni).forEach(k => { if(k<limG) delete m.giorni[k]; });
-  mzSalva();
-}
-function misureConta(tipo){ if(!st.admin) return; const m = mz(), g = oggi(); m.correzioni[g] = m.correzioni[g]||{c:0, r:0}; m.correzioni[g][tipo==='rimossi'?'r':'c']++; mzSalva(); }
-
-/* ---------- periodi ---------- */
-const mzGiorni = n => { const out = [], g = oggi(); for(let i=n-1;i>=0;i--) out.push(piuGiorni(g,-i)); return out; };
-/* i conteggi sono numeri: un valore della memoria del telefono che non lo è vale zero (T-024) */
-const numMz = x => { const n = Number(x); return isFinite(n) ? n : 0; };
-const somma = (o, giorni, f) => giorni.reduce((s,g) => s + (o && o[g]!=null ? numMz(f ? f(o[g]) : o[g]) : 0), 0);
-const nf = n => n==null ? '–' : Number(n).toLocaleString('it-IT');
-const n1 = x => String(Math.round(x*10)/10).replace('.',',');
-const brevD = s => dIso(s).toLocaleDateString(dloc(), {day:'numeric', month:'short'}).replace('.','');
-const lungD = s => dIso(s).toLocaleDateString(dloc(), {weekday:'short', day:'numeric', month:'short'}).replace(/\./g,'');
-function nuoviIn(giorni){ return somma(mz().creati, giorni); }
-function serieAttivi(giorni){ const m = mz(); return giorni.map(g => { const x = m.giorni[g]; if(!x) return null; return MS.ambito==='tutte' ? x.tot : (x.citta||{})[citta]||0; }); }
-
-/* ---------- indicatori ---------- */
-function zoneConteggio(L){
-  const da = Date.now(), a = da + 7*864e5, o = {}; QUARTIERI.forEach(q => o[q.n] = 0);
-  L.forEach(e => { const t = new Date(e.datetime).getTime(); if(t<da-864e5 || t>a) return; const z = zonaDi(e); if(z) o[z]++; });
-  return o;
-}
-function mzStato(){
-  const m = mz(), L = mzEventi(), g7 = mzGiorni(7), gP = mzGiorni(MS.periodo);
-  const torino = L.filter(e => cittaDi(e)==='torino');
-  const zone = zoneConteggio(torino), sotto = QUARTIERI.filter(q => zone[q.n] < m.soglie.zona);
-  const prov = {consenso:0, pubblica:0, nd:0}; L.forEach(e => prov[e.provenienza==='consenso'?'consenso':e.provenienza==='pubblica'?'pubblica':'nd']++);
-  const conCreato = L.map(e => [e, creatoDi(e)]).filter(x => x[1]);
-  const anticipo = conCreato.length ? conCreato.reduce((s,[e,c]) => s + Math.max(0, new Date(e.datetime).getTime()-c), 0)/conCreato.length/864e5 : null;
-  const nuovi7 = nuoviIn(g7), nuoviP = nuoviIn(gP);
-  const corr = somma(m.correzioni, gP, x => (x.c||0)+(x.r||0));
-  const ric = gP.map(g => m.richieste[g]).filter(v => v!=null);
-  return {L, zone, sotto, prov, anticipo, nuovi7, nuoviP, corr, ric, mediaRic: ric.length ? Math.round(ric.reduce((a,b)=>a+b,0)/ric.length) : null,
-    qualita: nuoviP ? corr/nuoviP*100 : null, segn: somma(m.segnalazioni, gP), grat: L.length ? Math.round(L.filter(gratuitoMz).length/L.length*100) : null,
-    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, events.filter(e => mzReale(e) && cittaDi(e)===c.id).length])};
-}
-function effettoAzione(a){
-  const m = mz(), media = arr => { const v = arr.filter(x => x!=null); return v.length>=2 ? v.reduce((p,q)=>p+q,0)/v.length : null; };
-  const prima = media([1,2,3].map(k => m.richieste[piuGiorni(a.d,-k)])), dopo = media([0,1,2].map(k => m.richieste[piuGiorni(a.d,k)]));
-  return prima && dopo ? Math.round((dopo/prima-1)*100) : null;
-}
-const oreTra = (a,b) => { const x = Date.parse(a), y = Date.parse(b); return isNaN(x)||isNaN(y) ? null : Math.max(0, Math.round((y-x)/36e5)); };
-
-function decisioniMz(S){
-  const m = mz(), out = [];
-  const firma = (id, s) => id+'|'+s;
-  if(S.L.some(e => cittaDi(e)==='torino') && S.sotto.length) out.push({id:firma('zone', S.sotto.map(q=>q.n).join(',')), liv:'crit', st:tr('Da fare'),
-    tit: S.sotto.length===1 ? tr('Una zona di Torino resta sotto {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}) : tr('{n} zone di Torino restano sotto {s} eventi nei prossimi 7 giorni',{n:S.sotto.length, s:m.soglie.zona}),
-    perche: S.sotto.slice(0,8).map(q => q.n+' ('+S.zone[q.n]+')').join(', ')+(S.sotto.length>8?'…':'')+'. '+tr('Lì la mappa sembra vuota: è l’asimmetria informativa che {nome} vuole ridurre.'),
-    azione: tr('Cerca fonti in quelle zone: biblioteche, circoli, parrocchie, spazi associativi.'), kpi:[5,12]});
-  const vuote = CITTA.filter(c => !events.some(e => mzReale(e) && cittaDi(e)===c.id));
-  if(vuote.length) out.push({id:firma('citta', vuote.map(c=>c.id).join(',')), liv:'warn', st:tr('Da valutare'), tit: tr('Città senza eventi: {c}',{c:vuote.map(c=>c.n).join(', ')}),
-    perche: tr('Chi sceglie una di queste città trova la mappa vuota.'), azione: tr('Scegli la prossima città da riempire, anche con l’import dai siti dei Comuni.'), kpi:[3,10]});
-  if(S.nuovi7 < m.soglie.nuovi) out.push({id:firma('ritmo', oggi()), liv:'warn', st:tr('Sotto obiettivo'), tit: tr('{n} eventi nuovi negli ultimi 7 giorni (obiettivo {o})',{n:S.nuovi7, o:m.soglie.nuovi}),
-    perche: tr('Il ritmo di raccolta decide quanto la mappa resta viva.'), azione: tr('Riprendi la lista delle fonti o prova un nuovo import.'), kpi:[2,10]});
-  const tot = S.prov.consenso+S.prov.pubblica+S.prov.nd;
-  if(tot && S.prov.nd/tot > .5) out.push({id:firma('prov', String(Math.round(S.prov.nd/tot*10))), liv:'warn', st:tr('Da fare'), tit: tr('Per {p} % degli eventi manca la provenienza',{p:Math.round(S.prov.nd/tot*100)}),
-    perche: tr('Senza provenienza non si vede quanta parte dell’offerta ha il consenso diretto dell’organizzatore, la base giuridica più solida.'), azione: tr('Indica la provenienza nel form dell’evento o nella colonna «Provenienza» dell’Excel.'), kpi:[6]});
-  const lente = m.rimozioni.filter(r => { const h = oreTra(r.ric, r.eva); return h!=null && h>48; });
-  if(lente.length) out.push({id:firma('48h', lente.length), liv:'crit', st:tr('Da fare'), tit: tr('{n} richieste di rimozione evase dopo 48 ore',{n:lente.length}),
-    perche: tr('L’informativa promette la rimozione entro 48 ore.'), azione: tr('Controlla la casella {casella} più spesso.',{casella:CASELLA}), kpi:[15]});
-  if(m.richieste[oggi()]==null) out.push({id:firma('netlify', oggi()), liv:'neu', st:tr('Promemoria'), tit: tr('Manca il numero di oggi da Netlify'),
-    perche: tr('Sul piano gratuito Netlify tiene i numeri solo 24 ore: un giorno saltato resta un buco.'), azione: tr('Copialo in «Accessi».'), kpi:[18], vai:'accessi'});
-  const v = m.versioni[m.versioni.length-1];
-  if(v && v.s > m.soglie.carico) out.push({id:firma('peso', v.v), liv:'warn', st:tr('Da fare'), tit: tr('{v} carica in {s} s (obiettivo {o} s)',{v:v.v, s:n1(v.s), o:n1(m.soglie.carico)}),
-    perche: tr('Pesano font e librerie caricati da fuori.'), azione: tr('Ospita in casa font e librerie: più veloce, e nessun IP mandato a Google o unpkg.'), kpi:[40,42]});
-  const az = m.azioni.slice().reverse().find(a => effettoAzione(a)!=null);
-  if(az){ const e = effettoAzione(az); out.push({id:firma('az', az.d+az.t), liv: e>=10 ? 'ok' : 'neu', st: e>=10 ? tr('Funziona') : tr('Effetto debole'),
-    tit: tr('«{t}» del {d}: richieste {e} %',{t:az.t, d:brevD(az.d), e:(e>=0?'+':'')+e}), perche: tr('Confronto per data: tre giorni prima e tre giorni dopo. Nessun link tracciato, nessun parametro nell’indirizzo.'),
-    azione: e>=10 ? tr('Ripeti il canale e confronta di nuovo.') : tr('Prova un canale diverso.'), kpi:[20]}); }
-  return out.filter(d => mz().stati[d.id]!=='fatto');
-}
-
-/* ---------- pezzi grafici ---------- */
-const mzIco = {
-  indietro:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M11 3 5 9l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  info:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.4"/><path d="M9 8v4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="5.6" r=".9" fill="currentColor"/></svg>',
-  lucchetto:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" stroke-width="1.4"/></svg>',
-  avviso:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2 1.5 13.5h13L8 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.5v3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".85" fill="currentColor"/></svg>',
-  su:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5 9 7.5H1Z" fill="currentColor"/></svg>',
-  giu:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5 1 2.5h8Z" fill="currentColor"/></svg>',
-  avanti:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  x:'<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m3.5 3.5 7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
-};
-const FONTI_MZ = {ev:'Dagli eventi', man:'Da Netlify, a mano', test:'Test interno', int:'Interviste', mail:'Dalla posta', reg:'Registro a mano'};
-const fonteMz = k => `<span class="mz-fonte mz-f-${k}">${tr(FONTI_MZ[k])}</span>`;
-const righeBtn = (k, l) => `<button class="mz-fonte" data-mz="kpiset" data-k="${k.join(',')}" data-l="${esc(l)}">${k.length>1?tr('righe'):tr('riga')} ${k.join(', ')}</button>`;
-function mzTile(lab, val, det, fonte, metro, warn, kpi){
-  if(pronto(kpi[0])) return `<button class="mz-tile mz-tile-attesa" data-mz="kpi" data-n="${kpi[0]}"><span class="mz-lab">${lab}</span><span class="mz-val">–</span><span class="mz-det">${tr('Spazio pronto, in studio. Tocca per sapere perché.')}</span><span class="mz-stato warn">${tr('Spazio pronto')}</span></button>`;
-  if(!on(kpi[0])) return '';
-  return `<button class="mz-tile" data-mz="kpiset" data-k="${kpi.join(',')}" data-l="${esc(lab)}"><span class="mz-lab">${lab}</span><span class="mz-val">${val}</span>${metro!=null?`<span class="mz-metro${warn?' warn':''}" aria-hidden="true"><i style="width:${metro>0?Math.max(2,Math.round(Math.min(1,metro)*100)):0}%"></i></span>`:''}<span class="mz-det">${det}</span>${fonteMz(fonte)}</button>`;
-}
-function mzBox(id, tit, corpo, tab, fonte, kpi){
-  if(pronto(kpi[0])) return `<section class="mz-box mz-pronto"><div class="mz-btesta"><div><div class="mz-btit">${tit}</div><div class="mz-etich"><span class="mz-stato warn">${tr('Spazio pronto · in studio')}</span>${righeBtn(kpi.slice(0,1), tit)}</div></div></div><p class="mz-perche">${esc(perchePronto(kpi[0]))}</p></section>`;
-  if(!on(kpi[0])) return '';
-  const t = MS.vista[id]==='tab' && tab;
-  return `<section class="mz-box" aria-labelledby="mzg-${id}"><div class="mz-btesta"><div><div class="mz-btit" id="mzg-${id}">${tit}</div><div class="mz-etich">${fonteMz(fonte)}${righeBtn(kpi, tit)}</div></div>${tab?`<button class="mz-vista" data-mz="vista" data-v="${id}">${t?tr('Grafico'):tr('Tabella')}</button>`:''}</div>${t?tab:corpo}</section>`;
-}
-const bloccataMzVecchia = (n, t, why) => `<button class="mz-bloccata" data-mz="kpi" data-n="${n}"><span class="mz-tondo">${mzIco.lucchetto}</span><span><b>${t}</b><span class="meta">${why}</span><span class="meta mz-sottolineato">${tr('Riga {n} del catalogo',{n})}</span></span></button>`;
-const bloccataMz = () => '';
-function studioSezioneMz(sez){
-  const L = MZ_KPI.filter(k => sezioneKpi(k)===sez), st0 = L.filter(k => ['studio','sospeso','rimandato'].includes(libStato(k.n))).length, spente = L.filter(k => libStato(k.n)==='operativo' && HA_PANNELLO.has(k.n) && !libVisibile(k.n)).length;
-  if(!st0 && !spente) return '';
-  return `<button class="mz-bloccata" data-mz="scheda" data-v="libreria" data-f="${st0?'studio':'operativo'}" data-sez="${sez}"><span class="mz-tondo">${mzIco.lucchetto}</span><span><b>${[st0?(st0===1?tr('1 misura di questa sezione è in studio, sospesa o in Fase 2'):tr('{n} misure di questa sezione sono in studio, sospese o in Fase 2',{n:st0})):'', spente?(spente===1?tr('1 operativa nascosta da te'):tr('{n} operative nascoste da te',{n:spente})):''].filter(Boolean).join(' · ')}</b><span class="meta mz-sottolineato">${tr('Apri la libreria')}</span></span></button>`;
-}
-const vuotoMz = t => `<p class="mz-nota">${t}</p>`;
-function hbarMz(items, col){
-  const max = Math.max(1, ...items.map(x => x[1]));
-  return `<div class="mz-hbar">${items.map(([k,v]) => `<span class="mz-nome">${esc(k)}</span><span class="mz-riga"><span class="mz-barra${v===0?' zero':''}" style="width:${v===0?0:Math.max(2,v/max*78)}%;${col?'background:'+col:''}"></span><span class="mz-v${v===0?' vuota':''}">${v===0?tr('vuota'):nf(v)}</span></span>`).join('')}</div>`;
-}
-const LINEE_MZ = {};
-function niceStepMz(mx){ const raw = Math.max(1,mx)/4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw/p; return Math.max(1,(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p); }
-function lineaMz(id, serie, giorni, opt){
-  opt = opt||{};
-  const W = 360, H = 190, pl = 44, pr = 10, pt = 14, pb = 24, n = giorni.length;
-  const vals = serie.flatMap(s => s.v).filter(v => v!=null);
-  if(!vals.length) return vuotoMz(opt.vuoto || tr('Ancora nessun dato in questo periodo.'));
-  const step = niceStepMz(Math.max(...vals)), mx = Math.ceil(Math.max(...vals)/step)*step || step;
-  const x = i => pl + (W-pl-pr)*(n===1 ? .5 : i/(n-1)), y = v => pt + (H-pt-pb)*(1 - v/mx);
-  LINEE_MZ[id] = {serie, giorni, W, H, pl, pr, pt, x, azioni:opt.azioni||[]};
-  let o = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(serie.map(s => s.nome).join(', '))}" data-mzline="${id}" style="touch-action:pan-y">`;
-  for(let v=0; v<=mx; v+=step) o += `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" class="mz-griglia"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${nf(v)}</text>`;
-  const tick = n<=8 ? 1 : n<=31 ? 7 : 21;
-  for(let i=n-1; i>=0; i-=tick) o += `<text x="${x(i)}" y="${H-6}" text-anchor="${i===n-1?'end':i===0?'start':'middle'}">${brevD(giorni[i])}</text>`;
-  (opt.azioni||[]).forEach(a => { o += `<line x1="${x(a.i)}" x2="${x(a.i)}" y1="${pt}" y2="${H-pb}" class="mz-az"/><circle cx="${x(a.i)}" cy="${pt}" r="4" class="mz-az-p"/>`; });
-  serie.forEach(s => {
-    let d = '', pen = false; s.v.forEach((v,i) => { if(v==null){ pen = false; return; } d += `${pen?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; });
-    if(serie.length===1 && !s.v.some(v => v==null) && n>1) o += `<path d="M${x(0)},${y(0)}L${s.v.map((v,i) => x(i).toFixed(1)+','+y(v).toFixed(1)).join('L')}L${x(n-1)},${y(0)}Z" fill="${s.col}" opacity=".1"/>`;
-    o += `<path d="${d}" fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    s.v.forEach((v,i) => { const solo = v!=null && (i===0 || s.v[i-1]==null) && (i===n-1 || s.v[i+1]==null); if(solo) o += `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${s.col}"/>`; });
-    let li = s.v.length-1; while(li>0 && s.v[li]==null) li--;
-    if(s.v[li]!=null) o += `<circle cx="${x(li)}" cy="${y(s.v[li])}" r="4" fill="${s.col}" class="mz-anello"/>`;
-  });
-  o += `<line class="mz-mirino" x1="0" x2="0" y1="${pt}" y2="${H-pb}" opacity="0"/><rect x="${pl}" y="${pt}" width="${W-pl-pr}" height="${H-pt-pb}" fill="transparent"/></svg>`;
-  return o;
-}
-function tabLineaMz(serie, giorni){
-  return `<div class="mz-scorri" style="max-height:280px"><table class="mz-tab"><tr><th>${tr('Giorno')}</th>${serie.map(s => `<th class="n">${esc(s.nome)}</th>`).join('')}</tr>${giorni.map((g,i) => `<tr><td>${lungD(g)}</td>${serie.map(s => `<td class="n">${s.v[i]==null?`<span class="meta">${tr('nessun dato')}</span>`:nf(s.v[i])}</td>`).join('')}</tr>`).reverse().join('')}</table></div>`;
-}
-const decCls = l => ({crit:'crit', warn:'warn', ok:'ok', neu:'neu'})[l]||'neu';
-
-/* ---------- schede ---------- */
-const SCHEDE_MZ = [['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi'],['qualita','Qualità'],['impatto','Impatto'],['libreria','Libreria · 50']];
-const PER_MZ = {7:'7 giorni', 30:'30 giorni', 90:'3 mesi'};
-function disegnaMisure(){
-  const el = $('pagina-misure'); if(!el) return;
-  const y = el.scrollTop;
-  const conFiltri = MS.scheda!=='libreria';
-  const ambito = MS.ambito==='tutte' ? tr('Tutte le città') : nomeCitta(citta);
-  el.innerHTML = `<div class="mz-testa">
-      <div class="mz-barra-t"><button class="mz-icona" data-mz="esci" aria-label="${esc(tr('Torna all’admin'))}">${mzIco.indietro}</button><h1>${tr('Misure')}</h1>
-        <button class="mz-chip" data-mz="ambito" aria-label="${esc(tr('Cambia ambito: {a}',{a:ambito}))}"><span>${esc(ambito)}</span></button>
-        <button class="mz-icona" data-mz="fonti" aria-label="${esc(tr('Da dove vengono i numeri'))}">${mzIco.info}</button></div>
-      ${conFiltri?`<div class="seg mz-periodo" role="group" aria-label="${esc(tr('Periodo'))}">${[7,30,90].map(p => `<button data-mz="periodo" data-v="${p}" aria-pressed="${MS.periodo===p}">${tr(PER_MZ[p])}</button>`).join('')}</div>`:''}
-      <nav class="mz-schede" aria-label="${esc(tr('Sezioni delle misure'))}">${SCHEDE_MZ.map(([k,t]) => `<button data-mz="scheda" data-v="${k}" aria-pressed="${MS.scheda===k}"><span>${tr(t)}</span></button>`).join('')}</nav>
-    </div>
-    <div class="mz-corpo">
-      ${({panoramica:vPanoramicaMz, offerta:vOffertaMz, rete:vReteMz, accessi:vAccessiMz, qualita:vQualitaMz, impatto:vImpattoMz, libreria:vLibreriaMz})[MS.scheda]()}
-      <p class="meta mz-piede">${tr('Le misure restano su questo telefono (chiave red_misure) e si esportano in Excel. Nessun dato sulle persone che usano l’app.')}</p>
-      <button class="tasto sec pieno" data-mz="esporta">${tr('Esporta le misure in Excel')}</button>
-    </div>`;
-  el.scrollTop = y;
-  const a = el.querySelector('.mz-schede [aria-pressed="true"]'); if(a && a.scrollIntoView) a.scrollIntoView({inline:'nearest', block:'nearest'});
-}
-
-function vPanoramicaMz(){
-  const m = mz(), S = mzStato(), g = mzGiorni(MS.periodo), att = serieAttivi(g);
-  const oggiN = S.L.length, prima = att[Math.max(0, att.length-8)];
-  const zTot = QUARTIERI.length, zOk = zTot - S.sotto.length;
-  const totP = S.prov.consenso+S.prov.pubblica+S.prov.nd, quotaCons = totP ? Math.round(S.prov.consenso/totP*100) : null;
-  const rimP = m.rimozioni.filter(r => (r.ric||'').slice(0,10) >= g[0]), rimOk = rimP.filter(r => { const h = oreTra(r.ric, r.eva); return h!=null && h<=48; }).length;
-  const decs = decisioniMz(S).filter(d => on(d.kpi[0]));
-  const sp = att.filter(v => v!=null);
-  return `<h2 class="mz-h1">${tr('Il polso della città')}</h2>
-    <p class="meta">${tr('Si misura la città, non le persone.')} ${esc(MS.ambito==='tutte'?tr('Tutte le città'):nomeCitta(citta))} · ${tr('ultimi {p}',{p:tr(PER_MZ[MS.periodo])})} · ${tr('aggiornato adesso')}</p>
-    ${on(1)?`<div class="mz-card mz-hero"><div><div class="mz-lab">${tr('Eventi attivi oggi')}</div><div class="mz-num">${nf(oggiN)}</div>
-      ${prima!=null?`<span class="mz-delta ${oggiN>=prima?'su':'giu'}">${oggiN>=prima?mzIco.su:mzIco.giu} ${oggiN>=prima?'+':'−'}${Math.abs(oggiN-prima)} ${tr('rispetto a 7 giorni fa')}</span>`:`<span class="meta">${tr('Il confronto arriva dopo qualche giorno di misure.')}</span>`}</div>
-      ${sp.length>1?`<div class="mz-spark">${sparkMz(sp)}</div>`:''}<div>${fonteMz('ev')}</div></div>`:''}
-    <h2 class="mz-h2">${tr('Indicatori')}</h2><p class="meta">${tr('Ognuno riassume più domande della libreria. Toccali per vedere quali; accendi e spegni le misure dalla libreria.')}</p>
-    <div class="mz-griglia2">
-      ${mzTile(tr('Copertura delle zone'), `${zOk}<small> ${tr('su {n}',{n:zTot})}</small>`, tr('zone di Torino con almeno {s} eventi nei prossimi 7 giorni',{s:m.soglie.zona}), 'ev', zOk/zTot, zOk<zTot, [5,3])}
-      ${mzTile(tr('Ritmo di raccolta'), `${nf(S.nuovi7)}<small> / ${tr('sett.')}</small>`, tr('eventi nuovi inseriti da te ({nome}), non nuovi utenti · obiettivo {o}',{o:m.soglie.nuovi}), 'ev', S.nuovi7/m.soglie.nuovi, S.nuovi7<m.soglie.nuovi, [2,10,12])}
-      ${mzTile(tr('Solidità delle fonti'), quotaCons==null?'–':`${quotaCons}<small> %</small>`, tr('eventi con consenso diretto')+(rimP.length?' · '+tr('rimozioni entro 48 h: {a} su {b}',{a:rimOk, b:rimP.length}):''), 'ev', quotaCons==null?null:quotaCons/100, false, [6,15,13])}
-      ${mzTile(tr('Richieste al sito'), S.mediaRic==null?'–':`${nf(S.mediaRic)}<small> / ${tr('giorno')}</small>`, S.mediaRic==null?tr('copia i numeri da Netlify in «Accessi»'):tr('media del periodo · un indice, non persone'), 'man', null, false, [18,20])}
-      ${mzTile(tr('Qualità dei dati'), S.qualita==null?'–':`${n1(S.qualita)}<small> %</small>`, tr('eventi corretti o rimossi sui nuovi · {n} segnalazioni',{n:S.segn}), 'ev', null, false, [11,16])}
-    </div>
-    <h2 class="mz-h2">${tr('Cosa decidere adesso')}</h2><p class="meta">${tr('Ogni misura serve a una decisione. Le soglie le scegli tu.')}</p>
-    <div class="mz-pila">${decs.length ? decs.map(d => `<article class="mz-dec"><span class="mz-stato ${decCls(d.liv)}">${d.liv==='crit'||d.liv==='warn'?mzIco.avviso:''}${d.st}</span><h3>${esc(d.tit)}</h3><p class="mz-perche">${esc(d.perche)}</p><p class="mz-azione">${esc(d.azione)}</p>
-      <div class="mz-azioni"><button data-mz="dec" data-id="${esc(d.id)}">${tr('Fatto')}</button>${d.vai?`<button data-mz="scheda" data-v="${d.vai}">${tr('Vai')}</button>`:''}<button data-mz="kpiset" data-k="${d.kpi.join(',')}" data-l="${esc(d.tit)}">${d.kpi.length>1?tr('Righe'):tr('Riga')} ${d.kpi.join(', ')}</button></div></article>`).join('') : vuotoMz(tr('Niente da decidere adesso.'))}</div>
-    ${Object.values(m.stati).some(v => v==='fatto')?`<button class="link" data-mz="rimetti">${tr('Rimetti le decisioni segnate come fatte')}</button>`:''}
-    <button class="tasto sec pieno" data-mz="soglie">${tr('Cambia le soglie')}</button>
-    <h2 class="mz-h2">${tr('Cosa non vedrai mai qui')}</h2>
-    <p class="mz-nota">${tr('Quanto tempo le persone restano nell’app, quante volte tornano, dove toccano la mappa, cosa cercano, chi sono. Sono misure escluse per principio o per legge: le trovi nel Catalogo, con il motivo.')}</p>
-    <button class="tasto sec pieno" data-mz="scheda" data-v="libreria" data-f="eliminato">${tr('Vedi le misure eliminate')}</button>
-    ${studioSezioneMz('panoramica')}`;
-}
-function sparkMz(v){ const W = 150, H = 48, mn = Math.min(...v), mx = Math.max(...v); const x = i => i/(v.length-1)*(W-8)+4, y = a => H-5-(a-mn)/((mx-mn)||1)*(H-12);
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" aria-hidden="true"><path d="${v.map((a,i) => `${i?'L':'M'}${x(i).toFixed(1)},${y(a).toFixed(1)}`).join('')}" fill="none" class="mz-spark-l" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(v.length-1)}" cy="${y(v[v.length-1])}" r="4" class="mz-spark-p"/></svg>`; }
-
-function vOffertaMz(){
-  const m = mz(), S = mzStato(), g = mzGiorni(MS.periodo), att = serieAttivi(g);
-  const strati = LAYERS.map(l => [tr(l.label), S.L.filter(e => e.category===l.id).length]).sort((a,b) => b[1]-a[1]);
-  const tot = S.prov.consenso+S.prov.pubblica+S.prov.nd;
-  const fa = [[tr('Consenso diretto'), S.prov.consenso, 'var(--mz-c1)'], [tr('Fonte pubblica'), S.prov.pubblica, 'var(--mz-c2)'], [tr('Non indicata'), S.prov.nd, 'var(--mz-nd)']];
-  const heat = FASCE_MZ.map(() => [0,0,0,0,0,0,0]); S.L.forEach(e => { const d = new Date(e.datetime); if(isNaN(d)) return; heat[FASCE_MZ.findIndex(f => f[0]===fasciaDi(d.getHours()))][(d.getDay()+6)%7]++; });
-  const hmax = Math.max(1, ...heat.flat()), GG = giorniBrevi(), ordine = [1,2,3,4,5,6,0];
-  return `<h2 class="mz-h1">${tr('Offerta di eventi')}</h2><p class="meta">${tr('Calcolato dagli eventi che pubblichi: nessun utente coinvolto. Si conservano solo i totali del giorno, non gli eventi.')}</p>
-    ${mzBox('attivi', tr('Eventi attivi ogni giorno'), lineaMz('attivi', [{nome:tr('Eventi attivi'), v:att, col:'var(--verde)'}], g, {vuoto:tr('Il grafico si riempie un giorno alla volta: ogni volta che apri le Misure si salva il totale del giorno.')})+`<p class="meta">${tr('Un giorno in cui l’admin non apre le Misure resta un buco.')}</p>`, tabLineaMz([{nome:tr('Eventi attivi'), v:att}], g), 'ev', [1])}
-    <div class="mz-griglia2">
-      ${mzTile(tr('Nuovi nel periodo'), nf(S.nuoviP), tr('inseriti da te ({nome}), non nuovi utenti · ultimi 7 giorni: {n}',{n:S.nuovi7}), 'ev', null, false, [2])}
-      ${mzTile(tr('Anticipo medio'), S.anticipo==null?'–':`${n1(S.anticipo)}<small> ${tr('giorni')}</small>`, tr('tra pubblicazione e inizio'), 'ev', null, false, [9])}
-      ${mzTile(tr('Gratuiti'), S.grat==null?'–':`${S.grat}<small> %</small>`, tr('eventi con ingresso libero'), 'ev', null, false, [7])}
-      ${mzTile(tr('Da import Excel'), nf(S.imp), tr('eventi attivi arrivati da un file'), 'ev', null, false, [10])}
-    </div>
-    ${mzBox('citta', tr('Eventi attivi per città'), hbarMz(S.perCitta), null, 'ev', [3])}
-    ${mzBox('zone', tr('Zone di Torino · eventi nei prossimi 7 giorni'), zoneMz(S), `<table class="mz-tab"><tr><th>${tr('Zona')}</th><th class="n">${tr('Eventi')}</th></tr>${QUARTIERI.map(q => `<tr><td>${esc(q.n)}</td><td class="n">${S.zone[q.n]}</td></tr>`).join('')}</table>`, 'ev', [5])}
-    ${mzBox('strati', tr('Eventi attivi per strato'), hbarMz(strati)+`<p class="meta">${tr('Gli strati più sottili sono quelli da cercare.')}</p>`, null, 'ev', [4])}
-    ${mzBox('prov', tr('Da dove arrivano gli eventi'), tot ? `<div class="mz-stack" role="img" aria-label="${esc(fa.map(f => f[0]+' '+f[1]).join(', '))}">${fa.filter(f => f[1]).map(f => `<i style="width:${f[1]/tot*100}%;background:${f[2]}" data-mztip="<b>${esc(f[0])}</b><br>${f[1]} ${tr('eventi')} · ${Math.round(f[1]/tot*100)} %"></i>`).join('')}</div>
-      <div class="mz-legenda">${fa.map(f => `<span><i style="background:${f[2]}"></i>${esc(f[0])} · ${Math.round(f[1]/tot*100)} %</span>`).join('')}</div><p class="meta">${tr('Più consenso diretto = base giuridica più solida (art. 6(1)(a) GDPR). La provenienza si indica nel form dell’evento o nella colonna «Provenienza» dell’Excel.')}</p>` : vuotoMz(tr('Nessun evento attivo.')),
-      `<table class="mz-tab"><tr><th>${tr('Provenienza')}</th><th class="n">${tr('Eventi')}</th></tr>${fa.map(f => `<tr><td>${esc(f[0])}</td><td class="n">${f[1]}</td></tr>`).join('')}</table>`, 'ev', [6])}
-    ${mzBox('heat', tr('Quando ci sono eventi'), `<div class="mz-heat"><span></span>${ordine.map(d => `<span class="mz-h c">${esc(GG[(d+6)%7])}</span>`).join('')}${FASCE_MZ.map((f,r) => `<span class="mz-h">${tr(f[1])}</span>${ordine.map(d => { const c = (d+6)%7, v = heat[r][c], lv = v ? Math.min(5, Math.ceil(v/hmax*5)) : 0; return `<button style="background:var(--mz-s${lv});color:${lv>=4?'var(--su-verde)':'var(--testo)'}" data-mztip="<b>${esc(GG[c])} · ${tr(f[1])}</b><br>${v} ${tr('eventi')}" aria-label="${esc(GG[c]+' '+tr(f[1])+': '+v)}">${v||''}</button>`; }).join('')}`).join('')}</div>
-      <div class="mz-scala"><span>0</span><span class="mz-rampa">${[0,1,2,3,4,5].map(i => `<i style="background:var(--mz-s${i})"></i>`).join('')}</span><span>${hmax}</span></div>`,
-      `<div class="mz-scorri"><table class="mz-tab"><tr><th></th>${ordine.map(d => `<th class="n">${esc(GG[(d+6)%7])}</th>`).join('')}</tr>${FASCE_MZ.map((f,r) => `<tr><td>${tr(f[1])}</td>${ordine.map(d => `<td class="n">${heat[r][(d+6)%7]}</td>`).join('')}</tr>`).join('')}</table></div>`, 'ev', [8])}
-    ${bloccataMz(12, tr('Le fonti che rendono di più'), tr('Servirebbe un campo «fonte» per ogni evento: da decidere insieme, è una domanda «più avanti».'))}
-    ${studioSezioneMz('offerta')}`;
-}
-function zoneMz(S){
-  const max = Math.max(1, ...Object.values(S.zone)), s = mz().soglie.zona;
-  return `<div class="mz-zone">${QUARTIERI.map(q => { const v = S.zone[q.n], sotto = v < s, lv = sotto ? 0 : Math.min(5, Math.max(1, Math.ceil(v/max*5)));
-    return `<button class="${sotto?'sotto':''}" style="background:var(--mz-s${lv});color:${lv>=4?'var(--su-verde)':'var(--testo)'}" data-mztip="<b>${esc(q.n)}</b><br>${v} ${tr('eventi')}${sotto?' · '+tr('sotto soglia'):''}" aria-label="${esc(q.n+': '+v+(sotto?', '+tr('sotto soglia'):''))}"><span class="mz-zn">${esc(q.n)}</span><span class="mz-zv">${v}${sotto?` <small>· ${tr('sotto soglia')}</small>`:''}</span></button>`; }).join('')}</div>
-    <div class="mz-scala"><span>${tr('meno')}</span><span class="mz-rampa">${[0,1,2,3,4,5].map(i => `<i style="background:var(--mz-s${i})"></i>`).join('')}</span><span>${tr('più')}</span><span style="margin-left:auto">${tr('tratteggio = sotto soglia ({s})',{s})}</span></div>
-    <p class="meta">${tr('Sono le zone dei «vuoti» della mappa: rettangoli provvisori, i confini veri delle circoscrizioni sono rimandati.')}</p>`;
-}
-
-function vReteMz(){
-  const m = mz(), S = mzStato(), g = mzGiorni(MS.periodo);
-  const luoghi = new Set(S.L.map(e => normT(e.addressFull||e.address||'') || (+e.lat).toFixed(4)+','+(+e.lng).toFixed(4))).size;
-  const segnP = somma(m.segnalazioni, g);
-  const rim = m.rimozioni.slice().sort((a,b) => (b.ric||'').localeCompare(a.ric||''));
-  return `<h2 class="mz-h1">${tr('Rete di organizzatori e luoghi')}</h2><p class="meta">${tr('Conteggi su ciò che gestisci già. Niente nomi.')}</p>
-    <div class="mz-griglia2">
-      ${mzTile(tr('Eventi con consenso diretto'), nf(S.prov.consenso), tr('organizzatori che pubblicano con te'), 'ev', null, false, [13])}
-      ${mzTile(tr('Luoghi sulla mappa'), nf(luoghi), tr('indirizzi distinti degli eventi attivi'), 'ev', null, false, [17])}
-      ${mzTile(tr('Segnalazioni ricevute'), nf(segnP), tr('eventi non validi, nel periodo'), 'mail', null, false, [16])}
-      ${mzTile(tr('Richieste di rimozione'), nf(m.rimozioni.length), tr('registrate in tutto'), 'reg', null, false, [15])}
-    </div>
-    ${on(16)?`<div class="mz-card"><h3>${tr('Una segnalazione arrivata')}</h3><p class="meta">${tr('Un evento non valido segnalato su {casella}. Si conta solo il numero, non chi scrive.',{casella:CASELLA})}</p>
-      <div class="tasti"><button class="tasto sec" data-mz="segn-meno" ${m.segnalazioni[oggi()]?'':'disabled'}>${tr('Togli l’ultima')}</button><button class="tasto pri" data-mz="segn-piu">${tr('+1 oggi')}${m.segnalazioni[oggi()]?' · '+m.segnalazioni[oggi()]:''}</button></div></div>`:''}
-    ${mzBox('rimoz', tr('Registro delle richieste di rimozione'), `<form class="mz-form" data-mzform="rimozione"><div class="due"><label class="mz-etich">${tr('Ricevuta')}<span class="campo"><input type="datetime-local" name="ric" required></span></label><label class="mz-etich">${tr('Evasa')}<span class="campo"><input type="datetime-local" name="eva"></span></label></div><button class="tasto sec pieno" type="submit">${tr('Aggiungi al registro')}</button></form>
-      ${rim.length ? `<div class="mz-scorri"><table class="mz-tab"><tr><th>${tr('Ricevuta')}</th><th>${tr('Evasa')}</th><th class="n">${tr('Ore')}</th><th>${tr('Entro 48 h')}</th><th></th></tr>${rim.map(r => { const h = oreTra(r.ric, r.eva), i = m.rimozioni.indexOf(r);
-        return `<tr><td>${esc(fmtDt(r.ric))}</td><td>${r.eva?esc(fmtDt(r.eva)):`<button class="link" data-mz="rim-evasa" data-i="${i}">${tr('Evasa ora')}</button>`}</td><td class="n">${h==null?'–':h}</td><td>${h==null?(oreTra(r.ric,new Date().toISOString())>48?`<span class="mz-stato crit">${tr('Scaduta')}</span>`:`<span class="mz-stato neu">${tr('Aperta')}</span>`):h<=48?`<span class="mz-stato ok">${tr('Sì')}</span>`:`<span class="mz-stato crit">${tr('No')}</span>`}</td><td><button class="mz-icona piccola" data-mz="rim-togli" data-i="${i}" aria-label="${esc(tr('Togli dal registro'))}">${mzIco.x}</button></td></tr>`; }).join('')}</table></div>` : vuotoMz(tr('Nessuna richiesta registrata.'))}
-      <p class="meta">${tr('Solo date e ore, niente nomi. Serve a dimostrare che rispetti i diritti (artt. 5(2) e 12 GDPR).')}</p>`, null, 'reg', [15])}
-    ${bloccataMz(14, tr('Organizzatori che tornano a pubblicare'), tr('Prima va aggiunta la finalità statistica all’informativa per gli organizzatori (art. 6(4) GDPR).'))}
-    ${studioSezioneMz('rete')}`;
-}
-const fmtDt = s => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString(dloc(), {day:'numeric', month:'short'}).replace('.','')+' '+hm(d); };
-
-function vAccessiMz(){
-  const m = mz(), g = mzGiorni(MS.periodo), r = g.map(x => m.richieste[x]!=null ? m.richieste[x] : null);
-  const az = m.azioni.map(a => ({i:g.indexOf(a.d), t:a.t})).filter(a => a.i>=0);
-  const mancanti = r.filter(v => v==null).length;
-  const elenco = m.azioni.slice().sort((a,b) => b.d.localeCompare(a.d)).slice(0,8);
-  return `<h2 class="mz-h1">${tr('Accessi')}</h2><p class="meta">${on(18)?tr('I totali di Netlify, che copi a mano ogni giorno, e le azioni di comunicazione segnate per data.'):tr('Il traffico del sito è in studio: gli spazi sono pronti e vuoti.')}</p>
-    ${mzBox('rich', tr('Richieste al sito ogni giorno'), lineaMz('rich', [{nome:tr('Richieste'), v:r, col:'var(--verde)'}], g, {azioni:az, vuoto:tr('Copia qui sotto il numero di oggi da Netlify: il grafico parte da lì.')})+`<div class="mz-legenda"><span><i class="mz-l-az"></i>${tr('azione di comunicazione')}</span><span>${tr('giorni senza dato: {n}',{n:mancanti})}</span></div>`, tabLineaMz([{nome:tr('Richieste'), v:r}], g), 'man', [18,20])}
-    ${mzBox('banda', tr('Banda consumata e picchi'), '', null, 'man', [19])}
-    ${on(18)?`<div class="mz-avviso">${mzIco.avviso}<p><strong>${tr('Richieste, non persone.')}</strong> ${tr('Una visita fa molte richieste. Netlify non sa da che città arrivano: il filtro città qui non vale. Sul piano gratuito i numeri restano solo 24 ore: vanno copiati ogni giorno.')}</p></div>`:''}
-    ${mzBox('azioni', tr('Effetto delle azioni di comunicazione'), '', null, 'man', [20])}
-    ${on(18)||on(20)?`<div class="mz-card"><h3>${tr('Il numero di oggi')}</h3><p class="meta">${tr('Da Netlify → il progetto → riquadro delle richieste delle ultime 24 ore.')}</p>
-      <form class="mz-riga-f" data-mzform="richieste"><label class="sr-only" for="mz-ric">${tr('Richieste di oggi')}</label><span class="campo"><input id="mz-ric" name="n" type="number" inputmode="numeric" min="0" placeholder="${esc(tr('es. 640'))}" value="${m.richieste[oggi()]!=null?m.richieste[oggi()]:''}"></span><button class="tasto pri" type="submit">${tr('Salva')}</button></form>
-      <form class="mz-riga-f" data-mzform="azione"><label class="sr-only" for="mz-az">${tr('Azione di comunicazione di oggi')}</label><span class="campo"><input id="mz-az" name="t" type="text" maxlength="60" placeholder="${esc(tr('Azione di oggi, es. un volantino'))}"></span><button class="tasto sec" type="submit">${tr('Segna')}</button></form>
-      ${elenco.length?`<div class="mz-elenco">${elenco.map(a => { const e = effettoAzione(a); return `<div><span>${esc(brevD(a.d))} · ${esc(a.t)}</span><span class="meta">${e==null?tr('effetto: servono i numeri di 3 giorni prima e dopo'):tr('effetto: {e} %',{e:(e>=0?'+':'')+e})}</span><button class="mz-icona piccola" data-mz="az-togli" data-i="${m.azioni.indexOf(a)}" aria-label="${esc(tr('Togli'))}">${mzIco.x}</button></div>`; }).join('')}</div>`:''}
-      <p class="meta">${tr('Niente link tracciati o parametri nell’indirizzo: per l’EDPB anche il tracciamento via URL rientra nell’art. 5(3) ePrivacy. Basta il confronto per data.')}</p></div>`:''}
-    ${studioSezioneMz('accessi')}
-    ${bloccataMz(26, tr('Aperture di Agorà, Progetti, calendario'), tr('Contatore automatico via script: per l’EDPB (Linee guida 2/2023) è «accesso» al dispositivo.'))}
-    ${bloccataMz(36, tr('Eventi Off-Grid creati'), tr('Il contenuto non lascerebbe mai il telefono; resta comunque un segnale automatico.'))}
-    ${bloccataMz(33, tr('Lingue e modalità semplice'), tr('Stesso motivo. Ora: chiedilo nei test sul campo.'))}`;
-}
-
-function vQualitaMz(){
-  const m = mz(), V = m.versioni.slice(-6), soglia = m.soglie.carico;
-  const W = 360, H = 170, pl = 28, pb = 26, pt = 16, mx = Math.max(soglia+1, ...V.map(v => v.s))+.5, n = Math.max(1,V.length);
-  const bw = Math.min(24, (W-pl)/n*.5), x = i => pl + (W-pl)/n*(i+.5), y = v => pt + (H-pt-pb)*(1 - v/mx);
-  const col = V.length ? `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(tr('Secondi per versione'))}">${Array.from({length:Math.floor(mx)+1}, (_,v) => `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="mz-griglia"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`).join('')}
-    <line x1="${pl}" x2="${W}" y1="${y(soglia)}" y2="${y(soglia)}" class="mz-soglia"/>
-    ${V.map((v,i) => { const top = y(v.s), bot = y(0), sopra = v.s>soglia; return `<path d="M${x(i)-bw/2},${bot} V${top+4} q0,-4 4,-4 h${bw-8} q4,0 4,4 V${bot} Z" class="${sopra?'mz-col-sopra':'mz-col'}"/><text x="${x(i)}" y="${top-6}" text-anchor="middle" class="mz-t-forte">${n1(v.s)}</text><text x="${x(i)}" y="${H-8}" text-anchor="middle">${esc(v.v.slice(0,10))}</text><rect x="${x(i)-22}" y="${pt}" width="44" height="${H-pt-pb}" fill="transparent" data-mztip="<b>${esc(v.v)}</b><br>${n1(v.s)} s · ${esc(brevD(v.d))}"/>`; }).join('')}</svg>
-    <div class="mz-legenda"><span><i class="mz-l-soglia"></i>${tr('obiettivo {s} s',{s:n1(soglia)})}</span><span><i style="background:var(--verde)"></i>${tr('entro l’obiettivo')}</span><span><i style="background:var(--mz-c3)"></i>${tr('oltre')}</span></div>` : vuotoMz(tr('Nessuna misura ancora.'));
-  const RL = [['mappa3g', tr('Mappa con rete 3G')], ['cal', tr('Calendario senza rete')], ['pdf', tr('PDF senza rete')]];
-  const ES = {'':tr('da provare'), ok:tr('funziona'), no:tr('non funziona')};
-  if(![40,42,43].some(on)) return `<h2 class="mz-h1">${tr('Qualità tecnica')}</h2><p class="meta">${tr('Misurata sui tuoi telefoni, non su quelli degli utenti.')}</p>${studioSezioneMz('qualita')}`;
-  return `<h2 class="mz-h1">${tr('Qualità tecnica')}</h2><p class="meta">${tr('Misurata sui tuoi telefoni, non su quelli degli utenti.')}</p>
-    ${mzBox('vers', tr('Primo contenuto visibile, per versione'), col+`<form class="mz-form" data-mzform="versione"><div class="due"><label class="mz-etich">${tr('Versione')}<span class="campo"><input name="v" maxlength="24" required placeholder="${esc(tr('es. Restyling 4.3'))}"></span></label><label class="mz-etich">${tr('Secondi')}<span class="campo"><input name="s" type="number" step="0.1" min="0" required placeholder="3,2"></span></label></div><button class="tasto sec pieno" type="submit">${tr('Aggiungi la misura')}</button></form>
-      <p class="meta">${tr('Lighthouse o WebPageTest, telefono simulato, rete 4G lenta. Una misura a ogni rilascio.')}</p>${V.length?`<button class="link" data-mz="vers-togli">${tr('Togli l’ultima misura')}</button>`:''}`,
-      V.length?`<table class="mz-tab"><tr><th>${tr('Versione')}</th><th>${tr('Data')}</th><th class="n">${tr('Secondi')}</th></tr>${m.versioni.map(v => `<tr><td>${esc(v.v)}</td><td>${esc(brevD(v.d))}</td><td class="n">${n1(v.s)}</td></tr>`).join('')}</table>`:null, 'test', [40])}
-    ${mzBox('prove', tr('Prove della mappa'), `<form class="mz-form" data-mzform="prova"><div class="due"><label class="mz-etich">${tr('Rete e telefono')}<span class="campo"><input name="rete" maxlength="40" required placeholder="${esc(tr('es. 4G, Realme'))}"></span></label><label class="mz-etich">${tr('Esito')}<span class="campo"><select name="ok"><option value="1">${tr('Caricata')}</option><option value="0">${tr('Non caricata')}</option></select></span></label></div><label class="mz-etich">${tr('Nota')}<span class="campo"><input name="nota" maxlength="80" placeholder="${esc(tr('es. caricata in 2,1 s'))}"></span></label><button class="tasto sec pieno" type="submit">${tr('Aggiungi la prova')}</button></form>
-      ${m.prove.length?`<div class="mz-scorri"><table class="mz-tab"><tr><th>${tr('Data')}</th><th>${tr('Rete')}</th><th>${tr('Esito')}</th><th></th></tr>${m.prove.slice().reverse().map(p => `<tr><td>${esc(brevD(p.d))}</td><td>${esc(p.rete)}</td><td>${p.ok?`<span class="mz-stato ok">${tr('Ok')}</span>`:`<span class="mz-stato crit">${tr('No')}</span>`} <span class="meta">${esc(p.nota||'')}</span></td><td><button class="mz-icona piccola" data-mz="prova-togli" data-i="${m.prove.indexOf(p)}" aria-label="${esc(tr('Togli'))}">${mzIco.x}</button></td></tr>`).join('')}</table></div>`:''}`, null, 'test', [42])}
-    ${on(43)?`<div class="mz-card"><h3>${tr('Rete lenta o assente')}</h3><p class="meta">${tr('Tocca per cambiare lo stato.')}</p><div class="mz-pila">${RL.map(([k,l]) => `<button class="riga-int" data-mz="rete" data-k="${k}"><div><span class="t">${l}</span></div><span class="mz-stato ${m.rete[k]==='ok'?'ok':m.rete[k]==='no'?'crit':'neu'}">${ES[m.rete[k]||'']}</span></button>`).join('')}</div></div>`:''}
-    ${bloccataMz(41, tr('Errori JavaScript sui telefoni degli utenti'), tr('Servirebbe un servizio esterno (tipo Sentry): nuovo fornitore, IP e dati del browser.'))}
-    ${studioSezioneMz('qualita')}`;
-}
-
-function vImpattoMz(){
-  const m = mz(), G = m.giri.slice().reverse(), u = G[0];
-  const fr = (t, v, tot, k) => !on(k) ? '' : `<button class="mz-tile" data-mz="kpiset" data-k="${k}" data-l="${esc(t)}"><span class="mz-fr"><span>${t}</span><b>${v} ${tr('su')} ${tot}</b></span><span class="mz-barre" aria-hidden="true">${Array.from({length:Math.min(tot,30)}, (_,i) => `<i class="${i<Math.round(v/tot*Math.min(tot,30))?'on':''}"></i>`).join('')}</span></button>`;
-  if(![35,37,44,45,47].some(on)) return `<h2 class="mz-h1">${tr('Impatto')}</h2>${studioSezioneMz('impatto')}`;
-  return `<h2 class="mz-h1">${tr('Impatto')}</h2><p class="meta">${tr('Si chiede alle persone, con il loro consenso. Con pochi partecipanti si mostrano i conteggi, non le percentuali.')}</p>
-    ${u ? `<div class="mz-card"><div class="mz-lab">${esc(brevD(u.d))}</div><h3>${esc(u.titolo||tr('Giro di interviste'))} · ${tr('{n} persone',{n:u.n})}</h3><div class="mz-pila">
-      ${fr(tr('Hanno scoperto eventi che non conoscevano'), u.scoperto, u.n, 44)}${fr(tr('Sono andate davvero a un evento trovato qui'), u.andato, u.n, 45)}${fr(tr('Hanno completato la guida iniziale senza aiuto'), u.guida, u.n, 35)}${fr(tr('Hanno creato un Off-Grid al primo tentativo'), u.og, u.n, 37)}</div>
-      ${on(47)&&u.cons!=null&&u.cons!==''?`<p class="meta">${tr('Lo consiglierebbero: mediana {c} su 10.',{c:u.cons})}</p>`:''}${fonteMz('int')}</div>` : vuotoMz(tr('Nessun giro di interviste registrato. Dopo il lancio: 8–10 persone, stessa traccia di domande, così i giri si confrontano.'))}
-    <div class="mz-card"><h3>${tr('Registra un giro di prova sul campo')}</h3><form class="mz-form" data-mzform="giro">
-      <label class="mz-etich">${tr('Nome del giro')}<span class="campo"><input name="titolo" maxlength="40" placeholder="${esc(tr('es. Dopo il lancio'))}"></span></label>
-      <div class="due">${[['n',tr('Persone'),0,'min="1" max="200" required'],['scoperto',tr('Hanno scoperto eventi nuovi'),44,'min="0"'],['andato',tr('Sono andate a un evento'),45,'min="0"'],['guida',tr('Guida completata senza aiuto'),35,'min="0"'],['og',tr('Off-Grid al primo tentativo'),37,'min="0"'],['cons',tr('Lo consiglierebbero (mediana 0–10)'),47,'min="0" max="10" step="0.5"']].filter(x => !x[2] || on(x[2])).map(x => `<label class="mz-etich">${x[1]}<span class="campo"><input name="${x[0]}" type="number" ${x[3]}></span></label>`).join('')}</div>
-      <button class="tasto sec pieno" type="submit">${tr('Salva il giro')}</button></form>${G.length>1?`<p class="meta">${tr('Giri precedenti: {g}',{g:esc(G.slice(1).map(x => (x.titolo||brevD(x.d))+' ('+x.n+')').join(' · '))})}</p>`:''}${u?`<button class="link" data-mz="giro-togli">${tr('Togli l’ultimo giro')}</button>`:''}</div>
-    ${bloccataMz(46, tr('{nome} riduce la solitudine?'), tr('Domande sul benessere possono essere dati sulla salute (art. 9 GDPR): solo con un partner universitario e il suo comitato etico.'))}
-    ${studioSezioneMz('impatto')}`;
-}
-
-const NOMI_SEZ = Object.fromEntries([['panoramica','Panoramica'],['offerta','Offerta'],['rete','Rete'],['accessi','Accessi'],['qualita','Qualità'],['impatto','Impatto']]);
-const ORDINE_LIB = ['operativo','segnaposto','studio','rimandato','sospeso','eliminato'];
-const statoChip = n => { const s = libStato(n); return `<span class="mz-stato ${STATO_CLS[s]}">${tr(STATI_LIB[s])}</span>`; };
-const interruttoreMz = n => { const v = libVisibile(n); return `<button class="mz-switch" role="switch" aria-checked="${v}" data-mz="lib-vis" data-n="${n}" aria-label="${esc(tr('Mostra la riga {n} nella sua sezione',{n}))}"><i aria-hidden="true"></i><span>${v?tr('Visibile'):tr('Nascosta')}</span></button>`; };
-const perInformativa = () => MZ_KPI.filter(k => /informativa/i.test(k.lorNota||''));
-function vLibreriaMz(){
-  const m = mz(), f = MS.filtroCat, sz = MS.sezLib||'';
-  const passa = (k, x) => (x==='tutti' || libStato(k.n)===x) && (!sz || sezioneKpi(k)===sz);
-  const lista = MZ_KPI.filter(k => passa(k, f));
-  const conAppunti = MZ_KPI.filter(k => ((m.lib||{})[k.n]||{}).appunti).length;
-  return `<h2 class="mz-h1">${tr('Libreria delle misure')}</h2>
-    <p class="meta">${tr('Le 50 domande, con la tua decisione. Le operative compaiono nella loro sezione: spegnile qui se non ti servono. Le altre restano qui con il loro studio, finché non le rendi operative o le elimini.')}</p>
-    <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra per stato'))}">${ORDINE_LIB.concat('tutti').map(k => `<button data-mz="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(k==='tutti'?'Tutte':STATI_LIB[k])} · ${MZ_KPI.filter(x => passa(x,k)).length}</span></button>`).join('')}</nav>
-    ${sz?`<p class="meta">${tr('Solo la sezione «{s}».',{s:tr(NOMI_SEZ[sz])})} <button class="link" data-mz="lib-sez" data-v="">${tr('Mostra tutte le sezioni')}</button></p>`:''}
-    <p class="meta">${f==='operativo'?tr('L’interruttore mostra o nasconde la misura nella sua sezione. Non cambia la decisione.'):f==='segnaposto'?tr('Lo spazio c’è già nella sezione, vuoto: si riempie quando lo studio è chiuso.'):f==='studio'?tr('Toccane una per leggere la tua nota, la mia risposta e scrivere gli appunti di studio.'):f==='rimandato'?tr('Rimandate alla Fase 2 del progetto.'):f==='sospeso'?tr('Ferme: non servono adesso. Puoi riprenderle in studio quando vuoi.'):f==='eliminato'?tr('Escluse. Restano qui solo per ricordare perché.'):''}${conAppunti?' '+tr('Misure con appunti: {n}.',{n:conAppunti}):''}</p>
-    <div class="mz-pila">${lista.map(k => { const s = libStato(k.n), x = (m.lib||{})[k.n]||{};
-      const nota = s==='operativo' && !HA_PANNELLO.has(k.n) ? `<span class="mz-stato warn">${tr('Pannello da costruire')}</span>` : '';
-      return `<div class="mz-librow${s==='operativo'&&!libVisibile(k.n)?' spenta':''}"><button class="mz-kpi" data-mz="kpi" data-n="${k.n}"><span class="mz-nn">${k.n}</span><span class="mz-q"><b>${esc(k.q)}</b><span class="mz-chips">${statoChip(k.n)}<span class="mz-comp">${tr(NOMI_SEZ[sezioneKpi(k)])}</span><span class="mz-comp" title="${esc(tr('Unione europea {e} · Italia {i}',{e:tr(k.eu), i:tr(k.it)}))}"><span class="mz-pall g-${k.eu}"></span><span class="mz-pall g-${k.it}"></span>UE · IT</span>${x.appunti?`<span class="mz-comp">${tr('Appunti')}</span>`:''}${nota}</span></span>${mzIco.avanti}</button>${s==='operativo'&&HA_PANNELLO.has(k.n)?interruttoreMz(k.n):''}</div>`; }).join('') || vuotoMz(tr('Nessuna misura con questo filtro.'))}</div>
-    <section class="mz-card mz-info-prossima"><h3>${tr('Per la prossima informativa')}</h3><p class="meta">${tr('Da scrivere dopo l’MVP, quando lo deciderai tu. Qui ci sono solo i promemoria: l’informativa sull’app non è stata toccata.')}</p>
-      <ul class="mz-lista">${perInformativa().map(k => `<li><button class="link" data-mz="kpi" data-n="${k.n}">${tr('Riga {n}',{n:k.n})}</button> · ${esc(k.lorNota)}</li>`).join('')}
-        <li>${tr('I pulsanti volontari «Mi interessa» e «Vorrei {nome} qui» (righe 27 e 28): il +1 passa da una funzione Netlify. Vanno descritti prima di metterli sul sito pubblico.')}</li></ul></section>`;
-}
-
-/* ---------- fogli sopra le Misure (usano il foglio dell'app) ---------- */
-function foglioMz(html){ window.AGR.foglio(`<div class="mz-foglio">${html}</div>`, 'sez-misure'); }
-function foglioKpiMz(n){
-  const k = MZ_KPI.find(x => x.n==n); if(!k) return;
-  const s = libStato(k.n), x = (mz().lib||{})[k.n]||{}, pan = HA_PANNELLO.has(k.n), cambiato = !!x.stato && x.stato!==k.lor;
-  const AZ = [['operativo','Rendi operativa'],['segnaposto','Spazio pronto'],['studio','In studio'],['rimandato','Fase 2'],['sospeso','Sospendi'],['eliminato','Elimina']];
-  foglioMz(`<div class="meta" style="font-weight:600">${tr('Riga {n}',{n:k.n})} · ${esc(k.area)} · ${tr('sezione {s}',{s:tr(NOMI_SEZ[sezioneKpi(k)])})}</div><h2>${esc(k.q)}</h2>
-    <div class="mz-chips">${statoChip(k.n)}<span class="mz-comp"><span class="mz-pall g-${k.eu}"></span>UE ${tr(k.eu)}</span><span class="mz-comp"><span class="mz-pall g-${k.it}"></span>IT ${tr(k.it)}</span><span class="mz-comp">${tr('Utilità {u}',{u:tr(k.ut)})}</span></div>
-    ${s==='operativo'?(pan?`<div class="mz-riga-sw"><span>${tr('Mostrala nella sezione «{s}»',{s:tr(NOMI_SEZ[sezioneKpi(k)])})}</span>${interruttoreMz(k.n)}</div>`:`<p class="mz-avviso-p">${tr('Operativa, ma il suo pannello non esiste ancora: va costruito nel codice. Chiedimelo quando vuoi.')}</p>`):''}
-    ${s==='segnaposto'&&!pan?`<p class="mz-avviso-p">${tr('Questa misura non ha ancora uno spazio nelle sezioni: va costruito nel codice.')}</p>`:''}
-    <dl class="mz-dl">
-      <div><dt>${tr('La tua decisione')}</dt><dd>${esc(k.lorD||tr('Nessuna'))}${cambiato?` · ${tr('poi cambiata in «{s}» il {d}',{s:tr(STATI_LIB[x.stato]), d:brevD(x.agg)})}`:''}</dd></div>
-      ${k.lorNota?`<div><dt>${tr('La tua nota')}</dt><dd>${esc(k.lorNota)}</dd></div>`:''}
-      ${k.risposta?`<div><dt>${tr('La risposta di Claude')}</dt><dd>${esc(k.risposta)}</dd></div>`:''}
-      ${s!=='operativo'?`<div><dt>${tr('Cosa servirebbe per renderla operativa')}</dt><dd>${esc(k.obl)}${k.um==='Sì'?' '+tr('Serve anche un parere umano (avvocato o DPO).'):''}</dd></div>`:''}
-      <div><dt>${tr('Decisione che ne dipende')}</dt><dd>${esc(k.dec)}</dd></div>
-    </dl>
-    <h3>${tr('Appunti di studio')}</h3>
-    <label class="campo mz-appunti"><span class="sr-only">${tr('Appunti di studio')}</span><textarea id="mz-app-${k.n}" rows="4" maxlength="2000" placeholder="${esc(tr('Cosa hai scoperto, cosa manca, chi sentire…'))}">${esc(x.appunti||'')}</textarea></label>
-    <div class="mz-riga-sw"><span class="meta">${x.appuntiD?tr('Ultimo salvataggio: {d}',{d:lungD(x.appuntiD)}):tr('Restano su questo telefono e finiscono nell’export Excel.')}</span><button class="tasto sec" data-mz="lib-appunti" data-n="${k.n}">${tr('Salva gli appunti')}</button></div>
-    <h3>${tr('Cambia lo stato')}</h3>
-    <div class="seg mz-seg3" role="group" aria-label="${esc(tr('Stato della misura'))}">${AZ.map(([v,t]) => `<button data-mz="lib-stato" data-n="${k.n}" data-v="${v}" aria-pressed="${s===v}">${tr(t)}</button>`).join('')}</div>
-    ${cambiato?`<button class="link" data-mz="lib-stato" data-n="${k.n}" data-v="">${tr('Torna alla decisione del file ({s})',{s:tr(STATI_LIB[k.lor])})}</button>`:''}
-    <details class="mz-dett"><summary>${tr('Scheda completa: calcolo, metodo, conformità')}</summary><dl class="mz-dl">
-      <div><dt>${tr('Come si calcola')}</dt><dd>${esc(k.calc)}</dd></div>
-      <div><dt>${tr('Metodo')}</dt><dd>${esc(k.met)}</dd></div>
-      <div><dt>${tr('Dati personali')}</dt><dd>${esc(k.dati)}</dd></div>
-      <div><dt><span class="mz-pall g-${k.eu}"></span> ${tr('Unione europea')} · ${tr(k.eu)}</dt><dd>${esc(k.euM)}</dd></div>
-      <div><dt><span class="mz-pall g-${k.it}"></span> ${tr('Italia')} · ${tr(k.it)}</dt><dd>${esc(k.itM)}</dd></div>
-      <div><dt>${tr('Obblighi nuovi')}</dt><dd>${esc(k.obl)}</dd></div>
-      <div><dt>${tr('Principi {nome}')}</dt><dd>${esc(k.coer)}</dd></div>
-      <div><dt>${tr('Parere iniziale di Claude')}</dt><dd>${tr(k.par)} · ${esc(k.fase)}${k.note?' · '+esc(k.note):''}</dd></div>
-    </dl></details>`);
-}
-function foglioSetMz(ks, l){
-  const lista = ks.map(n => MZ_KPI.find(k => k.n==n)).filter(Boolean);
-  foglioMz(`<div class="meta" style="font-weight:600">${tr('Domande dietro questo numero')}</div><h2>${esc(l)}</h2><div class="mz-pila">${lista.map(k => `<button class="mz-kpi" data-mz="kpi" data-n="${k.n}"><span class="mz-nn">${k.n}</span><span class="mz-q"><b>${esc(k.q)}</b><span class="mz-chips"><span class="mz-comp"><span class="mz-pall g-${k.eu}"></span>UE ${tr(k.eu)}</span><span class="mz-comp"><span class="mz-pall g-${k.it}"></span>IT ${tr(k.it)}</span><span class="mz-comp">${esc(k.met.split(' · ')[0])}</span></span></span>${mzIco.avanti}</button>`).join('')}</div>`);
-}
-function foglioFontiMz(){
-  foglioMz(`<h2>${tr('Da dove vengono i numeri')}</h2><dl class="mz-dl">
-    <div><dt>${fonteMz('ev')}</dt><dd>${tr('Calcolati dagli eventi on-grid di questo telefono. Ogni volta che apri le Misure si salva il totale del giorno (per esempio «143 eventi attivi»), mai gli eventi: l’informativa promette che spariscono 3 ore dopo la fine.')}</dd></div>
-    <div><dt>${fonteMz('man')}</dt><dd>${tr('Copiati da te dal pannello di Netlify. Sul piano gratuito restano 24 ore: un giorno saltato resta un buco nel grafico.')}</dd></div>
-    <div><dt>${fonteMz('mail')} ${fonteMz('reg')}</dt><dd>${tr('Contati da te: segnalazioni arrivate per email e richieste di rimozione, con solo date e ore.')}</dd></div>
-    <div><dt>${fonteMz('test')}</dt><dd>${tr('Misure fatte da te sui tuoi telefoni: velocità, mappa, rete lenta.')}</dd></div>
-    <div><dt>${fonteMz('int')}</dt><dd>${tr('Interviste e test sul campo, con il consenso dei partecipanti.')}</dd></div>
-    <div><dt>${tr('Dove restano')}</dt><dd>${tr('Su questo telefono, nella chiave red_misure, come il resto dell’admin. Si esportano in Excel. Cancellando i dati di Chrome si perdono: esporta ogni tanto.')}</dd></div>
-    <div><dt>${tr('Cosa non c’è')}</dt><dd>${tr('Nessun dato sulle persone che usano l’app: niente identificativi, cookie, IP, posizione, cronologia.')}</dd></div></dl>`);
-}
-function foglioSoglieMz(){
-  const s = mz().soglie;
-  const sl = (k, t, mn, mx, st0, suf) => `<div class="mz-slider"><div class="mz-sr"><label for="mzs-${k}">${t}</label><output id="mzo-${k}">${k==='carico'?n1(s[k]):s[k]}${suf}</output></div><input id="mzs-${k}" data-mzs="${k}" type="range" min="${mn}" max="${mx}" step="${st0}" value="${s[k]}"></div>`;
-  foglioMz(`<h2>${tr('Le tue soglie')}</h2><p class="meta">${tr('Decidono quando una misura diventa «da fare».')}</p>
-    ${sl('zona', tr('Eventi per zona nei prossimi 7 giorni'), 1, 15, 1, '')}${sl('nuovi', tr('Obiettivo di eventi nuovi a settimana'), 5, 200, 5, '')}${sl('carico', tr('Tempo massimo di caricamento'), 1.5, 6, .1, ' s')}`);
-}
-
-/* ---------- export Excel ---------- */
-function esportaMisure(){
-  const m = mz(), giorni = Object.keys(Object.assign({}, m.giorni, m.richieste, m.creati, m.segnalazioni, m.correzioni)).sort();
-  const cit = CITTA.map(c => c.id);
-  const G = [[tr('Giorno'), tr('Eventi attivi'), ...CITTA.map(c => c.n), tr('Da import'), tr('Gratuiti'), tr('Consenso diretto'), tr('Fonte pubblica'), tr('Provenienza non indicata'), tr('Nuovi creati'), tr('Corretti'), tr('Rimossi'), tr('Richieste (Netlify)'), tr('Segnalazioni'), tr('Azioni di comunicazione')]]
-    .concat(giorni.map(g => { const x = m.giorni[g]||{}, c = m.correzioni[g]||{}; return [dIso(g), x.tot!=null?x.tot:'', ...cit.map(id => x.citta ? (x.citta[id]||0) : ''), x.imp!=null?x.imp:'', x.grat!=null?x.grat:'',
-      x.prov?(x.prov.consenso||0):'', x.prov?(x.prov.pubblica||0):'', x.prov?(x.prov.nd||0):'', m.creati[g]||0, c.c||0, c.r||0, m.richieste[g]!=null?m.richieste[g]:'', m.segnalazioni[g]||0, m.azioni.filter(a => a.d===g).map(a => a.t).join(' · ')]; }));
-  const R = [[tr('Ricevuta'), tr('Evasa'), tr('Ore')]].concat(m.rimozioni.map(r => [r.ric, r.eva||'', oreTra(r.ric, r.eva)==null?'':oreTra(r.ric, r.eva)]));
-  const V = [[tr('Versione'), tr('Data'), tr('Secondi')]].concat(m.versioni.map(v => [v.v, dIso(v.d), v.s]));
-  const P = [[tr('Data'), tr('Rete e telefono'), tr('Esito'), tr('Nota')]].concat(m.prove.map(p => [dIso(p.d), p.rete, p.ok?tr('Caricata'):tr('Non caricata'), p.nota||'']));
-  const I = [[tr('Data'), tr('Giro'), tr('Persone'), tr('Scoperto eventi nuovi'), tr('Andati a un evento'), tr('Guida senza aiuto'), tr('Off-Grid al primo tentativo'), tr('Mediana consiglio')]].concat(m.giri.map(x => [dIso(x.d), x.titolo||'', x.n, x.scoperto, x.andato, x.guida, x.og, x.cons==null?'':x.cons]));
-  const C = [['N.', tr('Domanda'), tr('Sezione'), tr('Stato'), tr('Nella sezione'), tr('Decisione di Lorenzo'), tr('Note di Lorenzo'), tr('Risposta di Claude'), tr('Appunti di studio'), tr('Data appunti'), tr('Ultimo cambio di stato'), tr('UE'), tr('IT')]]
-    .concat(MZ_KPI.map(k => { const x = (m.lib||{})[k.n]||{}, s = libStato(k.n); return [k.n, k.q, tr(NOMI_SEZ[sezioneKpi(k)]), tr(STATI_LIB[s]), s==='operativo' ? (HA_PANNELLO.has(k.n) ? (libVisibile(k.n)?tr('Visibile'):tr('Nascosta')) : tr('Pannello da costruire')) : '', k.lorD||'', k.lorNota||'', k.risposta||'', x.appunti||'', x.appuntiD?dIso(x.appuntiD):'', x.stato?dIso(x.agg):'', k.eu, k.it]; }));
-  const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico]];
-  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-misure'); avviso(tr('Misure esportate: {f}',{f:nomeFile()+'_misure_'+oggi()+'.xlsx'}), null, true); })
-    .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
-}
-
-/* ---------- apertura e interazioni ---------- */
-function apriMisure(){ mzFotografa(); vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0; }
-function salvaAppuntiMz(n){ const ta = $('mz-app-'+n), x = (mz().lib||{})[n]||{}; if(ta && ta.value.trim()!==(x.appunti||'')) libSet(n, {appunti:ta.value.trim(), appuntiD:oggi()}); }
-function clickMisure(t){
-  const d = t.dataset, m = mz(), a = d.mz; if(!a) return false;
-  nascondiTipMz();
-  switch(a){
-    case 'esci': vaiSezione('mappa'); apri('admin'); break;
-    case 'scheda': MS.scheda = d.v; if(d.f) MS.filtroCat = d.f; MS.sezLib = d.sez||''; chiudi(); disegnaMisure(); $('pagina-misure').scrollTop = 0; break;
-    case 'periodo': MS.periodo = +d.v; disegnaMisure(); break;
-    case 'ambito': MS.ambito = MS.ambito==='tutte' ? 'citta' : 'tutte'; disegnaMisure(); break;
-    case 'fonti': foglioFontiMz(); break;
-    case 'soglie': foglioSoglieMz(); break;
-    case 'vista': MS.vista[d.v] = MS.vista[d.v]==='tab' ? 'g' : 'tab'; disegnaMisure(); break;
-    case 'kpi': foglioKpiMz(d.n); break;
-    case 'kpiset': foglioSetMz(d.k.split(','), d.l); break;
-    case 'lib-vis': { const n = +d.n; salvaAppuntiMz(n); libSet(n, {visibile:!libVisibile(n)}); registra('misura', {r:n, x:libVisibile(n) ? tr('mostrata nella sezione') : tr('nascosta dalla sezione')}); if($('mz-app-'+n)) foglioKpiMz(n); disegnaMisure(); break; }
-    case 'lib-stato': { const n = +d.n, x = (m.lib||{})[n]||{};
-      if(!d.v){ delete x.stato; m.lib[n] = x; mzSalva(); } else libSet(n, {stato:d.v, visibile:true});
-      registra('misura', {r:n, x:tr('stato: {s}',{s:tr(STATI_LIB[libStato(n)])})+(d.v?'':' · '+tr('come nel file'))});
-      salvaAppuntiMz(n);
-      avviso(tr('Riga {n}: {s}',{n, s:tr(STATI_LIB[libStato(n)])}), null, true); foglioKpiMz(n); disegnaMisure(); break; }
-    case 'lib-appunti': { const ta = $('mz-app-'+d.n); if(!ta) break; libSet(+d.n, {appunti:ta.value.trim(), appuntiD:oggi()}); registra('misura', {r:+d.n, x:tr('appunti salvati')}); avviso(tr('Appunti salvati'), null, true); foglioKpiMz(d.n); disegnaMisure(); break; }
-    case 'lib-sez': MS.sezLib = d.v||''; disegnaMisure(); break;
-    case 'filtro': MS.filtroCat = d.v; disegnaMisure(); break;
-    case 'dec': m.stati[d.id] = 'fatto'; mzSalva(); disegnaMisure(); break;
-    case 'rimetti': m.stati = {}; mzSalva(); disegnaMisure(); break;
-    case 'segn-piu': m.segnalazioni[oggi()] = (m.segnalazioni[oggi()]||0)+1; mzSalva(); disegnaMisure(); break;
-    case 'segn-meno': if(m.segnalazioni[oggi()]){ m.segnalazioni[oggi()]--; if(!m.segnalazioni[oggi()]) delete m.segnalazioni[oggi()]; mzSalva(); disegnaMisure(); } break;
-    case 'rim-evasa': { const r = m.rimozioni[+d.i]; if(r){ r.eva = dtLocal(new Date()); mzSalva(); disegnaMisure(); } break; }
-    case 'rim-togli': m.rimozioni.splice(+d.i, 1); mzSalva(); disegnaMisure(); break;
-    case 'az-togli': m.azioni.splice(+d.i, 1); mzSalva(); disegnaMisure(); break;
-    case 'prova-togli': m.prove.splice(+d.i, 1); mzSalva(); disegnaMisure(); break;
-    case 'vers-togli': m.versioni.pop(); mzSalva(); disegnaMisure(); break;
-    case 'giro-togli': m.giri.pop(); mzSalva(); disegnaMisure(); break;
-    case 'rete': { const c = m.rete[d.k]||''; m.rete[d.k] = c==='' ? 'ok' : c==='ok' ? 'no' : ''; mzSalva(); disegnaMisure(); break; }
-    case 'esporta': esportaMisure(); break;
-    default: return false;
-  }
-  return true;
-}
-function inviaFormMz(f){
-  const m = mz(), D = Object.fromEntries(new FormData(f).entries()), k = f.dataset.mzform, num = v => { const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n) ? n : null; };
-  if(k==='richieste'){ const n = num(D.n); if(n==null || n<0){ avviso(tr('Scrivi un numero'), null, true); return; } m.richieste[oggi()] = Math.round(n); avviso(tr('Salvato per oggi: {n} richieste',{n:nf(Math.round(n))}), null, true); }
-  else if(k==='azione'){ const t = String(D.t||'').trim(); if(!t){ avviso(tr('Scrivi cosa hai fatto oggi'), null, true); return; } m.azioni.push({d:oggi(), t}); avviso(tr('Segnata sul grafico'), null, true); }
-  else if(k==='rimozione'){ if(!D.ric) return; m.rimozioni.push({ric:D.ric, eva:D.eva||''}); }
-  else if(k==='versione'){ const s = num(D.s); if(!D.v || s==null) return; m.versioni.push({v:String(D.v).trim(), s, d:oggi()}); }
-  else if(k==='prova'){ if(!D.rete) return; m.prove.push({d:oggi(), rete:String(D.rete).trim(), ok:D.ok==='1', nota:String(D.nota||'').trim()}); }
-  else if(k==='giro'){ const n = num(D.n); if(!n) return; const c = x => Math.max(0, Math.min(n, Math.round(num(x)||0)));
-    m.giri.push({d:oggi(), titolo:String(D.titolo||'').trim(), n:Math.round(n), scoperto:c(D.scoperto), andato:c(D.andato), guida:c(D.guida), og:c(D.og), cons:num(D.cons)}); }
-  mzSalva(); disegnaMisure();
-}
-
-/* ---------- tooltip dei grafici ---------- */
-let tipMz = null;
-function mostraTipMz(html, x, y){
-  if(!tipMz){ tipMz = document.createElement('div'); tipMz.className = 'mz-tip'; tipMz.setAttribute('role','status'); document.body.appendChild(tipMz); }
-  tipMz.innerHTML = html; tipMz.style.opacity = 1;
-  const r = tipMz.getBoundingClientRect(); let L = Math.max(8, Math.min(innerWidth - r.width - 8, x - r.width/2)), T = y - r.height - 12; if(T<8) T = y + 16;
-  tipMz.style.left = L+'px'; tipMz.style.top = T+'px';
-}
-function nascondiTipMz(){ if(tipMz) tipMz.style.opacity = 0; }
-(function collegaMisure(){
-  const el = $('pagina-misure'); if(!el) return;
-  el.addEventListener('submit', ev => { const f = ev.target.closest('[data-mzform]'); if(!f) return; ev.preventDefault(); inviaFormMz(f); });
-  el.addEventListener('pointermove', ev => {
-    const svg = ev.target.closest && ev.target.closest('svg[data-mzline]');
-    if(svg){ const L = LINEE_MZ[svg.dataset.mzline]; if(!L) return; const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left)/r.width*L.W, n = L.giorni.length;
-      let i = Math.round((px - L.pl)/(L.W - L.pl - L.pr)*(n-1)); i = Math.max(0, Math.min(n-1, i));
-      const mi = svg.querySelector('.mz-mirino'), xx = L.x(i); mi.setAttribute('x1', xx); mi.setAttribute('x2', xx); mi.setAttribute('opacity', .5);
-      const az = L.azioni.filter(a => a.i===i).map(a => `<br>● ${esc(a.t)}`).join('');
-      mostraTipMz(`<b>${esc(lungD(L.giorni[i]))}</b>${L.serie.map(s => `<br>${esc(s.nome)}: ${s.v[i]==null?tr('nessun dato'):nf(s.v[i])}`).join('')}${az}`, r.left + xx/L.W*r.width, r.top + 10); return; }
-    const t = ev.target.closest && ev.target.closest('[data-mztip]');
-    if(t){ const r = t.getBoundingClientRect(); mostraTipMz(t.dataset.mztip, r.left + r.width/2, r.top); } else nascondiTipMz();
-  });
-  el.addEventListener('pointerleave', () => { nascondiTipMz(); el.querySelectorAll('.mz-mirino').forEach(m => m.setAttribute('opacity', 0)); });
-  el.addEventListener('pointerdown', ev => { const t = ev.target.closest && ev.target.closest('[data-mztip]'); if(t){ const r = t.getBoundingClientRect(); mostraTipMz(t.dataset.mztip, r.left + r.width/2, r.top); } });
-  el.addEventListener('scroll', nascondiTipMz, {passive:true});
-  $('foglio-slot').addEventListener('input', ev => { const s = ev.target.dataset && ev.target.dataset.mzs; if(!s) return; const m = mz(); m.soglie[s] = +ev.target.value; mzSalva(); const o = $('mzo-'+s); if(o) o.textContent = (s==='carico'?n1(m.soglie[s]):m.soglie[s])+(s==='carico'?' s':''); if(st.sezione==='misure') disegnaMisure(); });
-})();
-
-/* ======================= Storico delle operazioni dell'admin (6 ottobre 2026) =======================
-   Dove sta: in questo telefono, nella memoria del browser (chiave red_storico), come gli eventi
-   e le Misure. L'app lo legge da lì: non va su nessun server e un altro telefono non lo vede.
-   Cosa tiene: il tipo di operazione, giorno e ora, quanti eventi e il codice dell'evento. Il titolo NON viene salvato:
-   lo storico lo legge dall'evento finché l'evento è sulla mappa. Quando l'evento sparisce (3 ore dopo la fine),
-   nello storico resta solo «evento non più sulla mappa», così lo storico non diventa un archivio degli eventi.
-   Si tengono le ultime 1.000 operazioni e al massimo 12 mesi. */
-const STORICO_MAX = 1000, STORICO_GIORNI = 365;
-const OP_STORICO = {
-  entra:['accessi','Entrata in modalità admin'], esci:['accessi','Uscita dalla modalità admin'],
-  crea:['eventi','Evento creato'], modifica:['eventi','Evento modificato'], elimina:['eventi','Evento eliminato'], ripristina:['eventi','Eventi ripristinati'],
-  importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
-  'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
-  misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']
-};
-const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Accessi']];
-const SH = {filtro:'tutte', mostrati:60, conferma:false};
-function storico(){
-  const l = MEM.leggi('red_storico', []); if(!Array.isArray(l)) return [];
-  const limite = Date.now() - STORICO_GIORNI*864e5;
-  return l.filter(x => x && OP_STORICO[x.op] && Date.parse(x.t) >= limite);
-}
-function registra(op, extra){
-  if(!OP_STORICO[op]) return;
-  const voce = Object.assign({t:new Date().toISOString(), op}, extra||{});
-  Object.keys(voce).forEach(k => { if(voce[k]==null || voce[k]==='') delete voce[k]; });
-  const l = storico(); l.push(voce);
-  MEM.scrivi('red_storico', l.slice(-STORICO_MAX));
-}
-function descriviVoce(x){
-  const ev = x.id ? rawById(x.id) : null, strato = x.s && S[x.s] ? tr(S[x.s].label) : '';
-  const parti = [];
-  if(x.id) parti.push(ev ? `«${esc(ev.title||'')}»` : `<span class="sh-via">${tr('evento non più sulla mappa')}</span>`);
-  if(strato) parti.push(esc(strato));
-  if(x.n!=null) parti.push(x.n===1 ? tr('1 evento') : tr('{n} eventi',{n:nf(x.n)}));
-  if(x.r!=null) parti.push(tr('riga {n}',{n:esc(x.r)}));
-  if(x.x) parti.push(esc(x.x));
-  return parti.join(' · ');
-}
-function foglioStorico(){
-  const tutte = storico().reverse(), f = SH.filtro;
-  const lista = tutte.filter(x => f==='tutte' || OP_STORICO[x.op][0]===f), vis = lista.slice(0, SH.mostrati);
-  let giorno = '', righe = '';
-  vis.forEach(x => { const d = new Date(x.t), g = x.t.slice(0,10);
-    if(g!==giorno){ giorno = g; righe += `<h3 class="sh-giorno">${esc(lungD(oggiDi(d)))}</h3>`; }
-    righe += `<div class="sh-voce sh-${OP_STORICO[x.op][0]}"><span class="sh-ora">${hm(d)}</span><div><b>${tr(OP_STORICO[x.op][1])}</b>${descriviVoce(x)?`<span class="meta">${descriviVoce(x)}</span>`:''}</div></div>`; });
-  window.AGR.foglio(`<div class="mz-foglio sh">
-    <button class="link sh-indietro" data-az="admin">${tr('‹ Modalità admin')}</button>
-    <h2>${tr('Storico delle operazioni')}</h2>
-    <p class="meta">${tr('Resta solo su questo telefono, nella memoria del browser (chiave red_storico): l’app lo legge da lì e non lo manda a nessun server. Un altro telefono ha il suo storico, o nessuno.')}</p>
-    <nav class="mz-schede mz-filtri" aria-label="${esc(tr('Filtra lo storico'))}">${GRUPPI_STORICO.map(([k,t]) => `<button data-sh="filtro" data-v="${k}" aria-pressed="${f===k}"><span>${tr(t)} · ${tutte.filter(x => k==='tutte' || OP_STORICO[x.op][0]===k).length}</span></button>`).join('')}</nav>
-    ${righe || `<p class="mz-nota">${tr('Nessuna operazione registrata. Lo storico parte da oggi: le operazioni fatte prima non ci sono.')}</p>`}
-    ${lista.length > vis.length ? `<button class="tasto sec pieno" data-sh="altre">${tr('Mostra le precedenti ({n})',{n:lista.length - vis.length})}</button>` : ''}
-    <p class="meta">${tr('Il titolo degli eventi non si salva: si legge dall’evento finché è sulla mappa. Si tengono le ultime 1.000 operazioni, per al massimo 12 mesi.')}</p>
-    ${tutte.length ? `<button class="tasto sec pieno" data-sh="esporta">${tr('Esporta lo storico in Excel')}</button>
-    ${SH.conferma ? `<div class="sh-conferma" role="alert"><p>${tr('Cancello tutte le {n} operazioni da questo telefono? Non si possono recuperare.',{n:tutte.length})}</p><div class="tasti"><button class="tasto sec" data-sh="annulla">${tr('Annulla')}</button><button class="tasto pri" data-sh="svuota-ok">${tr('Sì, svuota')}</button></div></div>`
-      : `<button class="link sh-svuota" data-sh="svuota">${tr('Svuota lo storico')}</button>`}` : ''}
-  </div>`, 'sez-misure');
-}
-const oggiDi = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-function esportaStorico(){
-  const R = [[tr('Giorno'), tr('Ora'), tr('Tipo'), tr('Operazione'), tr('Evento (se ancora sulla mappa)'), tr('Strato'), tr('Quanti'), tr('Riga delle Misure'), tr('Dettaglio')]]
-    .concat(storico().map(x => { const d = new Date(x.t), ev = x.id ? rawById(x.id) : null;
-      return [dIso(oggiDi(d)), hm(d), tr(GRUPPI_STORICO.find(g => g[0]===OP_STORICO[x.op][0])[1]), tr(OP_STORICO[x.op][1]), x.id ? (ev ? ev.title : tr('non più sulla mappa')) : '', x.s && S[x.s] ? tr(S[x.s].label) : '', x.n==null ? '' : x.n, x.r==null ? '' : x.r, x.x||'']; }));
-  fileExcel([[tr('Storico'), R, [12,8,16,32,40,18,8,10,30]]], nomeFile()+'_storico_'+oggi()+'.xlsx')
-    .then(() => { registra('esporta-storico'); avviso(tr('Storico esportato: {f}',{f:nomeFile()+'_storico_'+oggi()+'.xlsx'}), null, true); foglioStorico(); })
-    .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
-}
-document.addEventListener('click', ev => {
-  const b = ev.target.closest && ev.target.closest('[data-sh]'); if(!b) return;
-  ev.preventDefault(); ev.stopPropagation();
-  const a = b.dataset.sh;
-  if(a==='filtro'){ SH.filtro = b.dataset.v; SH.mostrati = 60; }
-  else if(a==='altre') SH.mostrati += 100;
-  else if(a==='esporta'){ esportaStorico(); return; }
-  else if(a==='svuota') SH.conferma = true;
-  else if(a==='annulla') SH.conferma = false;
-  else if(a==='svuota-ok'){ const n = storico().length; MEM.scrivi('red_storico', []); SH.conferma = false; registra('svuota', {x:tr('{n} operazioni cancellate',{n})}); avviso(tr('Storico svuotato'), null, true); }
-  foglioStorico();
-}, true);
-
 
 /* ======================= Interazioni ======================= */
 $('app').addEventListener('click', ev => {
@@ -2908,7 +1987,7 @@ $('app').addEventListener('click', ev => {
   if(t.tagName==='A') return;
   if(t.closest('.sez-temi') && clickTemi(t)) return;
   if(t.closest('.sez-agora,.sez-progetti,.sez-proposta')) return;
-  if(t.dataset.mz!=null && clickMisure(t)) return;   /* Misure dell'admin */
+  
   const d = t.dataset;
   if(d.tema){ apriTemi(['t:'+d.tema]); return; }
   if(d.regione){ const [lng, lat] = d.regione.split(',').map(Number); if(map && isFinite(lng) && isFinite(lat)) map.flyTo({center:[lng, lat], zoom:12, duration:800}); return; }
@@ -2925,11 +2004,12 @@ $('app').addEventListener('click', ev => {
   if(d.salva){ if(inCal(d.salva)) delete calEvents[d.salva]; else calEvents[d.salva] = true; saveCal(); tutto(); if(st.foglio==='scheda') disegnaFoglio(); return; }
   if(d.si!=null){ const i = +d.si;
     if(sugg.dove==='cerca') return scegliLuogo(i);
-    const r = sugg.lista[i], f = sugg.dove==='a' ? st.aform : st.form; if(!r || !f) return;
+    /* pre: «f» per il modulo Off-Grid; nell'app della redazione anche «a» per il modulo degli eventi */
+    const pre = 'f', r = sugg.lista[i], f = st.form; if(!r || !f) return;
     f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; if(f.err) f.err.indirizzo = 0;
-    const inp = $(sugg.dove==='a' ? 'a-indirizzo' : 'f-indirizzo'); if(inp) inp.value = f.indirizzo;
-    const box = $(sugg.dove==='a' ? 'a-sugg' : 'f-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
-    const pb = $(sugg.dove==='a' ? 'a-punto' : 'f-punto'); if(pb) pb.innerHTML = boxPunto(f);
+    const inp = $(pre+'-indirizzo'); if(inp) inp.value = f.indirizzo;
+    const box = $(pre+'-sugg'); if(box) box.innerHTML = ''; sugg.lista = [];
+    const pb = $(pre+'-punto'); if(pb) pb.innerHTML = boxPunto(f);
     return; }
   if(d.copiaIndirizzo){ copiaIndirizzo(d.copiaIndirizzo); return; }
   if(d.giorno){ if(!st.da || st.a){ st.da = d.giorno; st.a = null; } else if(d.giorno < st.da){ st.da = d.giorno; } else { st.a = d.giorno; } disegnaFoglio(); return; }
@@ -2943,8 +2023,6 @@ $('app').addEventListener('click', ev => {
   if(d.modifica){ const r = rawById(d.modifica); if(r) apriForm(r); return; }
   if(d.elimina){ st.conferma = {id:d.elimina}; st.foglio = 'conferma'; disegnaFoglio(); return; }
   if(d.eliminaOk){ elimina(st.conferma.id, d.eliminaOk); return; }
-  if(d.modificaAdmin){ const r = rawById(d.modificaAdmin); if(r) apriAdminForm(r); return; }
-  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); registra('elimina', {id:r.id, s:r.category}); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return; }
   if(d.salvaForm){ salvaForm(d.salvaForm); return; }
   if(d.fgiorno){ st.form.giorno = d.fgiorno; if(st.form.fino < d.fgiorno) st.form.fino = piuMesi(d.fgiorno,3); disegnaFoglio(); return; }
   if(d.togliLink!=null){ st.form.links.splice(+d.togliLink,1); if(!st.form.links.length) st.form.links = ['']; disegnaFoglio(); return; }
@@ -2981,7 +2059,6 @@ $('app').addEventListener('click', ev => {
     case 'home': vaiSezione('mappa'); st.foglio = null; st.sel = null; st.cercaQui = null; disegnaFoglio(); tutto(); vaiCitta(true); break;
     case 'nuovo': apriForm(null); break;
     case 'scegli-mappa': iniziaPosa('form'); break;
-    case 'scegli-mappa-a': iniziaPosa('aform'); break;
     case 'posa-annulla': finePosa(false); break;
     case 'posa-ok': finePosa(true); break;
     case 'aiuto': st.form.aiuto = !st.form.aiuto; disegnaFoglio(); break;
@@ -2997,7 +2074,7 @@ $('app').addEventListener('click', ev => {
     case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
       if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
     case 'citta': apri('citta'); break;
-    case 'impostazioni': st.sel = null; st.msgAdmin = null; st.adminPw = false; st.adminErr = false; apri('impostazioni'); break;
+    case 'impostazioni': st.sel = null; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
     case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
@@ -3008,22 +2085,7 @@ $('app').addEventListener('click', ev => {
     case 'novita-ok': novitaVista(false); break;
     case 'novita-leggi': novitaVista(true); break;
     case 'aiuto-og': apriForm(null, {aiuto:true}); break;
-    case 'mostra-admin': st.adminPw = true; st.adminErr = false; disegnaFoglio(); setTimeout(() => { const i = $('adminpw'); if(i) i.focus(); }, 60); break;
-    case 'entra-admin': { const v = ($('adminpw')||{}).value||''; if(v===ADMIN_PW){ registra('entra'); st.admin = true; st.adminPw = false; st.adminErr = false; st.msgAdmin = null; disegnaChips(); apri('admin'); tutto(); mzFotografa(); } else { st.adminErr = true; disegnaFoglio(); } break; }
-    case 'admin': st.importa = null; st.aform = null; apri('admin'); break;
-    case 'admin-misure': apriMisure(); break;
-    case 'esci-admin': registra('esci'); st.admin = false; st.msgAdmin = null; chiudi(); if(st.sezione==='misure') vaiSezione('mappa'); tutto(); break;
-    case 'admin-modello': scaricaModello(); break;
-    case 'admin-esporta-json': esporta(); registra('esporta-json'); break;
-    case 'admin-storico': SH.filtro = 'tutte'; SH.mostrati = 60; SH.conferma = false; foglioStorico(); break;
-    case 'admin-ongrid': apriAdminForm(null); break;
-    case 'admin-importa': $('fileImporta').click(); break;
-    case 'importa-annulla': st.importa = null; apri('admin'); break;
-    case 'importa-ok': { if(!st.importa || st.importa.fase!=='pronto') break; const n = st.importa.ok.length; registra('importa', {n}); events = events.concat(st.importa.ok); saveEvents(); ricostruisci(); st.importa = null; st.msgAdmin = tr('Importati {n} nuovi eventi.',{n}); apri('admin'); tutto(); mzFotografa(); break; }
-    case 'admin-esporta': esportaExcel(); break;
-    case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
-    case 'a-salva': salvaAdmin(); break;
-    case 'ripristina': if(st.eliminati.length){ registra('ripristina', {n:st.eliminati.length}); st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
+    
   }
 });
 /* il trattino si trascina: il pannello segue il dito */
@@ -3044,19 +2106,12 @@ function bordiChips(){
 }
 $('chips').addEventListener('scroll', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); }, {passive:true});
 window.addEventListener('resize', () => { if(!chipsRaf) chipsRaf = requestAnimationFrame(bordiChips); });
-$('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
 /* campi: aggiornano lo stato senza ridisegnare il foglio (il cursore resta dov'è) */
 $('foglio-slot').addEventListener('input', ev => {
   const el = ev.target;
   if(el.id==='tz-q'){ TM.q = el.value; const d = $('tz-lente'); if(d) d.innerHTML = lenteDentro(); return; }
   if(el.id==='q'){ st.q = el.value; $('risultati').innerHTML = risultatiEventi(); chiediSuggerimenti(el.value, 'cerca', 'risultati-luoghi'); return; }
-  if(el.dataset.acampo && st.aform){
-    const c = el.dataset.acampo, f = st.aform; f[c] = el.type==='checkbox' ? el.checked : el.value;
-    if(c==='indirizzo'){ f.pos = null; f.precision = ''; f.addrFull = ''; $('a-punto').innerHTML = ''; chiediSuggerimenti(el.value, 'a', 'a-sugg'); }
-    if(c==='desc'){ const x = $('a-conta'); if(x) x.outerHTML = contaDesc(f); }
-    if(f.err && f.err[c] && String(el.value).trim()){ f.err[c] = 0; el.closest('.campo') && el.closest('.campo').classList.remove('errore'); }
-    return;
-  }
+  
   if(!st.form) return;
   if(el.dataset.link!=null){ st.form.links[+el.dataset.link] = el.value; return; }
   const c = el.dataset.campo; if(!c) return;
@@ -3069,8 +2124,7 @@ $('foglio-slot').addEventListener('input', ev => {
 });
 $('foglio-slot').addEventListener('change', ev => {
   const el = ev.target;
-  if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return; }
-  if(el.dataset.acampo==='sub' && st.aform){ st.aform.sub = el.value; return; }
+  
   if(!st.form) return;
   const c = el.dataset.campo;
   if(c==='rep' || c==='giorno' || c==='fino'){ st.form[c] = el.value; if(c==='giorno' && el.value && (!st.form.fino || st.form.fino < el.value)) st.form.fino = piuMesi(el.value,3); disegnaFoglio(); }
@@ -3079,9 +2133,8 @@ $('foglio-slot').addEventListener('keydown', ev => {
   if(ev.key!=='Enter') return;
   if(ev.target.id==='tz-nome'){ ev.preventDefault(); const b = document.querySelector('[data-tz="salva-ok"]'); if(b) b.click(); return; }
   if(ev.target.id==='pw'){ ev.preventDefault(); document.querySelector('[data-az="sblocca"]').click(); }
-  else if(ev.target.id==='adminpw'){ ev.preventDefault(); document.querySelector('[data-az="entra-admin"]').click(); }
   else if(ev.target.id==='q'){ ev.preventDefault(); clearTimeout(sugg.t); cercaInvio(); }
-  else if(ev.target.id==='f-indirizzo' || ev.target.id==='a-indirizzo'){ ev.preventDefault(); const b = document.querySelector('#'+(ev.target.id==='f-indirizzo'?'f':'a')+'-sugg [data-si]'); if(b) b.click(); }
+  else if(ev.target.id==='f-indirizzo'){ ev.preventDefault(); const b = document.querySelector('#'+ev.target.id.charAt(0)+'-sugg [data-si]'); if(b) b.click(); }
 });
 document.addEventListener('keydown', ev => { if(ev.key==='Escape'){
   if(st.pieno && !st.foglio){ $('btnPieno').click(); return; }
@@ -3103,7 +2156,7 @@ let registrazione = null, paginaInUscita = false;
 window.addEventListener('pagehide', () => { paginaInUscita = true; });
 window.addEventListener('pageshow', () => { paginaInUscita = false; });
 const versioneInAttesa = () => registrazione && registrazione.waiting && navigator.serviceWorker.controller ? registrazione.waiting : null;
-const nonDisturba = () => !paginaInUscita && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.aform && !st.posa && st.guida==null && st.sezione==='mappa';
+const nonDisturba = () => !paginaInUscita && document.visibilityState==='hidden' && !st.foglio && !st.form && !st.posa && st.guida==null && st.sezione==='mappa';
 function passaAllaVersioneNuova(){
   if(versioneInAttesa() && nonDisturba()) setTimeout(() => { const w = versioneInAttesa(); if(w && nonDisturba()){ try{ w.postMessage('attiva'); }catch(e){} } }, 3000);
 }

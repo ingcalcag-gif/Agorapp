@@ -481,7 +481,6 @@ function disegnaChips(){
   $('btnCal').innerHTML = `<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
   requestAnimationFrame(() => { if(typeof bordiChips==='function') bordiChips(); });
   $('btnCal').setAttribute('aria-label', tr('Il mio Calendario'));
-  $('badgeAdmin').hidden = !st.admin;
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
   $('btnPieno').setAttribute('aria-pressed', st.pieno); $('btnPieno').setAttribute('aria-label', st.pieno ? tr('Esci dallo schermo intero') : tr('Mappa a schermo intero'));
   const per = nelPeriodo();

@@ -20,12 +20,12 @@ function confrontaUscita(e, nome, atteso) {
 function prova() {
   const e = esito('Uscite e pubblicazione');
   const cfg = configurazione();
-  const file = uscita(cfg);
-  confrontaUscita(e, 'pubblica', file);
-  confrontaUscita(e, 'redazione', file);
+  // Due app dallo stesso codice (T-033): ogni uscita è quella che il montaggio produce per quella app.
+  confrontaUscita(e, 'pubblica', uscita(cfg, 'pubblica'));
+  confrontaUscita(e, 'redazione', uscita(cfg, 'redazione'));
   if (fs.existsSync(path.join(RADICE, 'dist', 'prova-nome'))) {
     const c2 = { ...cfg, nome: 'Nomeprova' };
-    confrontaUscita(e, 'prova-nome/pubblica', uscita(c2));
+    confrontaUscita(e, 'prova-nome/pubblica', uscita(c2, 'pubblica'));
   }
 
   // Nessuna copia dell'app fuori da dist/: il vecchio index.html alla radice è uscito il 17/11/2026.

@@ -257,7 +257,7 @@ function fForm(){
     ${serie && serie.length>1 ? `<div class="stack-s"><button class="tasto pri pieno col" data-salva-form="una">${tr('Salva solo questa data')}<small>${esc(nomeGiorno(f.giorno))}</small></button><button class="tasto sec pieno col" data-salva-form="serie">${tr('Salva tutta la serie')}<small>${tr('{n} date, ognuna nel suo giorno',{n:serie.length})}</small></button></div>`
       : `<div class="tasti"><button class="tasto sec" data-az="chiudi">${tr('Annulla')}</button><button class="tasto pri" data-salva-form="una">${mod?tr('Salva modifiche'):tr('Salva sulla mappa')}</button></div>`}
     ${mod?`<button class="tasto pericolo pieno" data-elimina="${esc(f.id)}">${tr('Elimina')}</button>`:''}
-    ${st.admin&&!mod?`<button class="link" data-az="admin-ongrid">${tr('Admin: crea invece un evento on-grid completo')} ${freccia}</button>`:''}`;
+    /*@red*/${!mod?`<button class="link" data-az="admin-ongrid">${tr('Redazione: crea invece un evento on-grid completo')} ${freccia}</button>`:''}/*@fine*/`;
   return foglio('forte alto', testa, corpo);
 }
 function salvaForm(modo){
@@ -333,12 +333,12 @@ function disegnaPosa(){
     <div class="posa-barra vetro"><div class="tasti"><button class="tasto sec" data-az="posa-annulla">${tr('Annulla')}</button><button class="tasto pri" data-az="posa-ok">${tr('Conferma')}</button></div></div>`;
 }
 function iniziaPosa(chi){
-  const f = chi==='aform' ? st.aform : st.form; if(!f) return;
+  const f = st[chi]; if(!f) return;   /* chi: il nome del modulo aperto nello stato, che è anche il nome del suo foglio */
   st.posa = chi; st.foglio = null; disegnaFoglio(); disegnaPins(); disegnaPosa(); posizioni();
   if(f.pos && map) map.jumpTo({center:[f.pos.lng, f.pos.lat], zoom:Math.max(map.getZoom(), 17), padding:{top:0,bottom:0,left:0,right:0}});
 }
 function finePosa(ok){
-  const chi = st.posa, f = chi==='aform' ? st.aform : st.form; st.posa = null; disegnaPosa();
+  const chi = st.posa, f = st[chi]; st.posa = null; disegnaPosa();
   if(ok && f && map){
     const c = map.getCenter(); f.pos = {lat:c.lat, lng:c.lng}; f.precision = 'map'; if(f.err) f.err.indirizzo = 0;
     /* nessuna ricerca inversa (T-008): resta ciò che la persona ha scritto, altrimenti «Punto scelto sulla mappa» */

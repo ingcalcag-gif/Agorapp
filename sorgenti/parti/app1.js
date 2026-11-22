@@ -4,7 +4,7 @@
    App della mappa degli eventi — restyling (ramo restyling-app)
    Stile, struttura e comportamenti dal mockup unico approvato (2 ottobre 2026).
    Funzioni vere dall'app online OG 1.7: mappa (dal blocco 3 la mappa propria, T-017), indirizzi Photon,
-   GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, admin, città,
+   GPS, Off-Grid OG 1.0–1.7, Giornata/Mese/Agenda, PDF, nascosti, città,
    5 lingue, testi legali v1.2. I dati sul telefono passano dal modulo della memoria (T-026).
    ===================================================================== */
 const $ = id => document.getElementById(id);
@@ -28,15 +28,17 @@ const nomeFile = () => NOME.toLowerCase().normalize('NFD').replace(/[\u0300-\u03
 const casellaHtml = (classe, oggetto) => segnaposto(CASELLA) || !CASELLA
   ? `<span class="${classe}">${esc(CASELLA)}</span>`
   : `<a class="${classe}" href="mailto:${esc(CASELLA)}${oggetto ? '?subject=' + encodeURIComponent(oggetto) : ''}">${esc(CASELLA)}</a>`;
-const ADMIN_PW = 'agorapp2024', EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
+const EXPIRE_MS = 3*36e5, OG_KEEP_MS = 92*864e5, DESC_MIN = 30, TITLE_MAX = 100;
 
 /* ---------- Memoria del telefono (T-026; libro mastro, § 3.7 e cap. 30; docs/dati-locali.md) ----------
    Tutto ciò che l'app salva sul telefono passa da MEM, che conosce soltanto le chiavi dell'elenco chiuso
    (sorgenti/moduli/memoria.js): leggi e scrivi per i valori in JSON, testo per i testi, togli per cancellare.
-   Fino al blocco 8 l'area riservata sta ancora in questa app: per questo la memoria comprende le chiavi della Redazione.
+   Le due app montate dallo stesso codice (T-033) aprono la memoria in modo diverso: l'app pubblica conosce soltanto le
+   righe della scheda «Dati locali»; l'app della redazione anche le chiavi dei suoi strumenti.
    avvia(), prima di ogni lettura: i dati salvati con i nomi delle versioni precedenti traslocano sotto i nomi nuovi e
-   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle. */
-const MEM = MODULI.memoria.crea({redazione:true});
+   le chiavi delle funzioni tolte dall'app si cancellano senza leggerle; nell'app pubblica si cancellano così anche le
+   chiavi degli strumenti della Redazione rimaste sul telefono da quando l'area riservata stava in questa app. */
+const MEM = MODULI.memoria.crea({redazione:/*@red*/true/*@fine*//*@pub*/false/*@fine*/});
 MEM.avvia();
 
 /* ---------- Lingue ---------- */
@@ -82,7 +84,7 @@ let calEvents = MEM.leggi('dl_calendario', {}); if(!calEvents || typeof calEvent
 /* dal calendario escono gli eventi tolti qui sopra e ogni voce d'esempio della demo (demo-…), anche senza evento */
 (function(){ const via = Object.keys(calEvents).filter(id => IDS_TOLTI.includes(id) || /^demo-/.test(id));
   if(via.length){ via.forEach(id => delete calEvents[id]); MEM.scrivi('dl_calendario', calEvents); } })();
-function saveEvents(){ if(!MEM.scrivi('dl_eventi', events)) avviso(tr('Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'), null, true); }
+function saveEvents(){ if(!MEM.scrivi('dl_eventi', events)) avviso(tr(/*@red*/'Spazio esaurito sul telefono: esporta un backup ed elimina qualche evento.'/*@fine*//*@pub*/'Spazio esaurito sul telefono: elimina qualche evento.'/*@fine*/), null, true); }
 function saveCal(){ MEM.scrivi('dl_calendario', calEvents); }
 const inCal = id => !!calEvents[id];
 
@@ -135,8 +137,8 @@ const formatPrice = p => { if(!p) return p; const s = String(p).trim(); if(/^(gr
 
 /* ---------- Vista degli eventi: un oggetto per tipo, come nel mockup ---------- */
 /* Due provenienze, separate (T-022): gli eventi pubblici arrivano soltanto dall'archivio comune, a quadranti; gli
-   Off-Grid soltanto dalla memoria del telefono. Gli eventi creati o importati qui dall'area riservata restano nella
-   memoria di questo telefono ma non vanno più sulla mappa: si pubblicheranno dall'app della redazione (blocchi 8-10).
+   Off-Grid soltanto dalla memoria del telefono. Gli eventi che la Redazione prepara nella sua app restano nella memoria
+   del suo dispositivo e non vanno sulla mappa finché non si pubblicano (blocchi 9-10).
    Pratiche e Istanze non vanno sulla mappa finché Progetti e Agorà non aprono (T-015). */
 function tipoDi(ev){ return (ev.personal || ev.offgrid) ? 'og' : 'evento'; }
 function vista(ev){
@@ -177,8 +179,8 @@ const st = {
   strati:new Set(), subOff:new Set(), aperto:null, preset:0,
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
-  pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
-  admin:false, adminPw:false, adminErr:false, guida:null, sbloccati:new Set(), eliminati:[], importa:null, msgAdmin:null, lente:null, vuoti:false
+  pieno:false, sezione:'mappa', form:null, /*@red*/aform:null, /*@fine*/conferma:null, legale:'privacy', semplice:false,
+  /*@red*/admin:true, eliminati:[], importa:null, msgAdmin:null, /*@fine*/guida:null, sbloccati:new Set(), lente:null, vuoti:false
 };
 (function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = MEM.testo('dl_semplice','0')==='1';

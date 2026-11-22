@@ -69,8 +69,9 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--riquadro);borde
 `;
 
 /* File della cartella licenze/ da pubblicare con l'app. */
-function fileLicenze(cfg) {
-  const elenco = componenti();
+/* fuori: nomi dei testi (es. «sheetjs.txt») dei componenti che non viaggiano con questa app (T-033). */
+function fileLicenze(cfg, fuori = []) {
+  const elenco = componenti().filter(c => !c.testi.some(t => fuori.includes(t)));
   const file = {};
   for (const c of elenco) for (const t of c.testi) {
     if (!/^[a-z0-9.-]+\.txt$/.test(t)) throw new Error('COMPONENTI_DI_TERZI.md: nome di testo non valido «' + t + '» (' + c.nome + ')');

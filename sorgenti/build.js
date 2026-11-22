@@ -3,7 +3,12 @@
    Si lancia da qualunque cartella: `npm run build` (oppure `node sorgenti/build.js`).
    Legge soltanto i file di sorgenti/ e scrive due uscite:
      dist/pubblica/   l'app pubblica (la sola cartella che il sito pubblica)
-     dist/redazione/  l'app della redazione (uguale alla pubblica fino al blocco 8 del piano)
+     dist/redazione/  l'app della redazione: lo stesso codice, con in più gli strumenti di sorgenti/redazione/ (T-033)
+   Due app dallo stesso codice (libro mastro, § 2.4): nell'app pubblica non entra nessuna riga degli strumenti della
+   Redazione. I pezzi comuni segnano i tratti di una sola app con tre segni, scritti ciascuno dentro un commento
+   (di JavaScript e CSS, oppure di HTML): @red apre un tratto solo della redazione, @pub un tratto solo della pubblica,
+   @fine lo chiude. Il montaggio toglie i tratti dell'altra app e i segni; i file di sorgenti/redazione/ entrano
+   soltanto nell'app della redazione.
    In ogni uscita JavaScript e CSS stanno in file propri, non dentro la pagina; i moduli separati di sorgenti/moduli/
    (testi come testo, memoria del telefono, formato degli eventi, quadranti, lettura dell'archivio) stanno in moduli.js,
    caricato prima dell'app.
@@ -36,6 +41,7 @@ const VENDOR = require('./vendor/elenco.js');
 const SORGENTI = __dirname;
 const RADICE = path.resolve(SORGENTI, '..');
 const PARTI = path.join(SORGENTI, 'parti');
+const REDAZIONE = path.join(SORGENTI, 'redazione');
 const MODULI = path.join(SORGENTI, 'moduli');
 const DATI = path.join(SORGENTI, 'dati');
 
@@ -81,9 +87,11 @@ function riempi(html, cfg, lingua) {
 /* ---------- Librerie e caratteri ospitati con l'app (T-007) ---------- */
 const VENDOR_DIR = path.join(SORGENTI, 'vendor');
 // I file di sorgenti/vendor/ in lib/, ciascuno controllato sull'impronta annotata in vendor/elenco.js.
-function fileVendor() {
+// Un componente con «solo: 'redazione'» viaggia soltanto con quell'app (SheetJS: importazione ed esportazione Excel).
+const delVendor = quale => VENDOR.filter(c => !c.solo || c.solo === quale);
+function fileVendor(quale = 'pubblica') {
   const file = {};
-  for (const c of VENDOR) {
+  for (const c of delVendor(quale)) {
     for (const [f, impronta] of Object.entries(c.file)) {
       const dati = fs.readFileSync(path.join(VENDOR_DIR, c.cartella, f));
       if (crypto.createHash('sha256').update(dati).digest('hex') !== impronta)
@@ -134,19 +142,63 @@ function correzioniMappa() {
   return testo;
 }
 
+/* ---------- Due app dallo stesso codice (T-033) ---------- */
+const APP = ['pubblica', 'redazione'];
+const SEGNI = { red: 'redazione', pub: 'pubblica' };
+// Toglie da un pezzo i tratti dell'altra app e tutti i segni. I tratti non si annidano.
+function taglia(testo, quale, nome) {
+  const re = /(?:\/\*|<!--)@(red|pub|fine)(?:\*\/|-->)/g;
+  let out = '', i = 0, aperto = null, tieni = true, m;
+  while ((m = re.exec(testo))) {
+    const riga = testo.slice(0, m.index).split('\n').length;
+    if (m[1] === 'fine') {
+      if (!aperto) throw new Error(nome + ', riga ' + riga + ': @fine senza @red o @pub');
+      if (tieni) out += testo.slice(i, m.index);
+      aperto = null;
+    } else {
+      if (aperto) throw new Error(nome + ', riga ' + riga + ': @' + m[1] + ' dentro @' + aperto);
+      out += testo.slice(i, m.index);
+      aperto = m[1]; tieni = SEGNI[m[1]] === quale;
+    }
+    i = re.lastIndex;
+  }
+  if (aperto) throw new Error(nome + ': @' + aperto + ' senza @fine');
+  return out + testo.slice(i);
+}
+
 /* ---------- Ordine dei pezzi ---------- */
 // Moduli separati (QB-1), montati in moduli.js prima dell'app, nell'ordine in cui dipendono l'uno dall'altro:
 // testi come testo (T-024), memoria del telefono (T-026), formato degli eventi (T-020), quadranti (T-021), lettura
 // dell'archivio (T-022), mappa conservata sul telefono (T-029), avvisi delle novità (T-031).
 // Nel browser stanno in window.AGR_MODULI.
 const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'quadranti.js', 'archivio.js', 'mappa-locale.js', 'avvisi.js'];
-// Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude).
-const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js',
-  'misure_kpi.js', 'misure.js', 'storico.js', 'app6.js'];
-const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css', 'style_misure.css'];
+// Solo nell'app della redazione: chiavi, cassaforte e marcatore (T-034, T-037).
+const JS_MODULI_RED = ['chiavi.js'];
+// Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude). Gli strumenti della Redazione (sorgenti/redazione/)
+// entrano prima di app6, soltanto nell'app della redazione.
+const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js'];
+const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
+const JS_FINE = ['app6.js'];
+const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css'];
+const CSS_RED = ['style_redazione.css', 'style_misure.css'];
+
+/* Le traduzioni dell'app pubblica: senza i testi che compaiono soltanto negli strumenti della Redazione. Un testo è
+   «solo della redazione» se sta scritto nei file di sorgenti/redazione/ e in nessun pezzo dell'app pubblica. */
+function traduzioniPubbliche(traduzioni, pubblici, redazione) {
+  const m = traduzioni.match(/^([\s\S]*?window\.AGR_TR\s*=\s*)(\{[\s\S]*\})(;?\s*)$/);
+  if (!m) throw new Error('traduzioni.js: non trovo window.AGR_TR = {…}');
+  const tr = JSON.parse(m[2]);
+  const scritto = (testo, k) => testo.includes(k) || testo.includes(k.replace(/'/g, "\\'"));
+  for (const lingua of Object.keys(tr)) for (const k of Object.keys(tr[lingua]))
+    if (scritto(redazione, k) && !scritto(pubblici, k)) delete tr[lingua][k];
+  return m[1] + JSON.stringify(tr) + m[3];
+}
 
 /* ---------- Montaggio ---------- */
-function monta(cfg) {
+function monta(cfg, quale = 'pubblica') {
+  if (!APP.includes(quale)) throw new Error('monta: app sconosciuta «' + quale + '»');
+  const red = quale === 'redazione';
+  const pezzo = (cartella, f) => taglia(leggi(cartella, f), quale, path.relative(SORGENTI, path.join(cartella, f)));
   const caratteri = leggi(VENDOR_DIR, 'caratteri.css');
   const strati = leggi(DATI, 'strati.js').replace(/^\/\*[^\n]*\*\/\n/, '').replace(/\n$/, '');
   const leg = JSON.parse(leggi(DATI, 'legali_tradotti.json'));
@@ -154,14 +206,20 @@ function monta(cfg) {
   const legali = 'const LEGALI = ' + JSON.stringify(leg) + ';';
   const legaliIt = riempi(leggi(PARTI, 'legali_it.html').replace(/\n$/, ''), cfg, 'it');
 
-  let app = JS_APP.map(f => leggi(PARTI, f)).join('\n');
+  let app = JS_APP.map(f => pezzo(PARTI, f)).concat(red ? JS_RED.map(f => pezzo(REDAZIONE, f)) : [], JS_FINE.map(f => pezzo(PARTI, f))).join('\n');
   for (const k of ['LAYERS', 'LEGALI', 'MAPPA_LIB']) if (!app.includes('/*@@' + k + '@@*/')) throw new Error('Segnaposto ' + k + ' mancante nei pezzi JavaScript');
   app = app.replace('/*@@LAYERS@@*/', () => strati).replace('/*@@LEGALI@@*/', () => legali).replace('/*@@MAPPA_LIB@@*/', () => mappaLib());
 
-  const traduzioni = fs.existsSync(path.join(PARTI, 'traduzioni.js')) ? leggi(PARTI, 'traduzioni.js') : 'window.AGR_TR={};';
-  const css = CSS.map(f => leggi(PARTI, f)).join('\n');
-  const sezioni = leggi(PARTI, 'sezioni.js');
-  const moduli = JS_MODULI.map(f => leggi(MODULI, f)).join('\n');
+  const sezioni = pezzo(PARTI, 'sezioni.js');
+  const corpo = pezzo(PARTI, 'body.html');
+  let traduzioni = fs.existsSync(path.join(PARTI, 'traduzioni.js')) ? leggi(PARTI, 'traduzioni.js') : 'window.AGR_TR={};';
+  if (!red) {
+    const tutti = c => fs.readdirSync(c).filter(f => /\.(js|html|json)$/.test(f) && f !== 'traduzioni.js').map(f => leggi(c, f)).join('\n');
+    const pubblici = [app, sezioni, corpo, strati, leggi(SORGENTI, 'contenuti_esempio.js'), tutti(DATI), tutti(MODULI), fs.existsSync(path.join(SORGENTI, 'anteprime')) ? tutti(path.join(SORGENTI, 'anteprime')) : ''].join('\n');
+    traduzioni = traduzioniPubbliche(traduzioni, pubblici, tutti(REDAZIONE));
+  }
+  const css = CSS.map(f => pezzo(PARTI, f)).concat(red ? CSS_RED.map(f => pezzo(REDAZIONE, f)) : []).join('\n');
+  const moduli = JS_MODULI.map(f => leggi(MODULI, f)).concat(red ? JS_MODULI_RED.map(f => leggi(MODULI, f)) : []).join('\n');
 
   const file = {
     'config.js': '/* Configurazione montata da sorgenti/config.js: non modificare qui. */\nwindow.AGR_CONFIG = ' + JSON.stringify(cfg, null, 1) + ';\n',
@@ -181,18 +239,18 @@ function monta(cfg) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="${escH((cfg.aspetto || {}).colore_tema || '#FFFDF8')}">
-<meta name="referrer" content="no-referrer">
-<title>${escH(cfg.nome)} — Torino</title>
+<meta name="referrer" content="no-referrer">${red ? '\n<meta name="robots" content="noindex, nofollow">' : ''}
+<title>${escH(cfg.nome)}${red ? ' · Redazione' : ''} — Torino</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icone/icona-180.png">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="${escH(cfg.nome)}">
+<meta name="apple-mobile-web-app-title" content="${escH(red ? 'Redazione' : cfg.nome)}">
 <link rel="stylesheet" href="lib/caratteri/caratteri.css?v=${crypto.createHash('sha256').update(caratteri).digest('hex').slice(0, 10)}">
 <link rel="stylesheet" href="${escH(lib('maplibre-gl.css'))}">
 <link rel="stylesheet" href="app.css?v=${v('app.css')}">
 </head>
 <body>
-${riempi(leggi(PARTI, 'body.html'), cfg, 'it')}
+${riempi(corpo, cfg, 'it')}
 <!-- Testi legali: quelli dell'app online OG 1.7 (v1.2), invariati -->
 ${legaliIt}
 <script src="${escH(lib('maplibre-gl.js'))}"></script>
@@ -219,16 +277,21 @@ ${legaliIt}
 const ICONE = [180, 192, 512];
 const SEMPRE_DALLA_RETE = ['avvisi.json', 'emergenza.json', 'sw.js'];
 const impronta = dati => crypto.createHash('sha256').update(dati).digest('hex').slice(0, 10);
-const pigro = f => /^lib\/sheetjs-[^/]+\/.*\.js$/.test(f);   // serve solo all'area riservata: si conserva quando la si usa
-function completa(file, cfg) {
+const pigro = f => /^lib\/sheetjs-[^/]+\/.*\.js$/.test(f);   // solo nell'app della redazione: si conserva quando la si usa
+function completa(file, cfg, quale = 'pubblica') {
   file = { ...file };
-  for (const n of ICONE) file[`icone/icona-${n}.png`] = fs.readFileSync(path.join(SORGENTI, 'icone', `icona-${n}.png`));
+  const red = quale === 'redazione';
+  // L'app della redazione ha icona e manifest propri (T-033): un'altra icona sulla schermata Home, un altro nome.
+  for (const n of ICONE) file[`icone/icona-${n}.png`] = fs.readFileSync(path.join(SORGENTI, 'icone', `${red ? 'redazione' : 'icona'}-${n}.png`));
   const a = cfg.aspetto || {};
   file['manifest.webmanifest'] = JSON.stringify({
-    name: cfg.nome, short_name: cfg.nome, lang: 'it', start_url: './index.html', scope: './', display: 'standalone',
+    name: red ? cfg.nome + ' · Redazione' : cfg.nome, short_name: red ? 'Redazione' : cfg.nome, lang: 'it', start_url: './index.html', scope: './', display: 'standalone',
     background_color: a.colore_sfondo || '#F5F0E8', theme_color: a.colore_tema || '#FFFDF8',
     icons: [192, 512].map(n => ({ src: `icone/icona-${n}.png`, sizes: `${n}x${n}`, type: 'image/png', purpose: 'any maskable' })),
   }, null, 1) + '\n';
+  // L'app della redazione chiede ai motori di ricerca di non essere indicizzata: nella pagina (monta) e con questo file,
+  // che vale quando l'app sta alla radice del suo indirizzo (su Bunny, in Fase 2, si aggiunge l'intestazione).
+  if (red) file['robots.txt'] = 'User-agent: *\nDisallow: /\n';
 
   const AVVISI = require('./moduli/avvisi.js'), avvisi = leggi(SORGENTI, 'testi', 'avvisi.json');
   const sbagli = AVVISI.errori(JSON.parse(avvisi));
@@ -251,7 +314,11 @@ function completa(file, cfg) {
   return file;
 }
 // Tutti i file di un'uscita, come {percorso: testo o Buffer}.
-function uscita(cfg) { return completa({ ...monta(cfg), ...fileLicenze(cfg), ...fileVendor() }, cfg); }
+function uscita(cfg, quale = 'pubblica') {
+  // la pagina delle licenze elenca i componenti che viaggiano con quell'app
+  const fuori = VENDOR.filter(c => c.solo && c.solo !== quale).map(c => c.licenza);
+  return completa({ ...monta(cfg, quale), ...fileLicenze(cfg, fuori), ...fileVendor(quale) }, cfg, quale);
+}
 
 /* ---------- Scrittura delle uscite ---------- */
 function scrivi(cartella, file) {
@@ -275,18 +342,18 @@ function controllaSintassi(cartella) {
 function main() {
   const base = path.resolve(RADICE, typeof opz.uscita === 'string' ? opz.uscita : 'dist');
   const cfg = configurazione();
-  const file = uscita(cfg);
-  const uscite = opz.solo === 'pubblica' ? ['pubblica'] : ['pubblica', 'redazione'];
+  const uscite = opz.solo === 'pubblica' ? ['pubblica'] : APP;
+  const fatte = [];
   for (const u of uscite) {
-    const c = path.join(base, u);
+    const c = path.join(base, u), file = uscita(cfg, u);
     scrivi(c, file);
     controllaSintassi(c);
+    fatte.push(path.relative(RADICE, c) + '/ (app.js ' + Math.round(file['app.js'].length / 1024) + ' KB)');
   }
-  console.log('Montaggio riuscito: ' + uscite.map(u => path.relative(RADICE, path.join(base, u)) + '/').join(', ') +
-    ' (index.html ' + Math.round(file['index.html'].length / 1024) + ' KB, app.js ' + Math.round(file['app.js'].length / 1024) + ' KB)');
+  console.log('Montaggio riuscito: ' + fatte.join(', '));
 }
 
 if (require.main === module) {
   try { main(); } catch (e) { console.error(e.message); process.exit(1); }
 }
-module.exports = { monta, configurazione, riempi, fileVendor, completa, uscita, SEMPRE_DALLA_RETE };
+module.exports = { monta, configurazione, riempi, fileVendor, completa, uscita, taglia, APP, SEMPRE_DALLA_RETE };

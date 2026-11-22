@@ -54,7 +54,9 @@ async function prova() {
     for (const f of ['manifest.webmanifest', 'sw.js', 'avvisi.json', 'emergenza.json', 'index.html']) if (!tutti.includes(f)) { err(qui + f + ': manca'); }
     if (!tutti.includes('sw.js') || !tutti.includes('manifest.webmanifest')) continue;
     const pagina = leggi('index.html').toString('utf8'), m = JSON.parse(leggi('manifest.webmanifest').toString('utf8'));
-    if (m.name !== cfg.nome || m.short_name !== cfg.nome) err(qui + 'manifest: il nome non è quello della configurazione');
+    /* l'app della redazione ha manifest e icona propri (T-033) */
+    const attesi2 = u === 'redazione' ? [cfg.nome + ' · Redazione', 'Redazione'] : [cfg.nome, cfg.nome];
+    if (m.name !== attesi2[0] || m.short_name !== attesi2[1]) err(qui + 'manifest: il nome non è quello atteso per questa app');
     if (m.display !== 'standalone' || m.start_url !== './index.html' || m.scope !== './') err(qui + 'manifest: display, start_url o scope non sono quelli attesi');
     if (m.theme_color !== cfg.aspetto.colore_tema || m.background_color !== cfg.aspetto.colore_sfondo) err(qui + 'manifest: i colori non sono quelli della configurazione');
     for (const k of Object.keys(m)) if (!['name', 'short_name', 'lang', 'start_url', 'scope', 'display', 'background_color', 'theme_color', 'icons'].includes(k)) err(qui + 'manifest: campo non previsto «' + k + '»');

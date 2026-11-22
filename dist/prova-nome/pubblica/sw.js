@@ -6,14 +6,21 @@
    che salva è descritto nella scheda «Dati locali» (cap. 30). § 30.1, scelta 2: una riga in più o in meno è uno scarto.
    Per questo tutto ciò che l'app salva passa da qui: la memoria del browser (per chi conosce i nomi: localStorage), la
    memoria del browser per i file (Cache Storage), dove stanno anche la copia dell'app scritta dal service worker e i
-   tasselli della mappa (T-029), e, quando servirà, la base di dati del browser (IndexedDB). Nessun altro file dei sorgenti nomina questi strumenti: lo controlla la prova
+   tasselli della mappa (T-029), e la base di dati del browser (IndexedDB), che usa soltanto l'app della redazione per le
+   sue chiavi e per la cassaforte (T-034). Nessun altro file dei sorgenti nomina questi strumenti: lo controlla la prova
    prove/memoria.js; la prova prove/browser/memoria.js controlla che cosa il telefono contiene davvero dopo un giro
    completo nell'app.
 
    ELENCO è l'elenco chiuso: una chiave che non c'è non si legge e non si scrive (il modulo si ferma con un errore).
    Ogni voce dice in quale riga della scheda «Dati locali» rientra. Le voci con «redazione» sono strumenti della
    Redazione (§ 3.7: stanno sul dispositivo della redazione, non nella scheda): esistono solo se l'app è creata con
-   redazione: true; altrimenti, all'avvio, si cancellano.
+   redazione: true, cioè nell'app della redazione (T-033); l'app pubblica, all'avvio, cancella senza leggerle quelle
+   che stanno nella memoria del browser (Misure e storico di quando l'area riservata stava nell'app pubblica).
+
+   Due app sullo stesso indirizzo. Sul sito vero le due app stanno a indirizzi diversi e ciascuna ha la sua memoria. Sul
+   collegamento di prova stanno invece sullo stesso indirizzo e la memoria è una sola: lì l'app pubblica non deve
+   cancellare Misure e storico dell'app della redazione di prova. Per questo l'app della redazione lascia un segno
+   (red_qui) e l'app pubblica, se lo trova, non cancella le chiavi della Redazione: guarda solo se il segno c'è.
 
    Le chiavi non contengono il nome del servizio, così un cambio di nome non cancella nulla (T-078). «prima» è il nome
    che la chiave aveva nelle versioni precedenti: all'avvio il valore trasloca sotto il nome nuovo, una volta sola, e il
@@ -42,11 +49,12 @@
     nascosti: 'Gli eventi nascosti che hai sbloccato'
   };
 
-  /* dove: «memoria» (memoria del browser, coppie chiave-valore) oppure «file» (memoria del browser per i file).
-     forma: «json» o «testo», per le voci della memoria. */
+  /* dove: «memoria» (memoria del browser, coppie chiave-valore), «file» (memoria del browser per i file) oppure
+     «base» (base di dati del browser: conserva anche le chiavi di cifratura non estraibili, che nella memoria a
+     coppie non possono stare). forma: «json» o «testo», per le voci della memoria. */
   const ELENCO = [
     { nome: 'dl_eventi', dove: 'memoria', forma: 'json', riga: 'offgrid', prima: 'agorapp_events',
-      cosa: 'Gli eventi Off-Grid della persona. Fino ai blocchi 8-10 anche gli eventi creati o importati dall\'area riservata, che non vanno sulla mappa' },
+      cosa: 'Gli eventi Off-Grid della persona. Nell\'app della redazione, fino al blocco 10, anche gli eventi che la Redazione prepara o importa, che non vanno sulla mappa' },
     { nome: 'dl_calendario', dove: 'memoria', forma: 'json', riga: 'calendario', prima: 'agorapp_cal',
       cosa: 'Gli identificativi degli eventi messi nel calendario' },
     { nome: 'dl_tema', dove: 'memoria', forma: 'testo', riga: 'preferenze', prima: 'agorapp_theme', cosa: 'Tema chiaro o scuro' },
@@ -64,10 +72,18 @@
     { nome: 'dl_archivio', dove: 'file', riga: 'zone', prima: 'agorapp_archivio',
       cosa: 'Indice e quadranti dell\'archivio degli eventi scaricati per le zone consultate (T-022)' },
     { nome: 'red_storico', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_storico',
-      cosa: 'Storico delle operazioni dell\'area riservata' },
+      cosa: 'Storico delle operazioni della Redazione' },
     { nome: 'red_misure', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_misure',
-      cosa: 'Misure dell\'area riservata: totali, numeri inseriti a mano, soglie' }
+      cosa: 'Misure della Redazione: totali, numeri inseriti a mano, soglie' },
+    { nome: 'red_qui', dove: 'memoria', forma: 'testo', redazione: true,
+      cosa: 'Segno che su questo indirizzo c\'è l\'app della redazione: serve solo dove le due app condividono l\'indirizzo (collegamento di prova)' },
+    { nome: 'red_chiavi', dove: 'base', redazione: true,
+      cosa: 'Le chiavi della Redazione (firma, cifratura, registro delle fonti, marcatore, cassaforte), non estraibili, e la loro copia di riserva cifrata con la frase (T-034)' },
+    { nome: 'red_cassaforte', dove: 'base', redazione: true,
+      cosa: 'La cassaforte cifrata delle password degli eventi nascosti, cancellate alla fine dell\'evento (T-034)' }
   ];
+  /* Il segno dell'app della redazione e la base di dati dei suoi strumenti. */
+  const SEGNO_REDAZIONE = 'red_qui', BASE = 'red_strumenti', DEPOSITO = 'voci';
 
   /* Chiavi di funzioni tolte dall'app: si cancellano all'avvio senza leggerle. dove: «memoria» oppure «sessione»
      (la memoria che dura finché la scheda del browser resta aperta, che l'app non usa più). */
@@ -91,15 +107,16 @@
     try { return radice[nome] || null; } catch (e) { return null; }
   }
 
-  /* crea({redazione, memoria, sessione, casse}): la memoria di un'app.
-     redazione: true se l'app contiene gli strumenti della Redazione. memoria, sessione e casse sono gli strumenti del
-     browser; nelle prove, finti. Se mancano, il modulo prende quelli del browser in cui gira. */
+  /* crea({redazione, memoria, sessione, casse, base}): la memoria di un'app.
+     redazione: true se l'app contiene gli strumenti della Redazione. memoria, sessione, casse e base sono gli strumenti
+     del browser; nelle prove, finti. Se mancano, il modulo prende quelli del browser in cui gira. */
   function crea(o) {
     o = o || {};
     const redazione = !!o.redazione;
     const mem = 'memoria' in o ? o.memoria : strumento('localStorage');
     const ses = 'sessione' in o ? o.sessione : strumento('sessionStorage');
     const cas = 'casse' in o ? o.casse : (strumento('isSecureContext') ? strumento('caches') : null);
+    const idb = 'base' in o ? o.base : strumento('indexedDB');
 
     function voce(k, dove) {
       const v = PER_CHIAVE.get(k);
@@ -137,13 +154,46 @@
        la offre (indirizzo non sicuro, navigazione privata): chi la usa lavora allora senza copia sul telefono. */
     const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); }, delete: nome => { voce(nome, 'file'); return cas.delete(nome); } } : null;
 
+    /* La base di dati: soltanto nell'app della redazione, e soltanto per le voci «base» dell'elenco. Conserva i valori
+       così come sono (anche le chiavi di cifratura non estraibili). null se il browser non la offre. */
+    function conBase(modo, lavoro) {
+      return new Promise((ok, no) => {
+        let r;
+        try { r = idb.open(BASE, 1); } catch (e) { return no(e); }
+        r.onupgradeneeded = () => { r.result.createObjectStore(DEPOSITO); };
+        r.onerror = () => no(r.error || new Error('la base di dati non si apre'));
+        r.onblocked = () => no(new Error('la base di dati è occupata'));
+        r.onsuccess = () => {
+          const db = r.result;
+          let t, richiesta;
+          try { t = db.transaction(DEPOSITO, modo); richiesta = lavoro(t.objectStore(DEPOSITO)); } catch (e) { db.close(); return no(e); }
+          t.oncomplete = () => { db.close(); ok(richiesta ? richiesta.result : undefined); };
+          t.onerror = t.onabort = () => { db.close(); no(t.error || new Error('la base di dati non risponde')); };
+        };
+      });
+    }
+    const base = redazione && idb ? {
+      leggi: k => { voce(k, 'base'); return conBase('readonly', d => d.get(k)); },
+      scrivi: (k, v) => { voce(k, 'base'); return conBase('readwrite', d => d.put(v, k)); },
+      togli: k => { voce(k, 'base'); return conBase('readwrite', d => d.delete(k)); }
+    } : null;
+    /* Chiede al browser di non cancellare da sé i dati di questo indirizzo (le chiavi della Redazione). Non salva nulla. */
+    async function tieni() {
+      try { const n = strumento('navigator'); return !!(n && n.storage && n.storage.persist && await n.storage.persist()); } catch (e) { return false; }
+    }
+
     /* All'avvio, prima di leggere qualunque cosa: trasloco dei nomi vecchi e pulizia. Restituisce le chiavi traslocate.
        Tocca soltanto le chiavi che conosce: sullo stesso indirizzo possono esserci dati di altre pagine. Le chiavi
        delle funzioni tolte e, in un'app senza area riservata, quelle della Redazione si cancellano senza leggerle. */
     function avvia() {
-      const fatto = { traslocate: [] };
+      const fatto = { traslocate: [], redazioneQui: false };
+      if (redazione) metti(SEGNO_REDAZIONE, '1');
+      /* sullo stesso indirizzo c'è anche l'app della redazione (collegamento di prova): le sue chiavi non si toccano */
+      else fatto.redazioneQui = prendi(SEGNO_REDAZIONE) != null;
       for (const v of ELENCO) {
+        if (v.dove === 'base') continue;   // la base di dati la apre soltanto l'app della redazione
         const fuori = v.redazione && !redazione;   // strumenti della Redazione su un'app che non li ha
+        if (fuori && fatto.redazioneQui) continue;
         if (v.dove === 'memoria') {
           if (fuori) {
             for (const k of [v.prima, v.nome]) if (k) via(k);   // senza leggerle
@@ -171,10 +221,10 @@
       return fatto;
     }
 
-    return { leggi, testo, scrivi, togli, file, avvia, redazione };
+    return { leggi, testo, scrivi, togli, file, base, tieni, avvia, redazione };
   }
 
-  return { RIGHE, ELENCO, TOLTE, chiavi, crea };
+  return { RIGHE, ELENCO, TOLTE, SEGNO_REDAZIONE, chiavi, crea };
 });
 
 /* Service worker: l'app senza rete (voce T-029 del piano di adeguamento; documento: docs/senza-rete.md).
@@ -202,9 +252,9 @@
 
    Il montaggio (sorgenti/build.js) mette qui sopra il modulo della memoria e riempie i tre valori qui sotto. */
 'use strict';
-const VERSIONE = "10f06b8";
-const COPIA = {"anteprime/ar.json":"6f424e530d","anteprime/en.json":"646492d396","anteprime/es.json":"ddcc50fe6f","anteprime/fr.json":"a712cc8789","anteprime/it.json":"5f8eaf724a","app.css":"91c1b86acb","app.js":"eeaa74b19f","config.js":"3137ff659f","icone/icona-180.png":"a33a35fef8","icone/icona-192.png":"d4aaab45da","icone/icona-512.png":"b6768a69fa","index.html":"c72e22b8fe","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/0-255.pbf":"f7bb279300","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/256-511.pbf":"1bab33e64d","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/512-767.pbf":"2a33e9ea40","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/768-1023.pbf":"253a66eb43","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/7680-7935.pbf":"9072a9aab7","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8192-8447.pbf":"87125bebb8","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8448-8703.pbf":"acb9141e24","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8704-8959.pbf":"e2e8c0832b","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/0-255.pbf":"62cd08773f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/256-511.pbf":"4e6eeca73c","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/512-767.pbf":"ae44f1a5f8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/768-1023.pbf":"4148875ce7","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/7680-7935.pbf":"5317416ac8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8192-8447.pbf":"af3a53c2d4","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8448-8703.pbf":"eecbbad83f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8704-8959.pbf":"d64c653f83","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/0-255.pbf":"ef444f5a7c","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/256-511.pbf":"b56481ee2a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/512-767.pbf":"c055363cbc","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/768-1023.pbf":"0bcd2e2772","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/7680-7935.pbf":"223c2931f5","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8192-8447.pbf":"4de9665c63","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8448-8703.pbf":"b7254fe37a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8704-8959.pbf":"e68bb91940","lib/caratteri-mappa/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/caratteri.css":"0d359f5805","lib/caratteri/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/dm-sans-v17/dm-sans-latin-ext-opsz-normal.woff2":"5d18d31d23","lib/caratteri/dm-sans-v17/dm-sans-latin-opsz-normal.woff2":"ca72d2bcea","lib/caratteri/dm-serif-display-v17/OFL.txt":"a3e5cdd67d","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-400-normal.woff2":"fdf61e20fd","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-ext-400-normal.woff2":"3af47815d6","lib/jspdf-2.5.1/LICENSE.txt":"2d26bfab8a","lib/jspdf-2.5.1/jspdf.umd.min.js":"98ccf17aa1","lib/maplibre-gl-5.24.0/LICENSE.txt":"ee5fc05a06","lib/maplibre-gl-5.24.0/maplibre-gl.css":"ab1e70d59e","lib/maplibre-gl-5.24.0/maplibre-gl.js":"45a9b07a91","lib/pmtiles-4.5.0/LICENSE.txt":"0371c38f33","lib/pmtiles-4.5.0/pmtiles.js":"caf981bc46","lib/protomaps-basemaps-5.7.2/LICENSE.txt":"74f975cfed","lib/protomaps-basemaps-5.7.2/stile-carta-chiaro.json":"fdbbeab4e1","lib/protomaps-basemaps-5.7.2/stile-carta-scuro.json":"86442de9ba","lib/protomaps-icone-v4/LICENSE.txt":"46d0ca73c1","lib/protomaps-icone-v4/dark.json":"bfac76cf7e","lib/protomaps-icone-v4/dark.png":"8920f68e8f","lib/protomaps-icone-v4/dark@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/dark@2x.png":"6e01b4e366","lib/protomaps-icone-v4/light.json":"bfac76cf7e","lib/protomaps-icone-v4/light.png":"b6a3464091","lib/protomaps-icone-v4/light@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/light@2x.png":"23f6e9df27","lib/sheetjs-0.18.5/LICENSE.txt":"4d2a38ac35","lib/sheetjs-0.18.5/xlsx.full.min.js":"c9506197ca","licenze/dm-sans.txt":"9af3619033","licenze/dm-serif-display.txt":"a3e5cdd67d","licenze/index.html":"2cd2cc85b4","licenze/jspdf-avvisi-nel-file.txt":"c458abafd2","licenze/jspdf.txt":"2d26bfab8a","licenze/licenze.css":"a250c27390","licenze/maplibre-gl-js.txt":"ee5fc05a06","licenze/odbl-1.0.txt":"77d2692c3d","licenze/pmtiles.txt":"0371c38f33","licenze/protomaps-basemaps.txt":"74f975cfed","licenze/protomaps-icone.txt":"46d0ca73c1","licenze/sheetjs.txt":"4d2a38ac35","manifest.webmanifest":"f391b8637f","mappa/correzioni.geojson":"b3049ad7a1","moduli.js":"7b35d6bd69","sezioni.js":"1e3a599c6d","traduzioni.js":"4cd50eb3a6"};      // {percorso: impronta} di ogni file dell'app
-const PIGRI = ["lib/sheetjs-0.18.5/xlsx.full.min.js"];      // file che si conservano solo quando servono (strumenti dell'area riservata)
+const VERSIONE = "d935267";
+const COPIA = {"anteprime/ar.json":"6f424e530d","anteprime/en.json":"646492d396","anteprime/es.json":"ddcc50fe6f","anteprime/fr.json":"a712cc8789","anteprime/it.json":"5f8eaf724a","app.css":"040203971d","app.js":"78a1c332cc","config.js":"3137ff659f","icone/icona-180.png":"a33a35fef8","icone/icona-192.png":"d4aaab45da","icone/icona-512.png":"b6768a69fa","index.html":"6727c7107f","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/0-255.pbf":"f7bb279300","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/256-511.pbf":"1bab33e64d","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/512-767.pbf":"2a33e9ea40","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/768-1023.pbf":"253a66eb43","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/7680-7935.pbf":"9072a9aab7","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8192-8447.pbf":"87125bebb8","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8448-8703.pbf":"acb9141e24","lib/caratteri-mappa/dm-sans-v17/DM Sans Italic/8704-8959.pbf":"e2e8c0832b","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/0-255.pbf":"62cd08773f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/256-511.pbf":"4e6eeca73c","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/512-767.pbf":"ae44f1a5f8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/768-1023.pbf":"4148875ce7","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/7680-7935.pbf":"5317416ac8","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8192-8447.pbf":"af3a53c2d4","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8448-8703.pbf":"eecbbad83f","lib/caratteri-mappa/dm-sans-v17/DM Sans Medium/8704-8959.pbf":"d64c653f83","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/0-255.pbf":"ef444f5a7c","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/256-511.pbf":"b56481ee2a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/512-767.pbf":"c055363cbc","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/768-1023.pbf":"0bcd2e2772","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/7680-7935.pbf":"223c2931f5","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8192-8447.pbf":"4de9665c63","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8448-8703.pbf":"b7254fe37a","lib/caratteri-mappa/dm-sans-v17/DM Sans Regular/8704-8959.pbf":"e68bb91940","lib/caratteri-mappa/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/caratteri.css":"0d359f5805","lib/caratteri/dm-sans-v17/OFL.txt":"9af3619033","lib/caratteri/dm-sans-v17/dm-sans-latin-ext-opsz-normal.woff2":"5d18d31d23","lib/caratteri/dm-sans-v17/dm-sans-latin-opsz-normal.woff2":"ca72d2bcea","lib/caratteri/dm-serif-display-v17/OFL.txt":"a3e5cdd67d","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-400-normal.woff2":"fdf61e20fd","lib/caratteri/dm-serif-display-v17/dm-serif-display-latin-ext-400-normal.woff2":"3af47815d6","lib/jspdf-2.5.1/LICENSE.txt":"2d26bfab8a","lib/jspdf-2.5.1/jspdf.umd.min.js":"98ccf17aa1","lib/maplibre-gl-5.24.0/LICENSE.txt":"ee5fc05a06","lib/maplibre-gl-5.24.0/maplibre-gl.css":"ab1e70d59e","lib/maplibre-gl-5.24.0/maplibre-gl.js":"45a9b07a91","lib/pmtiles-4.5.0/LICENSE.txt":"0371c38f33","lib/pmtiles-4.5.0/pmtiles.js":"caf981bc46","lib/protomaps-basemaps-5.7.2/LICENSE.txt":"74f975cfed","lib/protomaps-basemaps-5.7.2/stile-carta-chiaro.json":"fdbbeab4e1","lib/protomaps-basemaps-5.7.2/stile-carta-scuro.json":"86442de9ba","lib/protomaps-icone-v4/LICENSE.txt":"46d0ca73c1","lib/protomaps-icone-v4/dark.json":"bfac76cf7e","lib/protomaps-icone-v4/dark.png":"8920f68e8f","lib/protomaps-icone-v4/dark@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/dark@2x.png":"6e01b4e366","lib/protomaps-icone-v4/light.json":"bfac76cf7e","lib/protomaps-icone-v4/light.png":"b6a3464091","lib/protomaps-icone-v4/light@2x.json":"1fb5b123fb","lib/protomaps-icone-v4/light@2x.png":"23f6e9df27","licenze/dm-sans.txt":"9af3619033","licenze/dm-serif-display.txt":"a3e5cdd67d","licenze/index.html":"3478c40d4e","licenze/jspdf-avvisi-nel-file.txt":"c458abafd2","licenze/jspdf.txt":"2d26bfab8a","licenze/licenze.css":"a250c27390","licenze/maplibre-gl-js.txt":"ee5fc05a06","licenze/odbl-1.0.txt":"77d2692c3d","licenze/pmtiles.txt":"0371c38f33","licenze/protomaps-basemaps.txt":"74f975cfed","licenze/protomaps-icone.txt":"46d0ca73c1","manifest.webmanifest":"f391b8637f","mappa/correzioni.geojson":"b3049ad7a1","moduli.js":"4f98416856","sezioni.js":"1e3a599c6d","traduzioni.js":"dc382c6744"};      // {percorso: impronta} di ogni file dell'app
+const PIGRI = [];      // file che si conservano solo quando servono (Excel: solo nell'app della redazione)
 
 const BASE = new URL('./', self.location.href).href;
 const PERCORSO_BASE = new URL(BASE).pathname;
