@@ -103,6 +103,16 @@
      costruisci(eventi, {adesso, regioni, cartella}) → {indice, file: {percorso: testo}}.
      Tiene solo gli eventi che a quel momento non sono ancora usciti dalla mappa (tre ore dopo la fine); uno per riga,
      in ordine di inizio. Rifiuta (con un errore) un evento non valido o fuori dalla griglia. */
+  /* Le uscite di una regione (LM-46): l'indice si scrive quando la Redazione pubblica, ma gli eventi escono dalla mappa
+     anche tra una pubblicazione e l'altra. Per questo accanto al numero di ogni regione l'indice dice quanti eventi
+     escono e quando: coppie [minuto, quanti], con il minuto contato dal 1970 in tempo universale, in ordine. Chi legge
+     toglie dal numero quelli già usciti (eventiVivi). Sono soltanto numeri: non dicono quali eventi. */
+  const MINUTO = 6e4;
+  function eventiVivi(r, adesso) {
+    let n = r.eventi;
+    for (const u of r.uscite || []) { if (u[0] * MINUTO > adesso) break; n -= u[1]; }
+    return Math.max(0, n);
+  }
   function testoQuadrante(id, eventi) {
     return '{"formato":"eventi-quadrante","versione":' + E.FORMATO + ',"tdm-reservation":1,"quadrante":"' + id + '","eventi":[' +
       (eventi.length ? '\n' + eventi.map(e => JSON.stringify(e)).join(',\n') + '\n' : '') + ']}\n';
@@ -117,7 +127,7 @@
   function costruisci(eventi, opz) {
     const adesso = opz.adesso, cartella = opz.cartella || 'quadranti/', regioni = opz.regioni || [];
     if (!Number.isFinite(adesso)) throw new Error('costruisci: serve «adesso» in millisecondi');
-    const per = {}, conta = {}, perRegione = {}, visti = new Set();
+    const per = {}, conta = {}, perRegione = {}, escono = {}, visti = new Set();
     for (const ev of eventi) {
       const err = E.controlla(ev, opz.vocabolario ? { vocabolario: opz.vocabolario } : undefined);
       if (err.length) throw new Error('evento ' + (ev && ev.id) + ' non valido: ' + err.join('; '));
@@ -126,7 +136,10 @@
       const q = quadrante(ev.lat, ev.lng); if (!q) throw new Error('evento ' + ev.id + ' fuori dalla griglia');
       (per[q] = per[q] || []).push(ev);
       const reg = regione(ev.lat, ev.lng, regioni);
-      if (reg) { conta[reg] = (conta[reg] || 0) + 1; ((perRegione[reg] = perRegione[reg] || {})[q] = perRegione[reg][q] || []).push(ev); }
+      if (reg) {
+        conta[reg] = (conta[reg] || 0) + 1; ((perRegione[reg] = perRegione[reg] || {})[q] = perRegione[reg][q] || []).push(ev);
+        const m = Math.round(E.uscitaMs(ev) / MINUTO); (escono[reg] = escono[reg] || {})[m] = (escono[reg][m] || 0) + 1;
+      }
     }
     const file = {}, quadranti = {};
     for (const q of Object.keys(per).sort()) {
@@ -136,7 +149,8 @@
     }
     const indice = { formato: 'eventi-indice', versione: E.FORMATO, 'tdm-reservation': 1, generato: new Date(adesso).toISOString().slice(0, 19) + 'Z',
       griglia: GRIGLIA, quadranti,
-      regioni: regioni.filter(r => conta[r.nome]).map(r => ({ nome: r.nome, punto: r.punto, eventi: conta[r.nome], vai: vai(perRegione[r.nome]) })) };
+      regioni: regioni.filter(r => conta[r.nome]).map(r => ({ nome: r.nome, punto: r.punto, eventi: conta[r.nome], vai: vai(perRegione[r.nome]),
+        uscite: Object.keys(escono[r.nome]).map(Number).sort((x, y) => x - y).map(m => [m, escono[r.nome][m]]) })) };
     file['indice.json'] = JSON.stringify(indice) + '\n';
     return { indice, file };
   }
@@ -160,8 +174,19 @@
     else for (const r of j.regioni) {
       const inItalia = p => Array.isArray(p) && p.length === 2 && p[1] >= E.RIQUADRO.sud && p[1] < E.RIQUADRO.nord && p[0] >= E.RIQUADRO.ovest && p[0] < E.RIQUADRO.est;
       if (!r || typeof r.nome !== 'string' || !r.nome || r.nome.length > 40 || !inItalia(r.punto) || !inItalia(r.vai) || !Number.isInteger(r.eventi) || r.eventi < 0) err.push('indice: regione non valida');
+      else if (!usciteValide(r)) err.push('indice: uscite non valide per ' + r.nome);
     }
     return err;
+  }
+  /* Le uscite di una regione: coppie [minuto, quanti] in ordine di minuto, che in tutto fanno il numero della regione. */
+  function usciteValide(r) {
+    if (!Array.isArray(r.uscite)) return false;
+    let somma = 0, prima = -1;
+    for (const u of r.uscite) {
+      if (!Array.isArray(u) || u.length !== 2 || !Number.isSafeInteger(u[0]) || !Number.isInteger(u[1]) || u[1] < 1 || u[0] <= prima) return false;
+      prima = u[0]; somma += u[1];
+    }
+    return somma === r.eventi;
   }
   /* Gli eventi di un file di quadrante: solo quelli validi e che stanno davvero in quel quadrante. */
   function eventiDelQuadrante(j, id, opz) {
@@ -170,5 +195,5 @@
     return { eventi, scartati: j.eventi.length - eventi.length };
   }
 
-  return { GRIGLIA, quadrante, confini, intorno, regione, impronta, costruisci, controllaIndice, eventiDelQuadrante };
+  return { GRIGLIA, quadrante, confini, intorno, regione, impronta, costruisci, controllaIndice, eventiDelQuadrante, eventiVivi };
 });

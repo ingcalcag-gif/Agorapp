@@ -19,7 +19,7 @@
   'use strict';
   if (!E || !Q) throw new Error('archivio.js: servono prima eventi.js e quadranti.js');
 
-  const TRENTA_MINUTI = 30 * 6e4;
+  const TRENTA_MINUTI = 30 * 6e4, CINQUE_SECONDI = 5000;
   /* Le richieste: mai cookie o credenziali, nessun parametro; l'indice si ricontrolla sempre con il server. */
   const RICHIESTA_INDICE = { credentials: 'omit', cache: 'no-cache', redirect: 'error' };
   const RICHIESTA_FILE = { credentials: 'omit', redirect: 'error' };
@@ -125,8 +125,14 @@
        Restituisce true se ne è arrivato almeno uno nuovo. */
     async function carica(ids) {
       if (!S.indice) return false;
-      const daFare = ids.filter(q => S.indice.quadranti[q] && (!S.caricati.has(q) || S.caricati.get(q).v !== S.indice.quadranti[q].v));
-      const esiti = await Promise.all(daFare.map(scarica));
+      const servono = () => ids.filter(q => S.indice.quadranti[q] && (!S.caricati.has(q) || S.caricati.get(q).v !== S.indice.quadranti[q].v));
+      let esiti = await Promise.all(servono().map(scarica));
+      /* Un file che non arriva può voler dire che l'archivio è cambiato dopo l'ultimo controllo (lo sportello toglie
+         subito i file che l'indice nuovo non nomina): si richiede l'indice, una volta, e si riprova. */
+      if (esiti.includes(false) && adesso() - S.ultimoControllo > CINQUE_SECONDI) {
+        const cambiato = await controllaNovita();
+        esiti = esiti.concat([cambiato], await Promise.all(servono().map(scarica)));
+      }
       return esiti.some(Boolean);
     }
 
@@ -139,7 +145,9 @@
 
     return {
       apri, controllaNovita, forseControlla, carica, eventi,
-      regioni: () => (S.indice ? S.indice.regioni : []),
+      /* I numeri per regione, tolti gli eventi usciti dalla mappa dopo l'ultima pubblicazione (LM-46): l'indice dice
+         quanti escono e quando, il conto lo fa il telefono. Una regione rimasta senza eventi non si mostra. */
+      regioni: () => (S.indice ? S.indice.regioni.map(r => Object.assign({}, r, { eventi: Q.eventiVivi(r, adesso()) })).filter(r => r.eventi > 0) : []),
       quadranti: () => (S.indice ? Object.keys(S.indice.quadranti) : []),   // tutti i quadranti con eventi, dall'indice
       pronto: () => !!S.indice,
       quadrantiConservati: () => [...S.caricati.keys()],
