@@ -122,13 +122,13 @@ function fEventoForm(){
     ${riga('a-luogo', 'luogo', tr('Luogo'), 120, tr('Nome del luogo, es. Sala del quartiere'))}
     ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" maxlength="200" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${tr('Scegli sulla mappa')}</button>`,
       E.indirizzo===2 ? tr('Indirizzo non trovato: correggilo o scegli il punto sulla mappa') : E.indirizzo ? tr('Scrivi l’indirizzo o scegli il punto sulla mappa') : '')}
-    ${campo('a-come', tr('Come arrivare'), `<div class="campo${E.comeArrivare?' errore':''}"><textarea id="a-come" data-acampo="comeArrivare" maxlength="300" placeholder="${esc(tr('Come si raggiunge il luogo, a parole'))}">${esc(f.comeArrivare)}</textarea></div>`, '', f.precision==='map' ? tr('serve, perché il punto è messo a mano') : fac)}
+    ${campo('a-come', tr('Come arrivare'), `<div class="campo${E.comeArrivare?' errore':''}"><textarea id="a-come" data-acampo="comeArrivare" maxlength="300" placeholder="${esc(tr('Come si raggiunge il luogo, a parole'))}">${esc(f.comeArrivare)}</textarea></div>`, '', f.precision==='map' ? tr('obbligatorio: il punto è scelto sulla mappa') : fac)}
     ${riga('a-org', 'organizzatore', tr('Organizza'), 120, '', fac)}
     ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="2000" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>`)}
     ${riga('a-prezzo', 'prezzo', tr('Prezzo indicato dalla fonte'), 80, tr('Gratuito / 10 €'), fac)}
     ${riga('a-fonte', 'fonte', tr('Fonte'), 160, tr('Da dove viene l’informazione'))}
     ${riga('a-fonte-link', 'fonteLink', tr('Collegamento della fonte'), 500, 'https://', fac, 'url')}
-    ${f.errori.length ? `<div class="imp-righe" role="alert">${f.errori.map(x => `<div class="no">${esc(x)}</div>`).join('')}</div>` : ''}
+    ${f.errori.length ? `<div class="red-riquadro pb-errori" role="alert"><b>${f.errori.length===1 ? tr('Prima di pubblicare manca una cosa:') : tr('Prima di pubblicare mancano {n} cose:',{n:f.errori.length})}</b>${f.errori.map(x => `<span class="err">${esc(x)}</span>`).join('')}</div>` : ''}
     ${statoPb()}
     <div class="tasti"><button class="tasto sec" data-az="${ripr ? 'pb-copia' : 'pubblica'}">${tr('Annulla')}</button><button class="tasto pri" data-az="a-pubblica">${ripr ? tr('Tieni nella copia') : f.id ? tr('Pubblica la correzione') : tr('Pubblica')}</button></div>
     <p class="meta">${tr('Le dieci domande e le colonne del registro delle fonti arrivano con la scheda di pubblicazione.')}</p>`;
@@ -145,11 +145,31 @@ function eventoDalForm(f, id){
   ev.modificato = new Date().toISOString().slice(0,19)+'Z';
   return ev;
 }
+/* un errore del controllo del formato, con il nome del campo come lo vede la Redazione al posto del nome tecnico */
+const CAMPI_PB = {titolo:'Titolo', strato:'Strato', sottostrato:'Sottostrato', tema:'Tema', inizio:'Inizio', fine:'Fine', luogo:'Luogo', indirizzo:'Indirizzo',
+  descrizione_luogo:'Come arrivare', organizzatore:'Organizza', descrizione:'Descrizione', prezzo:'Prezzo indicato dalla fonte', 'fonte.testo':'Fonte', 'fonte.collegamento':'Collegamento della fonte', 'lat e lng':'Punto sulla mappa'};
+const erroreCampoPb = x => { const m = String(x).match(/^([a-z_.]+(?: e [a-z]+)?): (.*)$/); return m && CAMPI_PB[m[1]] ? tr(CAMPI_PB[m[1]])+': '+m[2] : String(x); };
+/* porta in vista l'elenco degli errori, accanto a «Pubblica» */
+function mostraErroriPb(){ const c = document.querySelector('#foglio-slot .pb-errori') || document.querySelector('#foglio-slot .errore'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center', behavior:'smooth'}); }
 function pubblicaForm(){
   const f = st.aform; if(!f || PB.lavoro) return;
   f.err = {}; f.errori = []; PB.errore = '';
+  const voc = {vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)};
+  /* prima i controlli con parole semplici, campo per campo: il campo sbagliato si colora e il messaggio dice che cosa scrivere */
+  const vuoto = c => !String(f[c]||'').trim(), metti = (c, msg) => { f.err[c] = 1; f.errori.push(msg); };
+  if(vuoto('titolo')) metti('titolo', tr('Titolo: scrivi il nome dell’evento.'));
+  if(!f.strato) metti('strato', tr('Strato: scegline uno.'));
+  if(vuoto('inizio')) metti('inizio', tr('Inizio: scegli il giorno e l’ora.'));
+  else if(f.fine && f.fine <= f.inizio) metti('fine', tr('Fine: deve venire dopo l’inizio (oppure lasciala vuota).'));
+  if(vuoto('luogo')) metti('luogo', tr('Luogo: scrivi il nome del luogo, per esempio «Sala del quartiere».'));
+  if(f.precision==='map' && vuoto('comeArrivare')) metti('comeArrivare', tr('Come arrivare: serve, perché il punto è stato scelto sulla mappa con «Scegli sulla mappa». Scrivi a parole come si raggiunge il luogo, per esempio «Ingresso dal cortile, seconda porta a sinistra».'));
+  if(vuoto('desc')) metti('desc', tr('Descrizione: scrivi di che cosa si tratta.'));
+  if(vuoto('fonte')) metti('fonte', tr('Fonte: scrivi da dove viene l’informazione, per esempio il nome del sito o di chi organizza.'));
+  if(!vuoto('fonteLink') && !/^https:\/\//i.test(f.fonteLink.trim())) metti('fonteLink', tr('Collegamento della fonte: deve cominciare con https:// (oppure lascialo vuoto).'));
+  if(!f.pos && f.indirizzo.trim().length<3) metti('indirizzo', tr('Indirizzo: scrivilo e scegli uno dei suggerimenti, oppure scegli il punto con «Scegli sulla mappa».'));
+  if(f.errori.length){ disegnaFoglio(); mostraErroriPb(); return; }
   if(!f.pos){
-    const q = f.indirizzo.trim(); if(q.length<3){ f.err.indirizzo = 1; disegnaFoglio(); return; }
+    const q = f.indirizzo.trim();
     const b = $('a-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
     lookup(parseAddr(q).city ? q : q+', '+cittaObj().n).then(res => { if(st.aform!==f) return;
       if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; f.errori = [tr('Ho trovato l’indirizzo: controlla il punto e tocca di nuovo «Pubblica».')]; }
@@ -157,11 +177,10 @@ function pubblicaForm(){
       disegnaFoglio(); });
     return;
   }
-  const voc = {vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)};
   const con = id => {
-    const ev = eventoDalForm(f, id), errori = FORMATO.controlla(ev, voc);
+    const ev = eventoDalForm(f, id), errori = FORMATO.controlla(ev, voc).map(erroreCampoPb);
     if(!errori.length && FORMATO.uscitaMs(ev) <= Date.now()) errori.push(tr('L’evento è già finito da più di tre ore: non si pubblica.'));
-    if(errori.length){ f.errori = errori; disegnaFoglio(); const c = document.querySelector('#foglio-slot .imp-righe'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center'}); return; }
+    if(errori.length){ f.errori = errori; disegnaFoglio(); mostraErroriPb(); return; }
     if(f.per==='ripristino'){ const R = PB.ripr; if(R){ const i = R.eventi.findIndex(x => x.id===ev.id), j = R.sospesi.findIndex(x => x.id===ev.id); if(i>=0) R.eventi[i] = ev; else if(j>=0) R.sospesi[j] = ev; R.corretti++; } st.aform = null; apri('pb-copia'); return; }
     const nuovo = !f.id;
     scriviPb({operazione:'scrivi', pubblica:[ev]}, r => { st.aform = null; st.ultimoId = ev.id; registra(nuovo ? 'pubblica' : 'correggi', {id:ev.id, s:ev.strato}); if(!nuovo) misureConta('corretti');

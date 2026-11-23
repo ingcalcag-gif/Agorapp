@@ -77,9 +77,21 @@ async function prova() {
 
     /* 2 */
     if (await tocca(F + '[data-az="pb-nuovo"]', 'nuovo evento')) {
+      await p.fill('#a-indirizzo', 'Via Inventata 5, Torino'); await pausa(1300); await tocca('#a-sugg [data-si="0"]', 'modulo, suggerimento');
       await tocca(F + '[data-az="a-pubblica"]', 'pubblica a vuoto'); await pausa(400);
       if (!(await p.locator(F + '#a-titolo').count())) err('un modulo vuoto non si deve pubblicare');
+      /* gli errori si leggono: parole semplici, nessun nome tecnico, un riquadro alto quanto serve, il campo colorato */
+      const riquadro = p.locator(F + '.pb-errori'), alto = (await riquadro.boundingBox().catch(() => null) || { height: 0 }).height, parole = await riquadro.innerText().catch(() => '');
+      if (alto < 100 || !/Luogo: scrivi il nome del luogo/.test(parole) || !/Descrizione: scrivi/.test(parole) || !/Fonte: scrivi/.test(parole)) err('modulo vuoto: il riquadro degli errori non si legge (alto ' + Math.round(alto) + ' px: «' + parole.replace(/\s+/g, ' ').slice(0, 200) + '»)');
+      if (/descrizione_luogo|: vuoto|: manca\b/.test(parole)) err('modulo vuoto: gli errori usano i nomi tecnici dei campi («' + parole.replace(/\s+/g, ' ').slice(0, 200) + '»)');
+      if (!(await p.locator(F + '.campo.errore #a-luogo').count())) err('modulo vuoto: il campo «Luogo» non si colora');
       await compila('Evento inventato dello sportello');
+      /* punto scelto sulla mappa: serve «Come arrivare», e l'app lo dice con il nome del campo */
+      if (await tocca(F + '[data-az="scegli-mappa-a"]', 'scegli sulla mappa') && await tocca('[data-az="posa-ok"]', 'conferma del punto')) {
+        await tocca(F + '[data-az="a-pubblica"]', 'pubblica senza «Come arrivare»'); await pausa(400);
+        if (!/Come arrivare: serve, perché il punto è stato scelto sulla mappa/.test(await p.locator(F + '.pb-errori').innerText().catch(() => ''))) err('punto scelto sulla mappa: l\'app deve chiedere «Come arrivare» con parole chiare');
+        await p.fill('#a-come', 'Ingresso inventato dal cortile, seconda porta.');
+      }
       await tocca(F + '[data-az="a-pubblica"]', 'pubblica');
       await aspetta(/Pubblicato alle \d\d[:.]\d\d \(ora dello sportello\)[\s\S]*Pubblicati · 1/, 'pubblicazione');
     }

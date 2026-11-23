@@ -953,6 +953,9 @@ label.campo:has(#pw){min-width:0}
 .red-riga{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--linea)}
 .red-riga>div{display:flex;flex-direction:column;min-width:0}
 .red-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
+/* Dentro i fogli le liste a scorrimento non si schiacciano: senza questa regola un riquadro con molte righe diventava alto pochi pixel (blocco 9) */
+.foglio .imp-righe,.foglio .red-riquadro{flex-shrink:0}
+.pb-errori .err{display:block}
 
 /* ======================= Misure (solo admin) ======================= */
 /* colori dei grafici: verde in scala (una sola tinta, chiaro → scuro), tre categorie verificate per il daltonismo (validate_palette, 6 ottobre 2026) */
