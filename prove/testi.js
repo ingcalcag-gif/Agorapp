@@ -24,7 +24,7 @@ const TESTO = require(path.join(SORGENTI, 'moduli', 'testo.js'));
 /* Quante volte ogni file dei sorgenti scrive codice nella pagina (innerHTML, outerHTML, insertAdjacentHTML,
    document.write). Ogni punto è rivisto in docs/testi-come-testo.md: chi ne aggiunge uno lo rivede, lo annota lì e
    aggiorna questo numero. */
-const SCRITTURE = { 'app2.js': 11, 'app3.js': 3, 'app4.js': 9, 'app5.js': 8, 'app6.js': 7, 'app7.js': 2, 'sezioni.js': 5, 'redazione/misure.js': 2, 'redazione/strumenti.js': 3 };
+const SCRITTURE = { 'app2.js': 11, 'app3.js': 3, 'app4.js': 9, 'app5.js': 8, 'app6.js': 7, 'app7.js': 2, 'sezioni.js': 5, 'redazione/misure.js': 2, 'redazione/pubblicazione.js': 2 };
 const RE_SCRITTURE = /\b(?:innerHTML|outerHTML|insertAdjacentHTML)\b|document\.write(?:ln)?\s*\(/g;
 
 function prova() {

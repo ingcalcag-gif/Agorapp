@@ -234,11 +234,30 @@ const ARCHIVIO_DOVE = (() => {
   const i = location.pathname.lastIndexOf('/dist/');
   return i>=0 ? location.origin + location.pathname.slice(0, i) + '/prova/archivio/' : '';
 })();
+/* Lo sportello di prova (T-038). Sul collegamento di prova l'app della redazione e l'app pubblica stanno allo stesso
+   indirizzo e hanno la stessa memoria: quando lo sportello di prova della redazione ha pubblicato qualcosa, il suo
+   archivio finto sta nella memoria del browser per i file, e l'app pubblica di prova legge quello al posto dell'archivio
+   del repository. Così il giro intero (pubblica, correggi, sospendi, ritira) si prova sul telefono senza Bunny. Con
+   l'indirizzo degli eventi nella configurazione (T-065) questo tratto non fa più nulla. */
+const SPORTELLO_PROVA_DOVE = !(CFG.indirizzi||{}).eventi && ARCHIVIO_DOVE ? ARCHIVIO_DOVE.replace(/prova\/archivio\/$/, 'prova/sportello/') : '';
+async function sorgenteArchivio(){
+  const vera = {dove:ARCHIVIO_DOVE, fetch:window.fetch.bind(window), finto:false};
+  if(!SPORTELLO_PROVA_DOVE || !MEM.file) return vera;
+  try{
+    if(!(await MEM.file.has('prova_sportello'))) return vera;
+    const c = await MEM.file.open('prova_sportello'), dove = SPORTELLO_PROVA_DOVE+'pubblico/';
+    if(!(await c.match(dove+'indice.json'))) return vera;
+    return {dove, finto:true, fetch:async u => (await c.match(String(u))) || new Response('', {status:404})};
+  }catch(e){ return vera; }
+}
+let ARCHIVIO_FINTO = false;
 function avviaArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
-  ARCHIVIO = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window),
-    casse:MEM.file, nomeCassa:'dl_archivio'});
-  ARCHIVIO.apri().then(dopoControllo);
+  sorgenteArchivio().then(s => {
+    ARCHIVIO_FINTO = s.finto;
+    ARCHIVIO = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch, casse:MEM.file, nomeCassa:'dl_archivio'});
+    return ARCHIVIO.apri();
+  }).then(dopoControllo);
   document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
 }
 function dopoControllo(){ pulisciCalendarioArchivio(); ricostruisci(); aggiornaZona(true); }

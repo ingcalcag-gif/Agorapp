@@ -248,7 +248,7 @@ function avviaCopia(){
   cercaNovita(); avviaCopia();
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
-    archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),
+    archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length, finto:ARCHIVIO_FINTO}),
     tr, dloc, lingua:() => lang, versione:VERSIONE, mappa:() => ({fonte:MAPPA.fonte, sulTelefono:MAPPA_LOCALE ? MAPPA_LOCALE.stato() : Promise.resolve(null)}),
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },

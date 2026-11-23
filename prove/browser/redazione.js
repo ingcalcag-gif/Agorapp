@@ -109,17 +109,27 @@ async function prova() {
 
     /* 3 */
     let id = '';
-    if (await tocca(F + '[data-az="admin-ongrid"]', 'modulo degli eventi')) {
-      await p.fill('#a-titolo', 'Evento inventato della redazione'); await p.selectOption('#a-strato', 'musica'); await pausa(300);
-      await p.selectOption('#a-sub', { index: 1 }); await p.fill('#a-desc', 'Una descrizione inventata, lunga quanto serve per la prova.');
-      await p.fill('#a-dt', giorno(3) + 'T18:00'); await p.fill('#a-durata', '2 ore'); await p.fill('#a-prezzo', 'Gratuito');
-      await p.fill('#a-indirizzo', 'Via Inventata 5, Torino'); await pausa(1300);
+    /* dal blocco 9 un evento nuovo si scrive nel modulo con i campi pubblici e si pubblica con la firma, qui allo sportello di prova */
+    const compila = async titolo => {
+      await p.fill('#a-titolo', titolo); await p.selectOption('#a-strato', 'musica'); await pausa(300);
+      await p.fill('#a-inizio', giorno(3) + 'T18:00'); await p.fill('#a-luogo', 'Sala inventata'); await p.fill('#a-desc', 'Una descrizione inventata, lunga quanto serve per la prova.');
+      await p.fill('#a-fonte', 'Fonte inventata'); await p.fill('#a-indirizzo', 'Via Inventata 5, Torino'); await pausa(1300);
       await tocca('#a-sugg [data-si="0"]', 'modulo, suggerimento');
-      await tocca(F + '[data-az="a-salva"]', 'modulo, salva'); await pausa(800);
-      id = (await p.locator(F + '.red-id').first().innerText().catch(() => '')).trim();
-      if (!CHIAVI.ID.test(id)) err('evento nuovo: dopo il salvataggio non compare un identificativo nella forma attesa («' + id + '»)');
-      const conta = await p.evaluate(i => ({ locali: window.AGR.eventi().filter(x => !x.personal && !x.offgrid).map(x => x.id), sullaMappa: !!document.querySelector('[data-ev="' + i + '"]') }), id);
-      if (conta.locali.join() !== id || conta.sullaMappa) err('evento nuovo: deve restare sul dispositivo, con il suo identificativo, e non andare sulla mappa');
+    };
+    if (await tocca(F + '[data-az="pubblica"]', 'pubblicazione')) {
+      await pausa(700);
+      await tocca(F + '[data-az="pb-consegna"]', 'consegna delle chiavi allo sportello di prova'); await pausa(700);
+      if (await tocca(F + '[data-az="pb-nuovo"]', 'modulo degli eventi')) {
+        await compila('Evento inventato della redazione');
+        await tocca(F + '[data-az="a-pubblica"]', 'modulo, pubblica');
+        try { await p.waitForSelector(F + '[data-pbev]', { timeout: 15000 }); } catch (x) { err('evento nuovo: dopo «Pubblica» non compare tra i pubblicati («' + (await p.locator(F).innerText().catch(() => '')).slice(0, 300) + '»)'); }
+        if (await tocca(F + '[data-pbev]', 'evento pubblicato')) id = (await p.locator(F + '.red-id').first().innerText().catch(() => '')).trim();
+        if (!CHIAVI.ID.test(id)) err('evento nuovo: dopo la pubblicazione non compare un identificativo nella forma attesa («' + id + '»)');
+        if ((await p.evaluate(() => window.AGR.eventi().filter(x => !x.personal && !x.offgrid).length)) !== 0) err('evento nuovo: non deve restare tra gli eventi salvati sul dispositivo');
+      }
+      /* lo sportello di prova si svuota: il resto della prova (Misure) legge di nuovo l'archivio inventato della prova */
+      if (await strumenti() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione')) { await pausa(500); await tocca(F + '[data-az="pb-svuota"]', 'svuota'); await tocca(F + '[data-az="pb-svuota"]', 'svuota, conferma'); await pausa(600); }
+      await strumenti();
     }
     if (id && await tocca(F + '[data-az="verifica"]', 'verifica')) {
       const chiedi = async t => { await p.fill('#ver-testo', t); await tocca(F + '[data-az="verifica-ok"]', 'verifica, controlla'); await pausa(500); return p.locator(F + '.red-riquadro b').first().innerText().catch(() => ''); };
@@ -173,7 +183,7 @@ async function prova() {
     if (await strumenti() && await tocca(F + '[data-az="admin-storico"]', 'storico')) {
       await pausa(400);
       const voci = await p.locator('.sh-voce b').allInnerTexts();
-      for (const v of ['Chiavi create', 'Copia di riserva delle chiavi scaricata', 'Evento creato', 'Misure esportate in Excel']) if (!voci.includes(v)) err('storico: manca «' + v + '» (' + voci.join(' · ') + ')');
+      for (const v of ['Chiavi create', 'Copia di riserva delle chiavi scaricata', 'Evento pubblicato', 'Misure esportate in Excel']) if (!voci.includes(v)) err('storico: manca «' + v + '» (' + voci.join(' · ') + ')');
     }
     if (await strumenti() && await tocca(F + '[data-az="chiavi"]', 'chiavi') && await tocca(F + '[data-az="chiavi-revoca"]', 'revoca')) {
       await tocca(F + '[data-az="chiavi-revoca-ok"]', 'revoca, conferma'); await pausa(800);
@@ -182,12 +192,10 @@ async function prova() {
       if (avviso) { let j = null; try { j = JSON.parse(avviso.dati.toString('utf8')); } catch (x) { /* sotto */ } if (!j || j.tipo !== CHIAVI.TIPO_REVOCA || !j.impronta) err('revoca: l\'avviso non è il file atteso'); }
       const resta = await p.evaluate(() => new Promise(ok => { const r = indexedDB.open('red_strumenti'); r.onsuccess = () => { const q = r.result.transaction('voci').objectStore('voci').get('red_chiavi'); q.onsuccess = () => { r.result.close(); ok(Object.keys(q.result || {})); }; }; }));
       if (resta.includes('chiavi') || resta.includes('copia')) err('revoca: sul dispositivo restano le chiavi o la loro copia (' + resta.join(', ') + ')');
-      if (await strumenti() && await tocca(F + '[data-az="admin-ongrid"]', 'modulo degli eventi dopo la revoca')) {
-        await p.fill('#a-titolo', 'Evento inventato senza chiavi'); await p.selectOption('#a-strato', 'musica'); await pausa(300); await p.selectOption('#a-sub', { index: 1 });
-        await p.fill('#a-desc', 'Una descrizione inventata, lunga quanto serve per la prova.'); await p.fill('#a-dt', giorno(3) + 'T18:00'); await p.fill('#a-durata', '2 ore'); await p.fill('#a-prezzo', 'Gratuito');
-        await p.fill('#a-indirizzo', 'Via Inventata 5, Torino'); await pausa(1300); await tocca('#a-sugg [data-si="0"]', 'modulo, suggerimento');
-        await tocca(F + '[data-az="a-salva"]', 'modulo, salva senza chiavi'); await pausa(800);
-        if (!/servono le chiavi/.test(await p.locator(F + '.err[role="alert"]').innerText().catch(() => ''))) err('senza chiavi un evento nuovo non si deve poter salvare, e l\'app deve dire perché');
+      if (await strumenti() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione dopo la revoca') && await tocca(F + '[data-az="pb-nuovo"]', 'modulo degli eventi dopo la revoca')) {
+        await compila('Evento inventato senza chiavi');
+        await tocca(F + '[data-az="a-pubblica"]', 'modulo, pubblica senza chiavi'); await pausa(800);
+        if (!/servono le chiavi/.test(await p.locator(F + '[role="alert"]').first().innerText().catch(() => ''))) err('senza chiavi un evento nuovo non si deve poter pubblicare, e l\'app deve dire perché');
       }
     }
     e.note.push('strumenti senza password; chiavi create, copia di riserva illeggibile senza la frase, parti pubbliche, revoca');

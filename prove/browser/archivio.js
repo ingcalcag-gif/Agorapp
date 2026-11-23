@@ -16,7 +16,7 @@
    - senza mappa (il telefono non riesce a disegnarla) l'elenco mostra comunque gli eventi della città scelta. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
-const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati, ZONA_ARCHIVIO, EVF } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati, ZONA_ARCHIVIO, EVF, QUAD } = require('./comune.js');
 
 const TUTTI = Object.fromEntries(['musica', 'arte', 'sport', 'sociale', 'cibo', 'teatro', 'cinema', 'conferenze', 'laboratori', 'manifestazioni', 'mercati', 'benessere', 'volontariato'].map(k => [k, { on: true }]));
 const spia = () => {   // tiene da parte la mappa che l'app crea, per guardarla dall'esterno
@@ -77,7 +77,9 @@ async function prova() {
     if (!lontano.lontano) e.errori.push('visto il Nord Italia, l\'app non si considera lontana');
     if (await p.locator('.pin.ev').count()) e.errori.push('da lontano restano segnaposto di eventi pubblici');
     const bolle = await p.locator('.pin.regione').evaluateAll(b => b.map(x => x.getAttribute('aria-label')));
-    for (const r of indice.regioni) if (!bolle.some(t => t.startsWith(r.eventi + ' eventi in ' + r.nome))) e.errori.push(`da lontano manca il numero di ${r.nome} (${bolle.join(' | ')})`);
+    /* il numero è quello degli eventi non ancora usciti dalla mappa: l'indice dice quanti escono e quando, il conto lo fa il telefono (LM-46) */
+    /* (un evento può uscire proprio mentre la prova gira: vale il conto di adesso o quello di due minuti fa) */
+    for (const r of indice.regioni) { const n = [0, 120000].map(d => QUAD.eventiVivi(r, Date.now() - d)); if (n[1] && !bolle.some(t => n.some(k => new RegExp('^' + k + ' event[oi] in ' + r.nome).test(t)))) e.errori.push(`da lontano manca il numero di ${r.nome}, ${n[0]} (${bolle.join(' | ')})`); }
     const peek = (await p.locator('#peek').textContent()) || '';
     if (!/avvicinati a una città per vedere gli eventi/.test(peek)) e.errori.push('da lontano la barra in basso non invita ad avvicinarsi: ' + peek);
     await p.click('[data-az="elenco"]'); await pausa(400);

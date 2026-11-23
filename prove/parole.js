@@ -53,7 +53,6 @@ PAROLE.es['frase sui dati abbreviata'] = p('datos[^.<"\'`]{0,60}(?:no salen|se q
    né alla mappa e non dichiara una conformità. Ogni riga: lingua, frase esatta (o un suo pezzo), motivo. */
 const AMMESSI = [
   ['it', 'crea invece un evento on-grid completo', 'amministrazione: «completo» è il modulo, non la mappa'],
-  ['it', 'Form completo, con strato', 'amministrazione: «completo» è il modulo, non la mappa'],
   ['it', 'Per una copia completa, con i tuoi Off-Grid', 'copia di sicurezza dei dati del telefono'],
   ['it', 'come farlo restando conformi', 'Misure (amministrazione): intenzione di rispettare le regole, non dichiarazione di conformità'],
   ['it', 'Scheda completa: calcolo, metodo, conformità', 'Misure (amministrazione): scheda di una misura'],

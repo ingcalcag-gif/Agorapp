@@ -42,7 +42,7 @@ async function prova() {
   const e = esito('Mai soltanto il colore; elenco completo (browser)');
   /* il lucchetto: nel codice sta solo dentro il suo segno con il testo, oppure nei punti che hanno il testo accanto.
      Dal blocco 8 si guardano anche gli strumenti della Redazione (sorgenti/redazione/, T-033). */
-  const AMMESSI = { 'parti/app2.js': 2, 'parti/app3.js': 2, 'parti/app4.js': 1, 'redazione/strumenti.js': 2 };   // definizione del segno e segnaposto (etichetta); riga degli Strati e testata della scheda; sblocco con la password; nell'app della redazione: voce «Chiavi» e interruttore «Evento nascosto» del modulo, tutti e due con il testo accanto
+  const AMMESSI = { 'parti/app2.js': 2, 'parti/app3.js': 2, 'parti/app4.js': 1, 'redazione/strumenti.js': 1 };   // definizione del segno e segnaposto (etichetta); riga degli Strati e testata della scheda; sblocco con la password; nell'app della redazione: voce «Chiavi», con il testo accanto (l'interruttore «Evento nascosto» è uscito con il modulo di prima: torna con il blocco 11)
   for (const c of ['parti', 'redazione']) for (const f of fs.readdirSync(path.join(RADICE, 'sorgenti', c)).filter(f => /\.js$/.test(f))) {
     const n = (fs.readFileSync(path.join(RADICE, 'sorgenti', c, f), 'utf8').match(/icoLucchetto\(/g) || []).length, k = c + '/' + f;
     if (n !== (AMMESSI[k] || 0)) e.errori.push(`${k}: il lucchetto degli eventi nascosti compare ${n} volte, ne sono previste ${AMMESSI[k] || 0}: ogni lucchetto ha accanto un testo (segnoNascosto) e va annotato qui`);

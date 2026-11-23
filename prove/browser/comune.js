@@ -28,6 +28,8 @@ const TIPI = { '.webmanifest': 'application/manifest+json', '.geojson': 'applica
 function server(uscita = 'pubblica', opzioni = {}) {
   const radici = [['/dist/' + uscita + '/', path.join(DIST, uscita)], ['/mappa/prova/', path.join(RADICE, 'mappa', 'prova')],
     ['/prova/archivio/', path.join(RADICE, 'prova', 'archivio')]];
+  /* come su githack, dallo stesso indirizzo si apre anche l'altra app: serve alle prove dello sportello di prova (T-038) */
+  for (const altra of ['pubblica', 'redazione']) if (altra !== uscita) radici.push(['/dist/' + altra + '/', path.join(DIST, altra)]);
   /* opzioni.file: una funzione che dà i file dell'app come {percorso: testo o Buffer}, al posto di quelli di dist/: serve
      alle prove che cambiano versione dell'app o un suo file (service worker, T-029). Le intestazioni sono quelle di un
      server vero: i file si possono tenere, ma vanno ricontrollati. */

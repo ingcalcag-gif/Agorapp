@@ -65,13 +65,15 @@ function prova() {
   if (new Set(nomi).size !== nomi.length) err('elenco: una chiave compare due volte');
   if (new Set(prime).size !== prime.length) err('elenco: un nome di prima compare due volte');
   for (const v of M.ELENCO) {
-    if (!/^(?:dl|red)_[a-z]+$/.test(v.nome)) err(`elenco: «${v.nome}» non ha la forma dl_… o red_…`);
+    if (!/^(?:dl|red|prova)_[a-z]+$/.test(v.nome)) err(`elenco: «${v.nome}» non ha la forma dl_…, red_… o prova_…`);
     if (nomeServizio && v.nome.toLowerCase().includes(nomeServizio)) err(`elenco: «${v.nome}» contiene il nome del servizio`);
     if (!['memoria', 'file', 'base'].includes(v.dove)) err(`elenco: «${v.nome}» ha un «dove» sconosciuto`);
     if (v.dove === 'base' && !v.redazione) err(`elenco: «${v.nome}» sta nella base di dati, che è solo dell'app della redazione`);
     if (v.dove === 'memoria' && !['json', 'testo'].includes(v.forma)) err(`elenco: «${v.nome}» non dice se è un testo o un valore in JSON`);
     if (!v.cosa) err(`elenco: «${v.nome}» non dice che cosa contiene`);
     if (v.redazione) { if (!v.nome.startsWith('red_') || v.riga) err(`elenco: «${v.nome}» è della Redazione: si chiama red_… e non sta nella scheda`); }
+    /* le voci del solo collegamento di prova (T-038): file, fuori dalla scheda, mai nell'elenco di ciò che l'app può avere sul telefono */
+    else if (v.prova) { if (!v.nome.startsWith('prova_') || v.riga || v.dove !== 'file' || M.chiavi(true).includes(v.nome)) err(`elenco: «${v.nome}» è del collegamento di prova: si chiama prova_…, sta nella memoria per i file e non nella scheda`); }
     else if (!v.nome.startsWith('dl_') || !M.RIGHE[v.riga]) err(`elenco: «${v.nome}» deve chiamarsi dl_… e rientrare in una riga della scheda «Dati locali»`);
     if (v.prima && nomi.includes(v.prima)) err(`elenco: il nome di prima «${v.prima}» è anche una chiave di oggi`);
   }
@@ -231,6 +233,7 @@ function prova() {
     };
     confronta('## L\'elenco chiuso', M.chiavi(false));
     confronta('## Strumenti della Redazione', M.ELENCO.filter(v => v.redazione).map(v => v.nome));
+    confronta('## Solo sul collegamento di prova', M.ELENCO.filter(v => v.prova).map(v => v.nome));
     confronta('## Chiavi tolte', M.TOLTE.map(t => t.nome));
     for (const v of M.ELENCO) if (v.prima && !d.includes('`' + v.prima + '`')) err(`docs/dati-locali.md: non dice che «${v.nome}» prima si chiamava «${v.prima}»`);
     for (const r of Object.values(M.RIGHE)) if (!d.includes(r)) err(`docs/dati-locali.md: manca la riga della scheda «${r}»`);

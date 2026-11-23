@@ -1,0 +1,163 @@
+/* Prova nel browser: lo sportello di prova, dall'app della redazione all'app pubblica (voci T-038, T-039 e T-040).
+
+   Le due app si aprono dallo stesso indirizzo, come sul collegamento di prova. Nell'app della redazione si creano le
+   chiavi, si consegnano allo sportello di prova e si fa il giro intero; a ogni passo l'app pubblica, ricaricata, deve
+   mostrare ciò che lo sportello ha pubblicato. Tutto è inventato.
+
+   1. Senza chiavi consegnate lo sportello di prova rifiuta; consegnate le chiavi, accetta.
+   2. Un evento scritto nel modulo si pubblica: compare tra i pubblicati con l'ora, e nell'app pubblica.
+   3. La correzione arriva nell'app pubblica.
+   4. Sospeso, l'evento sparisce dall'app pubblica; riattivato, torna.
+   5. Il ritiro chiede il motivo; ritirato, l'evento non c'è più.
+   6. Storico: una copia per pubblicazione; il confronto dice che cosa è cambiato; il ripristino ricorda le rimozioni di
+      nomi chieste dopo la data della copia e non parte finché non si conferma di averle ripetute.
+   7. Un pacchetto con la firma sbagliata è rifiutato; dopo cinque lo sportello non risponde più a questo dispositivo.
+   8. Svuotato lo sportello di prova, l'app pubblica torna all'archivio di prima. */
+'use strict';
+const { esito, eseguiDaSola } = require('../comune.js');
+const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati } = require('./comune.js');
+
+const FRASE = 'una frase inventata per la prova';
+const RICERCA = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [7.6869, 45.0703] },
+  properties: { country: 'Italia', city: 'Torino', postcode: '10100', street: 'Via Inventata', housenumber: '5', type: 'house' } }] };
+const DI_PRIMA = [eventoProva('primauno', { titolo: 'Evento dell’archivio di prima, uno' }), eventoProva('primadue', { titolo: 'Evento dell’archivio di prima, due', lat: 45.0712, lng: 7.6851 })];
+/* una richiesta di rimozione registrata domani: è «dopo» qualunque copia fatta durante la prova */
+const TUTTI = Object.fromEntries(['musica', 'arte', 'sport', 'sociale', 'cibo', 'teatro', 'cinema', 'conferenze', 'laboratori', 'manifestazioni', 'mercati', 'benessere', 'volontariato'].map(k => [k, { on: true }]));
+const MISURE = { v: 1, rimozioni: [{ ric: giorno(1) + 'T10:00', eva: '' }] };
+
+async function prova() {
+  const e = esito('Sportello di prova: pubblicare, correggere, sospendere, ritirare, ripristinare (browser)');
+  const pw = playwright();
+  if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
+  const err = x => e.errori.push(x);
+  const F = '#foglio-slot ';
+  const s = await server('redazione'), { browser, ctx } = await apri(pw, { dl_guida: '1', dl_strati: TUTTI, red_misure: MISURE });
+  try {
+    await archivio(ctx, DI_PRIMA);
+    await ctx.route(u => u.hostname === 'photon.komoot.io', r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(RICERCA) }));
+    const p = await ctx.newPage(), pp = await ctx.newPage();
+    for (const [x, n] of [[p, 'redazione'], [pp, 'pubblica']]) x.on('pageerror', y => err('errore nella pagina (' + n + '): ' + y.message));
+    const tocca = async (sel, dove) => { const l = p.locator(sel).first(); if (!(await l.count())) { err(`${dove}: non trovo ${sel}`); return false; }
+      try { await l.click({ timeout: 15000 }); } catch (x) { err(`${dove}: non riesco a toccare ${sel}`); return false; } await pausa(350); return true; };
+    const testo = () => p.locator(F).innerText().catch(() => '');
+    const aspetta = async (re, dove) => { try { await p.waitForFunction(r => new RegExp(r, 'i').test((document.querySelector('#foglio-slot') || {}).innerText || ''), re.source, { timeout: 20000 }); return true; } catch (x) { err(dove + ': atteso «' + re.source + '», trovato «' + (await testo()).replace(/\s+/g, ' ').slice(0, 260) + '»'); return false; } };
+    /* l'app pubblica, ricaricata: quale archivio legge, quanti eventi e con quali titoli */
+    const pubblica = async attesi => {
+      await pp.goto(s.url.replace('/dist/redazione/', '/dist/pubblica/') + 'index.html'); await pp.waitForSelector('[data-az="elenco"]');
+      if (attesi) await eventiCaricati(pp, attesi); else await pausa(1500);
+      await pp.click('[data-az="elenco"]'); await pausa(500);
+      const a = await pp.evaluate(() => Object.assign(window.AGR.archivio(), { titoli: [...document.querySelectorAll('#foglio-slot [data-ev]')].map(x => x.textContent) }));
+      return { finto: a.finto, n: a.pubblici, titoli: a.titoli.join(' | ') };
+    };
+    const compila = async titolo => {
+      await p.fill('#a-titolo', titolo); await p.selectOption('#a-strato', 'musica'); await pausa(300);
+      await p.fill('#a-inizio', giorno(3) + 'T18:00'); await p.fill('#a-fine', giorno(3) + 'T20:00'); await p.fill('#a-luogo', 'Sala inventata'); await p.fill('#a-desc', 'Una descrizione inventata, lunga quanto serve per la prova.');
+      await p.fill('#a-fonte', 'Fonte inventata'); await p.fill('#a-indirizzo', 'Via Inventata 5, Torino'); await pausa(1300);
+      await tocca('#a-sugg [data-si="0"]', 'modulo, suggerimento');
+    };
+
+    /* prima di tutto l'app pubblica legge l'archivio di prima */
+    let a = await pubblica(2);
+    if (a.finto || a.n !== 2) err('prima di ogni pubblicazione l\'app pubblica deve leggere l\'archivio di prima (2 eventi), non lo sportello di prova: ' + JSON.stringify(a));
+
+    /* le chiavi */
+    await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); await pausa(400);
+    if (!(await tocca('#badgeRed', 'strumenti')) || !(await tocca(F + '[data-az="chiavi"]', 'chiavi'))) return e;
+    await pausa(400); await p.fill('#ch-nome', 'Portatile di prova'); await p.fill('#ch-frase', FRASE); await p.fill('#ch-ripeti', FRASE);
+    await tocca(F + '[data-az="chiavi-crea"]', 'chiavi, crea');
+    try { await p.waitForSelector(F + '[data-az="chiavi-copia"]', { timeout: 20000 }); } catch (x) { err('le chiavi non si creano'); return e; }
+    const apriPb = async () => { await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); await pausa(300); return await tocca('#badgeRed', 'strumenti') && await tocca(F + '[data-az="pubblica"]', 'pubblicazione'); };
+
+    /* 1 */
+    if (!(await apriPb())) return e;
+    await aspetta(/non conosce ancora questo dispositivo/, 'senza chiavi consegnate');
+    await tocca(F + '[data-az="pb-consegna"]', 'consegna delle chiavi');
+    await aspetta(/accetta la firma di questo dispositivo/, 'chiavi consegnate');
+    await aspetta(/Pubblicati · 0/, 'elenco vuoto');
+
+    /* 2 */
+    if (await tocca(F + '[data-az="pb-nuovo"]', 'nuovo evento')) {
+      await tocca(F + '[data-az="a-pubblica"]', 'pubblica a vuoto'); await pausa(400);
+      if (!(await p.locator(F + '#a-titolo').count())) err('un modulo vuoto non si deve pubblicare');
+      await compila('Evento inventato dello sportello');
+      await tocca(F + '[data-az="a-pubblica"]', 'pubblica');
+      await aspetta(/Pubblicato alle \d\d[:.]\d\d \(ora dello sportello\)[\s\S]*Pubblicati · 1/, 'pubblicazione');
+    }
+    a = await pubblica(1);
+    if (!a.finto || a.n !== 1 || !/Evento inventato dello sportello/.test(a.titoli)) err('l\'evento pubblicato non arriva nell\'app pubblica: ' + JSON.stringify(a));
+
+    /* 3 */
+    if (await tocca(F + '[data-pbev]', 'evento') && await tocca(F + '[data-az="pb-correggi"]', 'correggi')) {
+      if ((await p.inputValue('#a-titolo')) !== 'Evento inventato dello sportello' || (await p.inputValue('#a-luogo')) !== 'Sala inventata' || (await p.inputValue('#a-fine')) !== giorno(3) + 'T20:00') err('correzione: il modulo non riporta i campi dell\'evento pubblicato');
+      await p.fill('#a-titolo', 'Evento inventato dello sportello, corretto');
+      await tocca(F + '[data-az="a-pubblica"]', 'pubblica la correzione');
+      await aspetta(/Correzione pubblicata alle/, 'correzione');
+    }
+    a = await pubblica(1);
+    if (a.n !== 1 || !/sportello, corretto/.test(a.titoli)) err('la correzione non arriva nell\'app pubblica: ' + JSON.stringify(a));
+
+    /* 4 */
+    if (await tocca(F + '[data-pbev]', 'evento') && await tocca(F + '[data-az="pb-sospendi"]', 'sospendi')) await aspetta(/Sospeso alle[\s\S]*Pubblicati · 0[\s\S]*Sospesi · 1/, 'sospensione');
+    a = await pubblica(0);
+    if (!a.finto || a.n !== 0) err('un evento sospeso deve sparire dall\'app pubblica: ' + JSON.stringify(a));
+    if (await tocca(F + '[data-pbev]', 'evento sospeso') && await tocca(F + '[data-az="pb-riattiva"]', 'riattiva')) await aspetta(/Riattivato alle[\s\S]*Pubblicati · 1/, 'riattivazione');
+    a = await pubblica(1);
+    if (a.n !== 1) err('un evento riattivato deve tornare nell\'app pubblica: ' + JSON.stringify(a));
+
+    /* 5 */
+    if (await tocca(F + '[data-pbev]', 'evento') && await tocca(F + '[data-az="pb-ritira"]', 'ritira')) {
+      await tocca(F + '[data-az="pb-ritira-ok"]', 'ritira senza motivo');
+      await aspetta(/Scegli il motivo del ritiro/, 'ritiro senza motivo');
+      const motivi = await p.locator('#pb-motivo option').count();
+      if (motivi !== 7) err('ritiro: attesi i sei motivi del registro delle fonti, trovate ' + (motivi - 1) + ' voci');
+      await p.selectOption('#pb-motivo', 'annullato'); await p.fill('#pb-rif', 'voce inventata 1');
+      await tocca(F + '[data-az="pb-ritira-ok"]', 'ritira');
+      await aspetta(/Ritirato alle[\s\S]*Pubblicati · 0/, 'ritiro');
+    }
+    a = await pubblica(0);
+    if (a.n !== 0) err('un evento ritirato non deve più essere nell\'app pubblica: ' + JSON.stringify(a));
+
+    /* 6 */
+    if (await tocca(F + '[data-az="pb-storico"]', 'storico')) {
+      try { await p.waitForSelector(F + '[data-pbcopia]', { timeout: 15000 }); } catch (x) { err('storico: l\'elenco delle copie non arriva'); }
+      const copie = p.locator(F + '[data-pbcopia]'), n = await copie.count();
+      if (n !== 5) err('storico: attese 5 copie (pubblicazione, correzione, sospensione, riattivazione, ritiro), trovate ' + n);
+      if (!/Portatile di prova/.test(await testo())) err('storico: le copie non dicono da quale dispositivo vengono');
+      /* dalla seconda copia (correzione) all'ultima (ritiro): un evento tolto */
+      await copie.nth(n - 2).click(); await copie.nth(0).click(); await pausa(300);
+      await tocca(F + '[data-az="pb-confronta"]', 'confronta');
+      await aspetta(/Tolti · 1[\s\S]*sportello, corretto/, 'confronto tra due copie');
+      await p.locator(F + '[data-pbcopia]').nth(0).click(); await pausa(300);   // resta scelta solo la copia della correzione
+      if (await tocca(F + '[data-az="pb-ripristina"]', 'ripristina')) {
+        await aspetta(/è stata chiesta 1 rimozione/, 'promemoria delle rimozioni');
+        if (!(await p.locator(F + '[data-az="pb-ripr-ok"]').isDisabled())) err('ripristino: con una rimozione chiesta dopo la copia non si deve poter ripubblicare senza conferma');
+        await tocca(F + '[data-az="pb-ripr-fatto"]', 'conferma delle rimozioni');
+        await tocca(F + '[data-az="pb-ripr-ok"]', 'ripubblica');
+        await aspetta(/Copia ripristinata e pubblicata alle[\s\S]*Pubblicati · 1/, 'ripristino');
+      }
+    }
+    a = await pubblica(1);
+    if (a.n !== 1 || !/sportello, corretto/.test(a.titoli)) err('dopo il ripristino l\'app pubblica deve tornare allo stato della copia: ' + JSON.stringify(a));
+
+    /* 7 */
+    for (let i = 1; i <= 5; i++) {
+      await tocca(F + '[data-az="pb-falsa"]', 'firma sbagliata ' + i);
+      await aspetta(i < 5 ? /Rifiutato dallo sportello \(motivo: firma\)/ : /non risponde a questo dispositivo fino alle/, 'firma sbagliata, tentativo ' + i);
+      if (/ha accettato un pacchetto con la firma sbagliata/.test(await testo())) err('lo sportello ha accettato una firma sbagliata');
+    }
+    await aspetta(/Troppe firme sbagliate/, 'dispositivo fermo');
+    a = await pubblica(1);
+    if (a.n !== 1) err('le firme sbagliate non devono cambiare l\'archivio: ' + JSON.stringify(a));
+
+    /* 8 */
+    await tocca(F + '[data-az="pb-svuota"]', 'svuota'); await tocca(F + '[data-az="pb-svuota"]', 'svuota, conferma');
+    await aspetta(/Sportello di prova svuotato/, 'svuotamento');
+    a = await pubblica(2);
+    if (a.finto || a.n !== 2) err('svuotato lo sportello di prova, l\'app pubblica deve tornare all\'archivio di prima: ' + JSON.stringify(a));
+    e.note.push('giro intero dallo sportello di prova all\'app pubblica: pubblicazione, correzione, sospensione, riattivazione, ritiro con il motivo, 5 copie nello storico, confronto, ripristino con il promemoria delle rimozioni, 5 firme sbagliate e fermo');
+  } finally { await browser.close(); await s.chiudi(); }
+  return e;
+}
+
+module.exports = { prova };
+eseguiDaSola(module, prova);

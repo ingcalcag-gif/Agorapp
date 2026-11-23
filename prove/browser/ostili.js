@@ -305,11 +305,30 @@ async function prova() {
       if (righe < 2) e.errori.push('importazione: l\'anteprima non mostra la riga scartata e l\'avviso (' + righe + ' righe)');
       if (await tocca(F + '[data-az="importa-ok"]', 'importazione, conferma', true)) await controlla('importazione, fatta');
       if (await entra()) {
-        if (await tocca(F + '[data-az="admin-ongrid"]', 'modulo della redazione')) {
-          await controlla('modulo della redazione');
-          const ind = p.locator('#a-indirizzo');
-          if (await ind.count()) { await ind.fill('Via Roma 5, Torino'); await pausa(1200); await controlla('modulo della redazione, suggerimenti');
-            if (await tocca('#a-sugg [data-si="0"]', 'modulo della redazione, suggerimento', true)) await controlla('modulo della redazione, punto scelto'); }
+        /* Pubblicazione (T-038): lo sportello di prova riceve gli eventi ostili dell'archivio della prova; elenco, evento,
+           modulo dell'evento, storico e copia da ripristinare li mostrano come testo, con il nome ostile del dispositivo */
+        if (await tocca(F + '[data-az="pubblica"]', 'pubblicazione')) {
+          await pausa(600); await controlla('pubblicazione, senza chiavi consegnate');
+          await tocca(F + '[data-az="pb-consegna"]', 'pubblicazione, consegna delle chiavi', true); await pausa(600);
+          await tocca(F + '[data-az="pb-venti"]', 'pubblicazione, eventi di prova', true);
+          try { await p.waitForSelector(F + '[data-pbev]', { timeout: 20000 }); } catch (err) { e.errori.push('pubblicazione: gli eventi ostili non arrivano nell\'elenco dello sportello di prova'); }
+          await controlla('pubblicazione, elenco');
+          if (await tocca(F + '[data-pbev]', 'pubblicazione, evento', true)) {
+            await controlla('pubblicazione, evento');
+            if (await tocca(F + '[data-az="pb-ritira"]', 'pubblicazione, ritiro', true)) await controlla('pubblicazione, ritiro');
+            if (await tocca(F + '[data-az="pb-correggi"]', 'modulo della redazione', true)) {
+              await controlla('modulo della redazione');
+              const ind = p.locator('#a-indirizzo');
+              if (await ind.count()) { await ind.fill('Via Roma 5, Torino'); await pausa(1200); await controlla('modulo della redazione, suggerimenti');
+                if (await tocca('#a-sugg [data-si="0"]', 'modulo della redazione, suggerimento', true)) await controlla('modulo della redazione, punto scelto'); }
+            }
+          }
+          if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-storico"]', 'storico delle pubblicazioni')) {
+            await pausa(700); await controlla('storico delle pubblicazioni');
+            if (await tocca(F + '[data-pbcopia]', 'storico, copia', true) && await tocca(F + '[data-az="pb-ripristina"]', 'storico, ripristina', true)) { await pausa(700); await controlla('copia da ripristinare'); }
+          }
+          /* poi lo sportello di prova si svuota: Misure e il resto leggono di nuovo l'archivio ostile della prova */
+          if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione')) { await pausa(400); await tocca(F + '[data-az="pb-svuota"]', 'svuota', true); await tocca(F + '[data-az="pb-svuota"]', 'svuota, conferma', true); await pausa(600); }
         }
       }
       if (await entra() && await tocca(F + '[data-az="admin-storico"]', 'storico')) { await pausa(400); await controlla('storico delle operazioni'); }

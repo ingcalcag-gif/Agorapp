@@ -10,7 +10,7 @@
 const { stampa } = require('./comune.js');
 
 const STATICHE = ['./sintassi.js', './uscite.js', './due-app.js', './chiavi-redazione.js', './sportello.js', './componenti.js', './nome.js', './indirizzi.js', './collegamenti.js', './chiavi.js', './parole.js', './anteprime.js', './eventi.js', './quadranti.js', './archivio.js', './testi.js', './memoria.js', './senza-rete.js'];
-const BROWSER = ['./browser/ostili.js', './browser/redazione.js', './browser/richieste.js', './browser/tolte.js', './browser/anteprime.js', './browser/accessibilita.js', './browser/mappa.js', './browser/archivio.js', './browser/scheda.js', './browser/agenda.js', './browser/memoria.js', './browser/offgrid.js', './browser/senza-rete.js', './browser/avvisi.js'];
+const BROWSER = ['./browser/ostili.js', './browser/redazione.js', './browser/sportello.js', './browser/richieste.js', './browser/tolte.js', './browser/anteprime.js', './browser/accessibilita.js', './browser/mappa.js', './browser/archivio.js', './browser/scheda.js', './browser/agenda.js', './browser/memoria.js', './browser/offgrid.js', './browser/senza-rete.js', './browser/avvisi.js'];
 
 async function main() {
   const opz = new Set(process.argv.slice(2));

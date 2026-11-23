@@ -79,7 +79,12 @@
     { nome: 'red_chiavi', dove: 'base', redazione: true,
       cosa: 'Le chiavi della Redazione (firma, cifratura, registro delle fonti, marcatore, cassaforte), non estraibili, e la loro copia di riserva cifrata con la frase (T-034)' },
     { nome: 'red_cassaforte', dove: 'base', redazione: true,
-      cosa: 'La cassaforte cifrata delle password degli eventi nascosti, cancellate alla fine dell\'evento (T-034)' }
+      cosa: 'La cassaforte cifrata delle password degli eventi nascosti, cancellate alla fine dell\'evento (T-034)' },
+    /* Solo sul collegamento di prova (voci con «prova»): non sta nella scheda e sul sito vero non nasce mai. La scrive
+       lo sportello di prova dell'app della redazione; l'app pubblica di prova, che lì sta allo stesso indirizzo, la
+       legge soltanto. Contiene soli eventi inventati. */
+    { nome: 'prova_sportello', dove: 'file', prova: true,
+      cosa: 'L\'archivio finto dello sportello di prova: i file pubblici degli eventi, l\'elenco riservato, lo storico e le chiavi ammesse (T-038)' }
   ];
   /* Il segno dell'app della redazione e la base di dati dei suoi strumenti. */
   const SEGNO_REDAZIONE = 'red_qui', BASE = 'red_strumenti', DEPOSITO = 'voci';
@@ -99,7 +104,7 @@
   const PER_CHIAVE = new Map(ELENCO.map(v => [v.nome, v]));
 
   /* Le chiavi che un'app può avere sul telefono: quelle della scheda e, per la redazione, anche le sue. */
-  const chiavi = (redazione, dove) => ELENCO.filter(v => (redazione || !v.redazione) && (!dove || v.dove === dove)).map(v => v.nome);
+  const chiavi = (redazione, dove) => ELENCO.filter(v => !v.prova && (redazione || !v.redazione) && (!dove || v.dove === dove)).map(v => v.nome);
 
   /* Uno strumento del browser, se c'è e se il browser lo lascia usare (in navigazione privata può non esserci). */
   function strumento(nome) {
@@ -151,7 +156,8 @@
 
     /* La memoria per i file: come quella del browser, ma apre soltanto i nomi dell'elenco. null se il browser non
        la offre (indirizzo non sicuro, navigazione privata): chi la usa lavora allora senza copia sul telefono. */
-    const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); }, delete: nome => { voce(nome, 'file'); return cas.delete(nome); } } : null;
+    const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); }, delete: nome => { voce(nome, 'file'); return cas.delete(nome); },
+      has: nome => { voce(nome, 'file'); return cas.has(nome); } } : null;
 
     /* La base di dati: soltanto nell'app della redazione, e soltanto per le voci «base» dell'elenco. Conserva i valori
        così come sono (anche le chiavi di cifratura non estraibili). null se il browser non la offre. */

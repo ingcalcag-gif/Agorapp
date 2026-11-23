@@ -173,11 +173,14 @@ function taglia(testo, quale, nome) {
 // Nel browser stanno in window.AGR_MODULI.
 const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'quadranti.js', 'archivio.js', 'mappa-locale.js', 'avvisi.js'];
 // Solo nell'app della redazione: chiavi, cassaforte e marcatore (T-034, T-037).
-const JS_MODULI_RED = ['chiavi.js'];
+const JS_MODULI_RED = ['chiavi.js', 'pacchetto.js'];
+// Solo nell'app della redazione, finché non c'è Bunny (T-065): la logica dello sportello di pubblicazione, che lo sportello
+// di prova fa girare nel browser (T-038), e i confini delle regioni che le servono per i numeri dell'indice.
+const SPORTELLI_RED = ['pubblicazione.js'];
 // Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude). Gli strumenti della Redazione (sorgenti/redazione/)
 // entrano prima di app6, soltanto nell'app della redazione.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js'];
-const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
+const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
 const JS_FINE = ['app6.js'];
 const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css'];
 const CSS_RED = ['style_redazione.css', 'style_misure.css'];
@@ -219,7 +222,8 @@ function monta(cfg, quale = 'pubblica') {
     traduzioni = traduzioniPubbliche(traduzioni, pubblici, tutti(REDAZIONE));
   }
   const css = CSS.map(f => pezzo(PARTI, f)).concat(red ? CSS_RED.map(f => pezzo(REDAZIONE, f)) : []).join('\n');
-  const moduli = JS_MODULI.map(f => leggi(MODULI, f)).concat(red ? JS_MODULI_RED.map(f => leggi(MODULI, f)) : []).join('\n');
+  const moduli = JS_MODULI.map(f => leggi(MODULI, f)).concat(red ? JS_MODULI_RED.map(f => leggi(MODULI, f)) : [], red ? SPORTELLI_RED.map(f => leggi(RADICE, 'sportelli', f)) : [],
+    red ? ['(window.AGR_MODULI = window.AGR_MODULI || {}).regioni = ' + JSON.stringify(JSON.parse(leggi(DATI, 'regioni.json')).regioni) + ';'] : []).join('\n');
 
   const file = {
     'config.js': '/* Configurazione montata da sorgenti/config.js: non modificare qui. */\nwindow.AGR_CONFIG = ' + JSON.stringify(cfg, null, 1) + ';\n',

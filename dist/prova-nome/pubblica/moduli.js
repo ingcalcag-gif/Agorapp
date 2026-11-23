@@ -111,7 +111,12 @@
     { nome: 'red_chiavi', dove: 'base', redazione: true,
       cosa: 'Le chiavi della Redazione (firma, cifratura, registro delle fonti, marcatore, cassaforte), non estraibili, e la loro copia di riserva cifrata con la frase (T-034)' },
     { nome: 'red_cassaforte', dove: 'base', redazione: true,
-      cosa: 'La cassaforte cifrata delle password degli eventi nascosti, cancellate alla fine dell\'evento (T-034)' }
+      cosa: 'La cassaforte cifrata delle password degli eventi nascosti, cancellate alla fine dell\'evento (T-034)' },
+    /* Solo sul collegamento di prova (voci con «prova»): non sta nella scheda e sul sito vero non nasce mai. La scrive
+       lo sportello di prova dell'app della redazione; l'app pubblica di prova, che lì sta allo stesso indirizzo, la
+       legge soltanto. Contiene soli eventi inventati. */
+    { nome: 'prova_sportello', dove: 'file', prova: true,
+      cosa: 'L\'archivio finto dello sportello di prova: i file pubblici degli eventi, l\'elenco riservato, lo storico e le chiavi ammesse (T-038)' }
   ];
   /* Il segno dell'app della redazione e la base di dati dei suoi strumenti. */
   const SEGNO_REDAZIONE = 'red_qui', BASE = 'red_strumenti', DEPOSITO = 'voci';
@@ -131,7 +136,7 @@
   const PER_CHIAVE = new Map(ELENCO.map(v => [v.nome, v]));
 
   /* Le chiavi che un'app può avere sul telefono: quelle della scheda e, per la redazione, anche le sue. */
-  const chiavi = (redazione, dove) => ELENCO.filter(v => (redazione || !v.redazione) && (!dove || v.dove === dove)).map(v => v.nome);
+  const chiavi = (redazione, dove) => ELENCO.filter(v => !v.prova && (redazione || !v.redazione) && (!dove || v.dove === dove)).map(v => v.nome);
 
   /* Uno strumento del browser, se c'è e se il browser lo lascia usare (in navigazione privata può non esserci). */
   function strumento(nome) {
@@ -183,7 +188,8 @@
 
     /* La memoria per i file: come quella del browser, ma apre soltanto i nomi dell'elenco. null se il browser non
        la offre (indirizzo non sicuro, navigazione privata): chi la usa lavora allora senza copia sul telefono. */
-    const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); }, delete: nome => { voce(nome, 'file'); return cas.delete(nome); } } : null;
+    const file = cas ? { open: nome => { voce(nome, 'file'); return cas.open(nome); }, delete: nome => { voce(nome, 'file'); return cas.delete(nome); },
+      has: nome => { voce(nome, 'file'); return cas.has(nome); } } : null;
 
     /* La base di dati: soltanto nell'app della redazione, e soltanto per le voci «base» dell'elenco. Conserva i valori
        così come sono (anche le chiavi di cifratura non estraibili). null se il browser non la offre. */
@@ -538,6 +544,16 @@
      costruisci(eventi, {adesso, regioni, cartella}) → {indice, file: {percorso: testo}}.
      Tiene solo gli eventi che a quel momento non sono ancora usciti dalla mappa (tre ore dopo la fine); uno per riga,
      in ordine di inizio. Rifiuta (con un errore) un evento non valido o fuori dalla griglia. */
+  /* Le uscite di una regione (LM-46): l'indice si scrive quando la Redazione pubblica, ma gli eventi escono dalla mappa
+     anche tra una pubblicazione e l'altra. Per questo accanto al numero di ogni regione l'indice dice quanti eventi
+     escono e quando: coppie [minuto, quanti], con il minuto contato dal 1970 in tempo universale, in ordine. Chi legge
+     toglie dal numero quelli già usciti (eventiVivi). Sono soltanto numeri: non dicono quali eventi. */
+  const MINUTO = 6e4;
+  function eventiVivi(r, adesso) {
+    let n = r.eventi;
+    for (const u of r.uscite || []) { if (u[0] * MINUTO > adesso) break; n -= u[1]; }
+    return Math.max(0, n);
+  }
   function testoQuadrante(id, eventi) {
     return '{"formato":"eventi-quadrante","versione":' + E.FORMATO + ',"tdm-reservation":1,"quadrante":"' + id + '","eventi":[' +
       (eventi.length ? '\n' + eventi.map(e => JSON.stringify(e)).join(',\n') + '\n' : '') + ']}\n';
@@ -552,7 +568,7 @@
   function costruisci(eventi, opz) {
     const adesso = opz.adesso, cartella = opz.cartella || 'quadranti/', regioni = opz.regioni || [];
     if (!Number.isFinite(adesso)) throw new Error('costruisci: serve «adesso» in millisecondi');
-    const per = {}, conta = {}, perRegione = {}, visti = new Set();
+    const per = {}, conta = {}, perRegione = {}, escono = {}, visti = new Set();
     for (const ev of eventi) {
       const err = E.controlla(ev, opz.vocabolario ? { vocabolario: opz.vocabolario } : undefined);
       if (err.length) throw new Error('evento ' + (ev && ev.id) + ' non valido: ' + err.join('; '));
@@ -561,7 +577,10 @@
       const q = quadrante(ev.lat, ev.lng); if (!q) throw new Error('evento ' + ev.id + ' fuori dalla griglia');
       (per[q] = per[q] || []).push(ev);
       const reg = regione(ev.lat, ev.lng, regioni);
-      if (reg) { conta[reg] = (conta[reg] || 0) + 1; ((perRegione[reg] = perRegione[reg] || {})[q] = perRegione[reg][q] || []).push(ev); }
+      if (reg) {
+        conta[reg] = (conta[reg] || 0) + 1; ((perRegione[reg] = perRegione[reg] || {})[q] = perRegione[reg][q] || []).push(ev);
+        const m = Math.round(E.uscitaMs(ev) / MINUTO); (escono[reg] = escono[reg] || {})[m] = (escono[reg][m] || 0) + 1;
+      }
     }
     const file = {}, quadranti = {};
     for (const q of Object.keys(per).sort()) {
@@ -571,7 +590,8 @@
     }
     const indice = { formato: 'eventi-indice', versione: E.FORMATO, 'tdm-reservation': 1, generato: new Date(adesso).toISOString().slice(0, 19) + 'Z',
       griglia: GRIGLIA, quadranti,
-      regioni: regioni.filter(r => conta[r.nome]).map(r => ({ nome: r.nome, punto: r.punto, eventi: conta[r.nome], vai: vai(perRegione[r.nome]) })) };
+      regioni: regioni.filter(r => conta[r.nome]).map(r => ({ nome: r.nome, punto: r.punto, eventi: conta[r.nome], vai: vai(perRegione[r.nome]),
+        uscite: Object.keys(escono[r.nome]).map(Number).sort((x, y) => x - y).map(m => [m, escono[r.nome][m]]) })) };
     file['indice.json'] = JSON.stringify(indice) + '\n';
     return { indice, file };
   }
@@ -595,8 +615,19 @@
     else for (const r of j.regioni) {
       const inItalia = p => Array.isArray(p) && p.length === 2 && p[1] >= E.RIQUADRO.sud && p[1] < E.RIQUADRO.nord && p[0] >= E.RIQUADRO.ovest && p[0] < E.RIQUADRO.est;
       if (!r || typeof r.nome !== 'string' || !r.nome || r.nome.length > 40 || !inItalia(r.punto) || !inItalia(r.vai) || !Number.isInteger(r.eventi) || r.eventi < 0) err.push('indice: regione non valida');
+      else if (!usciteValide(r)) err.push('indice: uscite non valide per ' + r.nome);
     }
     return err;
+  }
+  /* Le uscite di una regione: coppie [minuto, quanti] in ordine di minuto, che in tutto fanno il numero della regione. */
+  function usciteValide(r) {
+    if (!Array.isArray(r.uscite)) return false;
+    let somma = 0, prima = -1;
+    for (const u of r.uscite) {
+      if (!Array.isArray(u) || u.length !== 2 || !Number.isSafeInteger(u[0]) || !Number.isInteger(u[1]) || u[1] < 1 || u[0] <= prima) return false;
+      prima = u[0]; somma += u[1];
+    }
+    return somma === r.eventi;
   }
   /* Gli eventi di un file di quadrante: solo quelli validi e che stanno davvero in quel quadrante. */
   function eventiDelQuadrante(j, id, opz) {
@@ -605,7 +636,7 @@
     return { eventi, scartati: j.eventi.length - eventi.length };
   }
 
-  return { GRIGLIA, quadrante, confini, intorno, regione, impronta, costruisci, controllaIndice, eventiDelQuadrante };
+  return { GRIGLIA, quadrante, confini, intorno, regione, impronta, costruisci, controllaIndice, eventiDelQuadrante, eventiVivi };
 });
 
 /* Lettura dell'archivio degli eventi nell'app pubblica (voce T-022 del piano di adeguamento; docs/formato-eventi.md).
@@ -629,7 +660,7 @@
   'use strict';
   if (!E || !Q) throw new Error('archivio.js: servono prima eventi.js e quadranti.js');
 
-  const TRENTA_MINUTI = 30 * 6e4;
+  const TRENTA_MINUTI = 30 * 6e4, CINQUE_SECONDI = 5000;
   /* Le richieste: mai cookie o credenziali, nessun parametro; l'indice si ricontrolla sempre con il server. */
   const RICHIESTA_INDICE = { credentials: 'omit', cache: 'no-cache', redirect: 'error' };
   const RICHIESTA_FILE = { credentials: 'omit', redirect: 'error' };
@@ -735,8 +766,14 @@
        Restituisce true se ne è arrivato almeno uno nuovo. */
     async function carica(ids) {
       if (!S.indice) return false;
-      const daFare = ids.filter(q => S.indice.quadranti[q] && (!S.caricati.has(q) || S.caricati.get(q).v !== S.indice.quadranti[q].v));
-      const esiti = await Promise.all(daFare.map(scarica));
+      const servono = () => ids.filter(q => S.indice.quadranti[q] && (!S.caricati.has(q) || S.caricati.get(q).v !== S.indice.quadranti[q].v));
+      let esiti = await Promise.all(servono().map(scarica));
+      /* Un file che non arriva può voler dire che l'archivio è cambiato dopo l'ultimo controllo (lo sportello toglie
+         subito i file che l'indice nuovo non nomina): si richiede l'indice, una volta, e si riprova. */
+      if (esiti.includes(false) && adesso() - S.ultimoControllo > CINQUE_SECONDI) {
+        const cambiato = await controllaNovita();
+        esiti = esiti.concat([cambiato], await Promise.all(servono().map(scarica)));
+      }
       return esiti.some(Boolean);
     }
 
@@ -749,7 +786,9 @@
 
     return {
       apri, controllaNovita, forseControlla, carica, eventi,
-      regioni: () => (S.indice ? S.indice.regioni : []),
+      /* I numeri per regione, tolti gli eventi usciti dalla mappa dopo l'ultima pubblicazione (LM-46): l'indice dice
+         quanti escono e quando, il conto lo fa il telefono. Una regione rimasta senza eventi non si mostra. */
+      regioni: () => (S.indice ? S.indice.regioni.map(r => Object.assign({}, r, { eventi: Q.eventiVivi(r, adesso()) })).filter(r => r.eventi > 0) : []),
       quadranti: () => (S.indice ? Object.keys(S.indice.quadranti) : []),   // tutti i quadranti con eventi, dall'indice
       pronto: () => !!S.indice,
       quadrantiConservati: () => [...S.caricati.keys()],

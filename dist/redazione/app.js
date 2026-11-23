@@ -522,11 +522,30 @@ const ARCHIVIO_DOVE = (() => {
   const i = location.pathname.lastIndexOf('/dist/');
   return i>=0 ? location.origin + location.pathname.slice(0, i) + '/prova/archivio/' : '';
 })();
+/* Lo sportello di prova (T-038). Sul collegamento di prova l'app della redazione e l'app pubblica stanno allo stesso
+   indirizzo e hanno la stessa memoria: quando lo sportello di prova della redazione ha pubblicato qualcosa, il suo
+   archivio finto sta nella memoria del browser per i file, e l'app pubblica di prova legge quello al posto dell'archivio
+   del repository. Così il giro intero (pubblica, correggi, sospendi, ritira) si prova sul telefono senza Bunny. Con
+   l'indirizzo degli eventi nella configurazione (T-065) questo tratto non fa più nulla. */
+const SPORTELLO_PROVA_DOVE = !(CFG.indirizzi||{}).eventi && ARCHIVIO_DOVE ? ARCHIVIO_DOVE.replace(/prova\/archivio\/$/, 'prova/sportello/') : '';
+async function sorgenteArchivio(){
+  const vera = {dove:ARCHIVIO_DOVE, fetch:window.fetch.bind(window), finto:false};
+  if(!SPORTELLO_PROVA_DOVE || !MEM.file) return vera;
+  try{
+    if(!(await MEM.file.has('prova_sportello'))) return vera;
+    const c = await MEM.file.open('prova_sportello'), dove = SPORTELLO_PROVA_DOVE+'pubblico/';
+    if(!(await c.match(dove+'indice.json'))) return vera;
+    return {dove, finto:true, fetch:async u => (await c.match(String(u))) || new Response('', {status:404})};
+  }catch(e){ return vera; }
+}
+let ARCHIVIO_FINTO = false;
 function avviaArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
-  ARCHIVIO = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window),
-    casse:MEM.file, nomeCassa:'dl_archivio'});
-  ARCHIVIO.apri().then(dopoControllo);
+  sorgenteArchivio().then(s => {
+    ARCHIVIO_FINTO = s.finto;
+    ARCHIVIO = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch, casse:MEM.file, nomeCassa:'dl_archivio'});
+    return ARCHIVIO.apri();
+  }).then(dopoControllo);
   document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
 }
 function dopoControllo(){ pulisciCalendarioArchivio(); ricostruisci(); aggiornaZona(true); }
@@ -1990,13 +2009,14 @@ function clickTemi(b){
    I pezzi comuni chiamano da qui, dentro i tratti riservati all'app della redazione: FOGLI_RED (i fogli), clickRed, azioneRed, inputRed,
    cambioRed (le interazioni), boxAdmin (il riquadro nella scheda). */
 const CHIAVI = MODULI.chiavi.crea({deposito:MEM.base});   /* chiavi, cassaforte e marcatore (sorgenti/moduli/chiavi.js) */
-const boxAdmin = e => e.tipo!=='og' && !e.archivio ? `<div class="admin-box"><span class="tipo">${tr('Redazione')}</span><div class="tasti"><button class="tasto sec" data-modifica-admin="${esc(e.id)}">${tr('Modifica')}</button><button class="tasto pericolo" data-elimina-admin="${esc(e.id)}">${tr('Elimina')}</button></div></div>` : '';
+/* il riquadro della Redazione nella scheda di un evento: dal blocco 9 gli eventi pubblicati si correggono e si ritirano da «Pubblicazione» */
+const boxAdmin = e => '';
 function fAdmin(){
   const testa = `<div class="riga-titolo"><div><h2>${tr('Strumenti della redazione')}</h2><p class="meta">${tr('Solo per chi pubblica gli eventi raccolti')}</p></div>${chiudiBtn()}</div>`;
   const ch = CH.stato, statoChiavi = !ch ? tr('Un attimo…') : ch.ci_sono ? tr('Dispositivo: {d}',{d:esc(ch.dispositivo)}) : ch.revocata ? tr('Revocate su questo dispositivo') : tr('Da creare: servono per salvare e pubblicare gli eventi');
   const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
     <div class="menu-lista">
-      <button class="menu-r" data-az="admin-ongrid">${icoCal()}<div><span class="t">${tr('Nuovo evento on-grid')}</span><span class="meta">${tr('Form completo, con strato, sottocategoria, prezzo e indirizzo')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="pubblica">${icoCal()}<div><span class="t">${tr('Pubblicazione')}</span><span class="meta">${tr('Eventi pubblicati, nuovo evento, correzione, sospensione, ritiro e storico')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo dispositivo')}</span></div>${freccia}</button></div>
@@ -2195,84 +2215,17 @@ function esportaExcel(){
     .then(() => { registra('esporta-excel', {n:dati.length}); st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
     .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
-/* modulo degli eventi on-grid della Redazione (stessi campi e controlli dell'app online; lo sostituisce il blocco 10) */
-const maxDt = () => { const d = new Date(); d.setMonth(d.getMonth()+20); return d; };
-const dtLocal = d => ymd(d)+'T'+hm(d);
-function apriAdminForm(raw){
-  const sub = raw && S[raw.category] ? (S[raw.category].sub.find(s => s.label===raw.sublayer)||{}).id||'' : '';
-  st.aform = raw ? {id:raw.id, raw, titolo:raw.title||'', strato:raw.category||'', sub, desc:raw.description||'', dt:raw.datetime||'', durata:raw.duration||'', prezzo:raw.price||'', link:raw.link||'', indirizzo:raw.address||'', addrFull:raw.addressFull||raw.address||'', pos:{lat:+raw.lat, lng:+raw.lng}, precision:raw.addrPrecision||'exact', hn:raw.addrNum||'', nascosto:!!raw.hidden, pw:raw.hiddenPassword||'', prov:raw.provenienza||'', err:{}}
-    : {id:null, raw:null, titolo:'', strato:'', sub:'', desc:'', dt:'', durata:'', prezzo:'', link:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', nascosto:false, pw:'', prov:'', err:{}};
-  st.sel = null; st.form = null; apri('aform');
-}
-function contaDesc(f){ const n = f.desc.trim().length; return `<span class="conta-car${n>=DESC_MIN?' ok':''}" id="a-conta">${n>=DESC_MIN ? tr('perfetta') : tr('almeno {n} caratteri',{n:DESC_MIN})} · ${n} / 500</span>`; }
-function fAdminForm(){
-  const f = st.aform, E = f.err, l = S[f.strato];
-  const campo = (id, lab, html, err, fac) => `<div class="stack-s"><label class="etich" for="${id}">${lab}${fac?` <span class="fac">${fac}</span>`:''}</label>${html}${err?`<span class="err">${err}</span>`:''}</div>`;
-  const testa = `<div class="riga-titolo"><div><h2>${f.id?tr('Modifica evento on-grid'):tr('Nuovo evento on-grid')}</h2><p class="meta">${tr('Redazione · resta su questo dispositivo finché non si pubblica')}</p></div>${chiudiBtn('admin')}</div>`;
-  const corpo = `
-    ${campo('a-titolo', tr('Titolo'), `<div class="campo${E.titolo?' errore':''}"><input id="a-titolo" data-acampo="titolo" maxlength="100" value="${esc(f.titolo)}" placeholder="${esc(tr('Nome dell’evento'))}" autocomplete="off"></div>`, E.titolo&&tr('Dai un nome all’evento'))}
-    <div class="due">${campo('a-strato', tr('Strato'), `<div class="campo${E.strato?' errore':''}"><select id="a-strato" data-acampo="strato"><option value="">${tr('— Scegli —')}</option>${LAYERS.map(x => `<option value="${x.id}" ${f.strato===x.id?'selected':''}>${esc(tr(x.label))}</option>`).join('')}</select></div>`, E.strato&&tr('Scegli lo strato'))}
-      ${campo('a-sub', tr('Sottostrato'), `<div class="campo${E.sub?' errore':''}${l?'':' spento'}"><select id="a-sub" data-acampo="sub" ${l?'':'disabled'}><option value="">${tr('— Scegli —')}</option>${l?l.sub.map(s => `<option value="${s.id}" ${f.sub===s.id?'selected':''}>${esc(tr(s.label))}</option>`).join(''):''}</select></div>`, E.sub&&tr('Scegli il sottostrato'))}</div>
-    ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="500" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>${contaDesc(f)}`, E.desc&&tr('Servono almeno 30 caratteri'))}
-    <div class="due">${campo('a-dt', tr('Data e ora'), `<div class="campo${E.dt?' errore':''}"><input id="a-dt" type="datetime-local" data-acampo="dt" value="${esc(f.dt)}" max="${dtLocal(maxDt())}"></div>`, E.dt&&tr('Serve una data futura'))}
-      ${campo('a-durata', tr('Durata'), `<div class="campo${E.durata?' errore':''}"><input id="a-durata" data-acampo="durata" value="${esc(f.durata)}" placeholder="${esc(tr('es. 2 ore'))}"></div>`, E.durata&&tr('Indica la durata'))}</div>
-    <div class="due">${campo('a-prezzo', tr('Prezzo'), `<div class="campo${E.prezzo?' errore':''}"><input id="a-prezzo" data-acampo="prezzo" value="${esc(f.prezzo)}" placeholder="${esc(tr('Gratuito / 10 €'))}"></div>`, E.prezzo&&tr('Indica il prezzo'))}
-      ${campo('a-link', tr('Link'), `<div class="campo"><input id="a-link" type="url" inputmode="url" data-acampo="link" value="${esc(f.link)}" placeholder="https://"></div>`, '', tr('facoltativo'))}</div>
-    ${campo('a-prov', tr('Provenienza'), `<div class="campo"><select id="a-prov" data-acampo="prov"><option value="">${tr('— Non indicata —')}</option><option value="consenso" ${f.prov==='consenso'?'selected':''}>${tr('Consenso diretto dell’organizzatore')}</option><option value="pubblica" ${f.prov==='pubblica'?'selected':''}>${tr('Fonte pubblica')}</option></select></div><span class="meta">${tr('Serve alle Misure: quanta offerta ha il consenso diretto (Flusso A) e quanta viene da fonti pubbliche (Flusso B).')}</span>`, '', tr('facoltativo'))}
-    ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${icoLuogo} ${tr('Scegli sulla mappa')}</button>`, E.indirizzo&&(E.indirizzo===2?tr('Indirizzo non trovato: scegline uno dai suggerimenti o usa la mappa.'):tr('Scegli un indirizzo dai suggerimenti o dalla mappa')))}
-    <button class="riga-int" data-az="a-nascosto" aria-pressed="${f.nascosto}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Evento nascosto')}</span><span class="meta">${tr('Visibile solo a chi ha la password')}</span></div><span class="interr" aria-hidden="true"></span></button>
-    ${f.nascosto?campo('a-pw', tr('Password per sbloccarlo'), `<div class="campo${E.pw?' errore':''}"><input id="a-pw" data-acampo="pw" value="${esc(f.pw)}" placeholder="${esc(tr('Una parola segreta'))}" autocomplete="off"></div>`, E.pw&&tr('Scegli una password')):''}
-    <div class="tasti"><button class="tasto sec" data-az="admin">${tr('Annulla')}</button><button class="tasto pri" data-az="a-salva">${tr('Salva evento')}</button></div>
-    ${E.chiavi?`<p class="err" role="alert">${tr('Per salvare un evento servono le chiavi della Redazione: Strumenti della redazione → Chiavi.')}</p>`:''}
-    ${f.id?`<button class="tasto pericolo pieno" data-elimina-admin="${esc(f.id)}">${tr('Elimina')}</button>`:''}`;
-  return foglio('forte alto', testa, corpo);
-}
-function salvaAdmin(){
-  const f = st.aform, E = f.err = {};
-  const durOk = v => { if(!v.trim()) return false; const d2 = v.replace(/un[ao]?\s+po'?\s+di/i,'1').replace(/paio/i,'2').replace(/quarto d'ora/i,'15 min').replace(/mez(?:z)?ora/i,'30 min'); return /(\d+(?:[.,]\d+)?)\s*(h|ora|ore|min|minut)?/i.test(d2); };
-  const t = f.titolo.trim(); if(!t || t.length>TITLE_MAX) E.titolo = 1;
-  if(!f.strato) E.strato = 1; if(!f.sub) E.sub = 1;
-  if(f.desc.trim().length<DESC_MIN) E.desc = 1;
-  const tm = f.dt ? new Date(f.dt).getTime() : NaN; if(!f.dt || isNaN(tm) || (!f.id && tm < Date.now()-3e5) || tm > maxDt().getTime()) E.dt = 1;
-  if(!durOk(f.durata)) E.durata = 1; if(!f.prezzo.trim()) E.prezzo = 1;
-  if(f.nascosto && !f.pw.trim()) E.pw = 1;
-  if(!f.pos && !Object.keys(E).length){
-    const q = f.indirizzo.trim(); if(q.length<3){ E.indirizzo = 1; disegnaFoglio(); return; }
-    const b = $('a-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
-    lookup(parseAddr(q).city ? q : q+', '+cittaObj().n).then(res => { if(st.aform!==f) return;
-      if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; disegnaFoglio(); }
-      else { f.err.indirizzo = 2; disegnaFoglio(); } });
-    return;
-  }
-  if(!f.pos) E.indirizzo = 1;
-  if(Object.keys(E).length){ disegnaFoglio(); const c = document.querySelector('#foglio-slot .errore'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center', behavior:'smooth'}); return; }
-  const l = S[f.strato], sublayer = (l.sub.find(s => s.id===f.sub)||{}).label||'';
-  const campi = {title:t, category:f.strato, sublayer, description:f.desc.trim(), datetime:f.dt, duration:f.durata.trim(), end:'', price:f.prezzo.trim(), link:f.link.trim(),
-    hidden:f.nascosto, hiddenPassword:f.nascosto ? f.pw.trim() : '', offgrid:false, address:f.indirizzo.trim(), addressFull:f.addrFull||f.indirizzo.trim(), addrPrecision:f.precision||'exact', addrNum:f.hn||'', lat:f.pos.lat, lng:f.pos.lng, provenienza:f.prov||''};
-  /* Un evento nuovo riceve l'identificativo con il marcatore (T-037): servono le chiavi della Redazione. */
-  const fatto = id => {
-    if(campi.hidden) st.sbloccati.add(campi.hiddenPassword);
-    saveEvents(); ricostruisci(); st.aform = null;
-    st.ultimoId = id; st.msgAdmin = tr('Evento salvato su questo dispositivo: va sulla mappa quando si pubblica.'); apri('admin');
-  };
-  if(f.id){ const ev = rawById(f.id); if(ev){ Object.assign(ev, campi); delete ev.image; } misureConta('corretti'); registra('modifica', {id:f.id, s:campi.category}); fatto(f.id); return; }
-  CHIAVI.nuovoId().then(id => { if(st.aform!==f) return;
-    events.push(Object.assign({id, creato:new Date().toISOString()}, campi)); registra('crea', {id, s:campi.category}); fatto(id);
-  }).catch(() => { if(st.aform!==f) return; f.err = {chiavi:1}; disegnaFoglio(); });
-}
-
 /* ======================= Agganci dai pezzi comuni ======================= */
-const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fAdminForm, chiavi:fChiavi, verifica:fVerifica};
+const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, chiavi:fChiavi, verifica:fVerifica, pubblica:fPubblica, 'pb-evento':fPbEvento, 'pb-storico':fPbStorico, 'pb-copia':fPbCopia};
 /* un tocco: true se era per gli strumenti della Redazione */
 function clickRed(t){
   if(t.dataset.mz!=null && clickMisure(t)) return true;
-  const d = t.dataset;
-  if(d.modificaAdmin){ const r = rawById(d.modificaAdmin); if(r) apriAdminForm(r); return true; }
-  if(d.eliminaAdmin){ const r = rawById(d.eliminaAdmin); if(!r) return; st.eliminati.push({raw:r, cal:inCal(r.id)}); events = events.filter(x => x!==r); delete calEvents[r.id]; saveEvents(); saveCal(); ricostruisci(); chiudi(); tutto(); misureConta('rimossi'); registra('elimina', {id:r.id, s:r.category}); avviso(tr('Evento eliminato dalla mappa'), {az:'ripristina', l:tr('Annulla')}); return true; }
+  if(clickPubblica(t)) return true;
   return false;
 }
 function azioneRed(az, t){
   if(azioneChiavi(az, t)) return;
+  if(azionePubblica(az, t)) return;
   switch(az){
     case 'scegli-mappa-a': iniziaPosa('aform'); break;
     case 'copia-id': if(st.ultimoId) copiaTesto(st.ultimoId).then(ok => { st.idCopiato = !!ok; if(st.foglio==='admin') disegnaFoglio(); }); break;
@@ -2281,7 +2234,6 @@ function azioneRed(az, t){
     case 'admin-modello': scaricaModello(); break;
     case 'admin-esporta-json': esporta(); registra('esporta-json'); break;
     case 'admin-storico': SH.filtro = 'tutte'; SH.mostrati = 60; SH.conferma = false; foglioStorico(); break;
-    case 'admin-ongrid': apriAdminForm(null); break;
     case 'admin-importa': $('fileImporta').click(); break;
     case 'importa-annulla': st.importa = null; apri('admin'); break;
     case 'importa-ok': { const I = st.importa; if(!I || I.fase!=='pronto') break;
@@ -2292,28 +2244,16 @@ function azioneRed(az, t){
       }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Per salvare un evento servono le chiavi della Redazione: Strumenti della redazione → Chiavi.'); apri('admin'); });
       break; }
     case 'admin-esporta': esportaExcel(); break;
-    case 'a-nascosto': st.aform.nascosto = !st.aform.nascosto; disegnaFoglio(); break;
-    case 'a-salva': salvaAdmin(); break;
     case 'ripristina': if(st.eliminati.length){ registra('ripristina', {n:st.eliminati.length}); st.eliminati.forEach(x => { events.push(x.raw); if(x.cal) calEvents[x.raw.id] = true; }); st.eliminati = []; saveEvents(); saveCal(); ricostruisci(); $('toast').hidden = true; tutto(); if(st.foglio==='admin') disegnaFoglio(); } break;
   }
 }
 /* un campo dei moduli della Redazione: true se era suo */
 function inputRed(el){
   if(inputChiavi(el)) return true;
-  if(el.dataset.acampo && st.aform){
-    const c = el.dataset.acampo, f = st.aform; f[c] = el.type==='checkbox' ? el.checked : el.value;
-    if(c==='indirizzo'){ f.pos = null; f.precision = ''; f.addrFull = ''; $('a-punto').innerHTML = ''; chiediSuggerimenti(el.value, 'a', 'a-sugg'); }
-    if(c==='desc'){ const x = $('a-conta'); if(x) x.outerHTML = contaDesc(f); }
-    if(f.err && f.err[c] && String(el.value).trim()){ f.err[c] = 0; el.closest('.campo') && el.closest('.campo').classList.remove('errore'); }
-    return true;
-  }
+  if(inputPubblica(el)) return true;
   return false;
 }
-function cambioRed(el){
-  if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return true; }
-  if(el.dataset.acampo==='sub' && st.aform){ st.aform.sub = el.value; return true; }
-  return false;
-}
+function cambioRed(el){ return cambioPubblica(el); }
 $('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
 
 /* ======================= Chiavi della Redazione: le schermate (T-034, T-037) =======================
@@ -2460,7 +2400,9 @@ function azioneChiavi(az, t){
     case 'chiavi-pubbliche-file': CHIAVI.pubbliche().then(p => scaricaTesto(JSON.stringify(p, null, 1)+'\n', 'chiavi-pubbliche-'+p.creato.slice(0,10)+'.json'), e => { CH.errore = erroreChiavi(e); disegnaFoglio(); }); break;
     case 'chiavi-revoca': CH.revoca = true; disegnaFoglio(); break;
     case 'chiavi-revoca-no': CH.revoca = false; disegnaFoglio(); break;
-    case 'chiavi-revoca-ok': CH.revoca = false; CHIAVI.revoca().then(a => { CH.avviso = a; registra('chiavi-revoca'); CH.msg = ''; }, e => { CH.errore = erroreChiavi(e); }).then(aggiornaChiavi); break;
+    case 'chiavi-revoca-ok': CH.revoca = false; CHIAVI.revoca().then(a => { CH.avviso = a; registra('chiavi-revoca'); CH.msg = '';
+      /* allo sportello di prova l'avviso arriva subito; allo sportello vero lo consegna chi amministra Bunny */
+      if(SPORTELLO.diProva()) return SPORTELLO.prova.revoca(a).catch(() => {}); }, e => { CH.errore = erroreChiavi(e); }).then(aggiornaChiavi); break;
     case 'chiavi-revoca-file': { const a = CH.stato && CH.stato.revocata; if(a) scaricaTesto(JSON.stringify(a, null, 1)+'\n', 'revoca-'+String(a.quando).slice(0,10)+'.json'); break; }
     case 'chiavi-revoca-altro': { const n = CH.stato && (CH.stato.noti||[])[+(t && t.dataset.i)];
       if(n){ const a = CHIAVI.avvisoRevoca(n.dispositivo, n.impronta); scaricaTesto(JSON.stringify(a, null, 1)+'\n', 'revoca-'+a.quando.slice(0,10)+'.json'); } break; }
@@ -2480,6 +2422,369 @@ function inputChiavi(el){
 }
 /* all'apertura: lo stato delle chiavi e la pulizia della cassaforte (le password degli eventi finiti si cancellano) */
 aggiornaChiavi();
+
+/* ======================= Lo sportello: l'invio dei pacchetti e lo sportello di prova (T-038) =======================
+   Da qui l'app della redazione parla con lo sportello di pubblicazione: forma il pacchetto, lo firma con la chiave del
+   dispositivo (sorgenti/moduli/pacchetto.js, sorgenti/moduli/chiavi.js) e lo consegna.
+
+   Dove lo consegna. Quando la configurazione ha l'indirizzo dello sportello (Bunny, T-065), il pacchetto parte per
+   quell'indirizzo. Finché l'indirizzo è vuoto c'è lo «sportello di prova»: la stessa logica dello sportello vero
+   (sportelli/pubblicazione.js) gira qui, dentro il browser, con un archivio finto tenuto nella memoria del browser per
+   i file. Sul collegamento di prova l'app pubblica sta allo stesso indirizzo e legge quell'archivio (app2.js): così il
+   giro intero si prova sul telefono senza Bunny, con soli eventi inventati. Nulla esce dal dispositivo.
+
+   Le chiavi ammesse dallo sportello non viaggiano mai in un pacchetto: allo sportello vero le consegna il Responsabile
+   infrastruttura con i file della schermata «Chiavi»; allo sportello di prova le consegna il comando qui sotto. */
+const SPORTELLO = (() => {
+  const vero = (CFG.indirizzi||{}).sportello_pubblicazione || '';
+  const base = SPORTELLO_PROVA_DOVE;
+  const diProva = () => !vero && !!base && !!MEM.file && !!MODULI.sportello;
+  let cassa = null, logica = null;
+  const apriCassa = async () => cassa || (cassa = await MEM.file.open('prova_sportello'));
+  /* il deposito dello sportello di prova: i percorsi diventano indirizzi finti sotto prova/sportello/, che nessuno chiede alla rete */
+  const deposito = {
+    leggi: async p => { const r = await (await apriCassa()).match(base + p); return r ? r.text() : null; },
+    scrivi: async (p, t) => { await (await apriCassa()).put(base + p, new Response(t, {headers:{'content-type':'application/json'}})); },
+    togli: async p => { await (await apriCassa()).delete(base + p); },
+    elenca: async pre => (await (await apriCassa()).keys()).map(r => r.url).filter(u => u.startsWith(base + pre)).map(u => u.slice(base.length))
+  };
+  const sportello = () => logica || (logica = MODULI.sportello.crea({deposito, regioni:MODULI.regioni, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)}));
+  function errore(motivo, corpo){ const e = new Error('sportello: '+motivo); e.motivo = motivo; e.corpo = corpo||null; return e; }
+
+  async function consegna(testo){
+    if(vero){
+      let r; try{ r = await fetch(vero, {method:'POST', body:testo, headers:{'content-type':'application/json'}, credentials:'omit', cache:'no-store', redirect:'error', referrerPolicy:'no-referrer'}); }catch(e){ throw errore('rete'); }
+      let corpo = null; try{ corpo = await r.json(); }catch(e){ corpo = null; }
+      return {stato:r.status, corpo:corpo||{}};
+    }
+    if(!diProva()) throw errore('assente');
+    return sportello().ricevi(testo);
+  }
+  async function firmato(contenuto){
+    let s; try{ s = await CHIAVI.stato(); }catch(e){ throw errore('chiavi'); }
+    if(!s.ci_sono) throw errore('chiavi');
+    return MODULI.pacchetto.forma(contenuto, {firma:CHIAVI.firma, dispositivo:{nome:s.dispositivo, impronta:s.firma.impronta}});
+  }
+  /* chiedi(contenuto) → ciò che lo sportello risponde. Un rifiuto diventa un errore con il motivo dello sportello. */
+  async function chiedi(contenuto){
+    const r = await consegna(JSON.stringify(await firmato(contenuto)));
+    if(r.stato!==200 || !r.corpo || r.corpo.esito!=='fatto') throw errore((r.corpo && r.corpo.motivo) || 'guasto', r.corpo);
+    return r.corpo;
+  }
+
+  /* ---------- Solo per lo sportello di prova ---------- */
+  const prova = {
+    /* questo dispositivo è tra quelli ammessi? e quanti sono */
+    async stato(){
+      const k = await sportello().chiavi(); let s = null; try{ s = await CHIAVI.stato(); }catch(e){ s = null; }
+      const mia = s && s.ci_sono ? s.firma.impronta : '';
+      return {ammessi:k.ammesse.length, revocati:k.revocate.length, ammesso:!!mia && k.ammesse.some(x => x.impronta===mia), revocato:!!mia && k.revocate.some(x => x.impronta===mia)};
+    },
+    async consegnaChiavi(){ return sportello().ammetti(await CHIAVI.pubbliche()); },
+    revoca: avviso => sportello().revoca(avviso),
+    /* un pacchetto cambiato dopo la firma: lo sportello lo deve rifiutare */
+    async firmaSbagliata(){
+      const p = await firmato({operazione:'stato'}); p.contenuto = JSON.stringify({operazione:'storico'});
+      return consegna(JSON.stringify(p));
+    },
+    /* gli eventi inventati dell'archivio di prova del repository, letti dalla rete */
+    async eventiDelRepository(){
+      const A = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window)});
+      await A.controllaNovita(); if(!A.pronto()) throw errore('rete');
+      await A.carica(A.quadranti());
+      return A.eventi().map(x => x.ev);
+    },
+    async svuota(){ cassa = null; logica = null; await MEM.file.delete('prova_sportello'); }
+  };
+  return {chiedi, diProva, vero:() => vero, prova};
+})();
+
+/* ======================= Pubblicazione: le schermate (T-038, T-039, T-040) =======================
+   «Pubblicazione» negli strumenti della redazione: l'elenco degli eventi pubblicati e sospesi, come li tiene lo
+   sportello; il modulo dell'evento con i campi del formato pubblico (docs/formato-eventi.md), che serve a pubblicare un
+   evento nuovo e a correggerne uno; sospendere, riattivare e ritirare prima della fine con il motivo; lo storico delle
+   pubblicazioni con il confronto tra due copie e il ripristino.
+
+   Ogni cosa che cambia l'archivio parte come pacchetto firmato (sportello-prova.js): qui non si scrive nulla
+   nell'archivio. Le dieci domande, le colonne di giudizio e l'elenco degli eventi preparati arrivano con il blocco 10
+   (T-041): fino ad allora «Pubblica» controlla soltanto il formato.
+
+   Testi come testo (T-024): titoli, luoghi, nomi dei dispositivi e risposte dello sportello vengono da fuori e
+   entrano nella pagina solo con esc(). */
+const PB = {stato:null, prova:null, carico:false, lavoro:false, errore:'', msg:'', sel:null, ritiro:null, svuota:false,
+  copie:null, scelte:[], confronto:null, ripr:null};
+const MOTIVI_RITIRO = {annullato:'Annullato', errore:'Errore non verificabile in tempo', esclusione:'Esclusione (X)', richiesta:'Richiesta (R)', segnalazione:'Segnalazione (S)', ordine:'Ordine di un’autorità (A)'};
+const oraPb = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString(dloc(), {hour:'2-digit', minute:'2-digit'}); };
+const quandoPb = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(dloc(), {day:'numeric', month:'long', year:'numeric'})+', '+oraPb(iso); };
+const giornoOra = v => { const g = String(v||'').split('T'); return g[0] ? dIso(g[0]).toLocaleDateString(dloc(), {weekday:'short', day:'numeric', month:'short'})+' · '+(g[1]||'') : ''; };
+const quandoEv = ev => giornoOra(ev.inizio);
+function errorePb(e){
+  const c = (e && e.corpo) || {};
+  const T = {
+    chiavi:() => tr('Per pubblicare servono le chiavi della Redazione: Strumenti della redazione → Chiavi.'),
+    sconosciuto:() => SPORTELLO.diProva() ? tr('Lo sportello di prova non conosce ancora questo dispositivo: tocca «Consegna le chiavi allo sportello di prova».') : tr('Lo sportello non conosce questo dispositivo: vanno consegnate le sue chiavi pubbliche.'),
+    revocata:() => tr('La firma di questo dispositivo è revocata: lo sportello non la accetta più.'),
+    firma:() => tr('Lo sportello ha rifiutato la firma.'),
+    fermo:() => tr('Troppe firme sbagliate: lo sportello non risponde a questo dispositivo fino alle {o}.',{o:oraPb(c.fino)}),
+    tempo:() => tr('Lo sportello ha rifiutato il pacchetto perché l’ora non corrisponde: controlla data e ora di questo dispositivo.'),
+    ripetuto:() => tr('Lo sportello aveva già ricevuto questo pacchetto: riprova.'),
+    evento:() => tr('Lo sportello ha rifiutato un evento: {d}',{d:(c.dettagli||[]).map(x => (x.errori||[]).join('; ')).join(' · ')}),
+    passato:() => tr('L’evento è già finito da più di tre ore: non si pubblica.'),
+    manca:() => tr('L’evento non c’è più nell’archivio: aggiorna l’elenco.'),
+    copia:() => tr('Lo sportello non trova questa copia.'),
+    rete:() => tr('Lo sportello non risponde: controlla la connessione e riprova.'),
+    assente:() => tr('Su questo indirizzo non c’è uno sportello a cui consegnare i pacchetti.')
+  };
+  return (T[e && e.motivo] || (() => tr('Non è riuscito: riprova.')))();
+}
+const fogliPb = ['pubblica', 'pb-evento', 'pb-storico', 'pb-copia'];
+const ridisegnaPb = () => { if(fogliPb.includes(st.foglio)) disegnaFoglio(); };
+function aggiornaPb(){
+  PB.carico = true; ridisegnaPb();
+  const prova = SPORTELLO.diProva() ? SPORTELLO.prova.stato().then(s => { PB.prova = s; }, () => { PB.prova = null; }) : Promise.resolve();
+  return prova.then(() => SPORTELLO.chiedi({operazione:'stato'})).then(s => { PB.stato = s; PB.errore = ''; }, e => { PB.stato = null; PB.errore = errorePb(e); })
+    .then(() => { PB.carico = false; ridisegnaPb(); });
+}
+/* manda un pacchetto che scrive; poi rilegge l'elenco e torna alla schermata «Pubblicazione» */
+function scriviPb(contenuto, fatto){
+  if(PB.lavoro) return Promise.resolve(false);
+  PB.lavoro = true; PB.errore = ''; PB.msg = ''; ridisegnaPb();
+  return SPORTELLO.chiedi(contenuto).then(r => { PB.lavoro = false; PB.msg = fatto(r); PB.sel = null; PB.ritiro = null; st.foglio = 'pubblica'; return aggiornaPb().then(() => true); },
+    e => { PB.lavoro = false; PB.errore = errorePb(e); ridisegnaPb(); return false; });
+}
+const evPb = id => { const s = PB.stato; if(!s) return null; const e = s.eventi.find(x => x.id===id); if(e) return {ev:e, sospeso:false}; const z = s.sospesi.find(x => x.id===id); return z ? {ev:z, sospeso:true} : null; };
+const rigaEvPb = (ev, attr, nota) => `<button class="menu-r" ${attr}="${esc(ev.id)}">${icoCal()}<div><span class="t">${esc(ev.titolo)}</span><span class="meta">${esc(quandoEv(ev))} · ${esc(ev.luogo)}${nota?' · '+esc(nota):''}</span></div>${freccia}</button>`;
+const statoPb = () => `${PB.errore?`<p class="err" role="alert">${esc(PB.errore)}</p>`:''}${PB.msg?`<p class="meta" role="status" style="color:var(--testo)">${esc(PB.msg)}</p>`:''}${PB.lavoro?`<p class="caricamento">${tr('Firmo e consegno allo sportello…')}</p>`:''}`;
+
+function fPubblica(){
+  const s = PB.stato, P = PB.prova, diProva = SPORTELLO.diProva();
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Pubblicazione')}</h2><p class="meta">${diProva ? tr('Sportello di prova: archivio finto su questo dispositivo') : tr('Pacchetti firmati allo sportello')}</p></div>${chiudiBtn('admin')}</div>`;
+  const prova = !diProva ? '' : `<div class="red-riquadro" role="note"><b>${tr('Sportello di prova')}</b>
+      <span class="meta">${tr('Fa le stesse cose dello sportello vero, ma dentro questo browser: l’app pubblica di prova aperta su questo dispositivo legge il suo archivio (dopo una pubblicazione, ricaricala). Solo eventi inventati.')}</span>
+      <span class="meta">${!P ? tr('Un attimo…') : P.revocato ? tr('La firma di questo dispositivo è revocata.') : P.ammesso ? tr('Questo dispositivo è tra quelli che lo sportello di prova accetta ({n}).',{n:P.ammessi}) : tr('Lo sportello di prova non conosce ancora questo dispositivo.')}</span>
+      ${P && !P.ammesso && !P.revocato ? `<div class="tasti"><button class="tasto pri" data-az="pb-consegna">${tr('Consegna le chiavi allo sportello di prova')}</button></div>` : ''}
+      <button class="link" style="min-height:32px" data-az="pb-venti">${tr('Porta qui gli eventi inventati dell’archivio di prova')}</button>
+      <button class="link" style="min-height:32px" data-az="pb-falsa">${tr('Prova a consegnare un pacchetto con la firma sbagliata')}</button>
+      <button class="link" style="min-height:32px" data-az="pb-svuota">${PB.svuota ? tr('Tocca ancora per svuotare: l’app pubblica di prova torna all’archivio del repository') : tr('Svuota lo sportello di prova')}</button></div>`;
+  const elenco = !s ? (PB.carico ? `<p class="caricamento">${tr('Chiedo l’elenco allo sportello…')}</p>` : '')
+    : `<p class="etich">${tr('Pubblicati')} · ${s.eventi.length}</p>
+      ${s.eventi.length ? `<div class="menu-lista">${s.eventi.slice().sort((a,b) => a.inizio<b.inizio?-1:1).map(ev => rigaEvPb(ev, 'data-pbev')).join('')}</div>` : `<p class="meta">${tr('Nessun evento pubblicato.')}</p>`}
+      ${s.sospesi.length ? `<p class="etich">${tr('Sospesi')} · ${s.sospesi.length}</p><div class="menu-lista">${s.sospesi.map(ev => rigaEvPb(ev, 'data-pbev', tr('fuori dalla mappa'))).join('')}</div>` : ''}
+      <p class="meta">${s.aggiornato ? tr('Ultima pubblicazione: {q}.',{q:esc(quandoPb(s.aggiornato))}) : tr('Non è ancora stato pubblicato nulla.')} ${tr('Gli eventi finiti da più di tre ore escono da soli.')}</p>`;
+  const corpo = `${prova}${statoPb()}
+    <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
+    ${elenco}
+    <button class="link" data-az="pb-aggiorna">${tr('Aggiorna l’elenco')}</button>`;
+  return foglio('forte alto', testa, corpo);
+}
+
+function fPbEvento(){
+  const x = evPb(PB.sel);
+  const testa = `<div class="riga-titolo"><div><h2>${x ? esc(x.ev.titolo) : tr('Evento')}</h2><p class="meta">${x ? (x.sospeso ? tr('Sospeso: fuori dalla mappa finché non si riattiva') : tr('Pubblicato')) : ''}</p></div>${chiudiBtn('pubblica')}</div>`;
+  if(!x) return foglio('forte', testa, `<p class="meta">${tr('L’evento non c’è più nell’archivio: aggiorna l’elenco.')}</p>`);
+  const ev = x.ev, R = PB.ritiro;
+  const ritiro = !R ? '' : `<div class="red-riquadro"><b>${tr('Ritiro prima della fine')}</b>
+      <label class="etich" for="pb-motivo">${tr('Motivo')}</label><div class="campo"><select id="pb-motivo" data-pbritiro="motivo"><option value="">${tr('— Scegli —')}</option>${Object.keys(MOTIVI_RITIRO).map(k => `<option value="${k}" ${R.motivo===k?'selected':''}>${esc(tr(MOTIVI_RITIRO[k]))}</option>`).join('')}</select></div>
+      <label class="etich" for="pb-rif">${tr('Voce del registro')} <span class="fac">${tr('facoltativo')}</span></label><div class="campo"><input id="pb-rif" data-pbritiro="riferimento" maxlength="40" value="${esc(R.riferimento)}" autocomplete="off"></div>
+      <span class="meta">${tr('Il motivo resta nella copia datata dello storico e passerà al registro delle fonti.')}</span>
+      <div class="tasti"><button class="tasto sec" data-az="pb-ritira-no">${tr('Annulla')}</button><button class="tasto pericolo" data-az="pb-ritira-ok">${tr('Ritira l’evento')}</button></div></div>`;
+  const corpo = `<p class="meta">${esc(quandoEv(ev))}${ev.fine?' → '+esc(giornoOra(ev.fine)):''}<br>${esc(ev.luogo)} · ${esc(ev.indirizzo)}<br>${tr('Fonte')}: ${esc(ev.fonte && ev.fonte.testo)}</p>
+    <p class="meta">${tr('Identificativo')}: <code class="red-id">${esc(ev.id)}</code></p>
+    ${statoPb()}
+    <div class="tasti"><button class="tasto sec" data-az="pb-correggi">${tr('Correggi')}</button>${x.sospeso ? `<button class="tasto pri" data-az="pb-riattiva">${tr('Riattiva')}</button>` : `<button class="tasto sec" data-az="pb-sospendi">${tr('Sospendi')}</button>`}</div>
+    <p class="meta">${x.sospeso ? tr('Riattivato, torna sulla mappa con una nuova pubblicazione firmata.') : tr('Sospeso, esce dalla mappa finché una verifica è in corso; resta nell’elenco riservato dello sportello e si può riattivare.')}</p>
+    ${R ? ritiro : `<button class="tasto pericolo pieno" data-az="pb-ritira">${tr('Ritira prima della fine')}</button>`}`;
+  return foglio('forte alto', testa, corpo);
+}
+
+/* ---------- Il modulo dell'evento: i campi del formato pubblico ---------- */
+function apriEventoForm(ev, per){
+  st.aform = ev ? {per, id:ev.id, titolo:ev.titolo||'', strato:ev.strato||'', sub:ev.sottostrato||'', tema:ev.tema||'', inizio:ev.inizio||'', fine:ev.fine||(ev.durata && FORMATO.fineMs(ev)!=null ? dtLocal(new Date(FORMATO.fineMs(ev))) : ''),
+      luogo:ev.luogo||'', indirizzo:ev.indirizzo||'', addrFull:ev.indirizzo||'', pos:{lat:ev.lat, lng:ev.lng}, precision:ev.collocazione==='a_mano'?'map':'exact', hn:'', comeArrivare:ev.descrizione_luogo||'', organizzatore:ev.organizzatore||'',
+      desc:ev.descrizione||'', prezzo:ev.prezzo||'', fonte:(ev.fonte||{}).testo||'', fonteLink:(ev.fonte||{}).collegamento||'', err:{}, errori:[]}
+    : {per, id:null, titolo:'', strato:'', sub:'', tema:'', inizio:'', fine:'', luogo:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', comeArrivare:'', organizzatore:'', desc:'', prezzo:'', fonte:'', fonteLink:'', err:{}, errori:[]};
+  st.sel = null; st.form = null; apri('aform');
+}
+const dtLocal = d => ymd(d)+'T'+hm(d);
+function fEventoForm(){
+  const f = st.aform, E = f.err, l = S[f.strato], ripr = f.per==='ripristino';
+  const campo = (id, lab, html, err, fac) => `<div class="stack-s"><label class="etich" for="${id}">${lab}${fac?` <span class="fac">${fac}</span>`:''}</label>${html}${err?`<span class="err">${err}</span>`:''}</div>`;
+  const riga = (id, c, lab, max, segna, fac, tipo) => campo(id, lab, `<div class="campo${E[c]?' errore':''}"><input id="${id}" data-acampo="${c}" maxlength="${max}" value="${esc(f[c])}" placeholder="${esc(segna||'')}" autocomplete="off"${tipo?` type="${tipo}" inputmode="${tipo}"`:''}></div>`, '', fac);
+  const fac = tr('facoltativo');
+  const testa = `<div class="riga-titolo"><div><h2>${f.id ? tr('Correggi l’evento') : tr('Nuovo evento')}</h2><p class="meta">${ripr ? tr('Nella copia da ripristinare: si pubblica con la copia') : tr('Redazione · si pubblica con la firma di questo dispositivo')}</p></div>${chiudiBtn(ripr ? 'pb-copia' : 'pubblica')}</div>`;
+  const corpo = `
+    ${riga('a-titolo', 'titolo', tr('Titolo'), 100, tr('Nome dell’evento'))}
+    <div class="due">${campo('a-strato', tr('Strato'), `<div class="campo${E.strato?' errore':''}"><select id="a-strato" data-acampo="strato"><option value="">${tr('— Scegli —')}</option>${LAYERS.map(x => `<option value="${x.id}" ${f.strato===x.id?'selected':''}>${esc(tr(x.label))}</option>`).join('')}</select></div>`)}
+      ${campo('a-sub', tr('Sottostrato'), `<div class="campo${l?'':' spento'}"><select id="a-sub" data-acampo="sub" ${l?'':'disabled'}><option value="">${tr('— Nessuno —')}</option>${l?l.sub.map(s => `<option value="${s.id}" ${f.sub===s.id?'selected':''}>${esc(tr(s.label))}</option>`).join(''):''}</select></div>`, '', fac)}</div>
+    ${campo('a-tema', tr('Tema'), `<div class="campo"><select id="a-tema" data-acampo="tema"><option value="">${tr('— Nessuno —')}</option>${TEMI_VOC.map(t => `<option value="${esc(t)}" ${f.tema===t?'selected':''}>${esc(tr(t))}</option>`).join('')}</select></div>`, '', fac)}
+    <div class="due">${campo('a-inizio', tr('Inizio'), `<div class="campo${E.inizio?' errore':''}"><input id="a-inizio" type="datetime-local" data-acampo="inizio" value="${esc(f.inizio)}"></div>`)}
+      ${campo('a-fine', tr('Fine'), `<div class="campo${E.fine?' errore':''}"><input id="a-fine" type="datetime-local" data-acampo="fine" value="${esc(f.fine)}"></div>`, '', fac)}</div>
+    <p class="meta">${tr('Ora italiana, come la legge chi va all’evento.')}</p>
+    ${riga('a-luogo', 'luogo', tr('Luogo'), 120, tr('Nome del luogo, es. Sala del quartiere'))}
+    ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" maxlength="200" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${tr('Scegli sulla mappa')}</button>`,
+      E.indirizzo===2 ? tr('Indirizzo non trovato: correggilo o scegli il punto sulla mappa') : E.indirizzo ? tr('Scrivi l’indirizzo o scegli il punto sulla mappa') : '')}
+    ${campo('a-come', tr('Come arrivare'), `<div class="campo${E.comeArrivare?' errore':''}"><textarea id="a-come" data-acampo="comeArrivare" maxlength="300" placeholder="${esc(tr('Come si raggiunge il luogo, a parole'))}">${esc(f.comeArrivare)}</textarea></div>`, '', f.precision==='map' ? tr('serve, perché il punto è messo a mano') : fac)}
+    ${riga('a-org', 'organizzatore', tr('Organizza'), 120, '', fac)}
+    ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="2000" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>`)}
+    ${riga('a-prezzo', 'prezzo', tr('Prezzo indicato dalla fonte'), 80, tr('Gratuito / 10 €'), fac)}
+    ${riga('a-fonte', 'fonte', tr('Fonte'), 160, tr('Da dove viene l’informazione'))}
+    ${riga('a-fonte-link', 'fonteLink', tr('Collegamento della fonte'), 500, 'https://', fac, 'url')}
+    ${f.errori.length ? `<div class="imp-righe" role="alert">${f.errori.map(x => `<div class="no">${esc(x)}</div>`).join('')}</div>` : ''}
+    ${statoPb()}
+    <div class="tasti"><button class="tasto sec" data-az="${ripr ? 'pb-copia' : 'pubblica'}">${tr('Annulla')}</button><button class="tasto pri" data-az="a-pubblica">${ripr ? tr('Tieni nella copia') : f.id ? tr('Pubblica la correzione') : tr('Pubblica')}</button></div>
+    <p class="meta">${tr('Le dieci domande e le colonne del registro delle fonti arrivano con la scheda di pubblicazione.')}</p>`;
+  return foglio('forte alto', testa, corpo);
+}
+const sei = x => Math.round(x*1e6)/1e6;
+function eventoDalForm(f, id){
+  const ev = {id, titolo:f.titolo.trim(), strato:f.strato}, se = (k, v) => { v = String(v||'').trim(); if(v) ev[k] = v; };
+  se('sottostrato', f.sub); se('tema', f.tema); ev.inizio = f.inizio; se('fine', f.fine);
+  ev.luogo = f.luogo.trim(); ev.indirizzo = String(f.addrFull||f.indirizzo).trim().slice(0, 200); ev.collocazione = f.precision==='map' ? 'a_mano' : 'indirizzo';
+  se('descrizione_luogo', f.comeArrivare); ev.lat = sei(f.pos.lat); ev.lng = sei(f.pos.lng); se('organizzatore', f.organizzatore);
+  ev.descrizione = f.desc.trim(); se('prezzo', f.prezzo);
+  ev.fonte = {testo:f.fonte.trim()}; if(f.fonteLink.trim()) ev.fonte.collegamento = f.fonteLink.trim();
+  ev.modificato = new Date().toISOString().slice(0,19)+'Z';
+  return ev;
+}
+function pubblicaForm(){
+  const f = st.aform; if(!f || PB.lavoro) return;
+  f.err = {}; f.errori = []; PB.errore = '';
+  if(!f.pos){
+    const q = f.indirizzo.trim(); if(q.length<3){ f.err.indirizzo = 1; disegnaFoglio(); return; }
+    const b = $('a-punto'); if(b) b.innerHTML = `<p class="caricamento">${tr('Cerco l’indirizzo…')}</p>`;
+    lookup(parseAddr(q).city ? q : q+', '+cittaObj().n).then(res => { if(st.aform!==f) return;
+      if(res.list.length){ const r = res.list[0]; f.indirizzo = testoRisultato(r); f.addrFull = f.indirizzo; f.precision = r.precision||'exact'; f.hn = r.hn||''; f.pos = {lat:r.lat, lng:r.lng}; f.errori = [tr('Ho trovato l’indirizzo: controlla il punto e tocca di nuovo «Pubblica».')]; }
+      else f.err.indirizzo = 2;
+      disegnaFoglio(); });
+    return;
+  }
+  const voc = {vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)};
+  const con = id => {
+    const ev = eventoDalForm(f, id), errori = FORMATO.controlla(ev, voc);
+    if(!errori.length && FORMATO.uscitaMs(ev) <= Date.now()) errori.push(tr('L’evento è già finito da più di tre ore: non si pubblica.'));
+    if(errori.length){ f.errori = errori; disegnaFoglio(); const c = document.querySelector('#foglio-slot .imp-righe'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center'}); return; }
+    if(f.per==='ripristino'){ const R = PB.ripr; if(R){ const i = R.eventi.findIndex(x => x.id===ev.id), j = R.sospesi.findIndex(x => x.id===ev.id); if(i>=0) R.eventi[i] = ev; else if(j>=0) R.sospesi[j] = ev; R.corretti++; } st.aform = null; apri('pb-copia'); return; }
+    const nuovo = !f.id;
+    scriviPb({operazione:'scrivi', pubblica:[ev]}, r => { st.aform = null; st.ultimoId = ev.id; registra(nuovo ? 'pubblica' : 'correggi', {id:ev.id, s:ev.strato}); if(!nuovo) misureConta('corretti');
+      return nuovo ? tr('Pubblicato alle {o} (ora dello sportello).',{o:oraPb(r.quando)}) : tr('Correzione pubblicata alle {o} (ora dello sportello).',{o:oraPb(r.quando)}); });
+  };
+  if(f.id) con(f.id);
+  else CHIAVI.nuovoId().then(id => { if(st.aform===f) con(id); }, () => { if(st.aform===f){ f.errori = [tr('Per pubblicare servono le chiavi della Redazione: Strumenti della redazione → Chiavi.')]; disegnaFoglio(); } });
+}
+
+/* ---------- Storico delle pubblicazioni: elenco, confronto, ripristino (T-039) ---------- */
+function riepilogoPb(x){
+  if(x.operazione==='ripristina') return tr('Ripristino di una copia');
+  const r = x.riepilogo||{}, n = k => Array.isArray(r[k]) ? r[k].length : (r[k]||0);
+  const p = [[n('pubblicati'), tr('pubblicati')], [n('corretti'), tr('corretti')], [n('sospesi'), tr('sospesi')], [n('riattivati'), tr('riattivati')], [n('ritirati'), tr('ritirati')]].filter(y => y[0]).map(y => y[0]+' '+y[1]);
+  return p.join(', ') || tr('Nessuna modifica');
+}
+function apriStoricoPb(){
+  PB.copie = null; PB.scelte = []; PB.confronto = null; PB.errore = ''; PB.msg = ''; apri('pb-storico');
+  SPORTELLO.chiedi({operazione:'storico'}).then(r => { PB.copie = r.copie||[]; }, e => { PB.copie = []; PB.errore = errorePb(e); }).then(ridisegnaPb);
+}
+function fPbStorico(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Storico delle pubblicazioni')}</h2><p class="meta">${tr('Una copia datata per ogni pubblicazione')}</p></div>${chiudiBtn('pubblica')}</div>`;
+  const C = PB.confronto;
+  const gruppo = (tit, l) => l.length ? `<p class="etich">${tit} · ${l.length}</p><div class="imp-righe">${l.map(x => `<div>${esc(x.e.titolo)} · ${esc(quandoEv(x.e))}${x.sos?' · '+tr('sospeso'):''}</div>`).join('')}</div>` : '';
+  const confronto = !C ? '' : `<div class="red-riquadro"><b>${tr('Dalla copia del {a} a quella del {b}',{a:esc(quandoPb(C.a.quando)), b:esc(quandoPb(C.b.quando))})}</b>
+      ${gruppo(tr('Aggiunti'), C.aggiunti)}${gruppo(tr('Tolti'), C.tolti)}${gruppo(tr('Cambiati'), C.cambiati)}
+      ${C.aggiunti.length+C.tolti.length+C.cambiati.length ? '' : `<span class="meta">${tr('Le due copie hanno gli stessi eventi.')}</span>`}</div>`;
+  const corpo = `${statoPb()}
+    ${!PB.copie ? `<p class="caricamento">${tr('Chiedo lo storico allo sportello…')}</p>` : !PB.copie.length ? `<p class="meta">${tr('Non c’è ancora nessuna copia: nasce con la prima pubblicazione.')}</p>`
+      : `<p class="meta">${tr('Tocca una copia per ripristinarla, due per confrontarle.')}</p><div class="menu-lista">${PB.copie.map(x => `<button class="menu-r" data-pbcopia="${esc(x.nome)}" aria-pressed="${PB.scelte.includes(x.nome)}"><span class="casella" aria-hidden="true"></span><div><span class="t">${esc(quandoPb(x.quando))}</span><span class="meta">${esc(riepilogoPb(x))} · ${tr('{n} eventi',{n:x.eventi})} · ${esc((x.dispositivo||{}).nome||'')}${x.scaduta?' · '+tr('più di cinque anni'):''}</span></div></button>`).join('')}</div>`}
+    <div class="tasti"><button class="tasto sec" data-az="pb-confronta" ${PB.scelte.length===2?'':'disabled'}>${tr('Confronta')}</button><button class="tasto sec" data-az="pb-ripristina" ${PB.scelte.length===1?'':'disabled'}>${tr('Ripristina…')}</button></div>
+    ${confronto}`;
+  return foglio('forte alto', testa, corpo);
+}
+function confrontaCopie(a, b){
+  const m = k => new Map(k.eventi.map(e => [e.id, {e, sos:false}]).concat(k.sospesi.map(e => [e.id, {e, sos:true}])));
+  const A = m(a), B = m(b), solo = (X, Y) => [...X].filter(([id]) => !Y.has(id)).map(([, x]) => x);
+  return {a, b, tolti:solo(A, B), aggiunti:solo(B, A), cambiati:[...B].filter(([id, x]) => A.has(id) && (JSON.stringify(A.get(id).e)!==JSON.stringify(x.e) || A.get(id).sos!==x.sos)).map(([, x]) => x)};
+}
+const leggiCopiaPb = nome => SPORTELLO.chiedi({operazione:'copia', nome}).then(r => r.copia);
+/* le richieste di rimozione registrate nelle Misure (scheda «Rete») dopo la data della copia: solo date e ore, senza nomi */
+const rimozioniDopo = iso => (mz().rimozioni||[]).filter(r => r && r.ric && new Date(r.ric).getTime() > Date.parse(iso)).map(r => r.ric).sort();
+function fPbCopia(){
+  const R = PB.ripr;
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Ripristina una copia')}</h2><p class="meta">${R ? tr('Copia del {q}',{q:esc(quandoPb(R.copia.quando))}) : ''}</p></div>${chiudiBtn('pb-storico')}</div>`;
+  if(!R) return foglio('forte', testa, `<p class="caricamento">${tr('Leggo la copia…')}</p>${statoPb()}`);
+  const rim = R.rimozioni;
+  const promemoria = rim.length ? `<div class="red-riquadro" role="note"><b>${rim.length===1 ? tr('Dopo questa copia è stata chiesta 1 rimozione di un nome.') : tr('Dopo questa copia sono state chieste {n} rimozioni di nomi.',{n:rim.length})}</b>
+      <span class="meta">${tr('Ricevute il: {l}.',{l:esc(rim.map(x => quandoPb(x)).join(' · '))})} ${tr('Prima di ripubblicare vanno ripetute: correggi qui sotto gli eventi che portano quei nomi, oppure toglili dalla copia.')}</span>
+      <button class="riga-int" data-az="pb-ripr-fatto" aria-pressed="${R.fatto}"><span class="casella" aria-hidden="true"></span><div><span class="t">${tr('Ho ripetuto le rimozioni chieste dopo questa data')}</span></div></button></div>`
+    : `<p class="meta">${tr('Nel registro delle richieste di rimozione (Misure → Rete) non ce ne sono dopo la data di questa copia. Se ne hai ricevute e non le hai registrate, ripetile prima di ripubblicare.')}</p>`;
+  const righe = (l, nota) => l.map(ev => `<div class="menu-r" style="cursor:default"><div><span class="t">${esc(ev.titolo)}</span><span class="meta">${esc(quandoEv(ev))} · ${esc(ev.luogo)}${nota?' · '+nota:''}</span></div><button class="link" data-az="pb-ripr-correggi" data-id="${esc(ev.id)}">${tr('Correggi')}</button><button class="link" data-az="pb-ripr-togli" data-id="${esc(ev.id)}">${tr('Togli')}</button></div>`).join('');
+  const corpo = `<p>${tr('L’archivio torna com’era in questa copia: {n} eventi ancora da svolgere{s}. Quelli già finiti non tornano ({f}).',{n:R.eventi.length, s:R.sospesi.length ? ', '+tr('più {k} sospesi',{k:R.sospesi.length}) : '', f:R.finiti})}</p>
+    ${promemoria}
+    ${R.eventi.length+R.sospesi.length ? `<div class="menu-lista">${righe(R.eventi)}${righe(R.sospesi, tr('sospeso'))}</div>` : ''}
+    ${statoPb()}
+    <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${rim.length && !R.fatto ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
+  return foglio('forte alto', testa, corpo);
+}
+
+/* ---------- Tocchi e comandi ---------- */
+function clickPubblica(t){
+  const d = t.dataset;
+  if(d.pbev){ PB.sel = d.pbev; PB.ritiro = null; PB.errore = ''; PB.msg = ''; apri('pb-evento'); return true; }
+  if(d.pbcopia){ const i = PB.scelte.indexOf(d.pbcopia); if(i>=0) PB.scelte.splice(i, 1); else { PB.scelte.push(d.pbcopia); if(PB.scelte.length>2) PB.scelte.shift(); } PB.confronto = null; disegnaFoglio(); return true; }
+  return false;
+}
+function azionePubblica(az, t){
+  const x = PB.sel ? evPb(PB.sel) : null, prova = SPORTELLO.prova;
+  const esito = (p, bene) => { PB.lavoro = true; PB.errore = ''; PB.msg = ''; ridisegnaPb(); return p.then(r => { PB.lavoro = false; PB.msg = bene(r); }, e => { PB.lavoro = false; PB.errore = errorePb(e); }).then(aggiornaPb); };
+  switch(az){
+    case 'pubblica': st.aform = null; PB.svuota = false; if(st.sezione!=='mappa') vaiSezione('mappa'); apri('pubblica'); aggiornaPb(); break;
+    case 'pb-aggiorna': PB.msg = ''; aggiornaPb(); break;
+    case 'pb-nuovo': PB.errore = ''; PB.msg = ''; apriEventoForm(null, 'pubblica'); break;
+    case 'a-pubblica': pubblicaForm(); break;
+    case 'pb-consegna': esito(prova.consegnaChiavi(), () => tr('Chiavi consegnate: lo sportello di prova ora accetta la firma di questo dispositivo.')); break;
+    case 'pb-venti': esito(prova.eventiDelRepository().then(ev => SPORTELLO.chiedi({operazione:'scrivi', pubblica:ev})), r => tr('Portati {n} eventi inventati, pubblicati alle {o}.',{n:r.riepilogo.pubblicati.length+r.riepilogo.corretti.length, o:oraPb(r.quando)})); break;
+    case 'pb-falsa': esito(prova.firmaSbagliata().then(r => r), r => r.stato===200 ? tr('Attenzione: lo sportello ha accettato un pacchetto con la firma sbagliata.') : r.corpo.motivo==='fermo' ? tr('Rifiutato: troppe firme sbagliate, lo sportello non risponde a questo dispositivo fino alle {o}.',{o:oraPb(r.corpo.fino)}) : tr('Rifiutato dallo sportello (motivo: {m}). Dopo cinque firme sbagliate in un quarto d’ora smette di rispondere a questo dispositivo per quindici minuti.',{m:r.corpo.motivo})); break;
+    case 'pb-svuota': if(!PB.svuota){ PB.svuota = true; disegnaFoglio(); break; } PB.svuota = false; PB.stato = null; esito(prova.svuota(), () => tr('Sportello di prova svuotato.')); break;
+    case 'pb-correggi': if(x){ PB.errore = ''; PB.msg = ''; apriEventoForm(x.ev, 'pubblica'); } break;
+    case 'pb-sospendi': if(x) scriviPb({operazione:'scrivi', sospendi:[x.ev.id]}, r => { registra('sospendi', {id:x.ev.id, s:x.ev.strato}); return tr('Sospeso alle {o}: non è più sulla mappa.',{o:oraPb(r.quando)}); }); break;
+    case 'pb-riattiva': if(x) scriviPb({operazione:'scrivi', riattiva:[x.ev.id]}, r => { registra('riattiva', {id:x.ev.id, s:x.ev.strato}); return tr('Riattivato alle {o}: è di nuovo sulla mappa.',{o:oraPb(r.quando)}); }); break;
+    case 'pb-ritira': PB.ritiro = {motivo:'', riferimento:''}; PB.errore = ''; disegnaFoglio(); break;
+    case 'pb-ritira-no': PB.ritiro = null; PB.errore = ''; disegnaFoglio(); break;
+    case 'pb-ritira-ok': { const R = PB.ritiro; if(!x || !R) break;
+      if(!MOTIVI_RITIRO[R.motivo]){ PB.errore = tr('Scegli il motivo del ritiro.'); disegnaFoglio(); break; }
+      const rit = {id:x.ev.id, motivo:R.motivo}; if(R.riferimento.trim()) rit.riferimento = R.riferimento.trim();
+      scriviPb({operazione:'scrivi', ritira:[rit]}, r => { registra('ritira', {id:x.ev.id, s:x.ev.strato, m:R.motivo}); misureConta('rimossi'); return tr('Ritirato alle {o}.',{o:oraPb(r.quando)}); }); break; }
+    case 'pb-storico': apriStoricoPb(); break;
+    case 'pb-confronta': { if(PB.scelte.length!==2) break; PB.errore = '';
+      Promise.all(PB.scelte.map(leggiCopiaPb)).then(k => { k.sort((a,b) => a.quando<b.quando?-1:1); PB.confronto = confrontaCopie(k[0], k[1]); }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
+    case 'pb-ripristina': { if(PB.scelte.length!==1) break; PB.ripr = null; PB.errore = ''; PB.msg = ''; apri('pb-copia');
+      leggiCopiaPb(PB.scelte[0]).then(k => { const vivo = e => FORMATO.uscitaMs(e) > Date.now(), ordine = (x, y) => x.inizio<y.inizio?-1:1, ev = k.eventi.filter(vivo).sort(ordine), sos = k.sospesi.filter(vivo).sort(ordine);
+        PB.ripr = {copia:k, eventi:ev, sospesi:sos, finiti:k.eventi.length+k.sospesi.length-ev.length-sos.length, rimozioni:rimozioniDopo(k.quando), fatto:false, corretti:0}; }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
+    case 'pb-copia': st.aform = null; apri('pb-copia'); break;
+    case 'pb-ripr-fatto': if(PB.ripr){ PB.ripr.fatto = !PB.ripr.fatto; disegnaFoglio(); } break;
+    case 'pb-ripr-correggi': { const R = PB.ripr, ev = R && R.eventi.concat(R.sospesi).find(e => e.id===t.dataset.id); if(ev) apriEventoForm(ev, 'ripristino'); break; }
+    case 'pb-ripr-togli': { const R = PB.ripr; if(R){ R.eventi = R.eventi.filter(e => e.id!==t.dataset.id); R.sospesi = R.sospesi.filter(e => e.id!==t.dataset.id); disegnaFoglio(); } break; }
+    case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
+      scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}); }); break; }
+    default: return false;
+  }
+  return true;
+}
+/* i campi del modulo dell'evento e del ritiro: true se il campo era loro */
+function inputPubblica(el){
+  const d = el.dataset;
+  if(d.pbritiro && PB.ritiro){ PB.ritiro[d.pbritiro] = el.value; return true; }
+  if(d.acampo && st.aform){
+    const c = d.acampo, f = st.aform; f[c] = el.value;
+    if(c==='indirizzo'){ f.pos = null; f.precision = ''; f.addrFull = ''; $('a-punto').innerHTML = ''; chiediSuggerimenti(el.value, 'a', 'a-sugg'); }
+    if(f.err[c] && String(el.value).trim()){ f.err[c] = 0; const k = el.closest('.campo'); if(k) k.classList.remove('errore'); }
+    return true;
+  }
+  return false;
+}
+function cambioPubblica(el){
+  if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return true; }
+  if(el.dataset.acampo && st.aform && el.tagName==='SELECT'){ st.aform[el.dataset.acampo] = el.value; return true; }
+  if(el.dataset.pbritiro && PB.ritiro){ PB.ritiro[el.dataset.pbritiro] = el.value; return true; }
+  return false;
+}
 
 /* Le 50 domande della tabella «KPI di misurazione senza tracciamento» (file Excel di Lorenzo) (6 ottobre 2026): stato, conformità UE e IT, obblighi.
    Valutazioni di Claude, non parere legale.
@@ -2544,9 +2849,13 @@ const daArchivioMz = ev => ({id:ev.id, category:ev.strato, datetime:new Date(FOR
   price:ev.prezzo||'', address:ev.indirizzo||'', addressFull:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · ')});
 function mzLeggiArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !window.fetch){ MZ_ARCH.stato = 'assente'; return Promise.resolve(false); }
-  if(!MZ_ARCH.lettore) MZ_ARCH.lettore = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window)});
-  const A = MZ_ARCH.lettore; if(!MZ_ARCH.quando) MZ_ARCH.stato = 'leggo';
-  return A.controllaNovita().then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => {
+  if(!MZ_ARCH.quando) MZ_ARCH.stato = 'leggo';
+  let A;
+  /* sul collegamento di prova l'archivio può essere quello finto dello sportello di prova (sorgenteArchivio, app2.js) */
+  return sorgenteArchivio().then(s => {
+    if(!MZ_ARCH.lettore || MZ_ARCH.dove!==s.dove){ MZ_ARCH.lettore = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch}); MZ_ARCH.dove = s.dove; }
+    A = MZ_ARCH.lettore; return A.controllaNovita();
+  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => {
     MZ_EVENTI = A.eventi().map(x => daArchivioMz(x.ev)); MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
   }).catch(() => { MZ_ARCH.stato = MZ_ARCH.quando ? 'vecchio' : 'errore'; return false; });
 }
@@ -3110,6 +3419,8 @@ const OP_STORICO = {
   'chiavi-copia':['accessi','Copia di riserva delle chiavi scaricata'], 'chiavi-revoca':['accessi','Chiavi di questo dispositivo revocate'],
   'cassaforte-copia':['accessi','Copia della cassaforte scaricata'], 'cassaforte-riporta':['accessi','Cassaforte riportata da una copia'],
   crea:['eventi','Evento creato'], modifica:['eventi','Evento modificato'], elimina:['eventi','Evento eliminato'], ripristina:['eventi','Eventi ripristinati'],
+  pubblica:['eventi','Evento pubblicato'], correggi:['eventi','Correzione pubblicata'], sospendi:['eventi','Evento sospeso'], riattiva:['eventi','Evento riattivato'], ritira:['eventi','Evento ritirato prima della fine'],
+  'ripristina-copia':['eventi','Copia dello storico ripristinata'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
   misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']
@@ -3430,7 +3741,7 @@ function avviaCopia(){
   cercaNovita(); avviaCopia();
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
-    archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length}),
+    archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length, finto:ARCHIVIO_FINTO}),
     tr, dloc, lingua:() => lang, versione:VERSIONE, mappa:() => ({fonte:MAPPA.fonte, sulTelefono:MAPPA_LOCALE ? MAPPA_LOCALE.stato() : Promise.resolve(null)}),
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },

@@ -2,7 +2,7 @@
 
 Voci T-034 e T-037 del piano di adeguamento. Libro mastro: § 2.4 («Le chiavi»: la firma della Redazione consente soltanto di pubblicare eventi e la sua parte segreta non lascia il dispositivo della redazione; nessuna chiave nel codice né in una chat), § 3.11 (archivio della redazione con copia di sicurezza cifrata), § 3.14 (le password degli eventi nascosti si cancellano quando l'evento finisce), §§ 2.4 e 6.5 (marcatore invisibile negli identificativi).
 
-Il codice sta in `sorgenti/moduli/chiavi.js` (le chiavi) e in `sorgenti/redazione/chiavi-viste.js` (le schermate). Entra soltanto nell'app della redazione. Le prove sono `prove/chiavi-redazione.js` e `prove/browser/redazione.js`.
+Il codice sta in `sorgenti/moduli/chiavi.js` (le chiavi) e in `sorgenti/redazione/chiavi-viste.js` (le schermate). Entra soltanto nell'app della redazione. Le prove sono `prove/chiavi-redazione.js` e `prove/browser/redazione.js`. Come la chiave di firma si usa per pubblicare, e come le parti pubbliche e l'avviso di revoca arrivano allo sportello, è in `docs/sportello-pubblicazione.md` (T-038).
 
 ## Le regole
 

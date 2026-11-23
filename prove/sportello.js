@@ -17,10 +17,13 @@
    10. Storico (T-039): elenco delle copie, lettura di una copia, ripristino firmato.
    11. I numeri per regione scendono da soli quando un evento esce (LM-46), anche senza una nuova pubblicazione.
    12. Revoca: la firma revocata non vale più e non si può autorizzare di nuovo.
-   13. Lo sportello non riceve e non conserva indirizzi; nei sorgenti non ci sono chiavi. */
+   13. Lo sportello non riceve e non conserva indirizzi; nei sorgenti non ci sono chiavi.
+   14. L'involucro per Bunny (sportelli/bunny-pubblicazione.js, montato da strumenti/monta-sportello.mjs), scritto e
+       spento: con un deposito finto al posto dell'archiviazione di Bunny riceve, rifiuta, pubblica e risponde. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const { RADICE, esito, eseguiDaSola } = require('./comune.js');
 const C = require('../sorgenti/moduli/chiavi.js');
 const E = require('../sorgenti/moduli/eventi.js');
@@ -78,7 +81,7 @@ async function prova() {
   if (dep.m.size) err('il rifiuto di un estraneo ha lasciato qualcosa nel deposito: ' + [...dep.m.keys()].join(', '));
 
   /* 3 */
-  await sp.autorizza(D1.pubbliche); await sp.autorizza(D2.pubbliche);
+  await sp.ammetti(D1.pubbliche); await sp.ammetti(D2.pubbliche);
   r = await manda(D1, { operazione: 'scrivi', pubblica: [ev('uno'), ev('due', { lat: 45.4642, lng: 9.19, indirizzo: 'Via Inventata 2, Milano' })] });
   if (r.stato !== 200 || r.corpo.esito !== 'fatto' || r.corpo.quando !== new Date(t).toISOString() || r.corpo.eventi !== 2) err('pubblicazione: risposta inattesa ' + JSON.stringify(r));
   if (Q.controllaIndice(indice()).length) err('pubblicazione: l\'indice scritto non è valido: ' + Q.controllaIndice(indice()).join('; '));
@@ -187,9 +190,9 @@ async function prova() {
   await sp.revoca(await D2.k.revoca());
   const p2 = await P.forma({ operazione: 'stato' }, { firma: async () => 'AAAA', dispositivo: { nome: 'Telefono di prova', impronta: D2.pubbliche.firma.impronta }, ora });
   r = await sp.ricevi(JSON.stringify(p2)); if (r.stato !== 403 || r.corpo.motivo !== 'revocata') err('una firma revocata doveva essere rifiutata (403, revocata): ' + JSON.stringify(r));
-  let rifiutata = false; try { await sp.autorizza(D2.pubbliche); } catch (x) { rifiutata = !!(x.rifiuto && x.rifiuto.motivo === 'revocata'); }
+  let rifiutata = false; try { await sp.ammetti(D2.pubbliche); } catch (x) { rifiutata = !!(x.rifiuto && x.rifiuto.motivo === 'revocata'); }
   if (!rifiutata) err('una firma revocata non si deve poter autorizzare di nuovo');
-  const ch = await sp.chiavi(); if (ch.autorizzate.length !== 1 || ch.revocate.length !== 1 || JSON.stringify(ch).includes(D1.pubbliche.firma.pubblica)) err('elenco delle chiavi dello sportello inatteso');
+  const ch = await sp.chiavi(); if (ch.ammesse.length !== 1 || ch.revocate.length !== 1 || JSON.stringify(ch).includes(D1.pubbliche.firma.pubblica)) err('elenco delle chiavi dello sportello inatteso');
 
   /* 13 */
   const sorgenti = ['sportelli/pubblicazione.js', 'sportelli/bunny-pubblicazione.js', 'sorgenti/moduli/pacchetto.js', 'sorgenti/redazione/sportello-prova.js'].filter(f => fs.existsSync(path.join(RADICE, f)));
@@ -201,6 +204,41 @@ async function prova() {
   const tutto = JSON.stringify([...dep.m.entries()]);
   if (/"ip"|indirizzo_ip|x-forwarded/i.test(tutto)) err('nel deposito dello sportello c\'è qualcosa che somiglia a un indirizzo di chi scrive');
   if (Object.keys(JSON.parse(dep.m.get(S.RIS + 'tentativi.json'))).some(k => !P.IMPRONTA.test(k))) err('i tentativi errati si contano solo per impronta del dispositivo');
+
+  /* 14 */
+  const { montaSportello } = await import('../strumenti/monta-sportello.mjs');
+  const montato = montaSportello();
+  if (/\/\*@@[A-Z]+@@\*\//.test(montato)) err('involucro per Bunny: nel file montato resta un segnaposto');
+  const bunny = new Map(); let gestore = null;
+  const AMB = Object.fromEntries([['ZONA_EVENTI', 'eventi-inventati'], ['CHIAVE_ZONA_EVENTI', 'inventata-uno'], ['ZONA_RISERVATA', 'riservata-inventata'], ['CHIAVE_ZONA_RISERVATA', 'inventata-due'], ['STORAGE_HOST', 'archiviazione.example'], ['ORIGINE_REDAZIONE', 'https://redazione.example']]);
+  const archiviazione = async (u, o = {}) => {
+    const k = new URL(u).pathname, m = o.method || 'GET';
+    if (new URL(u).hostname !== 'archiviazione.example' || (o.headers || {}).AccessKey !== (k.startsWith('/eventi-inventati/') ? 'inventata-uno' : 'inventata-due')) return new Response('', { status: 401 });
+    if (m === 'PUT') { bunny.set(k, String(o.body)); return new Response('', { status: 201 }); }
+    if (m === 'DELETE') return new Response('', { status: bunny.delete(k) ? 200 : 404 });
+    if (k.endsWith('/')) return new Response(JSON.stringify([...bunny.keys()].filter(x => x.startsWith(k) && !x.slice(k.length).includes('/')).map(x => ({ ObjectName: x.slice(k.length), IsDirectory: false }))), { status: 200 });
+    return bunny.has(k) ? new Response(bunny.get(k), { status: 200 }) : new Response('', { status: 404 });
+  };
+  const mondo = { BunnySDK: { net: { http: { serve: f => { gestore = f; } } } }, process: { env: AMB }, fetch: archiviazione, Response, Request, crypto: globalThis.crypto, TextEncoder, TextDecoder, atob, btoa, URL, console };
+  mondo.self = mondo;
+  try { vm.runInNewContext(montato.replace(/^import .*$/gm, ''), mondo); } catch (x) { err('involucro per Bunny: il file montato non parte: ' + x.message); }
+  if (typeof gestore !== 'function') err('involucro per Bunny: non consegna a Bunny la funzione che riceve le richieste');
+  else {
+    const adesso = c => P.forma(c, { firma: D1.k.firma, dispositivo: { nome: 'Portatile di prova', impronta: D1.pubbliche.firma.impronta } });
+    const chiedi = async c => { const x = await gestore(new Request('https://sportello.example/', { method: 'POST', body: JSON.stringify(await adesso(c)) })); return { stato: x.status, origine: x.headers.get('access-control-allow-origin'), corpo: await x.json() }; };
+    const traUnMese = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);   // l'involucro usa l'orologio vero: l'evento deve essere futuro in qualunque giorno giri la prova
+    r = await chiedi({ operazione: 'stato' });
+    if (r.stato !== 403 || r.corpo.motivo !== 'sconosciuto' || r.origine !== 'https://redazione.example') err('involucro per Bunny: senza chiavi ammesse doveva rifiutare (403), rispondendo alla sola app della redazione: ' + JSON.stringify(r));
+    bunny.set('/riservata-inventata/chiavi.json', JSON.stringify({ ammesse: [{ dispositivo: 'Portatile di prova', impronta: D1.pubbliche.firma.impronta, pubblica: D1.pubbliche.firma.pubblica }], revocate: [] }));
+    r = await chiedi({ operazione: 'scrivi', pubblica: [ev('bunny', { inizio: traUnMese + 'T21:00', fine: traUnMese + 'T23:00' })] });
+    const pubb = [...bunny.keys()].filter(k => k.startsWith('/eventi-inventati/')).sort();
+    if (r.stato !== 200 || pubb.length !== 2 || pubb[0] !== '/eventi-inventati/indice.json' || !/^\/eventi-inventati\/quadranti\/q21-01-[0-9a-f]{16}\.json$/.test(pubb[1])) err('involucro per Bunny: la pubblicazione non scrive indice e quadrante nella zona degli eventi: ' + JSON.stringify(r).slice(0, 200) + ' ' + pubb);
+    if (!bunny.has('/riservata-inventata/stato.json') || ![...bunny.keys()].some(k => k.startsWith('/riservata-inventata/storico/copie/'))) err('involucro per Bunny: elenco riservato e copia datata non stanno nella zona riservata');
+    r = await chiedi({ operazione: 'scrivi', ritira: [{ id: ID('bunny'), motivo: 'annullato' }] });
+    if (r.stato !== 200 || [...bunny.keys()].filter(k => k.startsWith('/eventi-inventati/quadranti/')).length) err('involucro per Bunny: dopo il ritiro il file del quadrante doveva sparire dalla zona degli eventi');
+    const x = await gestore(new Request('https://sportello.example/')); if (x.status !== 405) err('involucro per Bunny: una richiesta che non consegna un pacchetto doveva essere rifiutata (405)');
+    const y = await gestore(new Request('https://sportello.example/', { method: 'OPTIONS' })); if (y.status !== 204 || y.headers.get('access-control-allow-methods') !== 'POST') err('involucro per Bunny: la richiesta preliminare del browser non riceve la risposta attesa');
+  }
 
   e.note.push('finestra di ' + P.FINESTRA_MS / 6e4 + ' minuti; ' + S.TENTATIVI + ' firme sbagliate in ' + S.QUARTO_MS / 6e4 + ' minuti, poi ' + S.FERMO_MS / 6e4 + ' minuti di silenzio per quel dispositivo; copie nello storico della prova: ' + [...dep.m.keys()].filter(k => k.startsWith(S.RIS + 'storico/copie/')).length);
   return e;

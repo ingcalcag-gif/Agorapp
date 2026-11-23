@@ -142,7 +142,9 @@ function azioneChiavi(az, t){
     case 'chiavi-pubbliche-file': CHIAVI.pubbliche().then(p => scaricaTesto(JSON.stringify(p, null, 1)+'\n', 'chiavi-pubbliche-'+p.creato.slice(0,10)+'.json'), e => { CH.errore = erroreChiavi(e); disegnaFoglio(); }); break;
     case 'chiavi-revoca': CH.revoca = true; disegnaFoglio(); break;
     case 'chiavi-revoca-no': CH.revoca = false; disegnaFoglio(); break;
-    case 'chiavi-revoca-ok': CH.revoca = false; CHIAVI.revoca().then(a => { CH.avviso = a; registra('chiavi-revoca'); CH.msg = ''; }, e => { CH.errore = erroreChiavi(e); }).then(aggiornaChiavi); break;
+    case 'chiavi-revoca-ok': CH.revoca = false; CHIAVI.revoca().then(a => { CH.avviso = a; registra('chiavi-revoca'); CH.msg = '';
+      /* allo sportello di prova l'avviso arriva subito; allo sportello vero lo consegna chi amministra Bunny */
+      if(SPORTELLO.diProva()) return SPORTELLO.prova.revoca(a).catch(() => {}); }, e => { CH.errore = erroreChiavi(e); }).then(aggiornaChiavi); break;
     case 'chiavi-revoca-file': { const a = CH.stato && CH.stato.revocata; if(a) scaricaTesto(JSON.stringify(a, null, 1)+'\n', 'revoca-'+String(a.quando).slice(0,10)+'.json'); break; }
     case 'chiavi-revoca-altro': { const n = CH.stato && (CH.stato.noti||[])[+(t && t.dataset.i)];
       if(n){ const a = CHIAVI.avvisoRevoca(n.dispositivo, n.impronta); scaricaTesto(JSON.stringify(a, null, 1)+'\n', 'revoca-'+a.quando.slice(0,10)+'.json'); } break; }

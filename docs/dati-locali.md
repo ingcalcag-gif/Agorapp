@@ -69,6 +69,14 @@ Due app sullo stesso indirizzo. Sul sito vero le due app stanno a indirizzi dive
 
 «Base di dati» è la base di dati del browser (per chi conosce i nomi: IndexedDB), che può conservare chiavi di cifratura non estraibili; la base si chiama `red_strumenti` e la usa soltanto l'app della redazione, attraverso il modulo della memoria (`MEM.base`) e il modulo delle chiavi (`sorgenti/moduli/chiavi.js`). Quando si creano o si ripristinano le chiavi, l'app chiede al browser di non cancellare da sé i dati di quell'indirizzo (`MEM.tieni`): è una richiesta, non un dato salvato.
 
+## Solo sul collegamento di prova
+
+Una voce che sul sito vero non nasce mai (T-038). Sul collegamento di prova l'app della redazione e l'app pubblica stanno allo stesso indirizzo: lo «sportello di prova» dell'app della redazione tiene qui il suo archivio finto, e l'app pubblica di prova lo legge soltanto, al posto dell'archivio del repository, quando lo sportello di prova ha pubblicato qualcosa. Contiene soli eventi inventati. Non sta nella scheda «Dati locali» e non è tra le chiavi che l'app può avere sul telefono (`chiavi()` del modulo non la elenca); quando la configurazione ha l'indirizzo degli eventi (Bunny, T-065) nessuna delle due app la apre più. Si cancella dall'app della redazione con «Svuota lo sportello di prova».
+
+| Chiave | Dove | Che cosa contiene | Prima si chiamava |
+| --- | --- | --- | --- |
+| `prova_sportello` | file | L'archivio finto dello sportello di prova: i file pubblici degli eventi (indice e quadranti), l'elenco riservato con gli eventi sospesi, lo storico delle pubblicazioni, le chiavi pubbliche ammesse, i numeri dei pacchetti già ricevuti e i tentativi errati (`docs/sportello-pubblicazione.md`) | nessuno |
+
 ## Chiavi tolte
 
 Chiavi di funzioni che l'app non ha più. Se un telefono le ha ancora, all'avvio si cancellano senza essere lette.

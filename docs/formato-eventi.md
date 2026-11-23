@@ -65,10 +65,14 @@ L'archivio comune non è un file unico: il telefono non scarica una città inter
 {"formato":"eventi-indice","versione":1,"tdm-reservation":1,"generato":"2026-11-20T05:00:00Z",
  "griglia":{"versione":1,"ovest":6.5,"sud":35.4,"passo_lat":0.45,"passo_lng":0.6,"righe":27,"colonne":21},
  "quadranti":{"q21-01":{"file":"quadranti/q21-01-<versione>.json","v":"<versione>","eventi":10}, …},
- "regioni":[{"nome":"Piemonte","punto":[7.9108,44.9987],"eventi":14,"vai":[7.6803,45.0729]}, …]}
+ "regioni":[{"nome":"Piemonte","punto":[7.9108,44.9987],"eventi":14,"vai":[7.6803,45.0729],"uscite":[[29921820,1], …]}, …]}
 ```
 
 La versione di un quadrante è un'impronta breve del contenuto del suo file (funzione `impronta`): cambia quando cambia il file. Il nome del file la contiene, così nessuna copia vecchia, nel telefono o nella rete di consegna, si scambia per quella nuova; il telefono scarica di nuovo solo i quadranti la cui versione è cambiata. L'indice elenca solo i quadranti e le regioni con almeno un evento.
+
+**Le uscite.** L'indice si scrive quando la Redazione pubblica, ma gli eventi escono dalla mappa anche tra una pubblicazione e l'altra. Per questo ogni regione porta anche `uscite`: coppie `[minuto, quanti]`, in ordine, che dicono quanti dei suoi eventi escono e quando (il minuto si conta dal 1970, in tempo universale); in tutto fanno il numero della regione. Il telefono toglie dal numero quelli già usciti (funzione `eventiVivi`) e non mostra una regione rimasta senza eventi: il numero scende da solo, anche senza rete. Sono soltanto numeri. Esempio: `"eventi":14,"uscite":[[29921820,1],[29923080,2], …]`.
+
+**Chi scrive l'archivio.** Lo sportello di pubblicazione (`sportelli/pubblicazione.js`, `docs/sportello-pubblicazione.md`), a ogni pacchetto firmato della Redazione: scrive i file nuovi dei quadranti, poi l'indice, e toglie subito i file che l'indice nuovo non nomina, perché un evento ritirato o sospeso non resti leggibile in un file vecchio. Un telefono che non trova più un file richiede l'indice.
 
 **Le regioni.** La regione di un evento si ricava dalle sue coordinate con i confini semplificati delle venti regioni in `sorgenti/dati/regioni.json` (da Natural Earth, pubblico dominio; strumento `strumenti/genera-regioni.mjs`); un punto in mare vicino alla costa, entro 40 km, va alla regione più vicina. Il telefono non riceve i confini: gli bastano i numeri e i punti dell'indice.
 

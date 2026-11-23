@@ -26,6 +26,7 @@ const VIETATI = [
   [/\bmz[A-Z]\w*|data-mz|clickMisure|misureConta|apriMisure|pagina-misure|sez-misure|MZ_KPI/, 'Misure'],
   [/foglioStorico|\bregistra\(|OP_STORICO|data-sh=/, 'storico delle operazioni'],
   [/FOGLI_RED|clickRed|azioneRed|inputRed|cambioRed|\bCHIAVI\b|fChiavi|fVerifica|fileRed|AGR_MODULI\)?\.chiavi|MODULI\.chiavi/, 'chiavi e strumenti della Redazione'],
+  [/\bSPORTELLO\b|\bPB\b|fPubblica|fEventoForm|azionePubblica|clickPubblica|data-az="pb-|data-pbev|MODULI\.(?:sportello|pacchetto|regioni)|AGR_MODULI\)?\.(?:sportello|pacchetto|regioni)|pacchetto-redazione|copia-pubblicazione/, 'pubblicazione firmata e sportello'],
   [/@red\b|@pub\b|@fine\b/, 'segni del montaggio rimasti'],
 ];
 const SUOI = /^(index\.html|app\.js|app\.css|sezioni\.js|config\.js|traduzioni\.js|moduli\.js|sw\.js|manifest\.webmanifest)$/;

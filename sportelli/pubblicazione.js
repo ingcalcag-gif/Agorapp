@@ -24,7 +24,7 @@
 
    Le chiavi autorizzate non arrivano mai con un pacchetto: stanno in riservato/chiavi.json, che su Bunny scrive il
    Responsabile infrastruttura con i file della schermata «Chiavi» (le parti pubbliche, l'avviso di revoca); nello
-   sportello di prova lo scrivono i comandi «autorizza» e «revoca» qui sotto.
+   sportello di prova lo scrivono i comandi «ammetti» e «revoca» qui sotto.
 
    Nel browser si trova in window.AGR_MODULI.sportello (dopo eventi.js, quadranti.js e pacchetto.js); in Node con require(). */
 (function (radice, fabbrica) {
@@ -167,7 +167,7 @@
       const no = (stato, motivo, extra) => risposta(stato, Object.assign({ esito: 'rifiutato', motivo }, extra || {}));
       const chiavi = await leggiJson(F.chiavi, {});
       if ((chiavi.revocate || []).some(k => k.impronta === imp)) return no(403, 'revocata');
-      const nota = (chiavi.autorizzate || []).find(k => k.impronta === imp);
+      const nota = (chiavi.ammesse || []).find(k => k.impronta === imp);
       if (!nota) return no(403, 'sconosciuto');   // non è un dispositivo della Redazione: rifiutato subito, senza contare nulla
       const tentativi = await leggiJson(F.tentativi, {}), mio = tentativi[imp] || { errori: [] };
       if (mio.fermo_fino > t) return no(429, 'fermo', { fino: iso(mio.fermo_fino) });
@@ -196,20 +196,20 @@
     }
 
     /* ---------- Le chiavi autorizzate: non passano dalla porta ---------- */
-    async function autorizza(pubbliche) {
+    async function ammetti(pubbliche) {
       const f = pubbliche && pubbliche.firma;
       if (!pubbliche || pubbliche.tipo !== TIPO_PUBBLICHE || !f || typeof f.pubblica !== 'string' || !/^[A-Za-z0-9_-]{80,100}$/.test(f.pubblica)) throw rifiuto('chiavi');
       const imp = await P.impronta(f.pubblica, cripto);
       if (imp !== f.impronta) throw rifiuto('chiavi');
-      const k = await leggiJson(F.chiavi, {}); k.autorizzate = k.autorizzate || []; k.revocate = k.revocate || [];
+      const k = await leggiJson(F.chiavi, {}); k.ammesse = k.ammesse || []; k.revocate = k.revocate || [];
       if (k.revocate.some(x => x.impronta === imp)) throw rifiuto('revocata');   // una firma revocata non torna: il dispositivo se ne fa una nuova
-      k.autorizzate = k.autorizzate.filter(x => x.impronta !== imp).concat([{ dispositivo: String(pubbliche.dispositivo || '').slice(0, 80), impronta: imp, pubblica: f.pubblica, dal: iso(ora()) }]);
+      k.ammesse = k.ammesse.filter(x => x.impronta !== imp).concat([{ dispositivo: String(pubbliche.dispositivo || '').slice(0, 80), impronta: imp, pubblica: f.pubblica, dal: iso(ora()) }]);
       await scriviJson(F.chiavi, k);
       return imp;
     }
     async function revoca(avviso) {
       if (!avviso || avviso.tipo !== TIPO_REVOCA || typeof avviso.impronta !== 'string' || !P.IMPRONTA.test(avviso.impronta)) throw rifiuto('chiavi');
-      const k = await leggiJson(F.chiavi, {}); k.autorizzate = (k.autorizzate || []).filter(x => x.impronta !== avviso.impronta);
+      const k = await leggiJson(F.chiavi, {}); k.ammesse = (k.ammesse || []).filter(x => x.impronta !== avviso.impronta);
       k.revocate = (k.revocate || []).filter(x => x.impronta !== avviso.impronta).concat([{ dispositivo: String(avviso.dispositivo || '').slice(0, 80), impronta: avviso.impronta, quando: iso(ora()) }]);
       await scriviJson(F.chiavi, k);
       return avviso.impronta;
@@ -217,10 +217,10 @@
     /* Chi è autorizzato e chi è revocato, senza le chiavi. */
     async function chiavi() {
       const k = await leggiJson(F.chiavi, {});
-      return { autorizzate: (k.autorizzate || []).map(x => ({ dispositivo: x.dispositivo, impronta: x.impronta, dal: x.dal })), revocate: k.revocate || [] };
+      return { ammesse: (k.ammesse || []).map(x => ({ dispositivo: x.dispositivo, impronta: x.impronta, dal: x.dal })), revocate: k.revocate || [] };
     }
 
-    return { ricevi, autorizza, revoca, chiavi };
+    return { ricevi, ammetti, revoca, chiavi };
   }
 
   return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, TIPO_COPIA, NOME_COPIA, crea };

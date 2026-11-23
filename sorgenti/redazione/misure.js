@@ -54,9 +54,13 @@ const daArchivioMz = ev => ({id:ev.id, category:ev.strato, datetime:new Date(FOR
   price:ev.prezzo||'', address:ev.indirizzo||'', addressFull:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · ')});
 function mzLeggiArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !window.fetch){ MZ_ARCH.stato = 'assente'; return Promise.resolve(false); }
-  if(!MZ_ARCH.lettore) MZ_ARCH.lettore = MODULI.archivio.crea({dove:ARCHIVIO_DOVE, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:window.fetch.bind(window)});
-  const A = MZ_ARCH.lettore; if(!MZ_ARCH.quando) MZ_ARCH.stato = 'leggo';
-  return A.controllaNovita().then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => {
+  if(!MZ_ARCH.quando) MZ_ARCH.stato = 'leggo';
+  let A;
+  /* sul collegamento di prova l'archivio può essere quello finto dello sportello di prova (sorgenteArchivio, app2.js) */
+  return sorgenteArchivio().then(s => {
+    if(!MZ_ARCH.lettore || MZ_ARCH.dove!==s.dove){ MZ_ARCH.lettore = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch}); MZ_ARCH.dove = s.dove; }
+    A = MZ_ARCH.lettore; return A.controllaNovita();
+  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => {
     MZ_EVENTI = A.eventi().map(x => daArchivioMz(x.ev)); MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
   }).catch(() => { MZ_ARCH.stato = MZ_ARCH.quando ? 'vecchio' : 'errore'; return false; });
 }
