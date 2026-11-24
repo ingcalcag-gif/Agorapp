@@ -169,8 +169,7 @@ async function prova() {
       await tocca('.mz-schede [data-mz="scheda"][data-v="panoramica"]', 'Misure, panoramica');
       const xl = await scarica('[data-mz="esporta"]', 'esportazione delle Misure');
       if (xl) {
-        const XLSX = require(path.join(RADICE, 'sorgenti', 'vendor', 'sheetjs-0.18.5', 'xlsx.full.min.js'));
-        const wb = XLSX.read(xl.dati, { type: 'buffer' }), fogli = Object.fromEntries(wb.SheetNames.map(n => [n, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true })]));
+        const wb = await require(path.join(RADICE, 'sorgenti', 'moduli', 'excel.js')).leggi(xl.dati, 'misure.xlsx'), fogli = Object.fromEntries(wb.fogli.map(f => [f.nome, f.righe]));
         if (!fogli.Rimozioni) err('esportazione: manca il foglio «Rimozioni»');
         const testa = (fogli.Giorni || [[]])[0], oggiG = (fogli.Giorni || []).slice(1).pop() || [], iF = testa.indexOf('Fuori dalle città');
         if (iF < 0 || testa[iF - 1] !== 'Piazza Armerina' || oggiG[iF] !== 'meno di 10') err('esportazione, foglio «Giorni»: dopo le città serve la colonna «Fuori dalle città», con i 6 eventi di oggi scritti «meno di 10» (' + JSON.stringify(testa).slice(0, 160) + ' · ' + oggiG[iF] + ')');

@@ -70,7 +70,7 @@ function esportaStorico(){
       return [dIso(oggiDi(d)), hm(d), tr(GRUPPI_STORICO.find(g => g[0]===OP_STORICO[x.op][0])[1]), tr(OP_STORICO[x.op][1]), x.id ? (ev ? ev.title : tr('non più sulla mappa')) : '', x.s && S[x.s] ? tr(S[x.s].label) : '', x.n==null ? '' : x.n, x.r==null ? '' : x.r, x.x||'']; }));
   fileExcel([[tr('Storico'), R, [12,8,16,32,40,18,8,10,30]]], nomeFile()+'_storico_'+oggi()+'.xlsx')
     .then(() => { registra('esporta-storico'); avviso(tr('Storico esportato: {f}',{f:nomeFile()+'_storico_'+oggi()+'.xlsx'}), null, true); foglioStorico(); })
-    .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
+    .catch(() => avviso(tr('Non sono riuscito a preparare il file Excel.'), null, true));
 }
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-sh]'); if(!b) return;

@@ -206,13 +206,11 @@ async function prova() {
     const nellaCopia = () => p.evaluate(async () => (await (await caches.open('dl_app')).keys()).map(r => decodeURIComponent(r.url)));
     await p.goto(sr.url + 'index.html'); await p.waitForSelector('#badgeRed', { timeout: 15000 });
     const pigri = pigriDi(R), subito = Object.keys(copiaDi(R)).filter(f => !pigri.includes(f));
-    if (pigri.length !== 1 || !/sheetjs/.test(pigri[0])) err('app della redazione: il file che si conserva solo quando serve deve essere la libreria di Excel (trovati: ' + pigri.join(', ') + ')');
+    /* dal blocco 10 i file Excel li fa codice nostro (T-042): nessun file da conservare solo al primo uso */
+    if (pigri.length) err('app della redazione: non devono esserci file da conservare solo quando servono (trovati: ' + pigri.join(', ') + ')');
     if (!(await aspetta(async () => (await nellaCopia()).length === subito.length))) err(`app della redazione: nella copia ci sono ${(await nellaCopia()).length} file, da conservare subito sono ${subito.length}`);
     let copia = await nellaCopia();
     if (copia.some(u => !u.startsWith(sr.url))) err('app della redazione: nella sua copia ci sono file di altri indirizzi');
-    if (copia.some(u => pigri.some(f => u.includes(f)))) err('app della redazione: la libreria di Excel è stata conservata subito');
-    if (pigri.length) { await p.evaluate(f => fetch(f).then(r => r.arrayBuffer()), pigri[0]);
-      if (!(await aspetta(async () => (await nellaCopia()).some(u => u.includes(pigri[0])), 8000))) err('app della redazione: la libreria di Excel non si conserva dopo il primo uso'); }
     /* senza rete: si riapre, con gli strumenti */
     await aspetta(async () => !!(await p.evaluate(() => navigator.serviceWorker.controller)), 15000);
     await red.ctx.setOffline(true);
@@ -220,7 +218,7 @@ async function prova() {
     try { await p.waitForSelector('#badgeRed', { timeout: 15000 }); await p.click('#badgeRed'); await p.waitForSelector('#foglio-slot [data-az="chiavi"]', { timeout: 5000 }); }
     catch (x) { err('app della redazione: senza rete non si riapre con gli strumenti'); }
     await red.ctx.setOffline(false);
-    e.note.push(`app della redazione: ${subito.length} file nella copia, la libreria di Excel conservata al primo uso; senza rete si riapre con gli strumenti`);
+    e.note.push(`app della redazione: ${subito.length} file nella copia, tutti subito; senza rete si riapre con gli strumenti`);
   } finally { await red.browser.close(); await sr.chiudi(); }
   return e;
 }

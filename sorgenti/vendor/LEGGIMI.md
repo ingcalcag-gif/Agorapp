@@ -8,7 +8,6 @@ Il montaggio copia ogni file in `lib/` di ciascuna uscita, con accanto il testo 
 | --- | --- | --- |
 | `maplibre-gl-5.24.0/` | MapLibre GL JS 5.24.0 | Pacchetto npm `maplibre-gl@5.24.0`, `dist/maplibre-gl.js` e `dist/maplibre-gl.css` |
 | `jspdf-2.5.1/` | jsPDF 2.5.1 | Pacchetto npm `jspdf@2.5.1`, `dist/jspdf.umd.min.js` (lo stesso file che l'app scaricava da cdnjs) |
-| `sheetjs-0.18.5/` | SheetJS Community Edition 0.18.5 | Pacchetto npm `xlsx@0.18.5`, `dist/xlsx.full.min.js` (lo stesso file che l'app scaricava da cdnjs). Con T-042 resta solo nell'app della redazione, in una versione senza le vulnerabilità note della 0.18.5 |
 | `caratteri/dm-sans-v17/` | DM Sans, versione v17 di Google Fonts, asse dell'altezza ottica | Pacchetto npm `@fontsource-variable/dm-sans@5.3.0`, file `opsz-normal` per i caratteri latini ed europei estesi |
 | `caratteri/dm-serif-display-v17/` | DM Serif Display, versione v17 di Google Fonts | Pacchetto npm `@fontsource/dm-serif-display@5.3.0`, file `400-normal` per i caratteri latini ed europei estesi |
 | `pmtiles-4.5.0/` | PMTiles 4.5.0, lettore del file unico della mappa (T-017, 19/11/2026) | Pacchetto npm `pmtiles@4.5.0`, `dist/pmtiles.js` |

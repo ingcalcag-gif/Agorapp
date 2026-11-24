@@ -10,7 +10,6 @@ module.exports = [
   /* ---------- Nome fuori dalla configurazione (prove/nome.js) ---------- */
 
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
-  { ...s('indirizzi', 'esempio.it', 'app.js', 1, 'T-042', "esempio nel modello Excel dell'importazione (app della redazione)"), uscite: ['redazione'] },
   s('indirizzi', 'carto.com/privacy', 'app.js', 2, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),
   s('indirizzi', 'carto.com/privacy', 'index.html', 2, 'T-080', 'testi legali v1.2 in uso'),
   s('indirizzi', 'osmfoundation.org/wiki', 'app.js', 1, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),

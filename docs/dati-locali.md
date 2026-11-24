@@ -103,7 +103,7 @@ All'avvio, prima di leggere qualunque cosa, il modulo guarda se il telefono ha d
 - Le coordinate mostrate dalla pressione prolungata (T-009).
 - Tutto ciò che si fa nelle sezioni Demo, Agorà e Progetti (T-015; prova `prove/browser/anteprime.js`).
 - Il PDF del calendario: si crea sul telefono e passa al foglio di condivisione del telefono, oppure si scarica; l'app non ne tiene copia (T-027; prova `prove/browser/offgrid.js`).
-- Le librerie di terzi (MapLibre, lettore PMTiles, jsPDF, SheetJS) non salvano nulla: lo mostra l'inventario del telefono dopo il giro completo.
+- Le librerie di terzi (MapLibre, lettore PMTiles, jsPDF) non salvano nulla: lo mostra l'inventario del telefono dopo il giro completo.
 - Chi aggiunge l'app alla schermata Home: nessuno lo conta e l'app non lo annota (T-028).
 
 ## Esito per il libro mastro (§ 3.7 e cap. 30)

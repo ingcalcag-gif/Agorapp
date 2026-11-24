@@ -5,7 +5,8 @@
    che lo toglie (piano di adeguamento, sezione 11). I testi delle licenze (licenze/*.txt) sono riprodotti così
    come sono e non si controllano; della pagina licenze/index.html si controllano i collegamenti. Non si
    controllano neppure le librerie di terzi in lib/: sono copie fisse, verificate sull'impronta da
-   prove/componenti.js, e i loro testi contengono indirizzi che non contattano (spazi dei nomi, guide).
+   prove/componenti.js, e i loro testi contengono indirizzi che non contattano (spazi dei nomi, guide). Fanno eccezione,
+   dichiarata qui sotto, gli spazi dei nomi del formato .xlsx nel modulo dei file Excel dell'app della redazione.
    Le richieste che il telefono fa davvero le controlla prove/browser/richieste.js. */
 'use strict';
 const { USCITE, leggiUscita, config, riga, esito, eseguiDaSola, confronta } = require('./comune.js');
@@ -17,6 +18,10 @@ function ammessi() {
   return [...Object.values(c.indirizzi || {}), ...(c.collegamenti || [])].filter(Boolean).map(u => u.replace(/\/$/, ''));
 }
 const ammesso = (url, lista) => lista.some(a => url === a || url.startsWith(a) && /[/?#]/.test(url[a.length]));
+/* Nomi di formato, non indirizzi: ogni file .xlsx deve portare dentro di sé questi «spazi dei nomi», che nessuno chiede
+   alla rete. Li scrive soltanto il modulo dei file Excel dell'app della redazione (T-042), e solo lì sono ammessi. */
+const SPAZI_DEI_NOMI = [['redazione', 'moduli.js', /^http:\/\/schemas\.openxmlformats\.org\/(?:spreadsheetml|package|officeDocument)\/20\d\d\//]];
+const spazioDeiNomi = (u, f, url) => SPAZI_DEI_NOMI.some(([app, file, re]) => u === app && f === file && re.test(url));
 
 function prova() {
   const e = esito('Indirizzi esterni');
@@ -28,7 +33,7 @@ function prova() {
       const fonte = f === 'licenze/index.html' ? [...testo.matchAll(/\b(?:href|src)="([^"]*)"/g)].map(m => m[1]).join('\n') : testo;
       for (const m of fonte.matchAll(URL_RE)) {
         const url = m[0].replace(/[.,;:!?]+$/, '');
-        if (ammesso(url, lista)) continue;
+        if (ammesso(url, lista) || spazioDeiNomi(u, f, url)) continue;
         const x = new URL(url.replace(/\$.*$/, ''));
         const primo = x.pathname.split('/').filter(Boolean)[0];
         trovati.push({ chiave: x.host + (primo ? '/' + primo : ''), dove: f, dettaglio: `riga ${riga(fonte, m.index)}` });

@@ -69,7 +69,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--riquadro);borde
 `;
 
 /* File della cartella licenze/ da pubblicare con l'app. */
-/* fuori: nomi dei testi (es. «sheetjs.txt») dei componenti che non viaggiano con questa app (T-033). */
+/* fuori: nomi dei testi (es. un testo di un componente della sola redazione) dei componenti che non viaggiano con questa app (T-033). */
 function fileLicenze(cfg, fuori = []) {
   const elenco = componenti().filter(c => !c.testi.some(t => fuori.includes(t)));
   const file = {};

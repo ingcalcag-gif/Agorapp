@@ -106,4 +106,4 @@ Nella schermata «Pubblicazione» lo sportello di prova ha quattro comandi in pi
 
 ## Ciò che arriva dopo
 
-L'importazione dal file Excel nel formato pubblico (T-042); la riga del registro delle fonti a ogni pubblicazione, con il motivo del ritiro (T-043); gli eventi nascosti, che viaggiano cifrati in file propri (T-045); «Togli questo nome ovunque» (T-047).
+Dal blocco 10 la scheda di pubblicazione (T-041) e l'importazione dal file Excel (T-042) mandano gli eventi con le righe del registro delle fonti; restano l'esportazione del registro, l'importazione delle righe scritte a mano e il controllo della corrispondenza con lo storico (T-043); gli eventi nascosti, che viaggiano cifrati in file propri (T-045); «Togli questo nome ovunque» (T-047).

@@ -25,7 +25,7 @@
 'use strict';
 const VERSIONE = /*@@VERSIONE@@*/'';
 const COPIA = /*@@COPIA@@*/{};      // {percorso: impronta} di ogni file dell'app
-const PIGRI = /*@@PIGRI@@*/[];      // file che si conservano solo quando servono (Excel: solo nell'app della redazione)
+const PIGRI = /*@@PIGRI@@*/[];      // file che si conservano solo quando servono (dal blocco 10 nessuno)
 
 const BASE = new URL('./', self.location.href).href;
 const PERCORSO_BASE = new URL(BASE).pathname;

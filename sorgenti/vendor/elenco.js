@@ -21,10 +21,6 @@ module.exports = [
     file: { 'jspdf.umd.min.js': '98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875' },
   },
   {
-    cartella: 'sheetjs-0.18.5', licenza: 'sheetjs.txt', solo: 'redazione',   // solo nell'app della redazione (T-033)
-    file: { 'xlsx.full.min.js': 'c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99' },
-  },
-  {
     cartella: 'caratteri/dm-sans-v17', licenza: 'dm-sans.txt', nomeLicenza: 'OFL.txt',
     file: {
       'dm-sans-latin-opsz-normal.woff2': 'ca72d2bcea8f4daa783dbdfa2d9b46068c3ce38168e05918fb867aa453b4f890',

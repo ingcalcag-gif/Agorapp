@@ -1,0 +1,13 @@
+import sys, zipfile
+X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+files = {
+ '[Content_Types].xml': X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>',
+ '_rels/.rels': X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+ 'xl/workbook.xml': X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Eventi" sheetId="1" r:id="rId7"/></sheets></workbook>',
+ 'xl/_rels/workbook.xml.rels': X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/xl/worksheets/sheet1.xml" Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/><Relationship Id="rId8" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>',
+ 'xl/sharedStrings.xml': X+'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="4" uniqueCount="4"><si><t>Titolo</t></si><si><r><rPr><b/></rPr><t xml:space="preserve">Serata </t></r><r><t>inventata</t></r><rPh sb="0" eb="1"><t>NONVA</t></rPh></si><si><t>riga_x000D_\nseconda &amp; &#233;&#x1F600;</t></si><si/></sst>',
+ 'xl/worksheets/sheet1.xml': X+'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1" spans="1:3"><c r="A1" t="s"><v>0</v></c><c r="C1" t="s"><v>3</v></c></row><row r="3"><c r="A3" t="s"><v>1</v></c><c r="B3" s="2"><f>SUM(4,4.5)</f><v>8.5</v></c><c r="C3" t="str"><f>CONCAT("a","b")</f><v>ab</v></c><c r="D3" t="e"><v>#N/A</v></c><c r="AA3" t="s"><v>2</v></c></row></sheetData></worksheet>',
+}
+with zipfile.ZipFile(sys.argv[1], 'w', zipfile.ZIP_DEFLATED) as z:
+    for k, v in files.items(): z.writestr(k, v)
+print('ok')

@@ -302,11 +302,12 @@ async function prova() {
       if (!(await entra())) return;
       await controlla('strumenti della redazione');
       await p.setInputFiles('#fileImporta', { name: 'eventi-inventati.csv', mimeType: 'text/csv', buffer: fileDaImportare() });
-      try { await p.waitForFunction(() => { const x = window.AGR.stato.importa; return x && x.fase === 'pronto'; }, null, { timeout: 20000 }); } catch (err) { e.errori.push('importazione: l\'anteprima del file non arriva'); }
+      /* dal blocco 10 il file va all'importazione con anteprima (T-042): una riga rifiutata, una da sistemare */
+      try { await p.waitForFunction(() => /Rifiutate[\s\S]*Da sistemare|Da sistemare[\s\S]*Rifiutate/i.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 20000 }); } catch (err) { e.errori.push('importazione: l\'anteprima del file non arriva («' + (await p.locator('#foglio-slot').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300) + '»)'); }
       await pausa(300); await controlla('importazione, anteprima');
-      const righe = await p.locator(F + '.imp-righe > div').count();
-      if (righe < 2) e.errori.push('importazione: l\'anteprima non mostra la riga scartata e l\'avviso (' + righe + ' righe)');
-      if (await tocca(F + '[data-az="importa-ok"]', 'importazione, conferma', true)) await controlla('importazione, fatta');
+      if (await tocca(F + '[data-az="ix-correggi"]', 'importazione, correggi una riga', true)) { await pausa(400); await controlla('importazione, scheda della riga');
+        await tocca(F + '[data-az="ix-torna"]', 'importazione, ritorno', true); }
+      await tocca(F + '[data-az="ix-chiudi"]', 'importazione, chiudi', true); await tocca(F + '[data-az="ix-chiudi"]', 'importazione, chiudi davvero', true);
       if (await entra()) {
         /* Pubblicazione (T-038): lo sportello di prova riceve gli eventi ostili dell'archivio della prova; elenco, evento,
            modulo dell'evento, storico e copia da ripristinare li mostrano come testo, con il nome ostile del dispositivo */

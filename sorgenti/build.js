@@ -87,7 +87,8 @@ function riempi(html, cfg, lingua) {
 /* ---------- Librerie e caratteri ospitati con l'app (T-007) ---------- */
 const VENDOR_DIR = path.join(SORGENTI, 'vendor');
 // I file di sorgenti/vendor/ in lib/, ciascuno controllato sull'impronta annotata in vendor/elenco.js.
-// Un componente con «solo: 'redazione'» viaggia soltanto con quell'app (SheetJS: importazione ed esportazione Excel).
+// Un componente con «solo: 'redazione'» viaggia soltanto con quell'app (dal blocco 10 non ce ne sono: i file Excel li fa
+// il modulo sorgenti/moduli/excel.js).
 const delVendor = quale => VENDOR.filter(c => !c.solo || c.solo === quale);
 function fileVendor(quale = 'pubblica') {
   const file = {};
@@ -172,15 +173,16 @@ function taglia(testo, quale, nome) {
 // dell'archivio (T-022), mappa conservata sul telefono (T-029), avvisi delle novità (T-031).
 // Nel browser stanno in window.AGR_MODULI.
 const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'quadranti.js', 'archivio.js', 'mappa-locale.js', 'avvisi.js'];
-// Solo nell'app della redazione: chiavi, cassaforte e marcatore (T-034, T-037).
-const JS_MODULI_RED = ['chiavi.js', 'pacchetto.js'];
+// Solo nell'app della redazione: chiavi, cassaforte e marcatore (T-034, T-037); pacchetto firmato (T-038); file Excel
+// letti e scritti con codice nostro (T-042, decisione del 24/11/2026: al posto di SheetJS).
+const JS_MODULI_RED = ['chiavi.js', 'pacchetto.js', 'excel.js'];
 // Solo nell'app della redazione, finché non c'è Bunny (T-065): la logica dello sportello di pubblicazione, che lo sportello
 // di prova fa girare nel browser (T-038), e i confini delle regioni che le servono per i numeri dell'indice.
 const SPORTELLI_RED = ['pubblicazione.js'];
 // Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude). Gli strumenti della Redazione (sorgenti/redazione/)
 // entrano prima di app6, soltanto nell'app della redazione.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js'];
-const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'registro-fonti.js', 'scheda-pubblicazione.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
+const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'registro-fonti.js', 'scheda-pubblicazione.js', 'importa-excel.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
 const JS_FINE = ['app6.js'];
 const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css'];
 const CSS_RED = ['style_redazione.css', 'style_misure.css'];
@@ -281,7 +283,7 @@ ${legaliIt}
 const ICONE = [180, 192, 512];
 const SEMPRE_DALLA_RETE = ['avvisi.json', 'emergenza.json', 'sw.js'];
 const impronta = dati => crypto.createHash('sha256').update(dati).digest('hex').slice(0, 10);
-const pigro = f => /^lib\/sheetjs-[^/]+\/.*\.js$/.test(f);   // solo nell'app della redazione: si conserva quando la si usa
+const pigro = f => false;   // file da conservare solo al primo uso: dal blocco 10 nessuno (SheetJS è uscito con T-042)
 function completa(file, cfg, quale = 'pubblica') {
   file = { ...file };
   const red = quale === 'redazione';

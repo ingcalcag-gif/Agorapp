@@ -22,7 +22,7 @@ const VIETATI = [
   [/agorapp2024|ADMIN_PW|adminpw|mostra-admin|entra-admin|esci-admin/, 'accesso con la password'],
   [/\bst\.admin\b|badgeAdmin|badgeRed|badge-red|badge-admin|admin-box|data-az="admin|data-modifica-admin|data-elimina-admin/, 'area riservata'],
   [/\bfAdmin\b|\bfImporta\b|fAdminForm|\baform\b|st\.importa|msgAdmin|fileImporta|leggiImport|esportaExcel|scaricaModello/, 'importazione ed esportazione'],
-  [/XLSX|sheetjs|SheetJS/, 'libreria di Excel'],
+  [/XLSX|sheetjs|SheetJS|File Excel letti e scritti|MODULI\.excel|AGR_MODULI\)?\.excel/, 'file Excel della Redazione'],
   [/\bmz[A-Z]\w*|data-mz|clickMisure|misureConta|apriMisure|pagina-misure|sez-misure|MZ_KPI/, 'Misure'],
   [/foglioStorico|\bregistra\(|OP_STORICO|data-sh=/, 'storico delle operazioni'],
   [/FOGLI_RED|clickRed|azioneRed|inputRed|cambioRed|\bCHIAVI\b|fChiavi|fVerifica|fileRed|AGR_MODULI\)?\.chiavi|MODULI\.chiavi/, 'chiavi e strumenti della Redazione'],
@@ -76,7 +76,7 @@ function prova() {
   if (mP.name !== cfg.nome) err('dist/pubblica/manifest: il nome non è quello della configurazione');
   if (mR.name === mP.name || mR.short_name === mP.short_name) err('dist/redazione/manifest: il nome deve distinguersi da quello dell\'app pubblica');
   for (const n of [180, 192, 512]) { const a = pub[`icone/icona-${n}.png`], b = red[`icone/icona-${n}.png`]; if (!a || !b || a.equals(b)) err(`icona da ${n}: l'app della redazione deve avere un'icona propria`); }
-  if (!Object.keys(red).some(f => /^lib\/sheetjs-/.test(f))) err('dist/redazione: manca la libreria di Excel');
+  if (!/File Excel letti e scritti/.test(red['moduli.js'] || '')) err('dist/redazione/moduli.js: manca il modulo dei file Excel (T-042)');
 
   /* ---------- 4. nessun collegamento dall'app pubblica all'app della redazione ---------- */
   for (const [f, t] of Object.entries(pub)) if (typeof t === 'string' && !f.startsWith('lib/') && /(?:\.\.\/|dist\/|\/)redazione\//.test(t)) err(`dist/pubblica/${f}: porta verso l'app della redazione`);

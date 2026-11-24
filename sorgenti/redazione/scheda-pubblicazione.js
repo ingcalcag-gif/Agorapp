@@ -41,14 +41,17 @@ function giudizioInForma(g){
   DIECI_DOMANDE.forEach(([n, , no]) => { const v = g.dom && g.dom[n]; if(v==='si' || no.includes(v)) o.dom[n] = v; });
   if(g.elementi && typeof g.elementi==='object') ELEMENTI_RIPRESI.forEach(([k]) => { o.elementi[k] = g.elementi[k] ? 1 : 0; });
   if(g.visti && typeof g.visti==='object') Object.keys(g.visti).slice(0, 8).forEach(k => { if(typeof g.visti[k]==='string') o.visti[k] = g.visti[k].slice(0, 400); });
+  if(typeof g.domFile==='string' && g.domFile) o.domFile = g.domFile.slice(0, 200);
+  if(g.daFile) o.daFile = true;
   return o;
 }
 /* l'esito delle dieci domande come lo vuole la colonna del registro */
 function esitoDomande(g){
+  if(g.domFile) return g.domFile;   /* una riga del file d'importazione: l'esito com'è scritto nel file */
   const no = DIECI_DOMANDE.filter(([n]) => g.dom[n] && g.dom[n]!=='si');
   return no.length ? no.map(([n]) => n+': '+(CORREZIONI_DOMANDA[g.dom[n]]||'non si pubblica')).join('; ') : 'Tutte superate';
 }
-const serveConsenso = g => DIECI_DOMANDE.some(([n]) => g.dom[n]==='consenso') || (g.politico==='si' && g.nomi==='si');
+const serveConsenso = g => DIECI_DOMANDE.some(([n]) => g.dom[n]==='consenso') || g.domFile==='Consenso diretto chiesto' || (g.politico==='si' && g.nomi==='si');
 
 /* ---------- Controlli prima di pubblicare (§ 5.2; allegato A, A.2) ---------- */
 const TESTI_SCHEDA = f => [f.titolo, f.desc, f.comeArrivare, f.organizzatore, f.luogo, f.prezzo, f.fonte].map(x => String(x||''));
@@ -83,11 +86,11 @@ function giudizioManca(f){
   }
   if(!/^\d{4}-\d{2}-\d{2}$/.test(g.consultazione) || g.consultazione > oggi()) m.push(tr('la data di consultazione'));
   const senza = DIECI_DOMANDE.filter(([n]) => !g.dom[n]).length, stop = DIECI_DOMANDE.filter(([n]) => g.dom[n]==='stop').map(x => x[0]);
-  if(senza) m.push(senza===10 ? tr('le dieci domande') : tr('{n} delle dieci domande',{n:senza}));
+  if(senza && !g.domFile) m.push(senza===10 ? tr('le dieci domande') : tr('{n} delle dieci domande',{n:senza}));
   if(stop.length) m.push(tr('un evento che si può pubblicare: alla domanda {n} hai risposto che non si pubblica',{n:stop.join(', ')}));
   if(!ELEMENTI_RIPRESI.some(([k]) => g.elementi[k])) m.push(tr('gli elementi ripresi'));
   if(g.nomi!=='no' && g.nomi!=='si') m.push(tr('i nomi di persone: sì o no'));
-  else if(g.nomi==='si' && !g.ruoli.trim()) m.push(tr('il ruolo delle persone nominate'));
+  else if(g.nomi==='si' && !g.ruoli.trim() && !g.daFile) m.push(tr('il ruolo delle persone nominate'));
   if(g.politico!=='no' && g.politico!=='si') m.push(tr('evento politico o religioso: sì o no'));
   if(!AVVISI_ORG[g.avviso]) m.push(tr('l’avviso all’organizzatore'));
   else if(g.avviso==='inviato' && (!/^\d{4}-\d{2}-\d{2}$/.test(g.avvisoData) || !g.avvisoCanale.trim())) m.push(tr('data e canale dell’avviso'));
@@ -143,6 +146,7 @@ function schedaGiudizio(f){
     ${fo && fo.tipo==='social' ? scelta('g-post', 'post', tr('Post leggibile senza account'), [['si', tr('Sì: l’ho aperto senza accedere e si legge')]], tr('Valgono solo i post che si leggono senza account, nemmeno con quello del progetto; le storie non sono mai fonte (§ 6.4).')) : ''}
     <h3 class="g-tit">${tr('Le dieci domande')}</h3>
     <p class="meta">${tr('Si risponde a tutte, prima di pubblicare (§ 3.4). Basta un no per fermarsi: secondo la domanda si corregge l’evento, serve il consenso diretto, oppure l’evento non si pubblica.')}</p>
+    ${g.domFile ? `<div class="red-riquadro" role="note"><b>${tr('Dal file: «{e}»',{e:esc(g.domFile)})}</b><span class="meta">${tr('È l’esito scritto nel file. Se rispondi qui a una domanda, vale la risposta domanda per domanda.')}</span></div>` : ''}
     <div class="g-domande">${domande}</div>
     <details class="g-regole"><summary>${tr('Le regole di scrittura, a portata di mano')}</summary>
       <ul><li>${tr('Il testo riporta fatti: che cosa, dove, quando, chi organizza, come si partecipa. Nessun giudizio su persone ed enti.')}</li>
@@ -180,7 +184,9 @@ function preparaScheda(){
   if(!p){ p = {codice:regCodice('PR', d.prossimi.p++, 4), canale:'singolo'}; d.preparati.push(p); }
   Object.assign(p, {salvato:new Date().toISOString(), dati, g:JSON.parse(JSON.stringify(f.g))});
   PB.lavoro = true; disegnaFoglio();
-  regSalva().then(() => { PB.lavoro = false; st.aform = null; PB.msg = tr('Scheda salvata tra i preparati: resta su questo dispositivo, cifrata, finché non la pubblichi o non la togli.'); st.foglio = 'pubblica'; aggiornaPb(); },
+  regSalva().then(() => { PB.lavoro = false; st.aform = null; PB.msg = tr('Scheda salvata tra i preparati: resta su questo dispositivo, cifrata, finché non la pubblichi o non la togli.');
+      if(f.per==='importa'){ rigaPreparata(f.imp); apri('pb-importa'); return; }
+      st.foglio = 'pubblica'; aggiornaPb(); },
     () => { PB.lavoro = false; f.errori = [tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.')]; disegnaFoglio(); });
 }
 function apriPreparato(codice){
@@ -240,7 +246,7 @@ function cambioScheda(el){
     if(d.fcampo==='tipo' && !PB.fonte.grado){ const t = tipoFonte(el.value); if(t){ PB.fonte.grado = t[2]; disegnaFoglio(); } }
     return true; }
   if(!f || !f.g) return false;
-  if(d.gdom){ if(el.value) f.g.dom[d.gdom] = el.value; else delete f.g.dom[d.gdom]; disegnaFoglio(); return true; }
+  if(d.gdom){ if(el.value) f.g.dom[d.gdom] = el.value; else delete f.g.dom[d.gdom]; delete f.g.domFile; disegnaFoglio(); return true; }
   if(d.gcampo){ f.g[d.gcampo] = el.value; if(d.gcampo==='fonte') fonteScelta(f); if(el.tagName==='SELECT') disegnaFoglio(); else aggiornaSpia(); return true; }
   return false;
 }

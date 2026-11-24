@@ -38,7 +38,7 @@ function errorePb(e){
   };
   return (T[e && e.motivo] || (() => tr('Non è riuscito: riprova.')))();
 }
-const fogliPb = ['pubblica', 'pb-evento', 'pb-storico', 'pb-copia', 'pb-fonti', 'pb-fonte', 'aform'];
+const fogliPb = ['pubblica', 'pb-evento', 'pb-storico', 'pb-copia', 'pb-fonti', 'pb-fonte', 'pb-importa', 'aform'];
 const ridisegnaPb = () => { if(!fogliPb.includes(st.foglio)) return;
   /* il modulo dell'evento non si ridisegna mentre si scrive in un campo: si perderebbe il punto in cui si scrive */
   const a = document.activeElement; if(st.foglio==='aform' && a && a.closest && a.closest('#foglio-slot') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
@@ -50,10 +50,10 @@ function aggiornaPb(){
     .then(() => { PB.carico = false; ridisegnaPb(); });
 }
 /* manda un pacchetto che scrive; poi rilegge l'elenco e torna alla schermata «Pubblicazione» */
-function scriviPb(contenuto, fatto){
+function scriviPb(contenuto, fatto, torna){
   if(PB.lavoro) return Promise.resolve(false);
   PB.lavoro = true; PB.errore = ''; PB.msg = ''; ridisegnaPb();
-  return SPORTELLO.chiedi(contenuto).then(r => { PB.lavoro = false; PB.msg = fatto(r); PB.sel = null; PB.ritiro = null; st.foglio = 'pubblica'; return aggiornaPb().then(() => true); },
+  return SPORTELLO.chiedi(contenuto).then(r => { PB.lavoro = false; PB.msg = fatto(r); PB.sel = null; PB.ritiro = null; st.foglio = torna || 'pubblica'; return aggiornaPb().then(() => true); },
     e => { PB.lavoro = false; PB.errore = errorePb(e); ridisegnaPb(); return false; });
 }
 const evPb = id => { const s = PB.stato; if(!s) return null; const e = s.eventi.find(x => x.id===id); if(e) return {ev:e, sospeso:false}; const z = s.sospesi.find(x => x.id===id); return z ? {ev:z, sospeso:true} : null; };
@@ -76,7 +76,7 @@ function fPubblica(){
       ${s.sospesi.length ? `<p class="etich">${tr('Sospesi')} · ${s.sospesi.length}</p><div class="menu-lista">${s.sospesi.map(ev => rigaEvPb(ev, 'data-pbev', tr('fuori dalla mappa'))).join('')}</div>` : ''}
       <p class="meta">${s.aggiornato ? tr('Ultima pubblicazione: {q}.',{q:esc(quandoPb(s.aggiornato))}) : tr('Non è ancora stato pubblicato nulla.')} ${tr('Gli eventi finiti da più di tre ore escono da soli.')}</p>`;
   const corpo = `${prova}${statoPb()}
-    <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="pb-fonti">${tr('Fonti')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
+    <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="ix-file">${tr('Importa da Excel')}</button><button class="tasto sec" data-az="pb-fonti">${tr('Fonti')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
     ${preparatiHtml()}
     ${elenco}
     <button class="link" data-az="pb-aggiorna">${tr('Aggiorna l’elenco')}</button>`;
@@ -116,11 +116,11 @@ function apriEventoForm(ev, per){
 }
 const dtLocal = d => ymd(d)+'T'+hm(d);
 function fEventoForm(){
-  const f = st.aform, E = f.err, l = S[f.strato], ripr = f.per==='ripristino';
+  const f = st.aform, E = f.err, l = S[f.strato], ripr = f.per==='ripristino', imp = f.per==='importa';
   const campo = (id, lab, html, err, fac) => `<div class="stack-s"><label class="etich" for="${id}">${lab}${fac?` <span class="fac">${fac}</span>`:''}</label>${html}${err?`<span class="err">${err}</span>`:''}</div>`;
   const riga = (id, c, lab, max, segna, fac, tipo) => campo(id, lab, `<div class="campo${E[c]?' errore':''}"><input id="${id}" data-acampo="${c}" maxlength="${max}" value="${esc(f[c])}" placeholder="${esc(segna||'')}" autocomplete="off"${tipo?` type="${tipo}" inputmode="${tipo}"`:''}></div>`, '', fac);
   const fac = tr('facoltativo');
-  const testa = `<div class="riga-titolo"><div><h2>${f.id ? tr('Correggi l’evento') : tr('Nuovo evento')}</h2><p class="meta">${ripr ? tr('Nella copia da ripristinare: si pubblica con la copia') : tr('Redazione · si pubblica con la firma di questo dispositivo')}</p></div>${chiudiBtn(ripr ? 'pb-copia' : 'pubblica')}</div>`;
+  const testa = `<div class="riga-titolo"><div><h2>${imp ? tr('Riga {r} del file',{r:f.imp}) : f.id ? tr('Correggi l’evento') : tr('Nuovo evento')}</h2><p class="meta">${ripr ? tr('Nella copia da ripristinare: si pubblica con la copia') : imp ? tr('Dall’importazione: si pubblica con le altre righe segnate') : tr('Redazione · si pubblica con la firma di questo dispositivo')}</p></div>${chiudiBtn(ripr ? 'pb-copia' : imp ? 'ix-torna' : 'pubblica')}</div>`;
   const corpo = `
     ${riga('a-titolo', 'titolo', tr('Titolo'), 100, tr('Nome dell’evento'))}
     <div class="due">${campo('a-strato', tr('Strato'), `<div class="campo${E.strato?' errore':''}"><select id="a-strato" data-acampo="strato"><option value="">${tr('— Scegli —')}</option>${LAYERS.map(x => `<option value="${x.id}" ${f.strato===x.id?'selected':''}>${esc(tr(x.label))}</option>`).join('')}</select></div>`)}
@@ -141,7 +141,7 @@ function fEventoForm(){
     ${ripr ? '' : schedaGiudizio(f)}
     ${f.errori.length ? `<div class="red-riquadro pb-errori" role="alert"><b>${f.errori.length===1 ? tr('Prima di pubblicare manca una cosa:') : tr('Prima di pubblicare mancano {n} cose:',{n:f.errori.length})}</b>${f.errori.map(x => `<span class="err">${esc(x)}</span>`).join('')}</div>` : ''}
     ${statoPb()}
-    <div class="tasti"><button class="tasto sec" data-az="${ripr ? 'pb-copia' : 'pubblica'}">${tr('Annulla')}</button>${ripr || f.id ? '' : `<button class="tasto sec" data-az="g-prepara">${tr('Salva tra i preparati')}</button>`}<button class="tasto pri" data-az="a-pubblica" ${!ripr && giudizioManca(f).length ? 'disabled' : ''}>${ripr ? tr('Tieni nella copia') : f.id ? tr('Pubblica la correzione') : tr('Pubblica')}</button></div>
+    <div class="tasti"><button class="tasto sec" data-az="${ripr ? 'pb-copia' : imp ? 'ix-torna' : 'pubblica'}">${tr('Annulla')}</button>${ripr || f.id ? '' : `<button class="tasto sec" data-az="g-prepara">${tr('Salva tra i preparati')}</button>`}<button class="tasto pri" data-az="a-pubblica" ${!ripr && giudizioManca(f).length ? 'disabled' : ''}>${ripr ? tr('Tieni nella copia') : imp ? tr('Tieni nell’importazione') : f.id ? tr('Pubblica la correzione') : tr('Pubblica')}</button></div>
     ${ripr ? '' : spiaHtml(f)}`;
   return foglio('forte alto', testa, corpo);
 }
@@ -193,6 +193,7 @@ function pubblicaForm(){
     if(errori.length){ f.errori = errori; disegnaFoglio(); mostraErroriPb(); return; }
     /* senza le colonne di giudizio non si pubblica (cap. 22, regola 1): il tasto è spento, e qui si ricontrolla */
     if(f.per!=='ripristino'){ const manca = giudizioManca(f); if(manca.length){ f.errori = [testoSpia(manca)]; disegnaFoglio(); mostraErroriPb(); return; } }
+    if(f.per==='importa'){ tieniNellImportazione(f); return; }
     if(f.per==='ripristino'){ const R = PB.ripr; if(R){ const i = R.eventi.findIndex(x => x.id===ev.id), j = R.sospesi.findIndex(x => x.id===ev.id); if(i>=0) R.eventi[i] = ev; else if(j>=0) R.sospesi[j] = ev; R.corretti++; } st.aform = null; apri('pb-copia'); return; }
     const nuovo = !f.id, g = f.g, prepScheda = f.prep;
     /* la riga del registro delle fonti parte cifrata nello stesso pacchetto dell'evento (§ 3.4; cap. 22): se lo sportello
@@ -207,6 +208,7 @@ function pubblicaForm(){
       () => { f.errori = [tr('Non sono riuscito a preparare la riga del registro delle fonti: non pubblico.')]; disegnaFoglio(); });
   };
   if(f.id) con(f.id);
+  else if(f.per==='importa') con(ID_PROVVISORIO);   /* l'identificativo vero nasce alla pubblicazione delle righe segnate */
   else CHIAVI.nuovoId().then(id => { if(st.aform===f) con(id); }, () => { if(st.aform===f){ f.errori = [tr('Per pubblicare servono le chiavi della Redazione: Strumenti della redazione → Chiavi.')]; disegnaFoglio(); } });
 }
 
@@ -307,7 +309,8 @@ function azionePubblica(az, t){
     case 'pb-ripr-togli': { const R = PB.ripr; if(R){ R.eventi = R.eventi.filter(e => e.id!==t.dataset.id); R.sospesi = R.sospesi.filter(e => e.id!==t.dataset.id); disegnaFoglio(); } break; }
     case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}); }); break; }
-    default: return azioneScheda(az, t);
+    case 'ix-torna': st.aform = null; apri('pb-importa'); break;
+    default: return azioneScheda(az, t) || azioneImporta(az, t);
   }
   return true;
 }

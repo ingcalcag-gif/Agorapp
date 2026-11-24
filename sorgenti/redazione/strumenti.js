@@ -17,8 +17,8 @@ function fAdmin(){
   const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
     <div class="menu-lista">
       <button class="menu-r" data-az="pubblica">${icoCal()}<div><span class="t">${tr('Pubblicazione')}</span><span class="meta">${tr('Eventi pubblicati, nuovo evento, correzione, sospensione, ritiro e storico')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx (vanno bene anche .ods e .csv): una riga per evento')}</span></div>${freccia}</button>
-      <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne giuste, una riga d’esempio e l’elenco degli strati')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx o .csv: una riga per evento')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne del file degli eventi, i valori ammessi e l’elenco degli strati')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-esporta">${icoEsporta}<div><span class="t">${tr('Esporta in Excel')}</span><span class="meta">${tr('Gli eventi on-grid di questo dispositivo')}</span></div>${freccia}</button></div>
     <div class="menu-lista">
       <button class="menu-r" data-az="chiavi">${icoLucchetto(16)}<div><span class="t">${tr('Chiavi')}</span><span class="meta">${statoChiavi}</span></div>${freccia}</button>
@@ -37,21 +37,11 @@ function esporta(){
   st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio();
 }
 /* ======================= Excel: importa, modello, esporta ======================= */
-/* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers.
-   La libreria (SheetJS) viaggia soltanto con l'app della redazione e si carica solo quando serve. */
-const URL_XLSX = 'lib/sheetjs-0.18.5/xlsx.full.min.js';
+/* Il formato è .xlsx (Office Open XML): lo aprono e lo creano Excel, LibreOffice, Google Fogli e Numbers. Dal blocco 10
+   i file si leggono e si scrivono con codice nostro (sorgenti/moduli/excel.js, T-042), senza librerie di terzi e senza
+   rete; un file .ods va prima salvato come .xlsx. */
 const COLONNE = ['Titolo','Strato','Sottostrato','Descrizione','Data','Ora inizio','Ora fine','Durata','Prezzo','Indirizzo','Latitudine','Longitudine','Link','Nascosto','Password','Provenienza'];
-/* colonne che non si importano: si riconoscono solo per rifiutare la riga che le compila (T-011; § 6.2) */
-const COLONNE_RIFIUTATE = ['Immagine'];
-const ALIAS = {titolo:['title','nome','evento'], strato:['category','categoria','layer'], sottostrato:['sublayer','sottocategoria'], descrizione:['description','descr'], data:['date','giorno'],
-  'ora inizio':['ora','inizio','orario','time','start'], 'ora fine':['fine','end'], durata:['duration'], prezzo:['price','costo'], indirizzo:['address','luogo','dove'],
-  latitudine:['lat','latitude'], longitudine:['lng','lon','long','longitude'], link:['url','sito'], immagine:['image','img','foto'], nascosto:['hidden'], password:['parola segreta'], provenienza:['fonte','origine','source','flusso']};
 const normT = x => String(x==null?'':x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-function chiaveColonna(h){
-  const n = normT(h); if(!n) return null;
-  for(const c of COLONNE.concat(COLONNE_RIFIUTATE)){ const k = c.toLowerCase(); if(n===normT(c) || (ALIAS[k]||[]).some(a => normT(a)===n)) return k; }
-  return null;
-}
 const pad2 = n => String(n).padStart(2,'0');
 function leggiData(v){
   if(v==null || v==='') return null;
@@ -70,8 +60,6 @@ function leggiOra(v){
   return pad2(m[1])+':'+(m[2]||'00');
 }
 const numero = v => { if(typeof v==='number') return v; const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n) ? n : null; };
-const leggiProv = v => { const n = normT(v); return /consens|diretto|^a$|flusso a/.test(n) ? 'consenso' : /pubblic|^b$|flusso b/.test(n) ? 'pubblica' : ''; };
-const siNo = v => /^(si|sì|s|yes|y|x|1|true|vero)$/i.test(String(v==null?'':v).trim());
 /* strato e sottostrato si riconoscono anche scritti a metà («Conferenze», «conferenze talk») o in un'altra lingua dell'app */
 const parole = x => normT(x).split(' ').filter(w => w && !['e','ed','and','y','et','di','de','of'].includes(w));
 function trova(lista, v, nomi){
@@ -88,62 +76,7 @@ function trovaSub(l, v){ return l ? trova(l.sub, v, x => nomiIn(x, x.label)) : n
 function leggiImport(file){
   const nome = (file.name||'').toLowerCase();
   if(nome.endsWith('.json')) return leggiImportJson(file);
-  st.importa = {fase:'leggo', tot:0, ok:[], scarti:[], avvisi:[], fatti:0, daCercare:0}; apri('importa');
-  const I = st.importa;
-  Promise.all([caricaScript(URL_XLSX), file.arrayBuffer()]).then(([_, buf]) => {
-    if(st.importa!==I) return;
-    const wb = XLSX.read(buf, {type:'array', raw:nome.endsWith('.csv')});
-    const ws = wb.Sheets[wb.SheetNames.find(n => normT(n)==='eventi') || wb.SheetNames[0]];
-    const righe = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
-    const iTesta = righe.findIndex(r => r.filter(c => chiaveColonna(c)).length >= 3);
-    if(iTesta<0){ st.importa = null; st.msgAdmin = tr('Nel file non trovo le colonne: scarica il modello Excel e parti da lì.'); apri('admin'); return; }
-    const mappa = righe[iTesta].map(chiaveColonna);
-    const dati = righe.slice(iTesta+1).map((r, k) => { const o = {riga:iTesta+k+2}; mappa.forEach((c, j) => { if(c) o[c] = r[j]; }); return o; })
-      .filter(o => COLONNE.concat(COLONNE_RIFIUTATE).some(c => String(o[c.toLowerCase()]==null?'':o[c.toLowerCase()]).trim()));
-    I.tot = dati.length;
-    const chiavi = new Set(events.map(e => normT(e.title)+'|'+e.datetime));
-    const daCercare = [];
-    dati.forEach((o, k) => {
-      const no = motivo => I.scarti.push({riga:o.riga, motivo});
-      const titolo = String(o.titolo==null?'':o.titolo).trim().slice(0, TITLE_MAX);
-      if(!titolo) return no(tr('manca il titolo'));
-      if(String(o.immagine==null?'':o.immagine).trim()) return no(tr('colonna «Immagine» compilata: {nome} non pubblica immagini, svuotala e importa di nuovo'));
-      const l = trovaStrato(o.strato); if(!l) return no(o.strato ? tr('strato «{s}» non riconosciuto',{s:o.strato}) : tr('manca lo strato'));
-      const g = leggiData(o.data); if(!g) return no(o.data ? tr('data non leggibile') : tr('manca la data'));
-      const h = leggiOra(o['ora inizio']) || (typeof o.data==='number' && o.data%1 ? leggiOra(o.data) : null); if(!h) return no(tr('manca l’ora di inizio'));
-      const datetime = g+'T'+h, hf = leggiOra(o['ora fine']);
-      let fine = hf ? g+'T'+hf : ''; if(fine && fine<=datetime) fine = piuGiorni(g,1)+'T'+hf;
-      if(new Date(fine||datetime).getTime() < Date.now()) return no(tr('è già passato'));
-      if(chiavi.has(normT(titolo)+'|'+datetime)) return no(tr('c’è già'));
-      chiavi.add(normT(titolo)+'|'+datetime);
-      const sub = trovaSub(l, o.sottostrato); if(o.sottostrato && !sub) I.avvisi.push({riga:o.riga, motivo:tr('sottostrato «{s}» non riconosciuto: lasciato vuoto',{s:o.sottostrato})});
-      const lat = numero(o.latitudine), lng = numero(o.longitudine), coord = lat!=null && lng!=null && Math.abs(lat)<=90 && Math.abs(lng)<=180 && (lat || lng);
-      const indirizzo = String(o.indirizzo==null?'':o.indirizzo).trim();
-      if(!coord && indirizzo.length<3) return no(tr('manca l’indirizzo'));
-      const nascosto = siNo(o.nascosto), pw = String(o.password==null?'':o.password).trim();
-      if(nascosto && !pw) return no(tr('evento nascosto senza password'));
-      const ev = {id:'x'+Date.now().toString(36)+k, title:titolo, category:l.id, sublayer:sub?sub.label:'', description:String(o.descrizione==null?'':o.descrizione).trim().slice(0,500),
-        datetime, end:fine, duration:String(o.durata==null?'':o.durata).trim(), price:String(o.prezzo==null?'':o.prezzo).trim(), link:normLink(String(o.link==null?'':o.link)),
-        hidden:nascosto, hiddenPassword:nascosto?pw:'', offgrid:false, address:indirizzo, addressFull:indirizzo, addrPrecision:coord?'exact':'', addrNum:'', lat:coord?lat:null, lng:coord?lng:null, importato:true, creato:new Date().toISOString(), provenienza:leggiProv(o.provenienza)};
-      if(coord) I.ok.push(ev); else daCercare.push({ev, riga:o.riga});
-    });
-    I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; disegnaFoglio();
-    /* gli indirizzi senza coordinate si cercano con Photon uno alla volta, uno al secondo (T-008) */
-    (async () => {
-      for(const x of daCercare){
-        if(st.importa!==I) return;
-        const q = x.ev.address, pa = parseAddr(q);
-        let r = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); r = res.list[0]; }catch(e){}
-        await new Promise(ok => setTimeout(ok, 1000));
-        if(st.importa!==I) return;
-        if(r){ x.ev.lat = r.lat; x.ev.lng = r.lng; x.ev.addressFull = testoRisultato(r); x.ev.addrPrecision = r.precision||'exact'; x.ev.addrNum = r.hn||''; I.ok.push(x.ev); }
-        else I.scarti.push({riga:x.riga, motivo:tr('indirizzo non trovato: aggiungi latitudine e longitudine')});
-        I.fatti++; if(st.foglio==='importa') disegnaFoglio();
-      }
-      if(st.importa!==I) return;
-      I.fase = 'pronto'; I.scarti.sort((a,b) => a.riga-b.riga); if(st.foglio==='importa') disegnaFoglio();
-    })();
-  }).catch(() => { if(st.importa!==I) return; st.importa = null; st.msgAdmin = tr('Il file non si legge: controlla che sia un foglio .xlsx, .ods o .csv (serve la connessione per aprirlo).'); apri('admin'); });
+  return importaExcel(file);   /* dal blocco 10 (T-042) il file Excel o CSV va all'importazione con anteprima (importa-excel.js) */
 }
 function leggiImportJson(file){
   const r = new FileReader();
@@ -175,37 +108,37 @@ function fImporta(){
     <div class="tasti"><button class="tasto sec" data-az="importa-annulla">${tr('Annulla')}</button><button class="tasto pri" data-az="importa-ok" ${I.ok.length?'':'disabled'}>${tr('Importa')}</button></div>`;
   return foglio('forte alto', testa, corpo);
 }
-const ESEMPIO = () => { const d = new Date(); d.setDate(d.getDate()+7); const m = LAYERS.find(l => l.id==='musica') || LAYERS[0];
-  return ['Concerto nel cortile', m.label, (m.sub[0]||{}).label||'', 'Un pomeriggio di musica dal vivo nel cortile, aperto a tutto il quartiere.', d, '18:30', '20:00', '', 'Gratuito', 'Via Giuseppe Mazzini 10, Torino', '', '', 'https://esempio.it', 'no', '', 'Fonte pubblica']; };
 function fileExcel(fogli, nome){
-  return caricaScript(URL_XLSX).then(() => {
-    const wb = XLSX.utils.book_new();
-    fogli.forEach(([n, righe, larg]) => {
-      /* le date come numero di serie di Excel con formato gg/mm/aaaa: niente sorprese di fuso orario */
-      const date = [];
-      const r2 = righe.map((r, i) => r.map((c, j) => { if(c instanceof Date){ date.push([i, j]); return (Date.UTC(c.getFullYear(), c.getMonth(), c.getDate()) - Date.UTC(1899, 11, 30))/864e5; } return c; }));
-      const ws = XLSX.utils.aoa_to_sheet(r2);
-      date.forEach(([i, j]) => { const c = ws[XLSX.utils.encode_cell({r:i, c:j})]; if(c){ c.t = 'n'; c.z = 'dd/mm/yyyy'; } });
-      if(larg) ws['!cols'] = larg.map(w => ({wch:w})); XLSX.utils.book_append_sheet(wb, ws, n); });
-    XLSX.writeFile(wb, nome, {compression:true});
+  return Promise.resolve().then(() => {
+    const blob = new Blob([MODULI.excel.scrivi(fogli)], {type:MODULI.excel.MIME});
+    const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
   });
 }
 const LARG = [28,22,24,48,12,10,10,10,12,34,12,12,26,10,14,20];
+/* Il modello del file degli eventi da importare (T-042): le colonne del file «Eventi da importare» del
+   13/11/2026, senza quelle da lasciare vuote (Immagine, Nascosto, Password) e senza «Provenienza», che l'importazione
+   non usa; in più «Luogo» e «Come arrivare», facoltative. Solo le intestazioni: nessun evento d'esempio. */
+const MODELLO = [['Titolo',34],['Strato',15],['Sottostrato',16],['Descrizione',50],['Data',12],['Ora inizio',10],['Ora fine',10],['Durata',10],['Prezzo',12],
+  ['Luogo',28],['Indirizzo',34],['Come arrivare',30],['Latitudine',11],['Longitudine',11],['Link',34],['Fonte',30],['Organizzatore',26],
+  ['Fonte (codice FS)',12],['Data di consultazione',13],['Post leggibile senza account',18],['Dieci domande',18],['Domande e correzioni',26],['Nomi ripresi',16],
+  ['Evento politico o religioso',11],['Prova del consenso (codice C)',12],['Recapito dell’organizzatore per l’avviso (codice K)',14]];
 function scaricaModello(){
   const strati = [['Strato','Sottostrato']].concat(...LAYERS.map(l => l.sub.map((x, i) => [i ? '' : l.label, x.label])));
+  const valori = [['Colonna','Valori ammessi'],['Post leggibile senza account','Sì, verificato senza accedere · Non pertinente'],['Dieci domande','Tutte superate · Correzione applicata · Consenso diretto chiesto'],
+    ['Nomi ripresi','Nessun nome · Sì, con il solo ruolo'],['Evento politico o religioso','Sì · No']];
   const istr = [['Come compilare il file'],[''],
     ['Una riga per evento, nel foglio «Eventi». Non cambiare i nomi delle colonne.'],
-    ['Obbligatori: Titolo, Strato, Data, Ora inizio, e Indirizzo oppure Latitudine e Longitudine.'],
-    ['Strato e Sottostrato: scrivili come nel foglio «Strati».'],
-    ['Data: una data (05/11/2026). Ora inizio e Ora fine: 18:30.'],
-    ['Indirizzo: via, numero civico e città. Se mancano le coordinate, '+NOME+' cerca l’indirizzo da sé (uno al secondo).'],
-    ['Nascosto: sì o no. Se sì, serve la Password per sbloccarlo.'],
-    ['Provenienza (facoltativa): «Consenso diretto» se l’organizzatore ti ha dato il consenso, «Fonte pubblica» se l’evento viene da un sito o una pagina pubblica. Serve alle Misure.'],
-    ['Gli eventi già passati, o che ci sono già, non vengono importati.'],
-    ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx.']];
-  fileExcel([['Eventi', [COLONNE, ESEMPIO()], LARG], ['Strati', strati, [26,30]], ['Istruzioni', istr, [110]]], nomeFile()+'-modello-eventi.xlsx')
-    .then(() => { st.msgAdmin = tr('Modello scaricato: {f}',{f:nomeFile()+'-modello-eventi.xlsx'}); disegnaFoglio(); })
-    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+    ['Per pubblicare servono: Titolo, Strato, Data, Ora inizio, Descrizione riscritta con parole proprie, Indirizzo (oppure Latitudine e Longitudine), Fonte.'],
+    ['Luogo: il nome del luogo (per esempio «Sala del quartiere»). Se manca, l’app usa l’indirizzo e chiede di controllarlo.'],
+    ['Come arrivare: facoltativo; utile quando il punto è messo a mano.'],
+    ['Strato e Sottostrato: scrivili come nel foglio «Strati». Data: 05/11/2026. Ora inizio e Ora fine: 18:30.'],
+    ['Colonne del registro delle fonti: il codice FS deve essere nell’elenco delle fonti dell’app (Pubblicazione → Fonti); i valori ammessi sono nel foglio «Valori».'],
+    ['Niente immagini, password o eventi nascosti in questo file.'],
+    ['Nell’app ogni riga si guarda prima di pubblicarla. Il file non si conserva nell’app.'],
+    ['Il file si apre e si salva con Excel, LibreOffice, Google Fogli o Numbers: salvalo in formato .xlsx (non .ods).']];
+  fileExcel([['Eventi', [MODELLO.map(x => x[0])], MODELLO.map(x => x[1])], ['Valori', valori, [30,70]], ['Strati', strati, [26,30]], ['Istruzioni', istr, [120]]], nomeFile()+'-eventi-da-importare.xlsx')
+    .then(() => { st.msgAdmin = tr('Modello scaricato: {f}',{f:nomeFile()+'-eventi-da-importare.xlsx'}); disegnaFoglio(); })
+    .catch(() => { st.msgAdmin = tr('Non sono riuscito a preparare il file Excel.'); disegnaFoglio(); });
 }
 function esportaExcel(){
   const dati = events.filter(e => !e.personal && !e.offgrid);
@@ -213,10 +146,10 @@ function esportaExcel(){
     return [e.title||'', S ? S.label : (e.category||''), e.sublayer||'', e.description||'', g ? dIso(g) : '', h||'', e.end ? String(e.end).split('T')[1]||'' : '', e.duration||'', e.price||'', e.addressFull||e.address||'', +e.lat, +e.lng, e.link||'', e.hidden?'sì':'no', e.hidden?(e.hiddenPassword||''):'', e.provenienza==='consenso'?'Consenso diretto':e.provenienza==='pubblica'?'Fonte pubblica':'']; };
   fileExcel([['Eventi', [COLONNE].concat(dati.map(riga)), LARG]], nomeFile()+'_'+oggi()+'.xlsx')
     .then(() => { registra('esporta-excel', {n:dati.length}); st.msgAdmin = tr('Esportati {n} eventi.',{n:dati.length}); disegnaFoglio(); })
-    .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
+    .catch(() => { st.msgAdmin = tr('Non sono riuscito a preparare il file Excel.'); disegnaFoglio(); });
 }
 /* ======================= Agganci dai pezzi comuni ======================= */
-const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, chiavi:fChiavi, verifica:fVerifica, pubblica:fPubblica, 'pb-evento':fPbEvento, 'pb-storico':fPbStorico, 'pb-copia':fPbCopia, 'pb-fonti':fPbFonti, 'pb-fonte':fPbFonte};
+const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, 'pb-importa':fPbImporta, chiavi:fChiavi, verifica:fVerifica, pubblica:fPubblica, 'pb-evento':fPbEvento, 'pb-storico':fPbStorico, 'pb-copia':fPbCopia, 'pb-fonti':fPbFonti, 'pb-fonte':fPbFonte};
 /* un tocco: true se era per gli strumenti della Redazione */
 function clickRed(t){
   if(t.dataset.mz!=null && clickMisure(t)) return true;
