@@ -29,8 +29,9 @@
   const FINESTRA_MS = 5 * 6e4;          // un pacchetto vale cinque minuti prima o dopo l'ora dello sportello (decisione del 23/11/2026)
   const MAX_CARATTERI = 2e6;            // un pacchetto più lungo non si legge nemmeno
   /* Che cosa si può chiedere: «scrivi» (pubblicare, correggere, sospendere, riattivare, ritirare), «ripristina» (una
-     copia dello storico), e tre letture riservate alla Redazione: «stato», «storico», «copia». */
-  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia'];
+     copia dello storico), e quattro letture riservate alla Redazione: «stato», «storico», «copia» e, dal blocco 10,
+     «registro» (le buste del registro delle fonti, che lo sportello non sa aprire: T-043). */
+  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia', 'registro'];
   const IMPRONTA = /^[0-9a-f]{4}( [0-9a-f]{4}){3}$/, NUMERO = /^[0-9a-f]{32}$/, B64 = /^[A-Za-z0-9_-]+$/;
   const QUANDO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 

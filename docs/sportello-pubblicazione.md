@@ -26,11 +26,12 @@ La firma copre data e ora, numero, dispositivo e contenuto: cambiare una sola le
 
 | Operazione | Che cosa fa |
 | --- | --- |
-| `scrivi` | `pubblica`: eventi nuovi o corretti (un identificativo già pubblicato sostituisce l'evento); `sospendi` e `riattiva`: identificativi; `ritira`: identificativo, motivo e, se c'è, la voce del registro; `registro` (dal blocco 10): la busta cifrata con le righe del registro delle fonti di questa pubblicazione, solo insieme a `pubblica` o a `ritira` |
+| `scrivi` | `pubblica`: eventi nuovi o corretti (un identificativo già pubblicato sostituisce l'evento); `sospendi` e `riattiva`: identificativi; `ritira`: identificativo, motivo e, se c'è, la voce del registro; `registro` (dal blocco 10): la busta cifrata con le righe del registro delle fonti di questa pubblicazione, solo insieme a `pubblica` o a `ritira`; `registroDa` (T-043): il primo numero F che lo sportello può dare, solo insieme a `registro` |
 | `ripristina` | Sostituisce l'elenco con gli eventi di una copia dello storico, così come la Redazione li rimanda dopo aver ripetuto le rimozioni |
 | `stato` | Legge l'elenco riservato: eventi pubblicati e sospesi |
 | `storico` | Legge l'elenco delle copie datate |
 | `copia` | Legge una copia |
+| `registro` | Dal blocco 10 (T-043): le buste del registro delle fonti conservate, chiuse (tutte, o quelle dopo la copia `dopo`; al più 500 per volta), e, con `da` e `a` (giorni `aaaa-mm-gg`), gli eventi pubblicati la prima volta nel periodo secondo le copie dello storico, ciascuno con il suo codice F |
 
 Ogni evento passa dal controllo del formato (`sorgenti/moduli/eventi.js`, lo stesso dell'app): se uno solo non lo supera, il pacchetto si rifiuta intero e non si scrive nulla. Un evento già uscito dalla mappa non si pubblica.
 
@@ -72,6 +73,10 @@ Prima scrive ciò che è riservato, poi i file pubblici: se la scrittura si inte
 
 Gli eventi finiti da più di tre ore escono dall'elenco alla pubblicazione seguente; nel frattempo il telefono non li mostra, e i numeri per regione scendono da soli (`docs/formato-eventi.md`, «Le uscite»).
 
+Dal blocco 10 (T-043) la busta porta anche ciò che lo sportello non ha ancora del registro di quel dispositivo: le fonti aggiunte o corrette, le righe «Non pubblicati» e le righe portate dal file del registro tenuto a mano; ognuna parte una volta sola, con la pubblicazione seguente. Se tra le righe ci sono quelle scritte a mano, il pacchetto porta in chiaro `registroDa`, il primo numero F libero dopo i loro codici: lo sportello sposta in avanti il contatore (mai indietro), così un codice scritto a mano non viene dato a un altro evento (§ 18.4, regola 3).
+
+La lettura firmata `registro` restituisce le buste, chiuse, e gli eventi pubblicati la prima volta nel periodo chiesto, letti dalle copie datate dello storico. L'app della redazione le apre con la chiave del registro e ne ricava due cose (schermata «Registro delle fonti» → «Confronta con lo sportello»): il controllo della corrispondenza tra le righe del periodo e gli eventi pubblicati (cap. 22, regola 4), con gli eventi pubblicati senza riga e le righe senza evento; e, per un secondo dispositivo, le righe, le fonti e i «Non pubblicati» che mancano sul dispositivo, da riprendere. Un secondo dispositivo apre le buste perché riceve la stessa chiave del registro con la copia di riserva (`docs/chiavi-redazione.md`). I codici FS e NP li dà ancora il dispositivo che scrive la voce: due dispositivi che aggiungono una fonte prima di essersi allineati possono dare lo stesso codice a due fonti diverse; il confronto lo mostra come contrasto e non sovrascrive nulla.
+
 ## Le chiavi ammesse
 
 Le chiavi non arrivano mai con un pacchetto. `riservato/chiavi.json` ha questa forma:
@@ -106,4 +111,4 @@ Nella schermata «Pubblicazione» lo sportello di prova ha quattro comandi in pi
 
 ## Ciò che arriva dopo
 
-Dal blocco 10 la scheda di pubblicazione (T-041) e l'importazione dal file Excel (T-042) mandano gli eventi con le righe del registro delle fonti; restano l'esportazione del registro, l'importazione delle righe scritte a mano e il controllo della corrispondenza con lo storico (T-043); gli eventi nascosti, che viaggiano cifrati in file propri (T-045); «Togli questo nome ovunque» (T-047).
+Dal blocco 10 la scheda di pubblicazione (T-041) e l'importazione dal file Excel (T-042) mandano gli eventi con le righe del registro delle fonti, e l'app della redazione esporta il registro, importa quello tenuto a mano e lo confronta con lo storico (T-043). Restano: il deposito dei registri nello sportello dell'archivio (T-053), che prenderà il posto delle buste conservate qui; gli eventi nascosti, che viaggiano cifrati in file propri (T-045); «Togli questo nome ovunque» (T-047).

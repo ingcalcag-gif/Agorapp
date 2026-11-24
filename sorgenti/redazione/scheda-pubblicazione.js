@@ -236,6 +236,8 @@ function azioneScheda(az, t){
 function inputScheda(el){
   const d = el.dataset;
   if(d.fcampo && PB.fonte){ PB.fonte[d.fcampo] = el.value; return true; }
+  if(d.fpunto && PB.fonte){ PB.fonte.punti[d.fpunto] = el.value; return true; }
+  if(inputRegistro(el)) return true;
   if(d.gcampo && st.aform && st.aform.g && el.tagName!=='SELECT'){ st.aform.g[d.gcampo] = el.value; aggiornaSpia(); return true; }
   return false;
 }
@@ -243,8 +245,10 @@ function cambioScheda(el){
   const d = el.dataset, f = st.aform;
   if(d.fcampo && PB.fonte){ PB.fonte[d.fcampo] = el.value;
     /* scelto il tipo, il grado di partenza è quello dell'ordine delle fonti (§ 5.4): si può cambiare */
-    if(d.fcampo==='tipo' && !PB.fonte.grado){ const t = tipoFonte(el.value); if(t){ PB.fonte.grado = t[2]; disegnaFoglio(); } }
+    if(d.fcampo==='tipo'){ const t = tipoFonte(el.value); if(t && !PB.fonte.grado) PB.fonte.grado = t[2]; disegnaFoglio(); }
     return true; }
+  if(d.fpunto && PB.fonte){ PB.fonte.punti[d.fpunto] = el.value; return true; }
+  if(cambioRegistro(el)) return true;
   if(!f || !f.g) return false;
   if(d.gdom){ if(el.value) f.g.dom[d.gdom] = el.value; else delete f.g.dom[d.gdom]; delete f.g.domFile; disegnaFoglio(); return true; }
   if(d.gcampo){ f.g[d.gcampo] = el.value; if(d.gcampo==='fonte') fonteScelta(f); if(el.tagName==='SELECT') disegnaFoglio(); else aggiornaSpia(); return true; }

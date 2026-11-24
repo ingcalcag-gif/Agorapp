@@ -179,6 +179,29 @@ async function prova() {
   if (dep.m.get(S.PUB + 'indice.json') !== indicePrimaReg) err('registro: un pacchetto rifiutato ha cambiato l\'indice');
   t += 60000; r = await manda(D1, { operazione: 'scrivi', ritira: [{ id: ID('sei'), motivo: 'annullato' }], registro: BUSTA(5) });
   if (r.stato !== 200 || r.corpo.registro.codici[ID('sei')] !== 'F-00002') err('registro: il ritiro con la busta tiene il codice della riga');
+  /* T-043: con le righe scritte a mano il contatore dei codici F passa oltre (registroDa), e non torna mai indietro */
+  t += 1000; r = await manda(D1, { operazione: 'scrivi', pubblica: [ev('otto')], registroDa: 40 });
+  if (r.stato !== 422 || r.corpo.motivo !== 'registro') err('registro: registroDa senza la busta doveva essere rifiutato');
+  for (const x of [0, 2.5, '41', 100000]) { t += 1000; r = await manda(D1, { operazione: 'scrivi', pubblica: [ev('otto')], registro: BUSTA(6), registroDa: x }); if (r.stato !== 422 || r.corpo.motivo !== 'registro') err('registro: registroDa ' + JSON.stringify(x) + ' doveva essere rifiutato'); }
+  t += 60000; r = await manda(D1, { operazione: 'scrivi', pubblica: [ev('otto')], registro: BUSTA(6), registroDa: 41 });
+  if (r.stato !== 200 || r.corpo.registro.codici[ID('otto')] !== 'F-00041') err('registro: con registroDa 41 il primo codice libero doveva essere F-00041: ' + JSON.stringify(r.corpo.registro));
+  const copiaOtto = r.corpo.copia;
+  t += 60000; r = await manda(D2, { operazione: 'scrivi', pubblica: [ev('nove')], registro: BUSTA(7), registroDa: 3 });
+  if (r.stato !== 200 || r.corpo.registro.codici[ID('nove')] !== 'F-00042') err('registro: un registroDa più basso non riporta indietro il contatore: ' + JSON.stringify(r.corpo.registro));
+  /* T-043: la lettura firmata del registro: le buste chiuse, in ordine, e gli eventi pubblicati la prima volta nel periodo */
+  r = await manda(D2, { operazione: 'registro', da: '2026-12-01', a: '2026-12-01' });
+  const lette = (r.corpo.buste || []).map(x => x.busta.dati);
+  if (r.stato !== 200 || lette.join('|') !== [1, 2, 5, 6, 7].map(n => BUSTA(n).dati).join('|')) err('registro: la lettura firmata doveva dare le cinque buste in ordine: ' + JSON.stringify(r.corpo).slice(0, 200));
+  if ((r.corpo.buste || []).some(x => !x.dispositivo || !x.codici || !x.quando)) err('registro: ogni busta letta porta dispositivo, codici e ora');
+  const pubbl = (r.corpo.pubblicati || []).map(x => x.id);
+  if ([ID('cinque'), ID('sei'), ID('otto'), ID('nove')].some(id => !pubbl.includes(id)) || (r.corpo.pubblicati || []).find(x => x.id === ID('otto')).codice !== 'F-00041') err('registro: gli eventi pubblicati nel periodo, con il loro codice F, non tornano: ' + JSON.stringify(r.corpo.pubblicati).slice(0, 300));
+  if (pubbl.filter(id => id === ID('cinque')).length !== 1) err('registro: una correzione non è una prima pubblicazione');
+  r = await manda(D1, { operazione: 'registro', dopo: copiaOtto });
+  if (r.stato !== 200 || (r.corpo.buste || []).length !== 1 || r.corpo.buste[0].busta.dati !== BUSTA(7).dati || (r.corpo.pubblicati || []).length) err('registro: con «dopo» solo le buste seguenti, e senza periodo nessun evento: ' + JSON.stringify(r.corpo).slice(0, 200));
+  r = await manda(D1, { operazione: 'registro', da: '2026-12-02', a: '2026-12-31' });
+  if (r.stato !== 200 || (r.corpo.pubblicati || []).length) err('registro: fuori dal periodo non deve esserci nessun evento pubblicato');
+  for (const c of [{ dopo: '../chiavi' }, { da: '1/12/2026' }, { a: 5 }]) { r = await manda(D1, Object.assign({ operazione: 'registro' }, c)); if (r.stato !== 422 || r.corpo.motivo !== 'registro') err('registro: una lettura fuori forma doveva essere rifiutata: ' + JSON.stringify(c)); }
+  r = await manda(D3, { operazione: 'registro' }); if (r.stato !== 403) err('registro: un estraneo non legge il registro');
 
   /* 10 */
   r = await manda(D1, { operazione: 'storico' });

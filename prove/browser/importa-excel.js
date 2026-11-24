@@ -76,7 +76,7 @@ async function prova() {
     if (!(await apriPb())) return e;
     await aspetta(/non conosce ancora questo dispositivo/, 'senza chiavi consegnate');
     await tocca(F + '[data-az="pb-consegna"]', 'consegna delle chiavi'); await aspetta(/accetta la firma di questo dispositivo/, 'chiavi consegnate');
-    await tocca(F + '[data-az="pb-fonti"]', 'fonti'); await tocca(F + '[data-az="pb-fonte-nuova"]', 'nuova fonte');
+    await tocca(F + '[data-az="pb-registro"]', 'registro delle fonti'); await tocca(F + '[data-az="pb-fonti"]', 'fonti'); await tocca(F + '[data-az="pb-fonte-nuova"]', 'nuova fonte');
     await p.fill('#fo-nome', 'Circolo Inventato, sito'); await p.selectOption('#fo-tipo', 'sito'); await p.fill('#fo-indirizzo', 'https://circolo-inventato.example/'); await p.selectOption('#fo-esito', 'ammessa');
     await tocca(F + '[data-az="pb-fonte-salva"]', 'salva la fonte'); await aspetta(/FS-0001 · Circolo Inventato/, 'fonte FS-0001');
 

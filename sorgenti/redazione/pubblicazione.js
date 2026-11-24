@@ -38,7 +38,7 @@ function errorePb(e){
   };
   return (T[e && e.motivo] || (() => tr('Non è riuscito: riprova.')))();
 }
-const fogliPb = ['pubblica', 'pb-evento', 'pb-storico', 'pb-copia', 'pb-fonti', 'pb-fonte', 'pb-importa', 'aform'];
+const fogliPb = ['pubblica', 'pb-evento', 'pb-storico', 'pb-copia', 'pb-fonti', 'pb-fonte', 'pb-importa', 'pb-registro', 'pb-np', 'pb-np-riga', 'pb-regimporta', 'pb-confronto', 'pb-calendario', 'aform'];
 const ridisegnaPb = () => { if(!fogliPb.includes(st.foglio)) return;
   /* il modulo dell'evento non si ridisegna mentre si scrive in un campo: si perderebbe il punto in cui si scrive */
   const a = document.activeElement; if(st.foglio==='aform' && a && a.closest && a.closest('#foglio-slot') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
@@ -76,7 +76,7 @@ function fPubblica(){
       ${s.sospesi.length ? `<p class="etich">${tr('Sospesi')} · ${s.sospesi.length}</p><div class="menu-lista">${s.sospesi.map(ev => rigaEvPb(ev, 'data-pbev', tr('fuori dalla mappa'))).join('')}</div>` : ''}
       <p class="meta">${s.aggiornato ? tr('Ultima pubblicazione: {q}.',{q:esc(quandoPb(s.aggiornato))}) : tr('Non è ancora stato pubblicato nulla.')} ${tr('Gli eventi finiti da più di tre ore escono da soli.')}</p>`;
   const corpo = `${prova}${statoPb()}
-    <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="ix-file">${tr('Importa da Excel')}</button><button class="tasto sec" data-az="pb-fonti">${tr('Fonti')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
+    <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="ix-file">${tr('Importa da Excel')}</button><button class="tasto sec" data-az="pb-registro">${tr('Registro delle fonti')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
     ${preparatiHtml()}
     ${elenco}
     <button class="link" data-az="pb-aggiorna">${tr('Aggiorna l’elenco')}</button>`;
@@ -199,7 +199,7 @@ function pubblicaForm(){
     /* la riga del registro delle fonti parte cifrata nello stesso pacchetto dell'evento (§ 3.4; cap. 22): se lo sportello
        rifiuta, la riga non nasce */
     regPrepara([{ev, g, titolo:g.nomi==='si' && g.titoloReg.trim() ? g.titoloReg.trim() : ev.titolo, canale:'singolo', correzione:!nuovo}]).then(rp =>
-      scriviPb({operazione:'scrivi', pubblica:[ev], registro:rp.busta}, r => { st.aform = null; st.ultimoId = ev.id; registra(nuovo ? 'pubblica' : 'correggi', {id:ev.id, s:ev.strato}); if(!nuovo) misureConta('corretti');
+      scriviPb(conRegistro({operazione:'scrivi', pubblica:[ev]}, rp), r => { st.aform = null; st.ultimoId = ev.id; registra(nuovo ? 'pubblica' : 'correggi', {id:ev.id, s:ev.strato}); if(!nuovo) misureConta('corretti');
         const codici = (r.registro||{}).codici, codice = (codici||{})[ev.id] || '';
         regConferma(rp, codici).then(() => prepScheda ? togliPreparato(prepScheda) : null)
           .catch(() => { PB.errore = tr('L’evento è pubblicato e la riga {c} è allo sportello, ma non sono riuscito a salvarla nel registro di questo dispositivo.',{c:codice}); ridisegnaPb(); });
@@ -266,7 +266,7 @@ function fPbCopia(){
 /* ---------- Tocchi e comandi ---------- */
 function clickPubblica(t){
   const d = t.dataset;
-  if(clickScheda(t)) return true;
+  if(clickScheda(t) || clickRegistro(t)) return true;
   if(d.pbev){ PB.sel = d.pbev; PB.ritiro = null; PB.errore = ''; PB.msg = ''; apri('pb-evento'); return true; }
   if(d.pbcopia){ const i = PB.scelte.indexOf(d.pbcopia); if(i>=0) PB.scelte.splice(i, 1); else { PB.scelte.push(d.pbcopia); if(PB.scelte.length>2) PB.scelte.shift(); } PB.confronto = null; disegnaFoglio(); return true; }
   return false;
@@ -293,8 +293,8 @@ function azionePubblica(az, t){
       const rit = {id:x.ev.id, motivo:R.motivo}; if(R.riferimento.trim()) rit.riferimento = R.riferimento.trim();
       /* data e motivo del ritiro passano alla riga del registro delle fonti, se sta su questo dispositivo (cap. 22,
          «Ritiro prima della fine»), nello stesso pacchetto; il motivo resta comunque nella copia datata dello storico */
-      regApri().then(() => REG.stato==='aperto' ? regPrepara([{id:rit.id, ritiro:rit.motivo}]) : null).catch(() => null).then(rp => {
-        const c = {operazione:'scrivi', ritira:[rit]}; if(rp) c.registro = rp.busta;
+      regApri().then(() => REG.stato==='aperto' ? regPrepara([{id:rit.id, ritiro:rit.motivo, riferimento:rit.riferimento}]) : null).catch(() => null).then(rp => {
+        const c = conRegistro({operazione:'scrivi', ritira:[rit]}, rp);
         scriviPb(c, r => { registra('ritira', {id:x.ev.id, s:x.ev.strato, m:R.motivo}); misureConta('rimossi'); regConferma(rp, (r.registro||{}).codici).catch(() => {});
           return tr('Ritirato alle {o}.',{o:oraPb(r.quando)}); }); }); break; }
     case 'pb-storico': apriStoricoPb(); break;
@@ -310,7 +310,7 @@ function azionePubblica(az, t){
     case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}); }); break; }
     case 'ix-torna': st.aform = null; apri('pb-importa'); break;
-    default: return azioneScheda(az, t) || azioneImporta(az, t);
+    default: return azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t);
   }
   return true;
 }

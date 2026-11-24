@@ -63,8 +63,11 @@ function mzLeggiArchivio(){
   return sorgenteArchivio().then(s => {
     if(!MZ_ARCH.lettore || MZ_ARCH.dove!==s.dove){ MZ_ARCH.lettore = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch}); MZ_ARCH.dove = s.dove; }
     A = MZ_ARCH.lettore; return A.controllaNovita();
-  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => {
-    MZ_EVENTI = A.eventi().map(x => daArchivioMz(x.ev)); MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
+  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => regApri().catch(() => null)).then(() => {
+    /* «Da import Excel» (T-043): gli eventi che nel registro delle fonti del dispositivo hanno il canale «file Excel» o
+       «calendario in dati aperti»; senza le chiavi il registro non si legge e il conteggio resta a zero */
+    const imp = new Set(REG.stato==='aperto' ? REG.dati.eventi.filter(r => r.canale==='excel' || r.canale==='calendario').map(r => r.id) : []);
+    MZ_EVENTI = A.eventi().map(x => Object.assign(daArchivioMz(x.ev), imp.has(x.ev.id) ? {importato:true} : {})); MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
   }).catch(() => { MZ_ARCH.stato = MZ_ARCH.quando ? 'vecchio' : 'errore'; return false; });
 }
 function mzEventi(){ return MZ_EVENTI.filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
@@ -395,7 +398,7 @@ function vOffertaMz(){
       ${mzTile(tr('Nuovi nel periodo'), nfm(S.nuoviP), tr('inseriti da te ({nome}), non nuovi utenti · ultimi 7 giorni: {n}',{n:S.nuovi7}), 'ev', null, false, [2])}
       ${mzTile(tr('Anticipo medio'), S.anticipo==null?'–':`${n1(S.anticipo)}<small> ${tr('giorni')}</small>`, tr('tra pubblicazione e inizio'), 'ev', null, false, [9])}
       ${mzTile(tr('Gratuiti'), S.grat==null?'–':`${S.grat}<small> %</small>`, tr('eventi con ingresso libero'), 'ev', null, false, [7])}
-      ${mzTile(tr('Da import Excel'), nfm(S.imp), tr('eventi attivi arrivati da un file'), 'ev', null, false, [10])}
+      ${mzTile(tr('Da import Excel'), nfm(S.imp), tr('eventi attivi arrivati da un file o da un calendario dei Comuni, secondo il registro delle fonti di questo dispositivo'), 'ev', null, false, [10])}
     </div>
     ${mzBox('citta', tr('Eventi attivi per città'), hbarMz(S.perCitta)+`<p class="meta">${tr('«Fuori dalle città» sono gli eventi a più di 35 km da tutte le città dell’app: con questa riga le città sommano al totale.')}</p>`, null, 'ev', [3])}
     ${mzBox('zone', tr('Zone di Torino · eventi nei prossimi 7 giorni'), zoneMz(S), `<table class="mz-tab"><tr><th>${tr('Zona')}</th><th class="n">${tr('Eventi')}</th></tr>${QUARTIERI.map(q => `<tr><td>${esc(q.n)}</td><td class="n">${nfm(S.zone[q.n])}</td></tr>`).join('')}</table>`, 'ev', [5])}

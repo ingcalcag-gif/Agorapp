@@ -56,6 +56,7 @@ const AMMESSI = [
   // scheda di pubblicazione e registro delle fonti (T-041, solo nell'app della redazione): le parole sono nominate per dire a chi scrive un evento di non usarle, o descrivono una pagina e non un evento
   ['it', 'Mai «verificato» o «ufficiale» per un evento soltanto ripreso; mai «autorizzato», «in regola», «sicuro», «a norma».', 'scheda di pubblicazione: la regola di scrittura dell\'allegato A, A.2, che nomina le parole da non usare'],
   ['it', 'in regola|sicur[oaie]|a norma', 'scheda di pubblicazione: l\'elenco delle parole che l\'app segnala a chi scrive un evento'],
+  ['it', 'Licenza o assenza di licenza verificata', 'registro delle fonti (T-043): il punto 2 del § 6.4, nome della colonna «Punto 2» del modello del cap. 22; dice che la Redazione ha controllato la licenza del calendario, non che un evento è verificato'],
   ['it', 'Pagina ufficiale su un social network', 'registro delle fonti: tipo di fonte del cap. 22; «ufficiale» è la pagina dell\'organizzatore, non un evento'],
   ['it', 'il suo sito o la sua pagina ufficiale', 'registro delle fonti: ordine delle fonti del § 5.4; «ufficiale» è la pagina dell\'organizzatore, non un evento'],
   ['it', 'crea invece un evento on-grid completo', 'amministrazione: «completo» è il modulo, non la mappa'],

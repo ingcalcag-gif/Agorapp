@@ -97,6 +97,15 @@ function misureOstili() {
     stati: { [H('stati')]: 'fatto' }, mie: { [H('mie')]: true }, rete: { d: H('rete'), v: H('rete-v') }, giorni: { [g]: { r: H('giorno-r') } }, richieste: { [g]: H('richieste') },
     segnalazioni: { [g]: H('segnalazioni') }, correzioni: { [g]: H('correzioni') }, creati: { [g]: H('creati') }, visti: { [H('visti')]: 1 } };
 }
+/* Il registro delle fonti tenuto a mano (T-043), con nomi ostili: una fonte nuova, una in contrasto con quella già
+   scritta nell'app (FS-0001), una richiesta «Non pubblicati». Scritto con il modulo Excel dell'app. */
+function registroOstile() {
+  const X = require('../../sorgenti/moduli/excel.js'), titolo = [['Registro inventato'], [''], []];
+  const fonti = titolo.concat([['Codice', 'Nome della fonte', 'Tipo', 'Grado', 'Indirizzo', 'Esito'], ['FS-0001', B_('rx-contrasto'), "Sito dell'organizzatore", '2', 'https://organizzatore.esempio.invalid/altro', 'Ammessa'],
+    ['FS-0007', B_('rx-fonte'), "Sito dell'organizzatore", '2', 'https://organizzatore.esempio.invalid/sette', 'Ammessa']]);
+  const np = titolo.concat([['Codice', 'Data della richiesta', 'Organizzatore (denominazione o codice P)', 'Evento richiesto (senza nomi)', 'Motivo'], ['NP-0001', giorno(-2), B_('rx-np-org'), O_('rx-np-ev'), 'Contrasto tra fonti non risolto']]);
+  return Buffer.from(X.scrivi([['Fonti', fonti, [], { testa: 3 }], ['Non pubblicati', np, [], { testa: 3 }]]));
+}
 const STORICO = () => [{ t: new Date().toISOString(), op: 'importa', n: 2, x: 'nota ' + O_('storico-x'), s: 'musica' + ATTR_('storico-s') }, { t: new Date().toISOString(), op: 'modifica', id: ID_OG, r: O_('storico-r') }];
 
 /* I testi ostili che la prova deve ritrovare, come testo, in almeno una pagina. */
@@ -104,7 +113,7 @@ const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizio
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
   'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo',
-  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep'];
+  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
@@ -340,6 +349,19 @@ async function prova() {
           if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-nuovo"]', 'nuovo evento', true)) {
             await p.fill('#a-titolo', B_('reg-prep')); await pausa(200);
             if (await tocca(F + '[data-az="g-prepara"]', 'salva tra i preparati', true)) { await pausa(700); await controlla('pubblicazione, preparati'); }
+          }
+          /* registro delle fonti (T-043): il file del registro tenuto a mano, con nomi ostili, nell'anteprima, nell'elenco delle fonti e tra i «Non pubblicati» */
+          if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-registro"]', 'registro delle fonti')) {
+            await pausa(500); await controlla('registro delle fonti');
+            await p.setInputFiles('#fileRegistro', { name: 'registro-inventato.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: registroOstile() });
+            try { await p.waitForFunction(() => /In contrasto/i.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 20000 }); } catch (err) { e.errori.push('registro: l\'anteprima del file del registro non arriva'); }
+            await controlla('registro, importazione');
+            if (await tocca(F + '[data-az="rx-importa-ok"]', 'registro, importa', true)) { await pausa(700); await controlla('registro delle fonti, dopo l\'importazione'); }
+            if (await tocca(F + '[data-az="pb-fonti"]', 'registro, fonti', true)) { await pausa(400); await controlla('registro, fonti importate'); await tocca(F + '[data-az="pb-registro"]', 'registro, ritorno', true); }
+            if (await tocca(F + '[data-az="rx-np"]', 'registro, non pubblicati', true)) { await pausa(400); await controlla('registro, non pubblicati');
+              if (await tocca(F + '[data-rxnp]', 'registro, un non pubblicato', true)) { await pausa(300); await controlla('registro, scheda di un non pubblicato'); } }
+            if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-registro"]', 'registro delle fonti') && await tocca(F + '[data-az="rx-confronta"]', 'registro, confronto', true)) {
+              await tocca(F + '[data-az="rx-confronta-ok"]', 'registro, confronta', true); await pausa(1500); await controlla('registro, confronto con lo sportello'); }
           }
           if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-storico"]', 'storico delle pubblicazioni')) {
             await pausa(700); await controlla('storico delle pubblicazioni');

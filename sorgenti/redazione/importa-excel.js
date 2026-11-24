@@ -192,7 +192,7 @@ function pubblicaImportazione(){
   I.errore = ''; I.msg = '';
   Promise.all(ancora.map(() => CHIAVI.nuovoId())).then(ids => {
     const cambi = ancora.map((R, i) => { const ev = eventoDalForm(R.f, ids[i]); R.idNuovo = ev.id; return {ev, g:R.f.g, titolo:R.f.g.nomi==='si' && R.f.g.titoloReg.trim() ? R.f.g.titoloReg.trim() : ev.titolo, canale:'excel'}; });
-    return regPrepara(cambi).then(rp => scriviPb({operazione:'scrivi', pubblica:cambi.map(c => c.ev), registro:rp.busta}, r => {
+    return regPrepara(cambi).then(rp => scriviPb(conRegistro({operazione:'scrivi', pubblica:cambi.map(c => c.ev)}, rp), r => {
       const codici = (r.registro||{}).codici||{};
       ancora.forEach(R => { R.stato = 'pubblicata'; R.vista = false; R.codice = codici[R.idNuovo]||''; });
       registra('importa', {n:ancora.length});

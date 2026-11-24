@@ -53,10 +53,15 @@
      della Redazione): ne controlla la forma, la conserva in riservato/registro/righe/ accanto alla copia datata e dà a
      ogni evento nuovo il suo codice F, uno dopo l'altro, così due dispositivi non danno mai lo stesso codice a due
      eventi (§ 18.4: i codici non si riusano e non si rinumerano). La busta non entra mai nei file pubblici.
-     Decisione del 24/11/2026: fino allo sportello dell'archivio (T-053) il registro arriva insieme all'evento. */
+     Decisione del 24/11/2026: fino allo sportello dell'archivio (T-053) il registro arriva insieme all'evento.
+     Con la busta può arrivare registroDa, il primo numero F che lo sportello può dare: le righe scritte a mano prima
+     dell'app hanno già i loro codici, e il contatore passa oltre (T-043). La lettura firmata «registro» restituisce le
+     buste conservate e gli eventi pubblicati nel periodo, per il controllo della corrispondenza (cap. 22, regola 4) e
+     per un secondo dispositivo, che le apre con la stessa chiave del registro. */
   const TIPO_BUSTA = 'registro-fonti-redazione', TIPO_RIGHE = 'registro-righe', MAX_BUSTA = 1500000;
   const TIPO_COPIA = 'copia-pubblicazione', TIPO_PUBBLICHE = 'chiavi-pubbliche-redazione', TIPO_REVOCA = 'revoca-chiave-redazione';
   const NOME_COPIA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}$/;
+  const MAX_BUSTE = 500, MAX_COPIE_LETTE = 2000, MAX_F = 99999;
   const RIGA = /^[^\u0000-\u001F\u007F-\u009F]*$/;
 
   const iso = ms => new Date(ms).toISOString();
@@ -127,8 +132,9 @@
       return !!b && typeof b === 'object' && !Array.isArray(b) && b.tipo === TIPO_BUSTA && b.v === 1 && Object.keys(b).every(k => ['tipo', 'v', 'iv', 'dati'].includes(k)) &&
         typeof b.iv === 'string' && /^[A-Za-z0-9_-]{16}$/.test(b.iv) && typeof b.dati === 'string' && /^[A-Za-z0-9_-]+$/.test(b.dati) && b.dati.length <= MAX_BUSTA;
     }
-    async function codiciRegistro(ids) {
+    async function codiciRegistro(ids, da) {
       const tutti = await leggiJson(F.codici, null) || { prossimo: 1, codici: {} }, codici = {};
+      if (da) tutti.prossimo = Math.max(tutti.prossimo, da);
       for (const id of ids) {
         if (!tutti.codici[id]) tutti.codici[id] = 'F-' + String(tutti.prossimo++).padStart(5, '0');
         codici[id] = tutti.codici[id];
@@ -144,6 +150,7 @@
         const pub = lista(c, 'pubblica'), sos = lista(c, 'sospendi'), ria = lista(c, 'riattiva'), rit = lista(c, 'ritira');
         if (!(pub.length + sos.length + ria.length + rit.length)) throw rifiuto('vuoto');
         if (c.registro !== undefined && (!bustaValida(c.registro) || !(pub.length + rit.length))) throw rifiuto('registro');
+        if (c.registroDa !== undefined && (c.registro === undefined || !Number.isInteger(c.registroDa) || c.registroDa < 1 || c.registroDa > MAX_F)) throw rifiuto('registro');
         controllaEventi(pub);
         const s = await statoVivo(t), eventi = new Map(s.eventi.map(e => [e.id, e])), sospesi = new Map(s.sospesi.map(e => [e.id, e]));
         const r = { pubblicati: [], corretti: [], sospesi: [], riattivati: [], ritirati: [] };
@@ -161,7 +168,7 @@
           eventi.delete(x.id); sospesi.delete(x.id);
           r.ritirati.push(Object.assign({ id: x.id, motivo: x.motivo }, x.riferimento ? { riferimento: x.riferimento } : {}));
         }
-        const reg = c.registro === undefined ? null : Object.assign(await codiciRegistro(r.pubblicati.concat(r.corretti, r.ritirati.map(x => x.id))), { busta: c.registro });
+        const reg = c.registro === undefined ? null : Object.assign(await codiciRegistro(r.pubblicati.concat(r.corretti, r.ritirati.map(x => x.id)), c.registroDa), { busta: c.registro });
         return pubblica(p, t, 'scrivi', r, [...eventi.values()], [...sospesi.values()], reg);
       },
       /* Ripristinare una copia dello storico: la Redazione la legge, ripete le rimozioni di nomi chieste dopo la sua
@@ -178,6 +185,32 @@
       async storico(c, p, t) {
         const elenco = await leggiJson(F.elenco, []);
         return { copie: elenco.slice().reverse().map(x => Object.assign({}, x, Date.parse(x.quando) < t - CINQUE_ANNI_MS ? { scaduta: true } : {})) };
+      },
+      /* Il registro delle fonti come lo conserva lo sportello (T-043): le buste arrivate dopo la copia «dopo» (tutte, se
+         manca), al più 500 per volta, e gli eventi pubblicati per la prima volta tra «da» e «a» (date gg: aaaa-mm-gg,
+         comprese), letti dalle copie dello storico. Le buste restano chiuse: le apre solo la Redazione. */
+      async registro(c, p, t) {
+        if (c.dopo !== undefined && (typeof c.dopo !== 'string' || !NOME_COPIA.test(c.dopo))) throw rifiuto('registro');
+        const giorno = x => x === undefined || (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x));
+        if (!giorno(c.da) || !giorno(c.a)) throw rifiuto('registro');
+        const elenco = await leggiJson(F.elenco, []), tutti = await leggiJson(F.codici, null) || { prossimo: 1, codici: {} };
+        const nomi = (await dep.elenca(F.righe)).map(x => x.slice(F.righe.length).replace(/\.json$/, '')).filter(n => NOME_COPIA.test(n) && (!c.dopo || n > c.dopo)).sort();
+        const buste = [];
+        for (const n of nomi.slice(0, MAX_BUSTE)) {
+          const x = await leggiJson(F.righe + n + '.json', null);
+          if (x && x.tipo === TIPO_RIGHE && bustaValida(x.busta)) buste.push({ nome: x.nome, quando: x.quando, dispositivo: x.dispositivo, codici: x.codici || {}, busta: x.busta });
+        }
+        const pubblicati = []; let lette = 0;
+        if (c.da || c.a) {
+          for (const x of elenco) {
+            const g = String(x.quando || '').slice(0, 10);
+            if (x.operazione !== 'scrivi' || !(x.riepilogo && x.riepilogo.pubblicati) || (c.da && g < c.da) || (c.a && g > c.a)) continue;
+            if (++lette > MAX_COPIE_LETTE) break;
+            const k = await leggiJson(F.copie + x.nome + '.json', null);
+            if (k && k.tipo === TIPO_COPIA) for (const id of (k.riepilogo && k.riepilogo.pubblicati) || []) pubblicati.push({ id, quando: k.quando, copia: k.nome, codice: tutti.codici[id] || '' });
+          }
+        }
+        return { buste, altre: nomi.length > MAX_BUSTE, pubblicati, troppe: lette > MAX_COPIE_LETTE, prossimo: tutti.prossimo };
       },
       async copia(c) {
         if (typeof c.nome !== 'string' || !NOME_COPIA.test(c.nome)) throw rifiuto('copia');
@@ -250,5 +283,5 @@
     return { ricevi, ammetti, revoca, chiavi };
   }
 
-  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, TIPO_COPIA, NOME_COPIA, crea };
+  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, TIPO_COPIA, NOME_COPIA, MAX_BUSTE, crea };
 });

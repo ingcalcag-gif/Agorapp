@@ -149,7 +149,8 @@ function esportaExcel(){
     .catch(() => { st.msgAdmin = tr('Non sono riuscito a preparare il file Excel.'); disegnaFoglio(); });
 }
 /* ======================= Agganci dai pezzi comuni ======================= */
-const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, 'pb-importa':fPbImporta, chiavi:fChiavi, verifica:fVerifica, pubblica:fPubblica, 'pb-evento':fPbEvento, 'pb-storico':fPbStorico, 'pb-copia':fPbCopia, 'pb-fonti':fPbFonti, 'pb-fonte':fPbFonte};
+const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, 'pb-importa':fPbImporta, chiavi:fChiavi, verifica:fVerifica, pubblica:fPubblica, 'pb-evento':fPbEvento, 'pb-storico':fPbStorico, 'pb-copia':fPbCopia, 'pb-fonti':fPbFonti, 'pb-fonte':fPbFonte,
+  'pb-registro':fPbRegistro, 'pb-np':fPbNp, 'pb-np-riga':fPbNpRiga, 'pb-regimporta':fPbRegImporta, 'pb-confronto':fPbConfronto};
 /* un tocco: true se era per gli strumenti della Redazione */
 function clickRed(t){
   if(t.dataset.mz!=null && clickMisure(t)) return true;

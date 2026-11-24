@@ -3,7 +3,8 @@
 
    1. Scrivere e rileggere: nomi dei fogli, testi con caratteri speciali e a capo, lingue diverse, numeri, vero/falso,
       date (gg/mm/aaaa, rilette come numero di serie), celle vuote al loro posto, «_x000D_» scritto da una persona che
-      resta com'è; la prima riga in grassetto; nessuna formula nel file scritto.
+      resta com'è; la prima riga in grassetto; nessuna formula nel file scritto. Le intestazioni alla riga 4, come nei
+      registri del cap. 18, e le date con l'ora (T-043); un file salvato con una password si riconosce.
    2. Leggere file fatti da altri programmi: uno salvato da openpyxl (testi nelle celle, più fogli, date e ore) e uno
       costruito come lo salva Excel (testi condivisi, testo a pezzi con la pronuncia da scartare, formule di cui si
       legge solo il valore, errori, colonna AA, caratteri scritti come _x000D_ ed entità). I due file d'esempio stanno in
@@ -44,6 +45,18 @@ async function prova() {
   if (L[3].length !== 0 || L[4].length !== 5 || L[4][4] !== 'solo l\'ultima' || L[4][0] !== '') err('rilettura: righe e celle vuote fuori posto ' + JSON.stringify(L.slice(3)));
   if (attesa !== 46360) err('numero di serie di Excel del 4/12/2026: atteso 46360, trovato ' + attesa);
   if (X.crc32(new TextEncoder().encode('123456789')) !== 0xCBF43926) err('CRC-32 sbagliato');
+
+  /* 1 bis (T-043): intestazioni non sulla prima riga, come nei registri del cap. 18 (titolo, sottotitolo, intestazioni
+     alla riga 4), e date con l'ora */
+  const reg = X.scrivi([['Eventi', [['Eventi pubblicati'], ['sottotitolo'], [], ['Codice', 'Data e ora'], ['F-00001', { data: new Date(2026, 11, 4, 18, 30), ora: true }], ['F-00002', { data: new Date(2026, 11, 4) }]], [12, 15], { testa: 3 }]]);
+  const zr = testo(reg);
+  if (!/pane ySplit="4" topLeftCell="A5"/.test(zr) || !/numFmtId="165" formatCode="dd\/mm\/yyyy hh:mm"/.test(zr)) err('scrivi: con opzioni.testa = 3 le intestazioni stanno ferme alla riga 4, e le date con l\'ora hanno il formato gg/mm/aaaa hh:mm');
+  if (!/<c r="A4" t="inlineStr" s="2">/.test(zr) || !/<c r="A1" t="inlineStr" s="2">/.test(zr) || /<c r="A5" t="inlineStr" s="2">/.test(zr)) err('scrivi: in grassetto il titolo e le intestazioni della riga 4, non le righe dei dati');
+  const rr = (await X.leggi(reg, 'registro.xlsx')).fogli[0].righe;
+  if (Math.abs(rr[4][1] - (X.numeroData(new Date(2026, 11, 4)) + 18.5 / 24)) > 1e-9 || rr[5][1] !== X.numeroData(new Date(2026, 11, 4)) || rr[3][0] !== 'Codice') err('rilettura delle date con l\'ora: ' + JSON.stringify(rr.slice(3)));
+  /* un file salvato con una password non è uno ZIP: l'errore dice «protetto», per un messaggio chiaro */
+  const cfb = Uint8Array.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1].concat(new Array(504).fill(0)));
+  if (await motivo(() => X.leggi(cfb, 'Registro.xlsx')) !== 'protetto') err('un file .xlsx salvato con una password deve dare «protetto»');
 
   /* 2 */
   const leggiFile = f => X.leggi(fs.readFileSync(path.join(__dirname, 'dati', f)), f);

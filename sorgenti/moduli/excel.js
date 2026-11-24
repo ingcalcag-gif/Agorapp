@@ -6,15 +6,19 @@
      cella, numeri, vero/falso) oppure un .csv (separatore «;», «,» o tabulazione, scelto dalla prima riga). Le date
      restano numeri di serie di Excel: chi legge le trasforma (leggiData e leggiOra degli strumenti della redazione).
      Formule: si legge il valore calcolato che il file porta con sé, mai la formula;
-   - scrivi(fogli) → i byte di un .xlsx: fogli = [[nome, righe, larghezze]]; nelle righe testi, numeri, vero/falso e
-     date (oggetti Date, scritti come gg/mm/aaaa); la prima riga in grassetto. I testi si scrivono sempre come testo:
-     in un .xlsx una cella di testo non diventa mai una formula.
+   - scrivi(fogli) → i byte di un .xlsx: fogli = [[nome, righe, larghezze, opzioni]]; nelle righe testi, numeri,
+     vero/falso, date (oggetti Date, scritti come gg/mm/aaaa) e date con l'ora ({data: Date, ora: true}, scritte come
+     gg/mm/aaaa hh:mm). La riga delle intestazioni è in grassetto e resta ferma in cima: di solito è la prima;
+     opzioni.testa dice quale è, contando da 0, quando sopra ci sono il titolo e il sottotitolo del foglio, come nei
+     registri del cap. 18 del libro mastro (intestazioni alla riga 4). I testi si scrivono sempre come testo: in un
+     .xlsx una cella di testo non diventa mai una formula.
    Il file letto non si conserva: il modulo restituisce le righe e basta.
 
    Difese contro i file costruiti per far danni: al più 20 MB di file e 60 MB di testo una volta aperto (un archivio
    che si gonfia oltre si ferma a metà); al più 10.000 righe e 200 colonne per foglio; solo i metodi di compressione
    «nessuna» e «deflate»; nessuna entità XML esterna (l'XML si legge con espressioni semplici, non con un lettore che
-   le risolverebbe). Un file che non rispetta la forma dà l'errore con motivo «file».
+   le risolverebbe). Un file che non rispetta la forma dà l'errore con motivo «file»; un file .xlsx salvato con una
+   password (che i programmi chiudono in un contenitore cifrato, non in uno ZIP) dà l'errore con motivo «protetto».
 
    Gli indirizzi «schemas.openxmlformats.org» che si leggono qui sotto sono i nomi del formato che ogni file .xlsx deve
    portare dentro di sé: nessuno li chiede alla rete (prove/indirizzi.js li ammette per questo solo file).
@@ -156,6 +160,8 @@
   async function leggi(dati, nome) {
     const b = byte(dati); if (!b) throw errore('file', 'dati mancanti');
     if (b.length > MAX_FILE) throw errore('file', 'oltre 20 MB');
+    /* un file salvato con una password: il contenitore cifrato dei programmi per ufficio, non uno ZIP */
+    if (b.length >= 8 && b[0] === 0xD0 && b[1] === 0xCF && b[2] === 0x11 && b[3] === 0xE0 && b[4] === 0xA1 && b[5] === 0xB1 && b[6] === 0x1A && b[7] === 0xE1 && !/\.csv$/i.test(nome || '')) throw errore('protetto', 'il file si apre con una password');
     if (/\.csv$/i.test(nome || '') || !(b[0] === 0x50 && b[1] === 0x4B)) {
       if (!/\.csv$/i.test(nome || '') && /\.(xlsx|xlsm|ods|xls)$/i.test(nome || '')) throw errore('formato', 'non è un file .xlsx');
       return { fogli: [{ nome: 'csv', righe: leggiCsv(new TextDecoder().decode(b)) }] };
@@ -170,18 +176,23 @@
   const lettere = j => { let s = ''; j++; while (j > 0) { const r = (j - 1) % 26; s = String.fromCharCode(65 + r) + s; j = Math.floor((j - 1) / 26); } return s; };
   /* il numero di serie di Excel di un giorno (solo la data, senza fuso: 0 = 30/12/1899) */
   const numeroData = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5;
-  function foglioXml(righe, larghezze) {
+  /* lo stesso con l'ora del dispositivo, al minuto (la parte dopo la virgola sono le ore del giorno) */
+  const numeroDataOra = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()) - Date.UTC(1899, 11, 30)) / 864e5;
+  function foglioXml(righe, larghezze, testa) {
+    testa = Number.isInteger(testa) && testa >= 0 ? testa : 0;
     const cols = (larghezze || []).length ? '<cols>' + larghezze.map((w, j) => `<col min="${j + 1}" max="${j + 1}" width="${Math.max(1, Math.min(255, +w || 10))}" customWidth="1"/>`).join('') + '</cols>' : '';
     const dati = righe.map((r, i) => `<row r="${i + 1}">` + (r || []).map((c, j) => {
-      const ref = lettere(j) + (i + 1), st = i === 0 ? ' s="2"' : '';
+      const ref = lettere(j) + (i + 1), st = i === 0 || i === testa ? ' s="2"' : '';
       if (c === null || c === undefined || c === '') return '';
       if (c instanceof Date) return isNaN(c) ? '' : `<c r="${ref}" s="1"><v>${numeroData(c)}</v></c>`;
+      if (typeof c === 'object' && c.data instanceof Date) return isNaN(c.data) ? '' : c.ora ? `<c r="${ref}" s="3"><v>${numeroDataOra(c.data)}</v></c>` : `<c r="${ref}" s="1"><v>${numeroData(c.data)}</v></c>`;
+      if (typeof c === 'object') return '';
       if (typeof c === 'number') return Number.isFinite(c) ? `<c r="${ref}"${st}><v>${c}</v></c>` : '';
       if (typeof c === 'boolean') return `<c r="${ref}" t="b"${st}><v>${c ? 1 : 0}</v></c>`;
       return `<c r="${ref}" t="inlineStr"${st}><is><t xml:space="preserve">${aXml(c)}</t></is></c>`;
     }).join('') + '</row>').join('');
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-      + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+      + `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${testa + 1}" topLeftCell="A${testa + 2}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
       + cols + '<sheetData>' + dati + '</sheetData></worksheet>';
   }
   function zipScrivi(voci) {
@@ -219,14 +230,15 @@
       ['xl/_rels/workbook.xml.rels', X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
         + nomi.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')
         + `<Relationship Id="rId${nomi.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
-      ['xl/styles.xml', X + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>'
+      ['xl/styles.xml', X + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/></numFmts>'
         + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
         + '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders>'
         + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-        + '<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>']
-    ].concat(fogli.map(([, righe, larghezze], i) => [`xl/worksheets/sheet${i + 1}.xml`, foglioXml(righe || [], larghezze)]));
+        + '<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        + '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>']
+    ].concat(fogli.map(([, righe, larghezze, opz], i) => [`xl/worksheets/sheet${i + 1}.xml`, foglioXml(righe || [], larghezze, (opz || {}).testa)]));
     return zipScrivi(voci);
   }
 
-  return { MAX_FILE, MAX_RIGHE, MAX_COLONNE, MIME, leggi, leggiCsv, scrivi, numeroData, crc32 };
+  return { MAX_FILE, MAX_RIGHE, MAX_COLONNE, MIME, leggi, leggiCsv, scrivi, numeroData, numeroDataOra, crc32 };
 });
