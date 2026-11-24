@@ -975,6 +975,8 @@ label.campo:has(#pw){min-width:0}
 /* registro delle fonti (T-043): i sette punti di un calendario in dati aperti */
 .g-punti{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;min-width:0;flex-shrink:0}
 .g-punti legend{padding:0;margin-bottom:4px}
+/* calendari dei Comuni (T-044): il testo del Comune da riscrivere, con i suoi a capo */
+.ix-testo-cal{white-space:pre-wrap;overflow-wrap:anywhere}
 
 /* ======================= Misure (solo admin) ======================= */
 /* colori dei grafici: verde in scala (una sola tinta, chiaro → scuro), tre categorie verificate per il daltonismo (validate_palette, 6 ottobre 2026) */

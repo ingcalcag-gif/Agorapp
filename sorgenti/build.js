@@ -182,7 +182,7 @@ const SPORTELLI_RED = ['pubblicazione.js'];
 // Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude). Gli strumenti della Redazione (sorgenti/redazione/)
 // entrano prima di app6, soltanto nell'app della redazione.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js'];
-const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'registro-fonti.js', 'scheda-pubblicazione.js', 'importa-excel.js', 'registro-excel.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
+const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'registro-fonti.js', 'scheda-pubblicazione.js', 'importa-excel.js', 'registro-excel.js', 'importa-calendari.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
 const JS_FINE = ['app6.js'];
 const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css'];
 const CSS_RED = ['style_redazione.css', 'style_misure.css'];

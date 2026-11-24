@@ -40,7 +40,9 @@ function regInForma(d){
   o.fonti.forEach(f => { ['codice', 'nome', 'tipo', 'grado', 'indirizzo', 'lette', 'esito', 'licenza', 'attribuzione', 'note', 'registrata', 'aggiornata'].forEach(k => { f[k] = testoReg(f[k]); });
     f.licenzaTipo = LICENZE_CAL[f.licenzaTipo] ? f.licenzaTipo : ''; f.stato = STATI_FONTE[f.stato] ? f.stato : 'uso';
     const p = f.punti && typeof f.punti==='object' ? f.punti : {}; f.punti = {}; SETTE_PUNTI.forEach(([n]) => { if(giornoReg(p[n])) f.punti[n] = p[n]; });
-    f.rettifiche = rettificheInForma(f.rettifiche); f.invio = !!f.invio; f.extra = extraInForma(f.extra); });
+    f.rettifiche = rettificheInForma(f.rettifiche); f.invio = !!f.invio; f.extra = extraInForma(f.extra);
+    /* la corrispondenza delle colonne del calendario di questa fonte (T-044) */
+    if(f.mappa && typeof f.mappa==='object'){ const m = {}; Object.keys(f.mappa).slice(0, 20).forEach(k => { if(typeof f.mappa[k]==='string') m[k] = f.mappa[k].slice(0, 120); }); f.mappa = m; } else delete f.mappa; });
   o.eventi.forEach(r => { r.rettifiche = rettificheInForma(r.rettifiche); });
   o.nonPubblicati.forEach(x => { ['codice', 'registrata', 'richiesta', 'organizzatore', 'evento', 'motivo', 'motivazioneData', 'motivazioneCanale', 'chiusa', 'note', 'aggiornata'].forEach(k => { x[k] = testoReg(x[k]); });
     x.rettifiche = rettificheInForma(x.rettifiche); x.invio = !!x.invio; x.extra = extraInForma(x.extra); });
@@ -191,6 +193,7 @@ function regPrepara(cambi){
   for(const c of cambi){
     if(c.ev){
       const ev = c.ev, fine = FORMATO.fineMs(ev), fatti = {titolo:testoReg(c.titolo||ev.titolo, 200), testoFonte:ev.fonte.testo, collegamento:ev.fonte.collegamento||'', g:JSON.parse(JSON.stringify(c.g)), fine:fine==null ? '' : new Date(fine).toISOString()};
+      if(c.chiave) fatti.chiave = testoReg(c.chiave, 200);   /* l'identificativo dell'evento nel calendario del Comune (T-044) */
       let r = nuovo.eventi.find(x => x.id===ev.id);
       if(r){ rettifica(r, rigaPerRettifica(r), rigaPerRettifica(fatti), ETICHETTE_RIGA); Object.assign(r, fatti, {corretto:quando}); }
       else { r = Object.assign({codice:'', id:ev.id, quando:c.correzione ? '' : quando, corretto:c.correzione ? quando : '', nascosto:false, canale:c.canale||'singolo', funzione:'Redazione eventi', ritiro:null, scadenza:c.correzione ? '' : scadenzaRiga(quando), rettifiche:[]}, fatti); nuovo.eventi.push(r); }

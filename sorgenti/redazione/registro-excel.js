@@ -449,7 +449,7 @@ function fPbConfronto(){
 /* ---------- Tocchi, campi e file ---------- */
 function scegliFileRegistro(scopo){ RX.scopo = scopo; $('fileRegistro').click(); }
 $('fileRegistro').addEventListener('change', function(){
-  const f = this.files && this.files[0], scopo = RX.scopo || 'registro'; RX.scopo = ''; this.value = ''; if(!f) return;
+  const f = this.files && this.files[0], scopo = RX.scopo || (st.foglio==='pb-calendario' ? 'calendario' : 'registro'); RX.scopo = ''; this.value = ''; if(!f) return;
   if(scopo==='registro') importaRegistro(f);
   else if(scopo==='calendario' && typeof importaCalendario==='function') importaCalendario(f);
 });

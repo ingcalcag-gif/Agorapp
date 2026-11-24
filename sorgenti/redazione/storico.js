@@ -16,7 +16,7 @@ const OP_STORICO = {
   pubblica:['eventi','Evento pubblicato'], correggi:['eventi','Correzione pubblicata'], sospendi:['eventi','Evento sospeso'], riattiva:['eventi','Evento riattivato'], ritira:['eventi','Evento ritirato prima della fine'],
   'ripristina-copia':['eventi','Copia dello storico ripristinata'], 'fonte-nuova':['eventi','Fonte aggiunta al registro delle fonti'], 'fonte-corretta':['eventi','Fonte del registro corretta'],
   'np-nuovo':['eventi','Richiesta non pubblicata annotata nel registro delle fonti'], 'np-corretto':['eventi','Richiesta non pubblicata corretta'],
-  'registro-esporta':['file','Registro delle fonti esportato in Excel'], 'registro-importa':['file','Registro delle fonti tenuto a mano importato'],
+  'registro-esporta':['file','Registro delle fonti esportato in Excel'], 'calendario-importa':['file','Calendario aperto di un Comune letto per l’anteprima'], 'registro-importa':['file','Registro delle fonti tenuto a mano importato'],
   'registro-confronta':['eventi','Registro delle fonti confrontato con lo sportello'], 'registro-riprendi':['eventi','Voci del registro delle fonti riprese dallo sportello'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],

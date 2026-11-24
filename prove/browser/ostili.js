@@ -101,10 +101,21 @@ function misureOstili() {
    scritta nell'app (FS-0001), una richiesta «Non pubblicati». Scritto con il modulo Excel dell'app. */
 function registroOstile() {
   const X = require('../../sorgenti/moduli/excel.js'), titolo = [['Registro inventato'], [''], []];
-  const fonti = titolo.concat([['Codice', 'Nome della fonte', 'Tipo', 'Grado', 'Indirizzo', 'Esito'], ['FS-0001', B_('rx-contrasto'), "Sito dell'organizzatore", '2', 'https://organizzatore.esempio.invalid/altro', 'Ammessa'],
-    ['FS-0007', B_('rx-fonte'), "Sito dell'organizzatore", '2', 'https://organizzatore.esempio.invalid/sette', 'Ammessa']]);
+  const punti = [1, 2, 3, 4, 5, 6, 7].map(() => giorno(-2)), P = ['Punto 1: pubblicato dal Comune o nel catalogo AgID', 'Punto 2: licenza o assenza di licenza verificata', 'Punto 3: condizioni della licenza rispettate',
+    'Punto 4: nomi trattati secondo i §§ 3.4-3.6', 'Punto 5: testi riscritti, nessuna immagine', 'Punto 6: file scaricato dal dispositivo e importato con anteprima', 'Punto 7: aggiornamenti ripassati dalla revisione'];
+  const fonti = titolo.concat([['Codice', 'Nome della fonte', 'Tipo', 'Grado', 'Indirizzo', 'Esito', 'Condizioni lette il', 'Licenza del calendario', 'Attribuzione richiesta', ...P],
+    ['FS-0001', B_('rx-contrasto'), "Sito dell'organizzatore", '2', 'https://organizzatore.esempio.invalid/altro', 'Ammessa'],
+    ['FS-0007', B_('rx-fonte'), "Sito dell'organizzatore", '2', 'https://organizzatore.esempio.invalid/sette', 'Ammessa'],
+    /* T-044: un calendario in dati aperti pronto da importare, con la licenza e i sette punti */
+    ['FS-0008', 'Comune inventato, calendario', 'Calendario in dati aperti', '3', 'https://comune.esempio.invalid/eventi.ics', 'Ammessa con attribuzione', giorno(-2), 'Licenza aperta che consente il riuso', 'Comune inventato (CC BY 4.0)', ...punti]]);
   const np = titolo.concat([['Codice', 'Data della richiesta', 'Organizzatore (denominazione o codice P)', 'Evento richiesto (senza nomi)', 'Motivo'], ['NP-0001', giorno(-2), B_('rx-np-org'), O_('rx-np-ev'), 'Contrasto tra fonti non risolto']]);
   return Buffer.from(X.scrivi([['Fonti', fonti, [], { testa: 3 }], ['Non pubblicati', np, [], { testa: 3 }]]));
+}
+/* T-044: un calendario iCalendar con titolo, luogo e testo ostili */
+function calendarioOstile() {
+  const g = giorno(3).replace(/-/g, ''), t = s => s.replace(/([,;\\])/g, '\\$1');
+  return Buffer.from(['BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', 'UID:ostile@comune.esempio.invalid', 'DTSTART;TZID=Europe/Rome:' + g + 'T180000', 'SUMMARY:' + t('Lettura ' + B_('cal-titolo')),
+    'LOCATION:' + t('Sala ' + B_('cal-luogo')), 'GEO:45.0703;7.6869', 'DESCRIPTION:' + t('Testo del Comune ' + O_('cal-testo')), 'URL:https://comune.esempio.invalid/eventi/ostile', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'));
 }
 const STORICO = () => [{ t: new Date().toISOString(), op: 'importa', n: 2, x: 'nota ' + O_('storico-x'), s: 'musica' + ATTR_('storico-s') }, { t: new Date().toISOString(), op: 'modifica', id: ID_OG, r: O_('storico-r') }];
 
@@ -113,7 +124,7 @@ const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizio
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
   'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo',
-  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev'];
+  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev', 'cal-titolo', 'cal-luogo', 'cal-testo'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
@@ -362,6 +373,16 @@ async function prova() {
               if (await tocca(F + '[data-rxnp]', 'registro, un non pubblicato', true)) { await pausa(300); await controlla('registro, scheda di un non pubblicato'); } }
             if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-registro"]', 'registro delle fonti') && await tocca(F + '[data-az="rx-confronta"]', 'registro, confronto', true)) {
               await tocca(F + '[data-az="rx-confronta-ok"]', 'registro, confronta', true); await pausa(1500); await controlla('registro, confronto con lo sportello'); }
+            /* calendari dei Comuni (T-044): un calendario iCalendar ostile, dalla fonte FS-0008 del registro importato */
+            if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-calendari"]', 'calendari dei Comuni')) {
+              await pausa(500); try { await p.selectOption('#cal-fonte', 'FS-0008', { timeout: 10000 }); } catch (err) { e.errori.push('calendari: non trovo la fonte FS-0008'); }
+              await pausa(300); await controlla('calendari, fonte scelta');
+              await p.setInputFiles('#fileRegistro', { name: 'calendario-inventato.ics', mimeType: 'text/calendar', buffer: calendarioOstile() }); await pausa(800); await controlla('calendari, corrispondenza');
+              for (const [sel, v] of [['#cal-strato', 'conferenze'], ['#cal-dieci', 'tutte'], ['#cal-nomi', 'no'], ['#cal-politico', 'no'], ['#cal-avviso', 'nessuno']]) { try { await p.selectOption(sel, v, { timeout: 10000 }); await pausa(150); } catch (err) { e.errori.push('calendari: non trovo ' + sel); } }
+              if (await tocca(F + '[data-az="cal-anteprima"]', 'calendari, anteprima', true)) { await pausa(800); await controlla('calendari, anteprima');
+                if (await tocca(F + '[data-az="ix-correggi"]', 'calendari, scheda della riga', true)) { await pausa(400); await controlla('calendari, scheda della riga'); await tocca(F + '[data-az="ix-torna"]', 'calendari, ritorno', true); }
+                await tocca(F + '[data-az="ix-chiudi"]', 'calendari, chiudi', true); await tocca(F + '[data-az="ix-chiudi"]', 'calendari, chiudi davvero', true); }
+            }
           }
           if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-storico"]', 'storico delle pubblicazioni')) {
             await pausa(700); await controlla('storico delle pubblicazioni');

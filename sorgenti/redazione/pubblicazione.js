@@ -77,6 +77,7 @@ function fPubblica(){
       <p class="meta">${s.aggiornato ? tr('Ultima pubblicazione: {q}.',{q:esc(quandoPb(s.aggiornato))}) : tr('Non è ancora stato pubblicato nulla.')} ${tr('Gli eventi finiti da più di tre ore escono da soli.')}</p>`;
   const corpo = `${prova}${statoPb()}
     <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="ix-file">${tr('Importa da Excel')}</button><button class="tasto sec" data-az="pb-registro">${tr('Registro delle fonti')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
+    <p class="meta"><button class="link" style="min-height:32px" data-az="pb-calendari">${tr('Importa un calendario aperto di un Comune')}</button>${IX.stato ? ' · <button class="link" style="min-height:32px" data-az="ix-torna">'+tr('Torna all’importazione in corso')+'</button>' : ''}</p>
     ${preparatiHtml()}
     ${elenco}
     <button class="link" data-az="pb-aggiorna">${tr('Aggiorna l’elenco')}</button>`;
@@ -136,6 +137,7 @@ function fEventoForm(){
     ${riga('a-org', 'organizzatore', tr('Organizza'), 120, '', fac)}
     ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="2000" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>`)}
     ${riga('a-prezzo', 'prezzo', tr('Prezzo indicato dalla fonte'), 80, tr('Gratuito / 10 €'), fac)}
+    ${f.testoCal ? `<details class="g-regole" open><summary>${tr('Il testo del calendario del Comune: da riscrivere, non si pubblica')}</summary><p class="meta ix-testo-cal">${esc(f.testoCal)}</p></details>` : ''}
     ${riga('a-fonte', 'fonte', tr('Fonte'), 160, tr('Da dove viene l’informazione'))}
     ${riga('a-fonte-link', 'fonteLink', tr('Collegamento alla pagina dell’evento'), 500, 'https://', fac, 'url')}
     ${ripr ? '' : schedaGiudizio(f)}
@@ -310,7 +312,7 @@ function azionePubblica(az, t){
     case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}); }); break; }
     case 'ix-torna': st.aform = null; apri('pb-importa'); break;
-    default: return azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t);
+    default: return azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t) || azioneCalendari(az, t);
   }
   return true;
 }
@@ -329,7 +331,7 @@ function inputPubblica(el){
   return false;
 }
 function cambioPubblica(el){
-  if(cambioScheda(el)) return true;
+  if(cambioCalendari(el) || cambioScheda(el)) return true;
   if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return true; }
   if(el.dataset.acampo && st.aform && el.tagName==='SELECT'){ st.aform[el.dataset.acampo] = el.value; return true; }
   if(el.dataset.pbritiro && PB.ritiro){ PB.ritiro[el.dataset.pbritiro] = el.value; return true; }

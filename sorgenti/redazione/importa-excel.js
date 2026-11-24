@@ -52,7 +52,8 @@ function rigaDalFile(o){
   const h = leggiOra(o.oraInizio); if(!h) no(t('oraInizio') ? tr('ora di inizio non leggibile') : tr('manca l’ora di inizio'));
   if(R.stato) return R;
   const inizio = g+'T'+h, hf = leggiOra(o.oraFine);
-  let fine = ''; if(hf){ fine = g+'T'+hf; if(fine<=inizio) fine = piuGiorni(g,1)+'T'+hf; }
+  let fine = ''; if(o.fineIso && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(o.fineIso) && o.fineIso > inizio) fine = o.fineIso;   /* un calendario dei Comuni: la fine in un altro giorno (T-044) */
+  else if(hf){ fine = g+'T'+hf; if(fine<=inizio) fine = piuGiorni(g,1)+'T'+hf; }
   else { const m = minutiDurata(o.durata); if(m && m>0 && m<=1440) fine = new Date(Date.parse(inizio+':00Z') + m*6e4).toISOString().slice(0, 16); }   /* ora italiana più i minuti, come sull'orologio */
   if(FORMATO.uscitaMs({inizio, fine:fine||undefined}) <= Date.now()) { no(tr('l’evento è già finito')); return R; }
   const sub = trovaSub(l, o.sub);
@@ -87,7 +88,7 @@ function valutaRiga(R){
   const ev = eventoDalForm(f, ID_PROVVISORIO), formato = FORMATO.controlla(ev, {vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)}).map(erroreCampoPb);
   const manca = giudizioManca(f);
   R.motivi = formato.concat(manca.length ? [testoSpia(manca)] : []);
-  if(!R.motivi.length && PB.stato && PB.stato.eventi.concat(PB.stato.sospesi).some(e => normT(e.titolo)===normT(ev.titolo) && e.inizio===ev.inizio)){ R.stato = 'rifiutata'; R.motivi = [tr('c’è già tra i pubblicati, con lo stesso titolo e lo stesso inizio')]; return; }
+  if(!R.motivi.length && !f.id && PB.stato && PB.stato.eventi.concat(PB.stato.sospesi).some(e => normT(e.titolo)===normT(ev.titolo) && e.inizio===ev.inizio)){ R.stato = 'rifiutata'; R.motivi = [tr('c’è già tra i pubblicati, con lo stesso titolo e lo stesso inizio')]; return; }
   R.stato = R.motivi.length ? 'sistemare' : 'pronta';
   if(R.stato!=='pronta') R.vista = false;
 }
@@ -110,31 +111,34 @@ function importaExcel(file){
       I.righe.push(rigaDalFile(o));
     });
     if(!I.righe.length){ I.fase = 'pronto'; I.errore = tr('Nel foglio «Eventi» non ci sono righe compilate.'); ridisegnaIx(); return; }
-    I.righe.forEach(R => { if(R.stato!=='rifiutata' && R.f && !R.f.pos) R.daCercare = true; else valutaRiga(R); });
-    const daCercare = I.righe.filter(R => R.daCercare); I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; ridisegnaIx();
-    /* gli indirizzi senza coordinate si cercano uno alla volta, uno al secondo (T-008) */
-    (async () => {
-      for(const R of daCercare){
-        if(IX.stato!==I) return;
-        const q = R.f.indirizzo, pa = parseAddr(q);
-        let x = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); x = res.list[0]; }catch(e){ x = null; }
-        if(IX.stato!==I) return;
-        if(x){ R.f.pos = {lat:x.lat, lng:x.lng}; R.f.addrFull = testoRisultato(x); R.f.precision = x.precision||'exact'; R.f.hn = x.hn||''; }
-        delete R.daCercare; valutaRiga(R); I.fatti++; ridisegnaIx();
-        await new Promise(ok => setTimeout(ok, 1000));
-      }
-      if(IX.stato!==I) return;
-      I.fase = 'pronto'; ridisegnaIx();
-    })();
+    cercaEValuta(I);
   }).catch(e => { if(IX.stato!==I) return; I.fase = 'pronto';
     I.errore = e && e.motivo==='righe' ? tr('Il file ha più di 10.000 righe: dividilo in più file.') : tr('Il file non si legge: controlla che sia un foglio .xlsx o .csv (un file .ods va prima salvato come .xlsx).'); ridisegnaIx(); });
 }
 const ridisegnaIx = () => { if(st.foglio==='pb-importa') disegnaFoglio(); };
+/* le righe senza coordinate cercano l'indirizzo, uno al secondo (T-008); le altre si valutano subito. Serve anche ai calendari dei Comuni (T-044). */
+function cercaEValuta(I){
+  I.righe.forEach(R => { if(R.stato==='pubblicata') return; if(R.stato!=='rifiutata' && R.f && !R.f.pos) R.daCercare = true; else valutaRiga(R); });
+  const daCercare = I.righe.filter(R => R.daCercare); I.daCercare = daCercare.length; I.fase = daCercare.length ? 'cerco' : 'pronto'; ridisegnaIx();
+  (async () => {
+    for(const R of daCercare){
+      if(IX.stato!==I) return;
+      const q = R.f.indirizzo, pa = parseAddr(q);
+      let x = null; try{ const res = await lookup(pa.city ? q : q+', '+cittaObj().n); x = res.list[0]; }catch(e){ x = null; }
+      if(IX.stato!==I) return;
+      if(x){ R.f.pos = {lat:x.lat, lng:x.lng}; R.f.addrFull = testoRisultato(x); R.f.precision = x.precision||'exact'; R.f.hn = x.hn||''; }
+      delete R.daCercare; valutaRiga(R); I.fatti++; ridisegnaIx();
+      await new Promise(ok => setTimeout(ok, 1000));
+    }
+    if(IX.stato!==I) return;
+    I.fase = 'pronto'; ridisegnaIx();
+  })();
+}
 
 /* ---------- La schermata ---------- */
 function fPbImporta(){
   const I = IX.stato;
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Importa da Excel')}</h2><p class="meta">${I ? esc(I.nome) : ''}</p></div>${chiudiBtn('ix-chiudi')}</div>`;
+  const testa = `<div class="riga-titolo"><div><h2>${I && I.canale==='calendario' ? tr('Calendario del Comune') : tr('Importa da Excel')}</h2><p class="meta">${I ? esc(I.nome)+(I.fonte ? ' · '+esc(I.fonte) : '') : ''}</p></div>${chiudiBtn('ix-chiudi')}</div>`;
   if(!I) return foglio('forte', testa, '');
   if(I.fase==='leggo') return foglio('forte', testa, `<p class="caricamento">${tr('Leggo il file…')}</p>`);
   const gruppi = {pronta:[], sistemare:[], indirizzo:[], rifiutata:[], pubblicata:[], preparata:[]};
@@ -142,7 +146,7 @@ function fPbImporta(){
   const segnate = gruppi.pronta.filter(R => R.vista).length;
   const quando = f => esc(giornoOra(f.inizio))+(f.fine ? ' → '+esc(giornoOra(f.fine)) : '');
   const pronta = R => { const f = R.f, fo = regFonte(f.g.fonte);
-    return `<div class="ix-riga"><details><summary><span class="t">${tr('Riga {r}',{r:R.riga})} · ${esc(f.titolo)}</span><span class="meta">${quando(f)} · ${esc(f.luogo)}</span></summary>
+    return `<div class="ix-riga"><details><summary><span class="t">${tr('Riga {r}',{r:R.riga})} · ${esc(f.titolo)}${f.id ? ' · '+tr('correzione') : ''}</span><span class="meta">${quando(f)} · ${esc(f.luogo)}</span></summary>
       <dl class="ix-dati"><dt>${tr('Indirizzo')}</dt><dd>${esc(f.addrFull||f.indirizzo)}${f.precision==='map' ? ' · '+tr('punto messo a mano') : ''}</dd>
       ${f.comeArrivare ? `<dt>${tr('Come arrivare')}</dt><dd>${esc(f.comeArrivare)}</dd>` : ''}${f.organizzatore ? `<dt>${tr('Organizza')}</dt><dd>${esc(f.organizzatore)}</dd>` : ''}
       <dt>${tr('Descrizione')}</dt><dd>${esc(f.desc)}</dd>${f.prezzo ? `<dt>${tr('Prezzo indicato dalla fonte')}</dt><dd>${esc(f.prezzo)}</dd>` : ''}
@@ -160,6 +164,9 @@ function fPbImporta(){
     ${sezione(tr('Da sistemare'), gruppi.sistemare, `<div class="menu-lista">${gruppi.sistemare.map(R => altra(R, tr('Correggi'), 'ix-correggi')).join('')}</div>`)}
     ${sezione(tr('Indirizzi non trovati'), gruppi.indirizzo, `<div class="menu-lista">${gruppi.indirizzo.map(R => altra(R, tr('Metti il punto'), 'ix-correggi')).join('')}</div>`)}
     ${sezione(tr('Rifiutate: si correggono nel file'), gruppi.rifiutata, `<div class="imp-righe">${gruppi.rifiutata.map(R => `<div class="no">${tr('Riga {r}',{r:R.riga})}: ${esc(R.motivi.join('; '))}</div>`).join('')}</div>`)}
+    ${I.tolti && I.tolti.length ? `<p class="etich">${tr('Tolti dal Comune: da ritirare')} · ${I.tolti.length}</p><p class="meta">${tr('Erano nel calendario e sono ancora sulla mappa, ma nel file nuovo non ci sono più: aprili e ritirali prima della fine, con il motivo (§ 6.4, punto 7; § 5.2).')}</p>
+      <div class="menu-lista">${I.tolti.map(x => `<button class="menu-r" data-pbev="${esc(x.id)}"><div><span class="t">${esc(x.titolo)}</span><span class="meta">${esc(giornoOra(x.inizio))}${x.codice ? ' · '+esc(x.codice) : ''}</span></div>${freccia}</button>`).join('')}</div>` : ''}
+    ${I.saltati && (I.saltati.finiti || I.saltati.senzaOra) ? `<p class="meta">${tr('Non entrano nell’anteprima: {f} eventi già finiti, {o} eventi senza l’ora di inizio (si inseriscono a mano, se servono).',{f:I.saltati.finiti, o:I.saltati.senzaOra})}</p>` : ''}
     ${sezione(tr('Già pubblicate'), gruppi.pubblicata, `<div class="imp-righe">${gruppi.pubblicata.map(R => `<div>${tr('Riga {r}',{r:R.riga})}: ${esc(R.f.titolo)} · ${esc(R.codice||'')}</div>`).join('')}</div>`)}
     ${sezione(tr('Salvate tra i preparati'), gruppi.preparata, `<div class="imp-righe">${gruppi.preparata.map(R => `<div>${tr('Riga {r}',{r:R.riga})}: ${esc(R.f.titolo)}</div>`).join('')}</div>`)}
     <div class="tasti"><button class="tasto sec" data-az="ix-chiudi">${tr('Chiudi')}</button><button class="tasto pri" data-az="ix-pubblica" ${segnate && !PB.lavoro ? '' : 'disabled'}>${segnate===1 ? tr('Pubblica la riga segnata') : tr('Pubblica le {n} righe segnate',{n:segnate})}</button></div>`;
@@ -190,8 +197,10 @@ function pubblicaImportazione(){
   const ancora = scelte.filter(R => R.stato==='pronta' && R.vista);
   if(ancora.length!==scelte.length){ I.errore = tr('Alcune righe nel frattempo non sono più pronte: controllale.'); ridisegnaIx(); return; }
   I.errore = ''; I.msg = '';
-  Promise.all(ancora.map(() => CHIAVI.nuovoId())).then(ids => {
-    const cambi = ancora.map((R, i) => { const ev = eventoDalForm(R.f, ids[i]); R.idNuovo = ev.id; return {ev, g:R.f.g, titolo:R.f.g.nomi==='si' && R.f.g.titoloReg.trim() ? R.f.g.titoloReg.trim() : ev.titolo, canale:'excel'}; });
+  /* un evento di un calendario già pubblicato e cambiato si ripubblica come correzione, con il suo identificativo (T-044) */
+  Promise.all(ancora.map(R => R.f.id ? R.f.id : CHIAVI.nuovoId())).then(ids => {
+    const cambi = ancora.map((R, i) => { const ev = eventoDalForm(R.f, ids[i]); R.idNuovo = ev.id;
+      return {ev, g:R.f.g, titolo:R.f.g.nomi==='si' && R.f.g.titoloReg.trim() ? R.f.g.titoloReg.trim() : ev.titolo, canale:I.canale || 'excel', chiave:R.chiave, correzione:!!R.f.id}; });
     return regPrepara(cambi).then(rp => scriviPb(conRegistro({operazione:'scrivi', pubblica:cambi.map(c => c.ev)}, rp), r => {
       const codici = (r.registro||{}).codici||{};
       ancora.forEach(R => { R.stato = 'pubblicata'; R.vista = false; R.codice = codici[R.idNuovo]||''; });
