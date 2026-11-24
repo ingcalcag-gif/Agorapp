@@ -73,6 +73,7 @@ button.mz-fonte{cursor:pointer;min-height:24px}
 .mz-legenda{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;line-height:16px;color:var(--testo-2)}
 .mz-legenda span{display:inline-flex;align-items:center;gap:6px}
 .mz-legenda i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.mz-numeri{margin:10px 0 12px;font-size:13px}.mz-numeri b{color:var(--testo);font-size:15px;font-weight:600}
 .mz-legenda i.mz-l-az{width:2px;height:12px;border-radius:0;background:var(--mz-c3)}
 .mz-legenda i.mz-l-soglia{width:14px;height:2px;border-radius:2px;background:var(--mz-c3)}
 .mz-hbar{display:grid;grid-template-columns:minmax(84px,auto) 1fr;gap:6px 10px;align-items:center}

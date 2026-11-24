@@ -122,7 +122,7 @@ function fEventoForm(){
     ${riga('a-luogo', 'luogo', tr('Luogo'), 120, tr('Nome del luogo, es. Sala del quartiere'))}
     ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" maxlength="200" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${tr('Scegli sulla mappa')}</button>`,
       E.indirizzo===2 ? tr('Indirizzo non trovato: correggilo o scegli il punto sulla mappa') : E.indirizzo ? tr('Scrivi l’indirizzo o scegli il punto sulla mappa') : '')}
-    ${campo('a-come', tr('Come arrivare'), `<div class="campo${E.comeArrivare?' errore':''}"><textarea id="a-come" data-acampo="comeArrivare" maxlength="300" placeholder="${esc(tr('Come si raggiunge il luogo, a parole'))}">${esc(f.comeArrivare)}</textarea></div>`, '', f.precision==='map' ? tr('obbligatorio: il punto è scelto sulla mappa') : fac)}
+    ${campo('a-come', tr('Come arrivare'), `<div class="campo${E.comeArrivare?' errore':''}"><textarea id="a-come" data-acampo="comeArrivare" maxlength="300" placeholder="${esc(tr('Come si raggiunge il luogo, a parole'))}">${esc(f.comeArrivare)}</textarea></div>`, '', fac)}
     ${riga('a-org', 'organizzatore', tr('Organizza'), 120, '', fac)}
     ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="2000" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>`)}
     ${riga('a-prezzo', 'prezzo', tr('Prezzo indicato dalla fonte'), 80, tr('Gratuito / 10 €'), fac)}
@@ -162,7 +162,6 @@ function pubblicaForm(){
   if(vuoto('inizio')) metti('inizio', tr('Inizio: scegli il giorno e l’ora.'));
   else if(f.fine && f.fine <= f.inizio) metti('fine', tr('Fine: deve venire dopo l’inizio (oppure lasciala vuota).'));
   if(vuoto('luogo')) metti('luogo', tr('Luogo: scrivi il nome del luogo, per esempio «Sala del quartiere».'));
-  if(f.precision==='map' && vuoto('comeArrivare')) metti('comeArrivare', tr('Come arrivare: serve, perché il punto è stato scelto sulla mappa con «Scegli sulla mappa». Scrivi a parole come si raggiunge il luogo, per esempio «Ingresso dal cortile, seconda porta a sinistra».'));
   if(vuoto('desc')) metti('desc', tr('Descrizione: scrivi di che cosa si tratta.'));
   if(vuoto('fonte')) metti('fonte', tr('Fonte: scrivi da dove viene l’informazione, per esempio il nome del sito o di chi organizza.'));
   if(!vuoto('fonteLink') && !/^https:\/\//i.test(f.fonteLink.trim())) metti('fonteLink', tr('Collegamento della fonte: deve cominciare con https:// (oppure lascialo vuoto).'));

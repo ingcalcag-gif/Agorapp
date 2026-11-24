@@ -62,7 +62,7 @@ Due app sullo stesso indirizzo. Sul sito vero le due app stanno a indirizzi dive
 | Chiave | Dove | Che cosa contiene | Prima si chiamava |
 | --- | --- | --- | --- |
 | `red_storico` | memoria | Storico delle operazioni della Redazione: tipo, giorno e ora, numero di eventi, identificativo dell'evento | `agorapp_storico` |
-| `red_misure` | memoria | Misure: totali del giorno, numeri inseriti a mano, soglie, stato del catalogo | `agorapp_misure` |
+| `red_misure` | memoria | Misure: totali del giorno (dagli eventi dell'archivio e, dal blocco 10, dallo storico delle pubblicazioni dello sportello: eventi presenti, pubblicati, corretti, sospesi, riattivati, ritirati per motivo; mai i testi degli eventi), numeri inseriti a mano, soglie, stato del catalogo | `agorapp_misure` |
 | `red_qui` | memoria | Il segno che su questo indirizzo c'è l'app della redazione: il solo valore `1` | nessuno |
 | `red_chiavi` | base di dati | Le chiavi della Redazione (firma, cifratura, registro delle fonti, marcatore, cassaforte), tenute dal browser come chiavi non estraibili; le loro parti pubbliche; la copia di riserva, cifrata con la frase; il nome del dispositivo e la data. Dopo una revoca: soltanto l'avviso di revoca (T-034; `docs/chiavi-redazione.md`) | nessuno |
 | `red_cassaforte` | base di dati | Le password degli eventi nascosti, cifrate una per una con la chiave della cassaforte, con il momento in cui l'evento finisce: da allora la voce si cancella (T-034) | nessuno |

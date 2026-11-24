@@ -1,6 +1,6 @@
 /* Prova nel browser: l'app della redazione (voci T-033, T-034, T-035 e T-037 del piano di adeguamento).
 
-   Apre dist/redazione/ con un archivio inventato (12 eventi a Torino, 3 a Venezia) e con Misure inventate, e controlla:
+   Apre dist/redazione/ con un archivio inventato (12 eventi a Torino, 3 a Venezia, 6 fuori dalle città dell'app) e con Misure inventate, e controlla:
    1. l'app si apre con gli strumenti, senza password; chiede di non essere indicizzata; l'app pubblica non ha nulla
       di tutto questo;
    2. le chiavi: una frase corta è rifiutata; «Crea le chiavi» le crea; ricaricando la pagina restano; la copia di
@@ -21,10 +21,11 @@ const CHIAVI = require('../../sorgenti/moduli/chiavi.js');
 const FRASE = 'una frase inventata per la prova';
 const RICERCA = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [7.6869, 45.0703] },
   properties: { country: 'Italia', city: 'Torino', postcode: '10100', street: 'Via Inventata', housenumber: '5', type: 'house' } }] };
-/* 12 eventi a Torino e 3 a Venezia, nei prossimi giorni */
+/* 12 eventi a Torino, 3 a Venezia e 6 lontano da tutte le città dell'app (dalle parti di Cuneo), nei prossimi giorni */
 const LETTERE = 'abcdefghijklmnopqrstuvwxyz';
 const EVENTI = Array.from({ length: 12 }, (_, i) => eventoProva('torino' + LETTERE[i], { titolo: 'Evento inventato a Torino ' + (i + 1), lat: +(45.05 + i * 0.004).toFixed(4), lng: +(7.66 + i * 0.003).toFixed(4), inizio: giorno(1 + (i % 5)) + 'T18:00', fine: giorno(1 + (i % 5)) + 'T20:00', prezzo: i % 2 ? 'Gratuito' : '5 €' }))
-  .concat(Array.from({ length: 3 }, (_, i) => eventoProva('venezia' + LETTERE[i], { titolo: 'Evento inventato a Venezia ' + (i + 1), indirizzo: 'Calle Inventata 2, Venezia', lat: +(45.438 + i * 0.002).toFixed(4), lng: 12.3358, inizio: giorno(2) + 'T21:00', fine: giorno(2) + 'T23:00' })));
+  .concat(Array.from({ length: 3 }, (_, i) => eventoProva('venezia' + LETTERE[i], { titolo: 'Evento inventato a Venezia ' + (i + 1), indirizzo: 'Calle Inventata 2, Venezia', lat: +(45.438 + i * 0.002).toFixed(4), lng: 12.3358, inizio: giorno(2) + 'T21:00', fine: giorno(2) + 'T23:00' })))
+  .concat(Array.from({ length: 6 }, (_, i) => eventoProva('fuori' + LETTERE[i], { titolo: 'Evento inventato fuori città ' + (i + 1), indirizzo: 'Via Inventata 9, Cuneo', lat: +(44.39 + i * 0.002).toFixed(4), lng: 7.55, inizio: giorno(3) + 'T17:00', fine: giorno(3) + 'T19:00' })));
 /* Misure inventate, con numeri piccoli: un giro di prova con 8 persone, tre richieste di rimozione, due segnalazioni */
 const MISURE = { v: 1, giri: [{ d: giorno(-2), titolo: 'Giro inventato', n: 8, scoperto: 3, andato: 6, guida: 3, og: 2, cons: 8 }],
   rimozioni: [1, 2, 3].map(i => ({ ric: giorno(-3) + 'T10:0' + i, eva: giorno(-3) + 'T15:0' + i })), segnalazioni: { [giorno(-1)]: 2 }, richieste: { [giorno(-1)]: 340 },
@@ -143,16 +144,19 @@ async function prova() {
 
     /* 4 */
     if (await strumenti() && await tocca(F + '[data-az="admin-misure"]', 'Misure')) {
-      try { await p.waitForFunction(() => /dall’archivio pubblicato: 15/.test((document.querySelector('.mz-archivio') || {}).textContent || ''), null, { timeout: 20000 }); }
-      catch (x) { err('Misure: non leggono i 15 eventi dell\'archivio («' + (await p.locator('.mz-archivio').innerText().catch(() => '')) + '»)'); }
-      if ((await p.locator('.mz-hero .mz-num').innerText().catch(() => '')).trim() !== '15') err('Misure: «Eventi attivi oggi» non conta gli eventi dell\'archivio');
+      try { await p.waitForFunction(() => /dall’archivio pubblicato: 21/.test((document.querySelector('.mz-archivio') || {}).textContent || ''), null, { timeout: 20000 }); }
+      catch (x) { err('Misure: non leggono i 21 eventi dell\'archivio («' + (await p.locator('.mz-archivio').innerText().catch(() => '')) + '»)'); }
+      if ((await p.locator('.mz-hero .mz-num').innerText().catch(() => '')).trim() !== '21') err('Misure: «Eventi attivi oggi» non conta gli eventi dell\'archivio');
       const piccoli = async dove => { const v = await p.evaluate(() => [...document.querySelectorAll('.mz-v, .mz-zv, td.n, .mz-num, .mz-fr b')].map(x => x.textContent.trim()).filter(t => /^[1-4]( su .*)?$/.test(t) || /^\d+ su [1-4]$/.test(t)));
         if (v.length) err(`Misure, ${dove}: valori sotto i 5 casi scritti per esteso (${v.slice(0, 4).join(' · ')})`); };
       await piccoli('panoramica');
       if (await tocca('.mz-schede [data-mz="scheda"][data-v="offerta"]', 'Misure, offerta')) {
-        const citta = await p.evaluate(() => { const o = {}; const b = [...document.querySelectorAll('.mz-hbar')][0]; if (!b) return o; const n = b.querySelectorAll('.mz-nome'), v = b.querySelectorAll('.mz-v'); n.forEach((x, i) => { o[x.textContent.trim()] = v[i].textContent.trim(); }); return o; });
+        const citta = await p.evaluate(() => { const o = {}; const b = document.querySelector('section[aria-labelledby="mzg-citta"] .mz-hbar'); if (!b) return o; const n = b.querySelectorAll('.mz-nome'), v = b.querySelectorAll('.mz-v'); n.forEach((x, i) => { o[x.textContent.trim()] = v[i].textContent.trim(); }); return o; });
         if (citta.Torino !== '12') err('Misure: Torino deve contare 12 eventi dell\'archivio (trovato «' + citta.Torino + '»)');
         if (citta.Venezia !== 'meno di 5') err('Misure: i 3 eventi di Venezia devono comparire come «meno di 5» (trovato: ' + JSON.stringify(citta) + ')');
+        /* le città sommano al totale: gli eventi lontani da tutte le città hanno la loro riga (nota sotto T-041) */
+        if (citta['Fuori dalle città'] !== '6') err('Misure: i 6 eventi lontani da tutte le città devono stare nella riga «Fuori dalle città» (trovato: ' + JSON.stringify(citta) + ')');
+        if (!(await p.locator('section[aria-labelledby="mzg-pubbl"]').count())) err('Misure, offerta: manca il riquadro dello storico delle pubblicazioni');
         await piccoli('offerta');
       }
       for (const v of ['rete', 'accessi', 'qualita']) if (await tocca('.mz-schede [data-mz="scheda"][data-v="' + v + '"]', 'Misure, ' + v)) await piccoli(v);
@@ -167,7 +171,10 @@ async function prova() {
         const XLSX = require(path.join(RADICE, 'sorgenti', 'vendor', 'sheetjs-0.18.5', 'xlsx.full.min.js'));
         const wb = XLSX.read(xl.dati, { type: 'buffer' }), fogli = Object.fromEntries(wb.SheetNames.map(n => [n, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true })]));
         if (!fogli.Rimozioni) err('esportazione: manca il foglio «Rimozioni»');
-        for (const n of ['Giorni', 'Interviste']) {
+        const testa = (fogli.Giorni || [[]])[0], oggiG = (fogli.Giorni || []).slice(1).pop() || [], iF = testa.indexOf('Fuori dalle città');
+        if (iF < 0 || testa[iF - 1] !== 'Piazza Armerina' || oggiG[iF] !== 'meno di 10') err('esportazione, foglio «Giorni»: dopo le città serve la colonna «Fuori dalle città», con i 6 eventi di oggi scritti «meno di 10» (' + JSON.stringify(testa).slice(0, 160) + ' · ' + oggiG[iF] + ')');
+        if (!fogli.Pubblicazioni || fogli.Pubblicazioni[0][1] !== 'Eventi presenti') err('esportazione: manca il foglio «Pubblicazioni» con lo storico giorno per giorno');
+        for (const n of ['Giorni', 'Interviste', 'Pubblicazioni']) {
           if (!fogli[n]) { err('esportazione: manca il foglio «' + n + '»'); continue; }
           for (const riga of fogli[n].slice(1)) riga.forEach((c, i) => { if (i > 0 && typeof c === 'number' && c > 0 && c < 10 && !(n === 'Interviste' && i === 7)) err(`esportazione, foglio «${n}»: un valore sotto i 10 casi è scritto per esteso (${c})`); });
         }
@@ -200,7 +207,7 @@ async function prova() {
     }
     e.note.push('strumenti senza password; chiavi create, copia di riserva illeggibile senza la frase, parti pubbliche, revoca');
     e.note.push('evento nuovo con identificativo ' + (id ? 'marcato e riconosciuto; una lettera cambiata: no' : 'non creato'));
-    e.note.push('Misure dai 15 eventi dell\'archivio inventato: Torino 12, Venezia «meno di 5»; nel file esportato i valori sotto 10 escono come «meno di 10»');
+    e.note.push('Misure dai 21 eventi dell\'archivio inventato: Torino 12, Venezia «meno di 5», fuori dalle città 6; nel file esportato i valori sotto 10 escono come «meno di 10»');
   } finally { await browser.close(); await s.chiudi(); }
   return e;
 }

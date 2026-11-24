@@ -2623,7 +2623,7 @@ function fEventoForm(){
     ${riga('a-luogo', 'luogo', tr('Luogo'), 120, tr('Nome del luogo, es. Sala del quartiere'))}
     ${campo('a-indirizzo', tr('Indirizzo'), `<div class="campo${E.indirizzo?' errore':''}">${icoLuogo}<input id="a-indirizzo" data-acampo="indirizzo" maxlength="200" value="${esc(f.indirizzo)}" placeholder="${esc(tr('Via e numero civico, città'))}" autocomplete="off"></div><div id="a-sugg"></div><div id="a-punto">${boxPunto(f)}</div><button class="link" data-az="scegli-mappa-a">${tr('Scegli sulla mappa')}</button>`,
       E.indirizzo===2 ? tr('Indirizzo non trovato: correggilo o scegli il punto sulla mappa') : E.indirizzo ? tr('Scrivi l’indirizzo o scegli il punto sulla mappa') : '')}
-    ${campo('a-come', tr('Come arrivare'), `<div class="campo${E.comeArrivare?' errore':''}"><textarea id="a-come" data-acampo="comeArrivare" maxlength="300" placeholder="${esc(tr('Come si raggiunge il luogo, a parole'))}">${esc(f.comeArrivare)}</textarea></div>`, '', f.precision==='map' ? tr('obbligatorio: il punto è scelto sulla mappa') : fac)}
+    ${campo('a-come', tr('Come arrivare'), `<div class="campo${E.comeArrivare?' errore':''}"><textarea id="a-come" data-acampo="comeArrivare" maxlength="300" placeholder="${esc(tr('Come si raggiunge il luogo, a parole'))}">${esc(f.comeArrivare)}</textarea></div>`, '', fac)}
     ${riga('a-org', 'organizzatore', tr('Organizza'), 120, '', fac)}
     ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="2000" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>`)}
     ${riga('a-prezzo', 'prezzo', tr('Prezzo indicato dalla fonte'), 80, tr('Gratuito / 10 €'), fac)}
@@ -2663,7 +2663,6 @@ function pubblicaForm(){
   if(vuoto('inizio')) metti('inizio', tr('Inizio: scegli il giorno e l’ora.'));
   else if(f.fine && f.fine <= f.inizio) metti('fine', tr('Fine: deve venire dopo l’inizio (oppure lasciala vuota).'));
   if(vuoto('luogo')) metti('luogo', tr('Luogo: scrivi il nome del luogo, per esempio «Sala del quartiere».'));
-  if(f.precision==='map' && vuoto('comeArrivare')) metti('comeArrivare', tr('Come arrivare: serve, perché il punto è stato scelto sulla mappa con «Scegli sulla mappa». Scrivi a parole come si raggiunge il luogo, per esempio «Ingresso dal cortile, seconda porta a sinistra».'));
   if(vuoto('desc')) metti('desc', tr('Descrizione: scrivi di che cosa si tratta.'));
   if(vuoto('fonte')) metti('fonte', tr('Fonte: scrivi da dove viene l’informazione, per esempio il nome del sito o di chi organizza.'));
   if(!vuoto('fonteLink') && !/^https:\/\//i.test(f.fonteLink.trim())) metti('fonteLink', tr('Collegamento della fonte: deve cominciare con https:// (oppure lascialo vuoto).'));
@@ -2817,6 +2816,9 @@ MZ_KPI.forEach(k => Object.keys(k).forEach(c => { if(typeof k[c]==='string') k[c
    nella chiave red_misure:
    - totali del giorno calcolati dagli eventi dell'archivio pubblicato, letti dall'indice e dai quadranti (mai una copia
      degli eventi: restano solo i conteggi);
+   - totali del giorno ricavati dallo storico delle pubblicazioni dello sportello (letture firmate «storico» e «copia»):
+     eventi presenti, pubblicati, corretti, sospesi, riattivati e ritirati per motivo, da tutti i dispositivi della
+     Redazione (decisione del 23/11/2026; anche qui restano solo i conteggi);
    - numeri inseriti a mano (richieste al sito, azioni di comunicazione, rimozioni, segnalazioni, test, interviste);
    - soglie, stato delle decisioni, decisioni sul catalogo delle 50 domande.
    Nessun dato degli utenti. Soglie minime (§ 4.4): nel pannello un valore sotto i 5 casi compare come «meno di 5»,
@@ -2861,7 +2863,7 @@ function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.
    Le Misure contano gli eventi dell'archivio pubblicato, non quelli nella memoria del dispositivo (T-035; § 4.2). Li
    legge un lettore suo (sorgenti/moduli/archivio.js), che non conserva nulla: l'indice e tutti i quadranti che
    l'indice nomina. Di ogni evento tiene, finché il pannello è aperto, soltanto ciò che serve ai conteggi. Lo storico
-   delle pubblicazioni si aggiunge quando esisterà (T-039). */
+   delle pubblicazioni si legge più sotto (mzLeggiStorico). */
 let MZ_EVENTI = [];
 const MZ_ARCH = {stato:'', quadranti:0, quando:null, lettore:null};
 const daArchivioMz = ev => ({id:ev.id, category:ev.strato, datetime:new Date(FORMATO.istante(ev.inizio)).toISOString(), lat:ev.lat, lng:ev.lng,
@@ -2919,6 +2921,74 @@ function mzFotografa(){
   const limG = piuGiorni(g,-400); Object.keys(m.giorni).forEach(k => { if(k<limG) delete m.giorni[k]; });
   mzSalva();
 }
+/* ---------- lo storico delle pubblicazioni: solo totali (blocco 10; decisione del 23/11/2026; § 4.2) ----------
+   Lo sportello tiene una copia datata per ogni pubblicazione, di qualunque dispositivo della Redazione. Da lì, per ogni
+   giorno degli ultimi cento: quanti eventi erano presenti nell'archivio (quelli dell'ultima copia fino a quel giorno,
+   non ancora usciti all'inizio del giorno), quanti pubblicati, corretti, sospesi, riattivati e ritirati, e i ritiri
+   per motivo. Le letture sono firmate come le altre; delle copie non resta nulla, solo i conteggi nella voce
+   red_misure (pubbl: giorno → n presenti, p pubblicati, c corretti, s sospesi, a riattivati, r ritirati, m ritiri
+   per motivo, rip ripristini, da nome dell'ultima copia usata). Un giorno finito si calcola una volta sola, finché
+   l'ultima copia che lo riguarda resta la stessa. */
+const MZ_STOR = {stato:'', quando:null};
+const MOTIVI_MZ = ['annullato', 'errore', 'esclusione', 'richiesta', 'segnalazione', 'ordine'];
+function mzLeggiStorico(){
+  if(typeof SPORTELLO==='undefined' || !SPORTELLO){ MZ_STOR.stato = 'assente'; return Promise.resolve(false); }
+  if(!MZ_STOR.quando) MZ_STOR.stato = 'leggo';
+  const lette = {}, leggi = nome => lette[nome] || (lette[nome] = SPORTELLO.chiedi({operazione:'copia', nome}).then(r => r.copia));
+  return SPORTELLO.chiedi({operazione:'storico'}).then(async r => {
+    const m = mz(), g = oggi(), copie = (r.copie||[]).filter(x => x && typeof x.nome==='string' && !isNaN(Date.parse(x.quando))).sort((a,b) => Date.parse(a.quando)-Date.parse(b.quando));
+    const P = {}, prima = m.pubbl||{};
+    for(let d = piuGiorni(g,-100); d<=g; d = piuGiorni(d,1)){
+      const inizio = dIso(d).getTime(), fine = dIso(piuGiorni(d,1)).getTime(), ultima = copie.filter(x => Date.parse(x.quando)<fine).pop();
+      if(!ultima) continue;
+      if(d<g && prima[d] && prima[d].da===ultima.nome){ P[d] = prima[d]; continue; }
+      const v = {n:0, p:0, c:0, s:0, a:0, r:0, rip:0, m:{}, da:ultima.nome}, k = await leggi(ultima.nome);
+      v.n = (k.eventi||[]).filter(e => FORMATO.uscitaMs(e) > inizio).length;
+      for(const x of copie.filter(y => { const t = Date.parse(y.quando); return t>=inizio && t<fine; })){
+        const q = x.riepilogo||{}, num = c => Array.isArray(q[c]) ? q[c].length : numMz(q[c]);
+        if(x.operazione==='ripristina') v.rip++;
+        v.p += num('pubblicati'); v.c += num('corretti'); v.s += num('sospesi'); v.a += num('riattivati'); v.r += num('ritirati');
+        if(num('ritirati')){ const z = ((await leggi(x.nome)).riepilogo||{}).ritirati; (Array.isArray(z) ? z : []).forEach(y => { if(y && MOTIVI_MZ.includes(y.motivo)) v.m[y.motivo] = (v.m[y.motivo]||0)+1; }); }
+      }
+      P[d] = v;
+    }
+    /* i giorni più vecchi di cento restano come sono, fino a 400 giorni; se lo storico è vuoto non resta nulla */
+    if(copie.length){ const lim = piuGiorni(g,-400), cento = piuGiorni(g,-100); Object.keys(prima).forEach(d => { if(d<cento && d>=lim) P[d] = prima[d]; }); }
+    m.pubbl = P; mzSalva(); MZ_STOR.stato = 'letto'; MZ_STOR.quando = new Date(); return true;
+  }).catch(e => { const mot = e && e.motivo; MZ_STOR.stato = mot==='chiavi' || mot==='sconosciuto' || mot==='revocata' || mot==='assente' ? mot : MZ_STOR.quando ? 'vecchio' : 'errore'; return false; });
+}
+const pubblMz = g => (mz().pubbl||{})[g] || null;
+function seriePresenti(giorni){ return giorni.map(g => { const v = pubblMz(g); return v ? numMz(v.n) : null; }); }
+function sommaPubbl(giorni){
+  const t = {p:0, c:0, s:0, a:0, r:0, rip:0, m:{}, giorni:0};
+  giorni.forEach(g => { const v = pubblMz(g); if(!v) return; t.giorni++; ['p','c','s','a','r','rip'].forEach(k => { t[k] += numMz(v[k]); }); Object.keys(v.m||{}).forEach(k => { if(MOTIVI_MZ.includes(k)) t.m[k] = (t.m[k]||0)+numMz(v.m[k]); }); });
+  return t;
+}
+/* una riga che dice da dove vengono i numeri dello storico */
+function rigaStoricoMz(){
+  const t = {leggo:tr('Leggo lo storico delle pubblicazioni…'), assente:tr('Su questo indirizzo non c’è uno sportello: i numeri dello storico restano vuoti.'),
+    chiavi:tr('Per leggere lo storico delle pubblicazioni servono le chiavi della Redazione: Strumenti della redazione → Chiavi.'),
+    sconosciuto:tr('Lo sportello non conosce ancora questo dispositivo: i numeri dello storico restano quelli dell’ultima lettura.'),
+    revocata:tr('La firma di questo dispositivo è revocata: lo sportello non fa leggere lo storico.'),
+    errore:tr('Lo sportello non risponde: i numeri dello storico restano vuoti finché non torna la rete.'),
+    vecchio:tr('Lo sportello non risponde: i numeri dello storico sono quelli dell’ultima lettura.')}[MZ_STOR.stato];
+  return `<p class="meta mz-storico" role="status">${t || tr('Dallo storico delle pubblicazioni dello sportello, tutti i dispositivi · lettura delle {o}',{o:MZ_STOR.quando ? hm(MZ_STOR.quando) : '–'})}</p>`;
+}
+function storicoMz(g){
+  const T = sommaPubbl(g), pres = seriePresenti(g);
+  const motivi = MOTIVI_MZ.filter(k => T.m[k]).map(k => [tr(MOTIVI_RITIRO[k]), T.m[k]]);
+  const numeri = [[tr('Pubblicati'), T.p], [tr('Corretti'), T.c], [tr('Sospesi'), T.s], [tr('Riattivati'), T.a], [tr('Ritirati'), T.r]];
+  return `${rigaStoricoMz()}
+    ${lineaMz('presenti', [{nome:tr('Eventi presenti'), v:pres, col:'var(--verde)'}], g, {vuoto:tr('Lo storico nasce con la prima pubblicazione: finché non c’è, qui non c’è nulla.')})}
+    <div class="mz-legenda mz-numeri">${numeri.map(x => `<span><b>${nfm(x[1])}</b> ${esc(x[0].toLowerCase())}</span>`).join('')}</div>
+    <p class="meta"><b>${tr('Ritiri prima della fine, per motivo')}</b></p>
+    ${motivi.length ? hbarMz(motivi) : vuotoMz(tr('Nessun ritiro nel periodo.'))}
+    <p class="meta">${tr('«Presenti» sono gli eventi dell’archivio che in quel giorno non erano ancora usciti. A differenza degli «eventi attivi» qui sopra, lo storico non ha buchi nei giorni in cui le Misure non si aprono.')}</p>`;
+}
+function tabStoricoMz(g){
+  const c = v => v==null ? `<span class="meta">${tr('nessun dato')}</span>` : nfm(numMz(v));
+  return `<div class="mz-scorri" style="max-height:280px"><table class="mz-tab"><tr><th>${tr('Giorno')}</th><th class="n">${tr('Presenti')}</th><th class="n">${tr('Pubblicati')}</th><th class="n">${tr('Corretti')}</th><th class="n">${tr('Sospesi')}</th><th class="n">${tr('Ritirati')}</th></tr>${g.map(d => { const v = pubblMz(d); return `<tr><td>${lungD(d)}</td><td class="n">${c(v&&v.n)}</td><td class="n">${c(v&&v.p)}</td><td class="n">${c(v&&v.c)}</td><td class="n">${c(v&&v.s)}</td><td class="n">${c(v&&v.r)}</td></tr>`; }).join('')}</table></div>`;
+}
 function misureConta(tipo){ const m = mz(), g = oggi(); m.correzioni[g] = m.correzioni[g]||{c:0, r:0}; m.correzioni[g][tipo==='rimossi'?'r':'c']++; mzSalva(); }
 
 /* ---------- periodi ---------- */
@@ -2953,11 +3023,12 @@ function mzStato(){
   const conCreato = L.map(e => [e, creatoDi(e)]).filter(x => x[1]);
   const anticipo = conCreato.length ? conCreato.reduce((s,[e,c]) => s + Math.max(0, new Date(e.datetime).getTime()-c), 0)/conCreato.length/864e5 : null;
   const nuovi7 = nuoviIn(g7), nuoviP = nuoviIn(gP);
-  const corr = somma(m.correzioni, gP, x => (x.c||0)+(x.r||0));
+  /* correzioni e ritiri: dallo storico dello sportello, che li conta da tutti i dispositivi; se lo storico non si è mai letto, dal contatore di questo dispositivo */
+  const TP = sommaPubbl(gP), corr = TP.giorni ? TP.c+TP.r : somma(m.correzioni, gP, x => (x.c||0)+(x.r||0));
   const ric = gP.map(g => m.richieste[g]).filter(v => v!=null);
   return {L, zone, sotto, prov, anticipo, nuovi7, nuoviP, corr, ric, mediaRic: ric.length ? Math.round(ric.reduce((a,b)=>a+b,0)/ric.length) : null,
     qualita: nuoviP>=SOGLIA_INTERNA ? corr/nuoviP*100 : null, segn: somma(m.segnalazioni, gP), grat: L.length>=SOGLIA_INTERNA ? Math.round(L.filter(gratuitoMz).length/L.length*100) : null,
-    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, MZ_EVENTI.filter(e => cittaDi(e)===c.id).length])};
+    imp: L.filter(e => e.importato).length, perCitta: CITTA.map(c => [c.n, MZ_EVENTI.filter(e => cittaDi(e)===c.id).length]).concat([[tr('Fuori dalle città'), MZ_EVENTI.filter(e => cittaDi(e)==='altro').length]])};
 }
 function effettoAzione(a){
   const m = mz(), media = arr => { const v = arr.filter(x => x!=null); return v.length>=2 ? v.reduce((p,q)=>p+q,0)/v.length : null; };
@@ -3007,7 +3078,7 @@ const mzIco = {
   avanti:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   x:'<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m3.5 3.5 7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
 };
-const FONTI_MZ = {ev:'Dagli eventi', man:'Da Netlify, a mano', test:'Test interno', int:'Interviste', mail:'Dalla posta', reg:'Registro a mano'};
+const FONTI_MZ = {ev:'Dagli eventi', stor:'Dallo storico delle pubblicazioni', man:'Da Netlify, a mano', test:'Test interno', int:'Interviste', mail:'Dalla posta', reg:'Registro a mano'};
 const fonteMz = k => `<span class="mz-fonte mz-f-${k}">${tr(FONTI_MZ[k])}</span>`;
 const righeBtn = (k, l) => `<button class="mz-fonte" data-mz="kpiset" data-k="${k.join(',')}" data-l="${esc(l)}">${k.length>1?tr('righe'):tr('riga')} ${k.join(', ')}</button>`;
 function mzTile(lab, val, det, fonte, metro, warn, kpi){
@@ -3132,13 +3203,14 @@ function vOffertaMz(){
   const hmax = Math.max(1, ...heat.flat()), GG = giorniBrevi(), ordine = [1,2,3,4,5,6,0];
   return `<h2 class="mz-h1">${tr('Offerta di eventi')}</h2><p class="meta">${tr('Calcolato dagli eventi che pubblichi: nessun utente coinvolto. Si conservano solo i totali del giorno, non gli eventi.')}</p>
     ${mzBox('attivi', tr('Eventi attivi ogni giorno'), lineaMz('attivi', [{nome:tr('Eventi attivi'), v:att, col:'var(--verde)'}], g, {vuoto:tr('Il grafico si riempie un giorno alla volta: ogni volta che apri le Misure si salva il totale del giorno.')})+`<p class="meta">${tr('Un giorno in cui l’admin non apre le Misure resta un buco.')}</p>`, tabLineaMz([{nome:tr('Eventi attivi'), v:att}], g), 'ev', [1])}
+    ${mzBox('pubbl', tr('Pubblicazioni, giorno per giorno'), storicoMz(g), tabStoricoMz(g), 'stor', [11,1])}
     <div class="mz-griglia2">
       ${mzTile(tr('Nuovi nel periodo'), nfm(S.nuoviP), tr('inseriti da te ({nome}), non nuovi utenti · ultimi 7 giorni: {n}',{n:S.nuovi7}), 'ev', null, false, [2])}
       ${mzTile(tr('Anticipo medio'), S.anticipo==null?'–':`${n1(S.anticipo)}<small> ${tr('giorni')}</small>`, tr('tra pubblicazione e inizio'), 'ev', null, false, [9])}
       ${mzTile(tr('Gratuiti'), S.grat==null?'–':`${S.grat}<small> %</small>`, tr('eventi con ingresso libero'), 'ev', null, false, [7])}
       ${mzTile(tr('Da import Excel'), nfm(S.imp), tr('eventi attivi arrivati da un file'), 'ev', null, false, [10])}
     </div>
-    ${mzBox('citta', tr('Eventi attivi per città'), hbarMz(S.perCitta), null, 'ev', [3])}
+    ${mzBox('citta', tr('Eventi attivi per città'), hbarMz(S.perCitta)+`<p class="meta">${tr('«Fuori dalle città» sono gli eventi a più di 35 km da tutte le città dell’app: con questa riga le città sommano al totale.')}</p>`, null, 'ev', [3])}
     ${mzBox('zone', tr('Zone di Torino · eventi nei prossimi 7 giorni'), zoneMz(S), `<table class="mz-tab"><tr><th>${tr('Zona')}</th><th class="n">${tr('Eventi')}</th></tr>${QUARTIERI.map(q => `<tr><td>${esc(q.n)}</td><td class="n">${nfm(S.zone[q.n])}</td></tr>`).join('')}</table>`, 'ev', [5])}
     ${mzBox('strati', tr('Eventi attivi per strato'), hbarMz(strati)+`<p class="meta">${tr('Gli strati più sottili sono quelli da cercare.')}</p>`, null, 'ev', [4])}
     ${mzBox('prov', tr('Da dove arrivano gli eventi'), tot ? `<div class="mz-stack" role="img" aria-label="${esc(fa.map(f => f[0]+' '+nfm(f[1])).join(', '))}">${fa.filter(f => f[1]).map(f => `<i style="width:${f[1]/tot*100}%;background:${f[2]}" data-mztip="<b>${esc(f[0])}</b><br>${nfm(f[1])} ${tr('eventi')}${tot>=SOGLIA_INTERNA?' · '+Math.round(f[1]/tot*100)+' %':''}"></i>`).join('')}</div>
@@ -3322,11 +3394,14 @@ function foglioSoglieMz(){
 function esportaMisure(){
   const m = mz(), giorni = Object.keys(Object.assign({}, m.giorni, m.richieste, m.creati, m.segnalazioni, m.correzioni)).sort();
   const cit = CITTA.map(c => c.id);
-  const G = [[tr('Giorno'), tr('Eventi attivi'), ...CITTA.map(c => c.n), tr('Da import'), tr('Gratuiti'), tr('Consenso diretto'), tr('Fonte pubblica'), tr('Provenienza non indicata'), tr('Nuovi creati'), tr('Corretti'), tr('Rimossi'), tr('Richieste (Netlify)'), tr('Segnalazioni'), tr('Azioni di comunicazione')]]
-    .concat(giorni.map(g => { const x = m.giorni[g]||{}, c = m.correzioni[g]||{}; return [dIso(g), x.tot!=null?x.tot:'', ...cit.map(id => x.citta ? (x.citta[id]||0) : ''), x.imp!=null?x.imp:'', x.grat!=null?x.grat:'',
+  const G = [[tr('Giorno'), tr('Eventi attivi'), ...CITTA.map(c => c.n), tr('Fuori dalle città'), tr('Da import'), tr('Gratuiti'), tr('Consenso diretto'), tr('Fonte pubblica'), tr('Provenienza non indicata'), tr('Nuovi creati'), tr('Corretti'), tr('Rimossi'), tr('Richieste (Netlify)'), tr('Segnalazioni'), tr('Azioni di comunicazione')]]
+    .concat(giorni.map(g => { const x = m.giorni[g]||{}, c = m.correzioni[g]||{}; return [dIso(g), x.tot!=null?x.tot:'', ...cit.map(id => x.citta ? (x.citta[id]||0) : ''), x.citta ? (x.citta.altro||0) : '', x.imp!=null?x.imp:'', x.grat!=null?x.grat:'',
       x.prov?(x.prov.consenso||0):'', x.prov?(x.prov.pubblica||0):'', x.prov?(x.prov.nd||0):'', m.creati[g]||0, c.c||0, c.r||0, m.richieste[g]!=null?m.richieste[g]:'', m.segnalazioni[g]||0].map((v, i) => i ? fuoriMz(v) : v).concat([m.azioni.filter(a => a.d===g).map(a => a.t).join(' · ')]); }));
   /* le richieste di rimozione escono una per riga, con i soli momenti (ricevuta, evasa) e le ore: nessun nome. È il
      registro di lavoro della Redazione, che lo scarica quando vuole (decisione di Lorenzo del 22/11/2026) */
+  /* lo storico delle pubblicazioni: un giorno per riga, solo conteggi */
+  const Pu = [[tr('Giorno'), tr('Eventi presenti'), tr('Pubblicati'), tr('Corretti'), tr('Sospesi'), tr('Riattivati'), tr('Ritirati'), ...MOTIVI_MZ.map(k => tr('Ritirati') + ': ' + tr(MOTIVI_RITIRO[k])), tr('Ripristini di una copia')]]
+    .concat(Object.keys(m.pubbl||{}).sort().map(g => { const v = m.pubbl[g]; return [dIso(g), v.n, v.p, v.c, v.s, v.a, v.r, ...MOTIVI_MZ.map(k => (v.m||{})[k]||0), v.rip||0].map((x, i) => i ? fuoriMz(numMz(x)) : x); }));
   const R = [[tr('Ricevuta'), tr('Evasa'), tr('Ore')]].concat(m.rimozioni.map(r => [r.ric, r.eva||'', oreTra(r.ric, r.eva)==null?'':oreTra(r.ric, r.eva)]));
   const V = [[tr('Versione'), tr('Data'), tr('Secondi')]].concat(m.versioni.map(v => [v.v, dIso(v.d), v.s]));
   const P = [[tr('Data'), tr('Rete e telefono'), tr('Esito'), tr('Nota')]].concat(m.prove.map(p => [dIso(p.d), p.rete, p.ok?tr('Caricata'):tr('Non caricata'), p.nota||'']));
@@ -3334,7 +3409,7 @@ function esportaMisure(){
   const C = [['N.', tr('Domanda'), tr('Sezione'), tr('Stato'), tr('Nella sezione'), tr('Decisione di Lorenzo'), tr('Note di Lorenzo'), tr('Risposta di Claude'), tr('Appunti di studio'), tr('Data appunti'), tr('Ultimo cambio di stato'), tr('UE'), tr('IT')]]
     .concat(MZ_KPI.map(k => { const x = (m.lib||{})[k.n]||{}, s = libStato(k.n); return [k.n, k.q, tr(NOMI_SEZ[sezioneKpi(k)]), tr(STATI_LIB[s]), s==='operativo' ? (HA_PANNELLO.has(k.n) ? (libVisibile(k.n)?tr('Visibile'):tr('Nascosta')) : tr('Pannello da costruire')) : '', k.lorD||'', k.lorNota||'', k.risposta||'', x.appunti||'', x.appuntiD?dIso(x.appuntiD):'', x.stato?dIso(x.agg):'', k.eu, k.it]; }));
   const Sg = [[tr('Soglia'), tr('Valore')], [tr('Eventi per zona nei prossimi 7 giorni'), m.soglie.zona], [tr('Obiettivo nuovi a settimana'), m.soglie.nuovi], [tr('Tempo massimo di caricamento (s)'), m.soglie.carico]];
-  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),10,10,12,12,14,10,10,10,14,12,40]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
+  fileExcel([[tr('Giorni'), G, [12,12,...CITTA.map(() => 12),14,10,10,12,12,14,10,10,10,14,12,40]], [tr('Pubblicazioni'), Pu, [12,12,12,10,10,12,10,...MOTIVI_MZ.map(() => 18),14]], [tr('Rimozioni'), R, [20,20,8]], [tr('Versioni'), V, [20,12,10]], [tr('Prove mappa'), P, [12,24,14,40]], [tr('Interviste'), I, [12,20,10,14,14,14,16,14]], [tr('Libreria'), C, [6,60,18,14,16,18,50,60,50,12,14,8,8]], [tr('Soglie'), Sg, [44,10]]], nomeFile()+'_misure_'+oggi()+'.xlsx')
     .then(() => { registra('esporta-misure'); avviso(tr('Misure esportate: {f}',{f:nomeFile()+'_misure_'+oggi()+'.xlsx'}), null, true); })
     .catch(() => avviso(tr('Serve la connessione per preparare il file Excel.'), null, true));
 }
@@ -3343,6 +3418,7 @@ function esportaMisure(){
 function apriMisure(){
   vaiSezione('misure'); const el = $('pagina-misure'); if(el) el.scrollTop = 0;
   mzLeggiArchivio().then(() => { mzFotografa(); if(st.sezione==='misure') disegnaMisure(); });
+  mzLeggiStorico().then(() => { if(st.sezione==='misure') disegnaMisure(); });
 }
 function salvaAppuntiMz(n){ const ta = $('mz-app-'+n), x = (mz().lib||{})[n]||{}; if(ta && ta.value.trim()!==(x.appunti||'')) libSet(n, {appunti:ta.value.trim(), appuntiD:oggi()}); }
 function clickMisure(t){

@@ -21,7 +21,7 @@ Un evento è un oggetto JSON con i campi qui sotto e nessun altro: un campo scon
 | `luogo` | sì | Nome del luogo | Fino a 120 caratteri, su una riga (§ 11.3, regola 1) |
 | `indirizzo` | sì | Indirizzo, come lo indica la fonte | Fino a 200 caratteri, su una riga |
 | `collocazione` | sì | Come è stato messo il punto sulla mappa | `indirizzo` (trovato dalla ricerca degli indirizzi) oppure `a_mano` (indirizzo non trovato, punto messo dalla Redazione: § 2.2) |
-| `descrizione_luogo` | solo per `a_mano` | Come si raggiunge il luogo, a parole | Fino a 300 caratteri; obbligatoria per gli eventi collocati a mano (§ 11.3, regola 2) |
+| `descrizione_luogo` | no | Come si raggiunge il luogo, a parole | Fino a 300 caratteri; sempre facoltativa, anche per gli eventi collocati a mano: consigliata quando l'indirizzo non basta a trovare il luogo (decisione del 23/11/2026, eccezione al § 11.3, regola 2) |
 | `lat` | sì | Latitudine del punto | Numero con al massimo 6 decimali; il punto deve stare nel riquadro dell'Italia |
 | `lng` | sì | Longitudine del punto | Come `lat` |
 | `organizzatore` | no | Chi organizza, quando è noto | Fino a 120 caratteri, su una riga (§ 2.2) |

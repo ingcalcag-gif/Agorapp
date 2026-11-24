@@ -157,7 +157,8 @@
       if (b <= a) err.push('fine: deve venire dopo l\'inizio');
       else if (b - a > MAX_GIORNI * 864e5) err.push('fine: al massimo ' + MAX_GIORNI + ' giorni dopo l\'inizio');
     }
-    if (ev.collocazione === 'a_mano' && ev.descrizione_luogo == null) err.push('descrizione_luogo: obbligatoria per un evento collocato a mano (libro mastro § 11.3)');
+    /* La descrizione del luogo («Come arrivare») è sempre facoltativa, anche per un evento collocato a mano: decisione
+       del 23/11/2026, eccezione consapevole al § 11.3, regola 2, del libro mastro (voce LM-62). */
     if (typeof ev.lat === 'number' && typeof ev.lng === 'number' &&
         !(ev.lat >= RIQUADRO.sud && ev.lat < RIQUADRO.nord && ev.lng >= RIQUADRO.ovest && ev.lng < RIQUADRO.est)) err.push('lat e lng: fuori dall\'Italia');
     if (ev.sottostrato != null && ev.strato == null) err.push('sottostrato: senza strato');

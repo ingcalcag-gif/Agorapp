@@ -3,7 +3,7 @@
    1. Il documento e il modulo sorgenti/moduli/eventi.js elencano gli stessi campi, con lo stesso obbligo.
    2. Un evento valido passa; ogni variante sbagliata è rifiutata con l'errore sul campo giusto: campi sconosciuti
       (immagine, password, provenienza, nome di chi segnala), collegamenti non https, testi troppo lunghi, date
-      impossibili, fine prima dell'inizio, fine e durata insieme, evento collocato a mano senza descrizione del luogo,
+      impossibili, fine prima dell'inizio, fine e durata insieme,
       punto fuori dall'Italia, strato, sottostrato e tema che non esistono nell'app.
    3. Le ore italiane diventano il momento giusto anche nelle notti del cambio dell'ora; l'uscita è tre ore dopo la fine.
    4. Il modulo si carica anche nel browser, senza require, in window.AGR_MODULI.eventi.
@@ -66,7 +66,6 @@ const SBAGLIATI = [
   ['durata di due giorni', e => { delete e.fine; e.durata = 2880; }, 'durata'],
   ['durata scritta a parole', e => { delete e.fine; e.durata = '2 ore'; }, 'durata'],
   ['collocazione sconosciuta', e => { e.collocazione = 'gps'; }, 'collocazione'],
-  ['a mano senza descrizione del luogo', e => { e.collocazione = 'a_mano'; }, 'descrizione_luogo'],
   ['latitudine come testo', e => { e.lat = '45.07'; }, 'lat'],
   ['sette decimali', e => { e.lat = 45.0703123; }, 'lat'],
   ['punto a Parigi', e => { e.lat = 48.8566; e.lng = 2.3522; }, 'lat e lng'],
@@ -93,7 +92,7 @@ function prova() {
   for (const [k, def] of Object.entries(E.CAMPI)) {
     if (!(k in doc)) { e.errori.push(`docs/formato-eventi.md: manca il campo «${k}»`); continue; }
     const obb = doc[k] === 'sì';
-    if (k !== 'descrizione_luogo' && obb !== def.obbligatorio) e.errori.push(`campo «${k}»: obbligatorio nel modulo ${def.obbligatorio ? 'sì' : 'no'}, nel documento «${doc[k]}»`);
+    if (obb !== def.obbligatorio) e.errori.push(`campo «${k}»: obbligatorio nel modulo ${def.obbligatorio ? 'sì' : 'no'}, nel documento «${doc[k]}»`);
   }
   for (const k of Object.keys(doc)) if (!(k in E.CAMPI)) e.errori.push(`docs/formato-eventi.md: il campo «${k}» non è nel modulo`);
 
@@ -102,6 +101,9 @@ function prova() {
   if (ok.length) e.errori.push('l\'evento valido è rifiutato: ' + ok.join('; '));
   const aMano = Object.assign(VALIDO(), { collocazione: 'a_mano', descrizione_luogo: 'Nel cortile, seconda porta a sinistra.' });
   if (!E.valido(aMano, { vocabolario: voc })) e.errori.push('un evento collocato a mano con la descrizione del luogo è rifiutato: ' + E.controlla(aMano, { vocabolario: voc }).join('; '));
+  /* «Come arrivare» è sempre facoltativo, anche con il punto messo a mano (decisione del 23/11/2026, LM-62) */
+  const aManoSenza = Object.assign(VALIDO(), { collocazione: 'a_mano' }); delete aManoSenza.descrizione_luogo;
+  if (!E.valido(aManoSenza, { vocabolario: voc })) e.errori.push('un evento collocato a mano senza la descrizione del luogo è rifiutato: ' + E.controlla(aManoSenza, { vocabolario: voc }).join('; '));
   const minimo = VALIDO(); for (const k of ['sottostrato', 'tema', 'fine', 'organizzatore', 'prezzo']) delete minimo[k]; delete minimo.fonte.collegamento;
   if (!E.valido(minimo, { vocabolario: voc })) e.errori.push('l\'evento con i soli campi obbligatori è rifiutato: ' + E.controlla(minimo, { vocabolario: voc }).join('; '));
   for (const [nome, cambia, campo] of SBAGLIATI) {

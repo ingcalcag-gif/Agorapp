@@ -86,11 +86,11 @@ async function prova() {
       if (/descrizione_luogo|: vuoto|: manca\b/.test(parole)) err('modulo vuoto: gli errori usano i nomi tecnici dei campi («' + parole.replace(/\s+/g, ' ').slice(0, 200) + '»)');
       if (!(await p.locator(F + '.campo.errore #a-luogo').count())) err('modulo vuoto: il campo «Luogo» non si colora');
       await compila('Evento inventato dello sportello');
-      /* punto scelto sulla mappa: serve «Come arrivare», e l'app lo dice con il nome del campo */
+      /* punto scelto sulla mappa: «Come arrivare» resta facoltativo (decisione del 23/11/2026, LM-62) e l'evento si
+         pubblica anche senza */
       if (await tocca(F + '[data-az="scegli-mappa-a"]', 'scegli sulla mappa') && await tocca('[data-az="posa-ok"]', 'conferma del punto')) {
-        await tocca(F + '[data-az="a-pubblica"]', 'pubblica senza «Come arrivare»'); await pausa(400);
-        if (!/Come arrivare: serve, perché il punto è stato scelto sulla mappa/.test(await p.locator(F + '.pb-errori').innerText().catch(() => ''))) err('punto scelto sulla mappa: l\'app deve chiedere «Come arrivare» con parole chiare');
-        await p.fill('#a-come', 'Ingresso inventato dal cortile, seconda porta.');
+        const etichetta = await p.locator(F + 'label[for="a-come"]').innerText().catch(() => '');
+        if (!/facoltativo/.test(etichetta) || /obbligatorio/.test(etichetta)) err('punto scelto sulla mappa: «Come arrivare» deve restare facoltativo («' + etichetta + '»)');
       }
       await tocca(F + '[data-az="a-pubblica"]', 'pubblica');
       await aspetta(/Pubblicato alle \d\d[:.]\d\d \(ora dello sportello\)[\s\S]*Pubblicati · 1/, 'pubblicazione');
@@ -151,6 +151,25 @@ async function prova() {
     a = await pubblica(1);
     if (a.n !== 1 || !/sportello, corretto/.test(a.titoli)) err('dopo il ripristino l\'app pubblica deve tornare allo stato della copia: ' + JSON.stringify(a));
 
+    /* 6 bis: le Misure leggono lo storico delle pubblicazioni dallo sportello (decisione del 23/11/2026) e ne tengono solo
+       i conteggi: un evento pubblicato, uno corretto, uno sospeso, uno riattivato, uno ritirato perché annullato, un
+       ripristino; alla fine un evento presente */
+    await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); await pausa(300);
+    if (await tocca('#badgeRed', 'strumenti') && await tocca(F + '[data-az="admin-misure"]', 'Misure')) {
+      try { await p.waitForFunction(() => /tutti i dispositivi/.test((document.querySelector('.mz-storico') || {}).textContent || '') || !!(JSON.parse(localStorage.getItem('red_misure') || '{}').pubbl), null, { timeout: 20000 }); } catch (x) { err('Misure: lo storico delle pubblicazioni non si legge'); }
+      await pausa(600);
+      const pu = await p.evaluate(() => { const grezzo = localStorage.getItem('red_misure') || '{}', m = JSON.parse(grezzo).pubbl || {}, t = { n: 0, p: 0, c: 0, s: 0, a: 0, r: 0, rip: 0, annullati: 0 };
+        Object.keys(m).sort().forEach(g => { const v = m[g]; t.n = v.n; ['p', 'c', 's', 'a', 'r', 'rip'].forEach(k => { t[k] += v[k] || 0; }); t.annullati += (v.m || {}).annullato || 0; });
+        return { t, titoli: /sportello, corretto|Sala inventata/.test(grezzo) }; });
+      if (JSON.stringify(pu.t) !== JSON.stringify({ n: 1, p: 1, c: 1, s: 1, a: 1, r: 1, rip: 1, annullati: 1 })) err('Misure: i conteggi dello storico non tornano: ' + JSON.stringify(pu.t));
+      if (pu.titoli) err('Misure: dello storico devono restare solo i conteggi, non i testi degli eventi');
+      if (await tocca('.mz-schede [data-mz="scheda"][data-v="offerta"]', 'Misure, offerta')) {
+        const riquadro = await p.locator('section[aria-labelledby="mzg-pubbl"]').innerText().catch(() => '');
+        if (!/meno di 5\s+ritirati/i.test(riquadro) || !/Annullato/.test(riquadro)) err('Misure, offerta: il riquadro dello storico deve dire i ritirati (sotto soglia: «meno di 5») e il motivo «Annullato» («' + riquadro.replace(/\s+/g, ' ').slice(0, 300) + '»)');
+      }
+    }
+    if (await apriPb()) await aspetta(/Pubblicati · 1/, 'ritorno alla pubblicazione dopo le Misure');
+
     /* 7 */
     for (let i = 1; i <= 5; i++) {
       await tocca(F + '[data-az="pb-falsa"]', 'firma sbagliata ' + i);
@@ -166,7 +185,7 @@ async function prova() {
     await aspetta(/Sportello di prova svuotato/, 'svuotamento');
     a = await pubblica(2);
     if (a.finto || a.n !== 2) err('svuotato lo sportello di prova, l\'app pubblica deve tornare all\'archivio di prima: ' + JSON.stringify(a));
-    e.note.push('giro intero dallo sportello di prova all\'app pubblica: pubblicazione, correzione, sospensione, riattivazione, ritiro con il motivo, 5 copie nello storico, confronto, ripristino con il promemoria delle rimozioni, 5 firme sbagliate e fermo');
+    e.note.push('giro intero dallo sportello di prova all\'app pubblica: pubblicazione, correzione, sospensione, riattivazione, ritiro con il motivo, 5 copie nello storico, confronto, ripristino con il promemoria delle rimozioni, Misure con i soli conteggi dello storico, 5 firme sbagliate e fermo');
   } finally { await browser.close(); await s.chiudi(); }
   return e;
 }

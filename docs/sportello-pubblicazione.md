@@ -82,6 +82,8 @@ Su Bunny lo scrive il Responsabile infrastruttura, con la password dell'account,
 
 Ogni pubblicazione lascia una copia datata. L'app della redazione mostra l'elenco delle copie, confronta due copie (eventi aggiunti, tolti, cambiati) e ripristina una copia: legge la copia, mostra quante rimozioni di nomi risultano chieste dopo la sua data nel registro delle richieste di rimozione delle Misure (solo date e ore), lascia correggere o togliere gli eventi della copia e non ripubblica finché non si conferma di aver ripetuto le rimozioni (§ 3.13, passo 4). Gli eventi della copia già finiti non tornano. Il ripristino è a sua volta una pubblicazione firmata e lascia la sua copia.
 
+Dal blocco 10 anche le Misure leggono lo storico, con le stesse letture firmate («storico» e «copia»): per ogni giorno tengono soltanto i conteggi (eventi presenti, pubblicati, corretti, sospesi, riattivati, ritirati per motivo, ripristini), da tutti i dispositivi della Redazione; delle copie non conservano nulla (§ 4.2; decisione del 23/11/2026).
+
 Le copie contengono i testi degli eventi, compresi eventuali nomi: si conservano cinque anni (§ 3.14). Lo sportello non cancella nulla da sé: segna le copie più vecchie di cinque anni, e la cancellazione si decide nel riesame.
 
 ## Lo sportello di prova
