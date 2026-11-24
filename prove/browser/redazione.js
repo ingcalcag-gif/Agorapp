@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { RADICE, esito, eseguiDaSola } = require('../comune.js');
-const { playwright, server, apri, giorno, pausa, archivio, eventoProva, idProva, eventiCaricati } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa, archivio, eventoProva, idProva, eventiCaricati, giudizioProva } = require('./comune.js');
 const CHIAVI = require('../../sorgenti/moduli/chiavi.js');
 
 const FRASE = 'una frase inventata per la prova';
@@ -122,6 +122,7 @@ async function prova() {
       await tocca(F + '[data-az="pb-consegna"]', 'consegna delle chiavi allo sportello di prova'); await pausa(700);
       if (await tocca(F + '[data-az="pb-nuovo"]', 'modulo degli eventi')) {
         await compila('Evento inventato della redazione');
+        await giudizioProva(p);   /* le colonne di giudizio della scheda di pubblicazione (T-041): senza, «Pubblica» resta spento */
         await tocca(F + '[data-az="a-pubblica"]', 'modulo, pubblica');
         try { await p.waitForSelector(F + '[data-pbev]', { timeout: 15000 }); } catch (x) { err('evento nuovo: dopo «Pubblica» non compare tra i pubblicati («' + (await p.locator(F).innerText().catch(() => '')).slice(0, 300) + '»)'); }
         if (await tocca(F + '[data-pbev]', 'evento pubblicato')) id = (await p.locator(F + '.red-id').first().innerText().catch(() => '')).trim();
@@ -200,9 +201,9 @@ async function prova() {
       const resta = await p.evaluate(() => new Promise(ok => { const r = indexedDB.open('red_strumenti'); r.onsuccess = () => { const q = r.result.transaction('voci').objectStore('voci').get('red_chiavi'); q.onsuccess = () => { r.result.close(); ok(Object.keys(q.result || {})); }; }; }));
       if (resta.includes('chiavi') || resta.includes('copia')) err('revoca: sul dispositivo restano le chiavi o la loro copia (' + resta.join(', ') + ')');
       if (await strumenti() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione dopo la revoca') && await tocca(F + '[data-az="pb-nuovo"]', 'modulo degli eventi dopo la revoca')) {
-        await compila('Evento inventato senza chiavi');
-        await tocca(F + '[data-az="a-pubblica"]', 'modulo, pubblica senza chiavi'); await pausa(800);
-        if (!/servono le chiavi/.test(await p.locator(F + '[role="alert"]').first().innerText().catch(() => ''))) err('senza chiavi un evento nuovo non si deve poter pubblicare, e l\'app deve dire perché');
+        await compila('Evento inventato senza chiavi'); await pausa(800);
+        /* senza chiavi il registro delle fonti non si apre: «Pubblica» resta spento e la scheda dice perché */
+        if (!(await p.locator(F + '[data-az="a-pubblica"]').isDisabled().catch(() => false)) || !/servono le chiavi/.test(await p.locator(F + '#g-spia').innerText().catch(() => ''))) err('senza chiavi un evento nuovo non si deve poter pubblicare, e l\'app deve dire perché');
       }
     }
     e.note.push('strumenti senza password; chiavi create, copia di riserva illeggibile senza la frase, parti pubbliche, revoca');

@@ -8,6 +8,8 @@
    - un indice dell'archivio con il nome di una regione ostile;
    - gli Off-Grid nella memoria del telefono (uno con la ripetizione), con testi e collegamenti ostili;
    - le altre chiavi della memoria del telefono che contengono testi: lenti dei Temi, combinazioni, preferenze;
+   - il registro delle fonti dell'app della redazione (T-041): nome e attribuzione di una fonte, titolo di una scheda
+     preparata, e le parole che l'avviso dei recapiti riporta dalla descrizione;
    - le risposte della ricerca degli indirizzi (Photon), servite dalla prova con nomi, vie e numeri civici ostili;
    - un file da importare nell'area riservata (CSV) con celle ostili, lo storico e gli appunti delle Misure.
    La prova apre tutte le viste dell'app, compresi l'anteprima del PDF, la pagina di stampa e il PDF scaricato, e
@@ -101,7 +103,8 @@ const STORICO = () => [{ t: new Date().toISOString(), op: 'importa', n: 2, x: 'n
 const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizione-luogo', 'prezzo', 'fonte', 'vicino', 'vicino-luogo', 'regione',
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
-  'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo'];
+  'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo',
+  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
@@ -321,7 +324,21 @@ async function prova() {
               const ind = p.locator('#a-indirizzo');
               if (await ind.count()) { await ind.fill('Via Roma 5, Torino'); await pausa(1200); await controlla('modulo della redazione, suggerimenti');
                 if (await tocca('#a-sugg [data-si="0"]', 'modulo della redazione, suggerimento', true)) await controlla('modulo della redazione, punto scelto'); }
+              /* scheda di pubblicazione (T-041): l'avviso dei recapiti riporta le parole trovate; l'elenco delle fonti e la
+                 scheda mostrano nome e attribuzione di una fonte ostile, letti dal registro cifrato del dispositivo */
+              if (await p.locator('#a-desc').count()) { await p.fill('#a-desc', 'Descrizione <b/data-ostile="reg-avviso">x</b>@posta.example'); await pausa(400); await controlla('scheda di pubblicazione, avviso'); }
+              if (await tocca(F + '[data-az="g-fonti"]', 'scheda, fonti', true) && await tocca(F + '[data-az="pb-fonte-nuova"]', 'scheda, nuova fonte', true)) {
+                await p.fill('#fo-nome', B_('reg-fonte')); await p.selectOption('#fo-tipo', 'sito'); await p.fill('#fo-indirizzo', 'https://organizzatore.esempio.invalid/');
+                await p.selectOption('#fo-esito', 'attribuzione'); await p.fill('#fo-attr', O_('reg-attr'));
+                if (await tocca(F + '[data-az="pb-fonte-salva"]', 'scheda, salva la fonte', true)) { await pausa(500); await controlla('elenco delle fonti'); }
+                if (await tocca(F + '[data-az="g-torna"]', 'scheda, ritorno', true)) { await pausa(400); await controlla('scheda di pubblicazione, fonte scelta'); }
+              }
             }
+          }
+          /* una scheda salvata tra i preparati, con un titolo ostile: torna nell'elenco della pubblicazione */
+          if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-nuovo"]', 'nuovo evento', true)) {
+            await p.fill('#a-titolo', B_('reg-prep')); await pausa(200);
+            if (await tocca(F + '[data-az="g-prepara"]', 'salva tra i preparati', true)) { await pausa(700); await controlla('pubblicazione, preparati'); }
           }
           if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-storico"]', 'storico delle pubblicazioni')) {
             await pausa(700); await controlla('storico delle pubblicazioni');

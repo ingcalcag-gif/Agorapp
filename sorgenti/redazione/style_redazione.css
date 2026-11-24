@@ -9,3 +9,19 @@
 /* Dentro i fogli le liste a scorrimento non si schiacciano: senza questa regola un riquadro con molte righe diventava alto pochi pixel (blocco 9) */
 .foglio .imp-righe,.foglio .red-riquadro{flex-shrink:0}
 .pb-errori .err{display:block}
+
+/* scheda di pubblicazione (T-041): colonne di giudizio, dieci domande, avvisi, schede preparate */
+.g-scheda{display:flex;flex-direction:column;gap:12px;padding-top:14px;margin-top:6px;border-top:1.5px solid var(--linea-forte);flex-shrink:0}
+.g-tit{font-size:16px;line-height:22px;margin:6px 0 0}
+.g-domande{display:flex;flex-direction:column;gap:10px}
+.g-domanda{display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:12px;border:1px solid var(--linea)}
+.g-domanda label{font-size:14px;line-height:20px}
+.g-domanda.stop{border-color:var(--rosso,#b3261e)}
+.g-regole{border-radius:12px;border:1px solid var(--linea);padding:8px 12px;font-size:14px;line-height:20px}
+.g-regole summary{cursor:pointer;font-weight:600;min-height:32px;display:flex;align-items:center}
+.g-regole ul{margin:6px 0 4px;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.g-elementi{display:flex;flex-wrap:wrap;gap:8px}
+.g-avviso{border-color:var(--rosso,#b3261e)}
+.g-spia{font-weight:600;color:var(--testo)}
+.menu-r .g-prep{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;min-height:44px;justify-content:center;cursor:pointer}
+.foglio .tasto[disabled]{opacity:.45;cursor:not-allowed}

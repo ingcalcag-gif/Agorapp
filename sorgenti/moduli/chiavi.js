@@ -42,7 +42,7 @@
   const ID = /^([a-z2-7]{16})-([a-z2-7]{8})$/;
   const ID_OVUNQUE = /(?<![a-z2-7])[a-z2-7]{16}-[a-z2-7]{8}(?![a-z2-7])/g;
   const TIPO_COPIA = 'copia-chiavi-redazione', TIPO_PUBBLICHE = 'chiavi-pubbliche-redazione',
-    TIPO_REVOCA = 'revoca-chiave-redazione', TIPO_CASSAFORTE = 'copia-cassaforte-redazione';
+    TIPO_REVOCA = 'revoca-chiave-redazione', TIPO_CASSAFORTE = 'copia-cassaforte-redazione', TIPO_REGISTRO = 'registro-fonti-redazione';
 
   /* Un errore con un motivo breve, che la schermata traduce in una frase. */
   function errore(motivo, dettaglio) { const e = new Error('Chiavi della Redazione, ' + motivo + (dettaglio ? ' (' + dettaglio + ')' : '')); e.motivo = motivo; return e; }
@@ -283,9 +283,34 @@
       return { rientrate, scartate };
     }
 
+    /* ---------- Registro delle fonti: la sua chiave cifra e non fa altro (T-041, T-043; cap. 22; § 3.11) ----------
+       cifra(testo) → busta {tipo, v, iv, dati}; decifra(busta) → il testo. Una busta scritta con un'altra chiave, o
+       rovinata, dà l'errore «registro»: non si legge a pezzi. La busta è ciò che resta sul dispositivo e ciò che si
+       deposita nell'archivio riservato: chi la trova senza la chiave del registro non ne ricava nulla. */
+    async function cifraRegistro(testo) {
+      const v = await attive();
+      if (typeof testo !== 'string') throw errore('registro');
+      const iv = casuali(12);
+      return { tipo: TIPO_REGISTRO, v: VERSIONE, iv: b64(iv),
+        dati: b64(await sub.encrypt({ name: 'AES-GCM', iv, additionalData: testoInByte(TIPO_REGISTRO) }, v.chiavi.registro, testoInByte(testo))) };
+    }
+    async function decifraRegistro(busta) {
+      const v = await attive();
+      if (!busta || busta.tipo !== TIPO_REGISTRO || typeof busta.iv !== 'string' || typeof busta.dati !== 'string') throw errore('registro');
+      try { return byteInTesto(await sub.decrypt({ name: 'AES-GCM', iv: daB64(busta.iv), additionalData: testoInByte(TIPO_REGISTRO) }, v.chiavi.registro, daB64(busta.dati))); }
+      catch (e) { throw errore('registro'); }
+    }
+    /* La voce «red_registro» del dispositivo: la busta del registro. leggi() dà il testo, o null se il registro non è
+       ancora nato; scrivi(testo) lo cifra e lo conserva, e restituisce la busta; busta() dà la busta così com'è, per
+       depositarla nell'archivio riservato. */
+    async function leggiRegistro() { await attive(); const b = await dep.leggi('red_registro'); return b ? decifraRegistro(b) : null; }
+    async function scriviRegistro(testo) { const b = await cifraRegistro(testo); await dep.scrivi('red_registro', b); return b; }
+    async function bustaRegistro() { return (await dep.leggi('red_registro')) || null; }
+
     return { stato, genera, daCopia, copia, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, nuovoId, viene, controllaTesto,
+      registro: { cifra: cifraRegistro, decifra: decifraRegistro, leggi: leggiRegistro, scrivi: scriviRegistro, busta: bustaRegistro },
       cassaforte: { metti: mettiPassword, leggi: leggiPassword, togli: togliPassword, pulisci: pulisciCassaforte, copia: copiaCassaforte, ripristina: ripristinaCassaforte } };
   }
 
-  return { VERSIONE, GIRI, FRASE_MIN, NOME_MAX, ID, TIPO_COPIA, TIPO_PUBBLICHE, TIPO_REVOCA, TIPO_CASSAFORTE, crea };
+  return { VERSIONE, GIRI, FRASE_MIN, NOME_MAX, ID, TIPO_COPIA, TIPO_PUBBLICHE, TIPO_REVOCA, TIPO_CASSAFORTE, TIPO_REGISTRO, crea };
 });

@@ -130,4 +130,23 @@ async function eventiCaricati(p, n = 1, ms = 20000) {
   try { await p.waitForFunction(k => window.AGR && window.AGR.archivio && window.AGR.archivio().pubblici >= k, n, { timeout: ms }); return true; } catch (e) { return false; }
 }
 
-module.exports = { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, idProva, eventiCaricati, ZONA_ARCHIVIO, EVF, QUAD };
+/* Scheda di pubblicazione (T-041): compila le colonne di giudizio con risposte inventate che lasciano pubblicare. Il
+   modulo dell'evento deve essere aperto. Se nel registro non c'è ancora una fonte ne aggiunge una, ammessa; poi
+   sceglie la fonte, mette il collegamento alla pagina dell'evento se manca, risponde sì alle dieci domande, nessun
+   nome, evento non politico né religioso, nessun recapito di lavoro per l'avviso. */
+async function giudizioProva(p) {
+  const F = '#foglio-slot ';
+  await p.waitForSelector(F + '#g-fonte', { timeout: 20000 });
+  if (await p.locator(F + '#g-fonte option').count() < 2) {
+    await p.click(F + '[data-az="g-fonti"]'); await p.click(F + '[data-az="pb-fonte-nuova"]');
+    await p.fill('#fo-nome', 'Circolo Inventato, sito'); await p.selectOption('#fo-tipo', 'sito'); await p.fill('#fo-indirizzo', 'https://circolo-inventato.example/'); await p.selectOption('#fo-esito', 'ammessa');
+    await p.click(F + '[data-az="pb-fonte-salva"]'); await p.waitForSelector(F + '[data-pbfonte]', { timeout: 20000 });
+    await p.click(F + '[data-az="g-torna"]'); await p.waitForSelector(F + '#g-fonte', { timeout: 20000 });
+  }
+  if (!(await p.inputValue('#g-fonte'))) await p.selectOption('#g-fonte', { index: 1 });
+  if (!(await p.inputValue('#a-fonte-link'))) await p.fill('#a-fonte-link', 'https://circolo-inventato.example/evento');
+  for (let n = 1; n <= 10; n++) await p.selectOption('#g-d' + n, 'si');
+  await p.selectOption('#g-nomi', 'no'); await p.selectOption('#g-politico', 'no'); await p.selectOption('#g-avviso', 'nessuno');
+}
+
+module.exports = { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, idProva, eventiCaricati, ZONA_ARCHIVIO, EVF, QUAD, giudizioProva };

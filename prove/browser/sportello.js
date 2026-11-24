@@ -15,7 +15,7 @@
    8. Svuotato lo sportello di prova, l'app pubblica torna all'archivio di prima. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
-const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati, giudizioProva } = require('./comune.js');
 
 const FRASE = 'una frase inventata per la prova';
 const RICERCA = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [7.6869, 45.0703] },
@@ -78,6 +78,8 @@ async function prova() {
     /* 2 */
     if (await tocca(F + '[data-az="pb-nuovo"]', 'nuovo evento')) {
       await p.fill('#a-indirizzo', 'Via Inventata 5, Torino'); await pausa(1300); await tocca('#a-sugg [data-si="0"]', 'modulo, suggerimento');
+      /* dal blocco 10 «Pubblica» si accende solo con le colonne di giudizio (T-041): qui si compilano, e i campi pubblici restano vuoti */
+      await giudizioProva(p); await p.fill('#a-fonte', ''); await pausa(200);
       await tocca(F + '[data-az="a-pubblica"]', 'pubblica a vuoto'); await pausa(400);
       if (!(await p.locator(F + '#a-titolo').count())) err('un modulo vuoto non si deve pubblicare');
       /* gli errori si leggono: parole semplici, nessun nome tecnico, un riquadro alto quanto serve, il campo colorato */

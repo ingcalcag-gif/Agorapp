@@ -46,6 +46,7 @@ Sono 50, tutti in `sorgenti/parti/`. La prova `prove/testi.js` li conta: se il n
 | `app7.js` | 2 | Pagina dei Temi e foglio delle lenti |
 | `redazione/misure.js` | 2 | Solo nell'app della redazione: schede delle Misure e loro fumetto |
 | `redazione/pubblicazione.js` | 2 | Solo nell'app della redazione: aggiornamenti del modulo dell'evento mentre si scrive (ricerca dell'indirizzo, riquadro del punto). Le schermate di «Pubblicazione» mostrano titoli, luoghi, fonti, nomi dei dispositivi e risposte dello sportello: tutti con `esc()` (T-038) |
+| `redazione/scheda-pubblicazione.js` | 1 | Solo nell'app della redazione: il riquadro degli avvisi della scheda di pubblicazione, aggiornato mentre si scrive; le parole trovate nei testi dell'evento vi entrano con `esc()`. La scheda, l'elenco delle fonti e le schede preparate mostrano nomi delle fonti, titoli e note letti dal registro cifrato del dispositivo (`red_registro`): tutti con `esc()` (T-041) |
 | `sezioni.js` | 5 | Agorà e Progetti, con i contenuti d'esempio dell'app |
 
 La pagina di stampa del calendario (`stampaPdf`) e quella delle carte non scrivono nella pagina dell'app: costruiscono un documento a parte, con le stesse regole. Il PDF (`creaPdf`) riceve testo semplice.

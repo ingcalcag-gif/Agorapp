@@ -14,7 +14,7 @@ const OP_STORICO = {
   'cassaforte-copia':['accessi','Copia della cassaforte scaricata'], 'cassaforte-riporta':['accessi','Cassaforte riportata da una copia'],
   crea:['eventi','Evento creato'], modifica:['eventi','Evento modificato'], elimina:['eventi','Evento eliminato'], ripristina:['eventi','Eventi ripristinati'],
   pubblica:['eventi','Evento pubblicato'], correggi:['eventi','Correzione pubblicata'], sospendi:['eventi','Evento sospeso'], riattiva:['eventi','Evento riattivato'], ritira:['eventi','Evento ritirato prima della fine'],
-  'ripristina-copia':['eventi','Copia dello storico ripristinata'],
+  'ripristina-copia':['eventi','Copia dello storico ripristinata'], 'fonte-nuova':['eventi','Fonte aggiunta al registro delle fonti'], 'fonte-corretta':['eventi','Fonte del registro corretta'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
   misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']

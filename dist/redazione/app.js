@@ -2216,7 +2216,7 @@ function esportaExcel(){
     .catch(() => { st.msgAdmin = tr('Serve la connessione per preparare il file Excel.'); disegnaFoglio(); });
 }
 /* ======================= Agganci dai pezzi comuni ======================= */
-const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, chiavi:fChiavi, verifica:fVerifica, pubblica:fPubblica, 'pb-evento':fPbEvento, 'pb-storico':fPbStorico, 'pb-copia':fPbCopia};
+const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, chiavi:fChiavi, verifica:fVerifica, pubblica:fPubblica, 'pb-evento':fPbEvento, 'pb-storico':fPbStorico, 'pb-copia':fPbCopia, 'pb-fonti':fPbFonti, 'pb-fonte':fPbFonte};
 /* un tocco: true se era per gli strumenti della Redazione */
 function clickRed(t){
   if(t.dataset.mz!=null && clickMisure(t)) return true;
@@ -2506,13 +2506,15 @@ const SPORTELLO = (() => {
    pubblicazioni con il confronto tra due copie e il ripristino.
 
    Ogni cosa che cambia l'archivio parte come pacchetto firmato (sportello-prova.js): qui non si scrive nulla
-   nell'archivio. Le dieci domande, le colonne di giudizio e l'elenco degli eventi preparati arrivano con il blocco 10
-   (T-041): fino ad allora «Pubblica» controlla soltanto il formato.
+   nell'archivio. Dal blocco 10 (T-041) il modulo dell'evento è la scheda di pubblicazione: le dieci domande, le
+   colonne di giudizio del registro delle fonti, i controlli prima di pubblicare e gli eventi preparati stanno in
+   scheda-pubblicazione.js; le fonti e le righe del registro in registro-fonti.js. Senza le colonne di giudizio
+   «Pubblica» resta spento (cap. 22, regola 1).
 
    Testi come testo (T-024): titoli, luoghi, nomi dei dispositivi e risposte dello sportello vengono da fuori e
    entrano nella pagina solo con esc(). */
 const PB = {stato:null, prova:null, carico:false, lavoro:false, errore:'', msg:'', sel:null, ritiro:null, svuota:false,
-  copie:null, scelte:[], confronto:null, ripr:null};
+  copie:null, scelte:[], confronto:null, ripr:null, fonte:null, togliPrep:null};
 const MOTIVI_RITIRO = {annullato:'Annullato', errore:'Errore non verificabile in tempo', esclusione:'Esclusione (X)', richiesta:'Richiesta (R)', segnalazione:'Segnalazione (S)', ordine:'Ordine di un’autorità (A)'};
 const oraPb = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString(dloc(), {hour:'2-digit', minute:'2-digit'}); };
 const quandoPb = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(dloc(), {day:'numeric', month:'long', year:'numeric'})+', '+oraPb(iso); };
@@ -2537,8 +2539,11 @@ function errorePb(e){
   };
   return (T[e && e.motivo] || (() => tr('Non è riuscito: riprova.')))();
 }
-const fogliPb = ['pubblica', 'pb-evento', 'pb-storico', 'pb-copia'];
-const ridisegnaPb = () => { if(fogliPb.includes(st.foglio)) disegnaFoglio(); };
+const fogliPb = ['pubblica', 'pb-evento', 'pb-storico', 'pb-copia', 'pb-fonti', 'pb-fonte', 'aform'];
+const ridisegnaPb = () => { if(!fogliPb.includes(st.foglio)) return;
+  /* il modulo dell'evento non si ridisegna mentre si scrive in un campo: si perderebbe il punto in cui si scrive */
+  const a = document.activeElement; if(st.foglio==='aform' && a && a.closest && a.closest('#foglio-slot') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+  disegnaFoglio(); };
 function aggiornaPb(){
   PB.carico = true; ridisegnaPb();
   const prova = SPORTELLO.diProva() ? SPORTELLO.prova.stato().then(s => { PB.prova = s; }, () => { PB.prova = null; }) : Promise.resolve();
@@ -2572,7 +2577,8 @@ function fPubblica(){
       ${s.sospesi.length ? `<p class="etich">${tr('Sospesi')} · ${s.sospesi.length}</p><div class="menu-lista">${s.sospesi.map(ev => rigaEvPb(ev, 'data-pbev', tr('fuori dalla mappa'))).join('')}</div>` : ''}
       <p class="meta">${s.aggiornato ? tr('Ultima pubblicazione: {q}.',{q:esc(quandoPb(s.aggiornato))}) : tr('Non è ancora stato pubblicato nulla.')} ${tr('Gli eventi finiti da più di tre ore escono da soli.')}</p>`;
   const corpo = `${prova}${statoPb()}
-    <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
+    <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="pb-fonti">${tr('Fonti')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
+    ${preparatiHtml()}
     ${elenco}
     <button class="link" data-az="pb-aggiorna">${tr('Aggiorna l’elenco')}</button>`;
   return foglio('forte alto', testa, corpo);
@@ -2603,7 +2609,11 @@ function apriEventoForm(ev, per){
       luogo:ev.luogo||'', indirizzo:ev.indirizzo||'', addrFull:ev.indirizzo||'', pos:{lat:ev.lat, lng:ev.lng}, precision:ev.collocazione==='a_mano'?'map':'exact', hn:'', comeArrivare:ev.descrizione_luogo||'', organizzatore:ev.organizzatore||'',
       desc:ev.descrizione||'', prezzo:ev.prezzo||'', fonte:(ev.fonte||{}).testo||'', fonteLink:(ev.fonte||{}).collegamento||'', err:{}, errori:[]}
     : {per, id:null, titolo:'', strato:'', sub:'', tema:'', inizio:'', fine:'', luogo:'', indirizzo:'', addrFull:'', pos:null, precision:'', hn:'', comeArrivare:'', organizzatore:'', desc:'', prezzo:'', fonte:'', fonteLink:'', err:{}, errori:[]};
+  /* le colonne di giudizio: vuote per un evento nuovo; per una correzione, quelle della riga già scritta nel registro
+     di questo dispositivo, se c'è */
+  const f = st.aform; f.g = giudizioNuovo(); f.prep = null;
   st.sel = null; st.form = null; apri('aform');
+  if(per!=='ripristino') regApri().then(() => { if(st.aform!==f) return; const r = f.id ? regRiga(f.id) : null; if(r) f.g = giudizioInForma(r.g); if(st.foglio==='aform') disegnaFoglio(); });
 }
 const dtLocal = d => ymd(d)+'T'+hm(d);
 function fEventoForm(){
@@ -2628,11 +2638,12 @@ function fEventoForm(){
     ${campo('a-desc', tr('Descrizione'), `<div class="campo${E.desc?' errore':''}"><textarea id="a-desc" data-acampo="desc" maxlength="2000" placeholder="${esc(tr('Descrivi l’evento…'))}">${esc(f.desc)}</textarea></div>`)}
     ${riga('a-prezzo', 'prezzo', tr('Prezzo indicato dalla fonte'), 80, tr('Gratuito / 10 €'), fac)}
     ${riga('a-fonte', 'fonte', tr('Fonte'), 160, tr('Da dove viene l’informazione'))}
-    ${riga('a-fonte-link', 'fonteLink', tr('Collegamento della fonte'), 500, 'https://', fac, 'url')}
+    ${riga('a-fonte-link', 'fonteLink', tr('Collegamento alla pagina dell’evento'), 500, 'https://', fac, 'url')}
+    ${ripr ? '' : schedaGiudizio(f)}
     ${f.errori.length ? `<div class="red-riquadro pb-errori" role="alert"><b>${f.errori.length===1 ? tr('Prima di pubblicare manca una cosa:') : tr('Prima di pubblicare mancano {n} cose:',{n:f.errori.length})}</b>${f.errori.map(x => `<span class="err">${esc(x)}</span>`).join('')}</div>` : ''}
     ${statoPb()}
-    <div class="tasti"><button class="tasto sec" data-az="${ripr ? 'pb-copia' : 'pubblica'}">${tr('Annulla')}</button><button class="tasto pri" data-az="a-pubblica">${ripr ? tr('Tieni nella copia') : f.id ? tr('Pubblica la correzione') : tr('Pubblica')}</button></div>
-    <p class="meta">${tr('Le dieci domande e le colonne del registro delle fonti arrivano con la scheda di pubblicazione.')}</p>`;
+    <div class="tasti"><button class="tasto sec" data-az="${ripr ? 'pb-copia' : 'pubblica'}">${tr('Annulla')}</button>${ripr || f.id ? '' : `<button class="tasto sec" data-az="g-prepara">${tr('Salva tra i preparati')}</button>`}<button class="tasto pri" data-az="a-pubblica" ${!ripr && giudizioManca(f).length ? 'disabled' : ''}>${ripr ? tr('Tieni nella copia') : f.id ? tr('Pubblica la correzione') : tr('Pubblica')}</button></div>
+    ${ripr ? '' : spiaHtml(f)}`;
   return foglio('forte alto', testa, corpo);
 }
 const sei = x => Math.round(x*1e6)/1e6;
@@ -2648,7 +2659,7 @@ function eventoDalForm(f, id){
 }
 /* un errore del controllo del formato, con il nome del campo come lo vede la Redazione al posto del nome tecnico */
 const CAMPI_PB = {titolo:'Titolo', strato:'Strato', sottostrato:'Sottostrato', tema:'Tema', inizio:'Inizio', fine:'Fine', luogo:'Luogo', indirizzo:'Indirizzo',
-  descrizione_luogo:'Come arrivare', organizzatore:'Organizza', descrizione:'Descrizione', prezzo:'Prezzo indicato dalla fonte', 'fonte.testo':'Fonte', 'fonte.collegamento':'Collegamento della fonte', 'lat e lng':'Punto sulla mappa'};
+  descrizione_luogo:'Come arrivare', organizzatore:'Organizza', descrizione:'Descrizione', prezzo:'Prezzo indicato dalla fonte', 'fonte.testo':'Fonte', 'fonte.collegamento':'Collegamento alla pagina dell’evento', 'lat e lng':'Punto sulla mappa'};
 const erroreCampoPb = x => { const m = String(x).match(/^([a-z_.]+(?: e [a-z]+)?): (.*)$/); return m && CAMPI_PB[m[1]] ? tr(CAMPI_PB[m[1]])+': '+m[2] : String(x); };
 /* porta in vista l'elenco degli errori, accanto a «Pubblica» */
 function mostraErroriPb(){ const c = document.querySelector('#foglio-slot .pb-errori') || document.querySelector('#foglio-slot .errore'); if(c && c.scrollIntoView) c.scrollIntoView({block:'center', behavior:'smooth'}); }
@@ -2665,7 +2676,7 @@ function pubblicaForm(){
   if(vuoto('luogo')) metti('luogo', tr('Luogo: scrivi il nome del luogo, per esempio «Sala del quartiere».'));
   if(vuoto('desc')) metti('desc', tr('Descrizione: scrivi di che cosa si tratta.'));
   if(vuoto('fonte')) metti('fonte', tr('Fonte: scrivi da dove viene l’informazione, per esempio il nome del sito o di chi organizza.'));
-  if(!vuoto('fonteLink') && !/^https:\/\//i.test(f.fonteLink.trim())) metti('fonteLink', tr('Collegamento della fonte: deve cominciare con https:// (oppure lascialo vuoto).'));
+  if(!vuoto('fonteLink') && !/^https:\/\//i.test(f.fonteLink.trim())) metti('fonteLink', tr('Collegamento alla pagina dell’evento: deve cominciare con https:// (oppure lascialo vuoto).'));
   if(!f.pos && f.indirizzo.trim().length<3) metti('indirizzo', tr('Indirizzo: scrivilo e scegli uno dei suggerimenti, oppure scegli il punto con «Scegli sulla mappa».'));
   if(f.errori.length){ disegnaFoglio(); mostraErroriPb(); return; }
   if(!f.pos){
@@ -2681,10 +2692,20 @@ function pubblicaForm(){
     const ev = eventoDalForm(f, id), errori = FORMATO.controlla(ev, voc).map(erroreCampoPb);
     if(!errori.length && FORMATO.uscitaMs(ev) <= Date.now()) errori.push(tr('L’evento è già finito da più di tre ore: non si pubblica.'));
     if(errori.length){ f.errori = errori; disegnaFoglio(); mostraErroriPb(); return; }
+    /* senza le colonne di giudizio non si pubblica (cap. 22, regola 1): il tasto è spento, e qui si ricontrolla */
+    if(f.per!=='ripristino'){ const manca = giudizioManca(f); if(manca.length){ f.errori = [testoSpia(manca)]; disegnaFoglio(); mostraErroriPb(); return; } }
     if(f.per==='ripristino'){ const R = PB.ripr; if(R){ const i = R.eventi.findIndex(x => x.id===ev.id), j = R.sospesi.findIndex(x => x.id===ev.id); if(i>=0) R.eventi[i] = ev; else if(j>=0) R.sospesi[j] = ev; R.corretti++; } st.aform = null; apri('pb-copia'); return; }
-    const nuovo = !f.id;
-    scriviPb({operazione:'scrivi', pubblica:[ev]}, r => { st.aform = null; st.ultimoId = ev.id; registra(nuovo ? 'pubblica' : 'correggi', {id:ev.id, s:ev.strato}); if(!nuovo) misureConta('corretti');
-      return nuovo ? tr('Pubblicato alle {o} (ora dello sportello).',{o:oraPb(r.quando)}) : tr('Correzione pubblicata alle {o} (ora dello sportello).',{o:oraPb(r.quando)}); });
+    const nuovo = !f.id, g = f.g, prepScheda = f.prep;
+    /* la riga del registro delle fonti parte cifrata nello stesso pacchetto dell'evento (§ 3.4; cap. 22): se lo sportello
+       rifiuta, la riga non nasce */
+    regPrepara([{ev, g, titolo:g.nomi==='si' && g.titoloReg.trim() ? g.titoloReg.trim() : ev.titolo, canale:'singolo', correzione:!nuovo}]).then(rp =>
+      scriviPb({operazione:'scrivi', pubblica:[ev], registro:rp.busta}, r => { st.aform = null; st.ultimoId = ev.id; registra(nuovo ? 'pubblica' : 'correggi', {id:ev.id, s:ev.strato}); if(!nuovo) misureConta('corretti');
+        const codici = (r.registro||{}).codici, codice = (codici||{})[ev.id] || '';
+        regConferma(rp, codici).then(() => prepScheda ? togliPreparato(prepScheda) : null)
+          .catch(() => { PB.errore = tr('L’evento è pubblicato e la riga {c} è allo sportello, ma non sono riuscito a salvarla nel registro di questo dispositivo.',{c:codice}); ridisegnaPb(); });
+        return (nuovo ? tr('Pubblicato alle {o} (ora dello sportello).',{o:oraPb(r.quando)}) : tr('Correzione pubblicata alle {o} (ora dello sportello).',{o:oraPb(r.quando)}))
+          + (codice ? ' '+tr('Riga {c} nel registro delle fonti.',{c:codice}) : ''); }),
+      () => { f.errori = [tr('Non sono riuscito a preparare la riga del registro delle fonti: non pubblico.')]; disegnaFoglio(); });
   };
   if(f.id) con(f.id);
   else CHIAVI.nuovoId().then(id => { if(st.aform===f) con(id); }, () => { if(st.aform===f){ f.errori = [tr('Per pubblicare servono le chiavi della Redazione: Strumenti della redazione → Chiavi.')]; disegnaFoglio(); } });
@@ -2744,6 +2765,7 @@ function fPbCopia(){
 /* ---------- Tocchi e comandi ---------- */
 function clickPubblica(t){
   const d = t.dataset;
+  if(clickScheda(t)) return true;
   if(d.pbev){ PB.sel = d.pbev; PB.ritiro = null; PB.errore = ''; PB.msg = ''; apri('pb-evento'); return true; }
   if(d.pbcopia){ const i = PB.scelte.indexOf(d.pbcopia); if(i>=0) PB.scelte.splice(i, 1); else { PB.scelte.push(d.pbcopia); if(PB.scelte.length>2) PB.scelte.shift(); } PB.confronto = null; disegnaFoglio(); return true; }
   return false;
@@ -2752,7 +2774,7 @@ function azionePubblica(az, t){
   const x = PB.sel ? evPb(PB.sel) : null, prova = SPORTELLO.prova;
   const esito = (p, bene) => { PB.lavoro = true; PB.errore = ''; PB.msg = ''; ridisegnaPb(); return p.then(r => { PB.lavoro = false; PB.msg = bene(r); }, e => { PB.lavoro = false; PB.errore = errorePb(e); }).then(aggiornaPb); };
   switch(az){
-    case 'pubblica': st.aform = null; PB.svuota = false; if(st.sezione!=='mappa') vaiSezione('mappa'); apri('pubblica'); aggiornaPb(); break;
+    case 'pubblica': st.aform = null; PB.svuota = false; PB.togliPrep = null; if(st.sezione!=='mappa') vaiSezione('mappa'); apri('pubblica'); aggiornaPb(); regApri().then(ridisegnaPb); break;
     case 'pb-aggiorna': PB.msg = ''; aggiornaPb(); break;
     case 'pb-nuovo': PB.errore = ''; PB.msg = ''; apriEventoForm(null, 'pubblica'); break;
     case 'a-pubblica': pubblicaForm(); break;
@@ -2768,7 +2790,12 @@ function azionePubblica(az, t){
     case 'pb-ritira-ok': { const R = PB.ritiro; if(!x || !R) break;
       if(!MOTIVI_RITIRO[R.motivo]){ PB.errore = tr('Scegli il motivo del ritiro.'); disegnaFoglio(); break; }
       const rit = {id:x.ev.id, motivo:R.motivo}; if(R.riferimento.trim()) rit.riferimento = R.riferimento.trim();
-      scriviPb({operazione:'scrivi', ritira:[rit]}, r => { registra('ritira', {id:x.ev.id, s:x.ev.strato, m:R.motivo}); misureConta('rimossi'); return tr('Ritirato alle {o}.',{o:oraPb(r.quando)}); }); break; }
+      /* data e motivo del ritiro passano alla riga del registro delle fonti, se sta su questo dispositivo (cap. 22,
+         «Ritiro prima della fine»), nello stesso pacchetto; il motivo resta comunque nella copia datata dello storico */
+      regApri().then(() => REG.stato==='aperto' ? regPrepara([{id:rit.id, ritiro:rit.motivo}]) : null).catch(() => null).then(rp => {
+        const c = {operazione:'scrivi', ritira:[rit]}; if(rp) c.registro = rp.busta;
+        scriviPb(c, r => { registra('ritira', {id:x.ev.id, s:x.ev.strato, m:R.motivo}); misureConta('rimossi'); regConferma(rp, (r.registro||{}).codici).catch(() => {});
+          return tr('Ritirato alle {o}.',{o:oraPb(r.quando)}); }); }); break; }
     case 'pb-storico': apriStoricoPb(); break;
     case 'pb-confronta': { if(PB.scelte.length!==2) break; PB.errore = '';
       Promise.all(PB.scelte.map(leggiCopiaPb)).then(k => { k.sort((a,b) => a.quando<b.quando?-1:1); PB.confronto = confrontaCopie(k[0], k[1]); }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
@@ -2781,26 +2808,438 @@ function azionePubblica(az, t){
     case 'pb-ripr-togli': { const R = PB.ripr; if(R){ R.eventi = R.eventi.filter(e => e.id!==t.dataset.id); R.sospesi = R.sospesi.filter(e => e.id!==t.dataset.id); disegnaFoglio(); } break; }
     case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}); }); break; }
-    default: return false;
+    default: return azioneScheda(az, t);
   }
   return true;
 }
 /* i campi del modulo dell'evento e del ritiro: true se il campo era loro */
 function inputPubblica(el){
   const d = el.dataset;
+  if(inputScheda(el)) return true;
   if(d.pbritiro && PB.ritiro){ PB.ritiro[d.pbritiro] = el.value; return true; }
   if(d.acampo && st.aform){
     const c = d.acampo, f = st.aform; f[c] = el.value;
     if(c==='indirizzo'){ f.pos = null; f.precision = ''; f.addrFull = ''; $('a-punto').innerHTML = ''; chiediSuggerimenti(el.value, 'a', 'a-sugg'); }
     if(f.err[c] && String(el.value).trim()){ f.err[c] = 0; const k = el.closest('.campo'); if(k) k.classList.remove('errore'); }
+    aggiornaSpia();
     return true;
   }
   return false;
 }
 function cambioPubblica(el){
+  if(cambioScheda(el)) return true;
   if(el.dataset.acampo==='strato' && st.aform){ st.aform.strato = el.value; st.aform.sub = ''; disegnaFoglio(); return true; }
   if(el.dataset.acampo && st.aform && el.tagName==='SELECT'){ st.aform[el.dataset.acampo] = el.value; return true; }
   if(el.dataset.pbritiro && PB.ritiro){ PB.ritiro[el.dataset.pbritiro] = el.value; return true; }
+  return false;
+}
+
+/* ======================= Registro delle fonti sul dispositivo della redazione (T-041, T-043) =======================
+   Libro mastro, cap. 22: il registro prova che ogni evento pubblicato ha un'origine lecita e verificabile. La riga la
+   scrive l'app nel momento in cui la Redazione pubblica (§ 3.4), con le colonne di fatto che l'app conosce e con le
+   colonne di giudizio compilate nella scheda di pubblicazione (scheda-pubblicazione.js).
+
+   Qui sta ciò che il registro tiene sul dispositivo, in una sola voce cifrata (red_registro, nella base di dati del
+   browser): le fonti (foglio «Fonti», codici FS: decisione del 24/11/2026, l'elenco lo tiene l'app), le righe degli
+   eventi (foglio «Eventi»; i codici F li dà lo sportello) e gli eventi preparati e non ancora pubblicati. La voce è una busta cifrata con
+   la chiave del registro, diversa dalla firma (la legge e la scrive il modulo delle chiavi, sorgenti/moduli/chiavi.js): senza quella chiave non si legge nulla, e
+   in chiaro il registro esiste soltanto nella memoria della pagina, finché l'app è aperta.
+
+   Nel registro le persone fisiche non compaiono con il nome (§ 18.5): una fonte che è una persona si scrive con il
+   codice P, e il titolo di un evento si annota con il ruolo al posto del nome. I codici non si riusano mai. Per ora
+   l'elenco delle fonti sta sul solo dispositivo che lo scrive: con un secondo dispositivo le fonti si riportano con
+   l'importazione del registro (T-043).
+
+   Testi come testo (T-024): nomi delle fonti, titoli e note entrano nella pagina solo con esc(). */
+const TIPI_FONTE = [['organizzatore', 'Organizzatore che scrive alla Redazione', '1'], ['sito', 'Sito dell’organizzatore', '2'], ['social', 'Pagina ufficiale su un social network', '2'],
+  ['istituzionale', 'Sito istituzionale', '3'], ['calendario', 'Calendario in dati aperti', '3'], ['testata', 'Testata o comunicato', '4']];
+const GRADI_FONTE = {'1':'Grado 1', '2':'Grado 2', '3':'Grado 3', '4':'Grado 4', esclusa:'Esclusa'};
+const ESITI_FONTE = {ammessa:'Ammessa', attribuzione:'Ammessa con attribuzione', vietata:'Non ammessa: vieta il riuso, si cerca l’organizzatore', esclusa:'Esclusa'};
+const CODICE_P = /^P-\d{4,}$/, CODICE_C = /^C-\d{4,}$/, CODICE_K = /^K-\d{4,}$/;
+const REG = {dati:null, stato:'', attesa:null};   /* stato: '' (da aprire), 'aperto', 'chiavi' (mancano le chiavi), 'illeggibile' (scritto con altre chiavi) */
+const regVuoto = () => ({v:1, fonti:[], eventi:[], preparati:[], prossimi:{fs:1, p:1}});
+const testoReg = (x, max) => typeof x==='string' ? x.slice(0, max||500) : '';
+/* ciò che esce dalla busta si rimette in forma: elenchi veri, testi veri, contatori che non tornano mai indietro */
+function regInForma(d){
+  const o = regVuoto(); if(!d || typeof d!=='object') return o;
+  ['fonti', 'eventi', 'preparati'].forEach(k => { if(Array.isArray(d[k])) o[k] = d[k].filter(x => x && typeof x==='object'); });
+  o.fonti.forEach(f => { ['codice', 'nome', 'tipo', 'grado', 'indirizzo', 'lette', 'esito', 'licenza', 'attribuzione'].forEach(k => { f[k] = testoReg(f[k]); }); });
+  const p = d.prossimi||{}, num = (pre, l) => l.reduce((m, x) => { const n = parseInt(String(x.codice||'').replace(pre, ''), 10); return n>=m ? n+1 : m; }, 1);
+  o.prossimi = {fs:Math.max(+p.fs||1, num('FS-', o.fonti)), p:Math.max(+p.p||1, num('PR-', o.preparati))};
+  return o;
+}
+/* apre il registro una volta sola; chi arriva mentre si apre aspetta la stessa lettura */
+function regApri(){
+  if(REG.stato==='aperto') return Promise.resolve(REG.dati);
+  if(REG.attesa) return REG.attesa;
+  REG.attesa = CHIAVI.registro.leggi().then(t => t==null ? regVuoto() : regInForma(JSON.parse(t)))
+    .then(d => { REG.dati = d; REG.stato = 'aperto'; return d; }, e => { REG.dati = null; REG.stato = e && e.motivo==='mancano' ? 'chiavi' : 'illeggibile'; return null; })
+    .then(d => { REG.attesa = null; return d; });
+  return REG.attesa;
+}
+/* cifra e scrive; un registro che non si è riusciti a leggere non si sovrascrive mai */
+function regSalva(){
+  if(REG.stato!=='aperto' || !REG.dati) return Promise.reject(new Error('registro'));
+  return CHIAVI.registro.scrivi(JSON.stringify(REG.dati));
+}
+const regCodice = (pre, n, cifre) => pre+'-'+String(n).padStart(cifre, '0');
+const regFonte = c => REG.dati ? REG.dati.fonti.find(f => f.codice===c) || null : null;
+const regRiga = id => REG.dati ? REG.dati.eventi.find(r => r.id===id) || null : null;
+const tipoFonte = t => TIPI_FONTE.find(x => x[0]===t) || null;
+/* il prossimo controllo delle condizioni: dodici mesi dopo l'ultimo (cap. 22, foglio «Fonti») */
+const prossimoControllo = f => /^\d{4}-\d{2}-\d{2}$/.test(f.lette||'') ? (+f.lette.slice(0,4)+1)+f.lette.slice(4) : '';
+const fonteAmmessa = f => !!f && (f.esito==='ammessa' || f.esito==='attribuzione') && f.grado!=='esclusa';
+const fonteDaRicontrollare = f => { const p = prossimoControllo(f); return !!p && p <= oggi(); };
+const etichettaFonte = f => f.codice+' · '+f.nome+(GRADI_FONTE[f.grado] ? ' · '+tr(GRADI_FONTE[f.grado]).toLowerCase() : '');
+const statoRegistro = () => REG.stato==='chiavi' ? tr('Per il registro delle fonti servono le chiavi della Redazione: Strumenti della redazione → Chiavi.')
+  : REG.stato==='illeggibile' ? tr('Il registro delle fonti su questo dispositivo è scritto con altre chiavi e non si legge: ripristina le chiavi dalla copia di riserva (Strumenti della redazione → Chiavi). Finché non si legge, non si tocca.')
+  : REG.stato==='aperto' ? '' : tr('Apro il registro delle fonti…');
+
+/* ---------- Le fonti (foglio «Fonti», codici FS) ---------- */
+function fPbFonti(){
+  const torna = st.aform ? 'aform' : 'pubblica';
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Fonti')}</h2><p class="meta">${tr('Registro delle fonti · una riga per sito, pagina o calendario')}</p></div>${chiudiBtn(torna==='aform' ? 'g-torna' : 'pubblica')}</div>`;
+  const s = statoRegistro(); if(s) return foglio('forte', testa, `<p class="meta" role="status">${esc(s)}</p>`);
+  const F = REG.dati.fonti;
+  const nota = f => !fonteAmmessa(f) ? tr('non ammessa') : fonteDaRicontrollare(f) ? tr('condizioni da rileggere') : tr('condizioni lette il {d}',{d:f.lette ? dIso(f.lette).toLocaleDateString(dloc(), {day:'numeric', month:'short', year:'numeric'}) : '–'});
+  const corpo = `${statoPb()}
+    <p class="meta">${tr('Prima di usare un sito se ne leggono le condizioni, le note legali o la licenza: se vieta il riuso non si usa, e si cerca l’organizzatore. Qui si annota l’esito, una volta per fonte; nella scheda dell’evento si sceglie la fonte da questo elenco.')}</p>
+    <div class="tasti"><button class="tasto pri" data-az="pb-fonte-nuova">${tr('Nuova fonte')}</button></div>
+    ${F.length ? `<div class="menu-lista">${F.map(f => `<button class="menu-r" data-pbfonte="${esc(f.codice)}"><div><span class="t">${esc(f.codice)} · ${esc(f.nome)}</span><span class="meta">${esc(tr((tipoFonte(f.tipo)||['', '—'])[1]))} · ${esc(tr(GRADI_FONTE[f.grado]||'—').toLowerCase())} · ${esc(nota(f))}</span></div>${freccia}</button>`).join('')}</div>`
+      : `<p class="meta">${tr('Non c’è ancora nessuna fonte: la prima nasce con «Nuova fonte» e prende il codice FS-0001.')}</p>`}`;
+  return foglio('forte alto', testa, corpo);
+}
+function apriFonte(codice){
+  const f = codice ? regFonte(codice) : null;
+  PB.fonte = Object.assign({codice:null, nome:'', tipo:'', grado:'', indirizzo:'', lette:oggi(), esito:'', licenza:'', attribuzione:'', errori:[]}, f ? JSON.parse(JSON.stringify(f)) : {}, {errori:[]});
+  PB.errore = ''; PB.msg = ''; apri('pb-fonte');
+}
+function fPbFonte(){
+  const f = PB.fonte, testa = `<div class="riga-titolo"><div><h2>${f && f.codice ? esc(f.codice) : tr('Nuova fonte')}</h2><p class="meta">${tr('Registro delle fonti, foglio «Fonti»')}</p></div>${chiudiBtn('pb-fonti')}</div>`;
+  if(!f) return foglio('forte', testa, '');
+  const fac = tr('facoltativo'), campo = (id, lab, html, nota) => `<div class="stack-s"><label class="etich" for="${id}">${lab}</label>${html}${nota?`<span class="meta">${nota}</span>`:''}</div>`;
+  const testo = (id, c, lab, max, segna, nota, tipo) => campo(id, lab, `<div class="campo"><input id="${id}" data-fcampo="${c}" maxlength="${max}" value="${esc(f[c])}" placeholder="${esc(segna||'')}" autocomplete="off"${tipo?` type="${tipo}"`:''}></div>`, nota);
+  const scelta = (id, c, lab, voci, nota) => campo(id, lab, `<div class="campo"><select id="${id}" data-fcampo="${c}"><option value="">${tr('— Scegli —')}</option>${voci.map(([v, t]) => `<option value="${esc(v)}" ${f[c]===v?'selected':''}>${esc(tr(t))}</option>`).join('')}</select></div>`, nota);
+  const corpo = `
+    ${testo('fo-nome', 'nome', tr('Nome della fonte'), 120, tr('Ente, organizzatore o testata'), tr('Una persona fisica non si scrive con il nome: si scrive il suo codice P dell’anagrafica dei registri, per esempio «P-0007».'))}
+    ${scelta('fo-tipo', 'tipo', tr('Tipo'), TIPI_FONTE.map(x => [x[0], x[1]]))}
+    ${scelta('fo-grado', 'grado', tr('Grado'), Object.entries(GRADI_FONTE), tr('1: l’organizzatore che chiede la pubblicazione · 2: il suo sito o la sua pagina ufficiale · 3: il sito istituzionale dell’ente · 4: testate e comunicati · esclusi: aggregatori, gruppi, contenuti leggibili solo con un account, storie, segnalazioni di privati.'))}
+    ${testo('fo-indirizzo', 'indirizzo', `${tr('Indirizzo')} <span class="fac">${fac}</span>`, 500, 'https://', tr('Il collegamento alla fonte. Per un organizzatore che scrive alla Redazione può mancare.'), 'url')}
+    ${testo('fo-lette', 'lette', tr('Condizioni lette il'), 10, '', tr('Il giorno in cui hai letto le condizioni, le note legali o la licenza del sito. Dopo dodici mesi l’app chiede di rileggerle.'), 'date')}
+    ${scelta('fo-esito', 'esito', tr('Esito'), Object.entries(ESITI_FONTE))}
+    ${testo('fo-licenza', 'licenza', `${tr('Licenza del calendario')} <span class="fac">${fac}</span>`, 120, tr('Solo per i calendari in dati aperti'), tr('Il nome della licenza, oppure «nessuna licenza».'))}
+    ${testo('fo-attr', 'attribuzione', `${tr('Attribuzione richiesta')} <span class="fac">${fac}</span>`, 160, '', tr('Il testo che la licenza chiede di mostrare: va nel campo «Fonte:» dell’evento.'))}
+    ${f.errori.length ? `<div class="red-riquadro pb-errori" role="alert"><b>${tr('Per salvare la fonte:')}</b>${f.errori.map(x => `<span class="err">${esc(x)}</span>`).join('')}</div>` : ''}
+    ${statoPb()}
+    <div class="tasti"><button class="tasto sec" data-az="pb-fonti">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-fonte-salva">${f.codice ? tr('Salva la fonte') : tr('Aggiungi la fonte')}</button></div>
+    <p class="meta">${tr('Una fonte non si cancella: il suo codice resta legato agli eventi pubblicati. Se un sito non si può più usare, cambia l’esito in «Non ammessa» o «Esclusa».')}</p>`;
+  return foglio('forte alto', testa, corpo);
+}
+function salvaFonte(){
+  const f = PB.fonte; if(!f || PB.lavoro) return;
+  const e = [], nome = f.nome.trim(), ind = f.indirizzo.trim();
+  if(!nome) e.push(tr('Nome della fonte: scrivilo.'));
+  if(!tipoFonte(f.tipo)) e.push(tr('Tipo: scegline uno.'));
+  if(!GRADI_FONTE[f.grado]) e.push(tr('Grado: scegline uno.'));
+  if(ind && !MODULI.testo.collegamento(ind)) e.push(tr('Indirizzo: deve cominciare con https:// (oppure lascialo vuoto).'));
+  if(!ind && f.tipo && f.tipo!=='organizzatore') e.push(tr('Indirizzo: per questo tipo di fonte serve il collegamento.'));
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f.lette) || f.lette > oggi()) e.push(tr('Condizioni lette il: scegli il giorno, non nel futuro.'));
+  if(!ESITI_FONTE[f.esito]) e.push(tr('Esito: scegline uno.'));
+  if(f.grado==='esclusa' && f.esito!=='esclusa' && ESITI_FONTE[f.esito]) e.push(tr('Una fonte di grado «Esclusa» ha l’esito «Esclusa».'));
+  f.errori = e; if(e.length){ disegnaFoglio(); return; }
+  const d = REG.dati, v = {nome, tipo:f.tipo, grado:f.grado, indirizzo:ind, lette:f.lette, esito:f.esito, licenza:f.licenza.trim(), attribuzione:f.attribuzione.trim()};
+  let x = f.codice ? regFonte(f.codice) : null;
+  if(x) Object.assign(x, v); else { x = Object.assign({codice:regCodice('FS', d.prossimi.fs++, 4)}, v); d.fonti.push(x); }
+  PB.lavoro = true; disegnaFoglio();
+  regSalva().then(() => { PB.lavoro = false; registra(f.codice ? 'fonte-corretta' : 'fonte-nuova', {c:x.codice}); PB.fonte = null;
+      /* dalla scheda di un evento: la fonte appena aggiunta è già scelta */
+      if(st.aform && st.aform.g && !f.codice){ st.aform.g.fonte = x.codice; fonteScelta(st.aform); }
+      PB.msg = tr('Fonte {c} salvata.',{c:x.codice}); apri('pb-fonti'); },
+    () => { PB.lavoro = false; if(!f.codice){ d.fonti.pop(); d.prossimi.fs--; } PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+}
+
+/* ---------- Le righe degli eventi (foglio «Eventi», codici F) ----------
+   Le righe di una pubblicazione si preparano prima di partire: viaggiano cifrate nello stesso pacchetto firmato
+   dell'evento (decisione del 24/11/2026), lo sportello le conserva nel riservato senza poterle leggere e dà a ogni
+   evento nuovo il suo codice F. Diventano del registro di questo dispositivo solo quando lo sportello accetta: se
+   rifiuta, la riga non nasce. Una correzione aggiorna le colonne di giudizio e lascia la data della prima
+   pubblicazione; un ritiro prima della fine annota data e motivo. Se l'evento era stato pubblicato da un altro
+   dispositivo, qui la riga nasce senza la data della prima pubblicazione: la ritrova l'importazione delle righe
+   dallo sportello (T-043). */
+const CINQUE_ANNI = 5;
+const scadenzaRiga = iso => { const d = new Date(iso); if(!iso || isNaN(d)) return ''; d.setFullYear(d.getFullYear()+CINQUE_ANNI); return d.toISOString().slice(0,10); };
+/* cambi: [{ev, g, titolo, canale}] per pubblicare o correggere; [{id, ritiro}] per un ritiro. → {busta, nuovo, quando} o null */
+function regPrepara(cambi){
+  if(REG.stato!=='aperto' || !REG.dati) return Promise.reject(new Error('registro'));
+  const nuovo = JSON.parse(JSON.stringify(REG.dati)), quando = new Date().toISOString(), righe = [], fonti = new Map();
+  for(const c of cambi){
+    if(c.ev){
+      const ev = c.ev, fatti = {titolo:testoReg(c.titolo||ev.titolo, 200), testoFonte:ev.fonte.testo, collegamento:ev.fonte.collegamento||'', g:JSON.parse(JSON.stringify(c.g))};
+      let r = nuovo.eventi.find(x => x.id===ev.id);
+      if(r) Object.assign(r, fatti, {corretto:quando});
+      else { r = Object.assign({codice:'', id:ev.id, quando:c.correzione ? '' : quando, corretto:c.correzione ? quando : '', nascosto:false, canale:c.canale||'singolo', funzione:'Redazione eventi', ritiro:null, scadenza:c.correzione ? '' : scadenzaRiga(quando)}, fatti); nuovo.eventi.push(r); }
+      righe.push(r);
+      const fo = nuovo.fonti.find(f => f.codice===c.g.fonte); if(fo) fonti.set(fo.codice, fo);
+    } else if(c.ritiro){
+      const r = nuovo.eventi.find(x => x.id===c.id); if(!r) continue;
+      r.ritiro = {data:quando, motivo:c.ritiro}; righe.push(r);
+    }
+  }
+  if(!righe.length) return Promise.resolve(null);
+  /* nella busta: le righe di questa pubblicazione e le fonti che citano, com'erano in quel momento */
+  return CHIAVI.registro.cifra(JSON.stringify({v:1, quando, righe, fonti:[...fonti.values()]})).then(busta => ({busta, nuovo, quando}));
+}
+/* lo sportello ha accettato: i codici F che ha dato entrano nelle righe, e il registro del dispositivo diventa quello nuovo */
+function regConferma(prep, codici){
+  if(!prep) return Promise.resolve();
+  Object.entries(codici||{}).forEach(([id, c]) => { const r = prep.nuovo.eventi.find(x => x.id===id); if(r && /^F-\d{5,}$/.test(c)) r.codice = c; });
+  REG.dati = prep.nuovo; return regSalva();
+}
+
+/* ======================= Scheda di pubblicazione dell'evento singolo (T-041) =======================
+   Libro mastro: § 2.2, canale 1; § 3.4 (le dieci domande); §§ 3.5-3.6; §§ 5.1-5.4; § 11.3; cap. 22, regola 1 («Senza
+   le colonne di giudizio l'app non pubblica»); § 12.1, regola 1 (le decisioni restano alle persone: qui non c'è nessun
+   aiuto di intelligenza artificiale); allegato A, A.2.
+
+   Il modulo dell'evento (pubblicazione.js) porta i campi pubblici; questa parte gli aggiunge:
+   - le colonne di giudizio del registro delle fonti: la fonte (codice FS, scelta dall'elenco delle fonti), la data
+     di consultazione, il post leggibile senza account, l'esito delle dieci domande, gli elementi ripresi e i nomi
+     con il solo ruolo, l'evento politico o religioso, l'avviso all'organizzatore, la prova del consenso;
+   - i controlli prima di pubblicare: recapiti nei testi (chiocciola, «+39», «tel.», numeri lunghi), parole da non
+     usare per eventi soltanto ripresi, immagini, evento già cominciato. Un avviso non decide nulla: chiede a chi
+     pubblica di guardare e di confermare;
+   - gli eventi preparati: una scheda si può salvare e riprendere più tardi; resta nel registro cifrato del
+     dispositivo finché non si pubblica o non si toglie.
+   Finché le colonne di giudizio non sono complete «Pubblica» resta spento, e sotto il tasto c'è scritto che cosa manca.
+
+   Le colonne di giudizio non entrano mai nell'evento pubblico (il formato non ha un campo per loro): vanno nella riga
+   del registro, che nasce quando lo sportello accetta la pubblicazione (registro-fonti.js).
+
+   Testi come testo (T-024): ciò che viene dal registro o dal modulo entra nella pagina solo con esc(). */
+const DIECI_DOMANDE = [
+  [1, 'La fonte è verificabile ora, con un collegamento funzionante?', ['stop']],
+  [2, 'La fonte è accessibile senza registrazione o accesso riservato?', ['stop']],
+  [3, 'La fonte è stabile, e non un contenuto destinato a sparire in poche ore?', ['stop']],
+  [4, 'La fonte è dell’organizzatore, di un ente o di una testata?', ['stop']],
+  [5, 'Si riprendono solo informazioni sull’evento, e non sulle persone?', ['stop']],
+  [6, 'Le persone nominate agiscono in una veste pubblica (relatori, artisti) e nessuna è un minore?', ['omesso', 'consenso']],
+  [7, 'Il testo è riscritto con parole proprie e senza immagini altrui?', ['riscritto', 'stop']],
+  [8, 'Mancano recapiti personali?', ['tolti', 'stop']],
+  [9, 'L’organizzatore ha scelto di rendere pubblico l’evento?', ['consenso', 'stop']],
+  [10, 'Il luogo è pubblico o aperto al pubblico, e nulla nella fonte indica che l’evento si svolga in modo irregolare?', ['consenso', 'stop']]];
+const RISPOSTE_DOMANDA = {si:'Sì', stop:'No: non si pubblica', omesso:'No: ho omesso il nome (sempre, se è un minore)', consenso:'No: c’è il consenso diretto', riscritto:'No: ora l’ho riscritto', tolti:'No: ora li ho tolti'};
+const CORREZIONI_DOMANDA = {omesso:'nome omesso', consenso:'consenso diretto', riscritto:'testo riscritto', tolti:'recapiti tolti'};
+const ELEMENTI_RIPRESI = [['titolo', 'Titolo'], ['data', 'Data'], ['ora', 'Ora'], ['luogo', 'Luogo'], ['descrizione', 'Descrizione riscritta']];
+const AVVISI_ORG = {nessuno:'Nessun recapito di lavoro noto', dopo:'Recapito noto: l’avviso parte dopo la pubblicazione', inviato:'Avviso già inviato'};
+const giudizioNuovo = () => ({fonte:'', consultazione:oggi(), post:'', dom:{}, elementi:{titolo:1, data:1, ora:1, luogo:1, descrizione:1}, nomi:'', ruoli:'', titoloReg:'', politico:'', avviso:'', avvisoData:'', avvisoCanale:'', k:'', consenso:'', visti:{}});
+/* un giudizio letto dal registro o da una scheda preparata torna nella forma di giudizioNuovo() */
+function giudizioInForma(g){
+  const o = giudizioNuovo(); if(!g || typeof g!=='object') return o;
+  ['fonte', 'consultazione', 'post', 'nomi', 'ruoli', 'titoloReg', 'politico', 'avviso', 'avvisoData', 'avvisoCanale', 'k', 'consenso'].forEach(k => { if(typeof g[k]==='string') o[k] = g[k].slice(0, 200); });
+  DIECI_DOMANDE.forEach(([n, , no]) => { const v = g.dom && g.dom[n]; if(v==='si' || no.includes(v)) o.dom[n] = v; });
+  if(g.elementi && typeof g.elementi==='object') ELEMENTI_RIPRESI.forEach(([k]) => { o.elementi[k] = g.elementi[k] ? 1 : 0; });
+  if(g.visti && typeof g.visti==='object') Object.keys(g.visti).slice(0, 8).forEach(k => { if(typeof g.visti[k]==='string') o.visti[k] = g.visti[k].slice(0, 400); });
+  return o;
+}
+/* l'esito delle dieci domande come lo vuole la colonna del registro */
+function esitoDomande(g){
+  const no = DIECI_DOMANDE.filter(([n]) => g.dom[n] && g.dom[n]!=='si');
+  return no.length ? no.map(([n]) => n+': '+(CORREZIONI_DOMANDA[g.dom[n]]||'non si pubblica')).join('; ') : 'Tutte superate';
+}
+const serveConsenso = g => DIECI_DOMANDE.some(([n]) => g.dom[n]==='consenso') || (g.politico==='si' && g.nomi==='si');
+
+/* ---------- Controlli prima di pubblicare (§ 5.2; allegato A, A.2) ---------- */
+const TESTI_SCHEDA = f => [f.titolo, f.desc, f.comeArrivare, f.organizzatore, f.luogo, f.prezzo, f.fonte].map(x => String(x||''));
+const RECAPITI = [/[^\s@]*@[^\s@]*/g, /\+\s?39[\d .\-]*/g, /\b(?:tel|cell|telefono|whatsapp)\b\.?:?\s*[\d .\-+]*/gi, /\b\d(?:[ .\-]?\d){8,}\b/g];
+const PAROLE_DA_EVITARE = /\b(?:verificat[oaie]|ufficial[ei]|autorizzat[oaie]|in regola|sicur[oaie]|a norma)\b/gi;
+const IMMAGINI = /data:image|\bhttps?:\/\/\S+\.(?:jpe?g|png|gif|webp|svg|avif)\b/i;
+const corrispondenze = (testi, regole) => { const o = []; testi.forEach(t => regole.forEach(r => { (t.match(r)||[]).forEach(x => { x = x.trim(); if(x && !o.includes(x)) o.push(x); }); })); return o; };
+/* gli avvisi di questa scheda: ognuno con la sua firma, cioè le parole che l'hanno fatto nascere. La conferma vale
+   finché la firma resta la stessa: se il testo cambia e l'avviso con lui, va guardato di nuovo. */
+function avvisiScheda(f){
+  const a = [], testi = TESTI_SCHEDA(f);
+  const rec = corrispondenze(testi, RECAPITI);
+  if(rec.length) a.push({k:'recapiti', firma:rec.join(' | '), tit:tr('Nei testi sembra esserci un recapito'), testo:tr('Trovato: {l}. I recapiti personali non si pubblicano mai (§ 3.5): toglili. Il recapito di una biglietteria o di un ente può restare.',{l:rec.slice(0, 6).join(' · ')}), ok:tr('Ho controllato: non è un recapito personale')});
+  const par = corrispondenze([f.titolo, f.desc, f.comeArrivare].map(x => String(x||'')), [PAROLE_DA_EVITARE]).map(x => x.toLowerCase()).filter((x, i, l) => l.indexOf(x)===i);
+  if(par.length) a.push({k:'parole', firma:par.join(' | '), tit:tr('Parole da non usare per un evento soltanto ripreso'), testo:tr('Trovato: {l}. Queste parole promettono un controllo che la Redazione non ha fatto (§ 5.2; § 9.4): riscrivi la frase. Possono restare solo se fanno parte del nome dell’evento o del luogo.',{l:par.map(x => '«'+x+'»').join(', ')}), ok:tr('Ho controllato: è il nome dell’evento o del luogo')});
+  const ini = f.inizio ? FORMATO.istante(f.inizio) : null;
+  if(ini!=null && ini < Date.now()) a.push({k:'cominciato', firma:f.inizio, tit:tr('L’evento è già cominciato'), testo:tr('L’inizio è nel passato. Va bene per una mostra o una rassegna ancora in corso; altrimenti controlla la data.'), ok:tr('Ho controllato: è ancora in corso')});
+  return a;
+}
+const avvisoVisto = (f, x) => f.g.visti[x.k]===x.firma;
+
+/* ---------- Che cosa manca per accendere «Pubblica» ---------- */
+function giudizioManca(f){
+  const g = f.g, m = [], fo = regFonte(g.fonte);
+  if(REG.stato!=='aperto') return [statoRegistro()];
+  if(!fo) m.push(tr('la fonte nel registro'));
+  else {
+    if(!fonteAmmessa(fo)) m.push(tr('una fonte ammessa: {c} non lo è',{c:fo.codice}));
+    if(fo.tipo!=='organizzatore' && !String(f.fonteLink||'').trim()) m.push(tr('il collegamento alla pagina dell’evento'));
+    if(fo.tipo==='social' && g.post!=='si') m.push(tr('il post aperto senza accedere'));
+    if(fo.attribuzione && !String(f.fonte||'').includes(fo.attribuzione.trim())) m.push(tr('nel campo «Fonte» l’attribuzione chiesta dalla licenza'));
+  }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(g.consultazione) || g.consultazione > oggi()) m.push(tr('la data di consultazione'));
+  const senza = DIECI_DOMANDE.filter(([n]) => !g.dom[n]).length, stop = DIECI_DOMANDE.filter(([n]) => g.dom[n]==='stop').map(x => x[0]);
+  if(senza) m.push(senza===10 ? tr('le dieci domande') : tr('{n} delle dieci domande',{n:senza}));
+  if(stop.length) m.push(tr('un evento che si può pubblicare: alla domanda {n} hai risposto che non si pubblica',{n:stop.join(', ')}));
+  if(!ELEMENTI_RIPRESI.some(([k]) => g.elementi[k])) m.push(tr('gli elementi ripresi'));
+  if(g.nomi!=='no' && g.nomi!=='si') m.push(tr('i nomi di persone: sì o no'));
+  else if(g.nomi==='si' && !g.ruoli.trim()) m.push(tr('il ruolo delle persone nominate'));
+  if(g.politico!=='no' && g.politico!=='si') m.push(tr('evento politico o religioso: sì o no'));
+  if(!AVVISI_ORG[g.avviso]) m.push(tr('l’avviso all’organizzatore'));
+  else if(g.avviso==='inviato' && (!/^\d{4}-\d{2}-\d{2}$/.test(g.avvisoData) || !g.avvisoCanale.trim())) m.push(tr('data e canale dell’avviso'));
+  if(g.k.trim() && !CODICE_K.test(g.k.trim())) m.push(tr('un codice K scritto come «K-0001»'));
+  if(serveConsenso(g) && !CODICE_C.test(g.consenso.trim())) m.push(g.politico==='si' && g.nomi==='si' ? tr('il codice C del consenso esplicito (evento politico o religioso con nomi)') : tr('il codice C del consenso diretto'));
+  else if(g.consenso.trim() && !CODICE_C.test(g.consenso.trim())) m.push(tr('un codice C scritto come «C-0001»'));
+  if(IMMAGINI.test(TESTI_SCHEDA(f).join('\n'))) m.push(tr('un testo senza immagini: nei testi c’è il collegamento a un’immagine'));
+  const daVedere = avvisiScheda(f).filter(x => !avvisoVisto(f, x)).length;
+  if(daVedere) m.push(daVedere===1 ? tr('la conferma di un avviso') : tr('la conferma di {n} avvisi',{n:daVedere}));
+  return m;
+}
+const testoSpia = m => m.length ? tr('«Pubblica» è spento. Manca: {l}.',{l:m.join('; ')}) : tr('Alla scheda non manca nulla: «Pubblica» è acceso.');
+const avvisiHtml = f => avvisiScheda(f).map(x => `<div class="red-riquadro g-avviso" role="note"><b>${esc(x.tit)}</b><span class="meta">${esc(x.testo)}</span>
+  <button class="riga-int" data-az="g-visto" data-k="${x.k}" aria-pressed="${avvisoVisto(f, x)}"><span class="casella" aria-hidden="true"></span><div><span class="t">${esc(x.ok)}</span></div></button></div>`).join('');
+/* dopo ogni tasto: la spia sotto «Pubblica», il tasto, e gli avvisi se sono cambiati (senza ridisegnare il modulo, che farebbe perdere il punto in cui si scrive) */
+function aggiornaSpia(){
+  const f = st.aform; if(!f || !f.g || f.per==='ripristino') return;
+  const m = giudizioManca(f), spia = $('g-spia'), tasto = document.querySelector('#foglio-slot [data-az="a-pubblica"]'), box = $('g-avvisi');
+  if(spia) spia.textContent = testoSpia(m);
+  if(tasto) tasto.disabled = m.length>0;
+  const firma = avvisiScheda(f).map(x => x.k+':'+x.firma).join('\n');
+  if(box && box.dataset.firma!==firma){ box.innerHTML = avvisiHtml(f); box.dataset.firma = firma; }
+}
+
+/* ---------- La parte della scheda con le colonne di giudizio ---------- */
+function fonteScelta(f){
+  const fo = regFonte(f.g.fonte); if(!fo) return;
+  /* il campo «Fonte» vuoto, o ancora con il nome messo qui per la fonte scelta prima, prende quello della fonte nuova
+     (l'attribuzione chiesta dalla licenza, se c'è); un testo scritto dalla Redazione non si tocca */
+  const att = String(f.fonte||'').trim();
+  if(!att || att===f.fonteAuto){ f.fonte = (fo.attribuzione || (CODICE_P.test(fo.nome) ? '' : fo.nome)).slice(0, 160); f.fonteAuto = f.fonte; }
+  if(fo.tipo!=='social') f.g.post = 'np'; else if(f.g.post==='np') f.g.post = '';
+}
+function schedaGiudizio(f){
+  const g = f.g, s = statoRegistro();
+  const testa = `<h3 class="g-tit">${tr('Per il registro delle fonti')}</h3><p class="meta">${tr('Queste risposte non si pubblicano: vanno nella riga del registro delle fonti, che nasce insieme alla pubblicazione. Senza, «Pubblica» resta spento.')}</p>`;
+  if(s) return `<div class="g-scheda">${testa}<p class="meta" role="status">${esc(s)}</p></div>`;
+  const fo = regFonte(g.fonte), fac = tr('facoltativo');
+  const campo = (id, lab, html, nota) => `<div class="stack-s"><label class="etich" for="${id}">${lab}</label>${html}${nota?`<span class="meta">${nota}</span>`:''}</div>`;
+  const scelta = (id, c, lab, voci, nota) => campo(id, lab, `<div class="campo"><select id="${id}" data-gcampo="${c}"><option value="">${tr('— Scegli —')}</option>${voci.map(([v, t]) => `<option value="${esc(v)}" ${g[c]===v?'selected':''}>${esc(t)}</option>`).join('')}</select></div>`, nota);
+  const testo = (id, c, lab, max, segna, nota, tipo) => campo(id, lab, `<div class="campo"><input id="${id}" data-gcampo="${c}" maxlength="${max}" value="${esc(g[c])}" placeholder="${esc(segna||'')}" autocomplete="off"${tipo?` type="${tipo}"`:''}></div>`, nota);
+  const notaFonte = !fo ? tr('La fonte si sceglie dall’elenco del registro. Se è nuova, prima si leggono le condizioni del sito e si aggiunge all’elenco.')
+    : !fonteAmmessa(fo) ? tr('Questa fonte non è ammessa: non si usa. Cerca l’organizzatore.')
+    : fonteDaRicontrollare(fo) ? tr('Le condizioni di questa fonte sono state lette più di dodici mesi fa: rileggile e aggiorna la data nell’elenco delle fonti.')
+    : tr('{t} · condizioni lette il {d}',{t:tr((tipoFonte(fo.tipo)||['', ''])[1]), d:fo.lette})
+      + (fo.attribuzione ? ' · '+tr('la licenza chiede questa attribuzione nel campo «Fonte»: {a}',{a:fo.attribuzione}) : '');
+  const domande = DIECI_DOMANDE.map(([n, q, no]) => `<div class="g-domanda${g.dom[n]==='stop'?' stop':''}"><label for="g-d${n}"><b>${n}.</b> ${esc(tr(q))}</label>
+    <div class="campo"><select id="g-d${n}" data-gdom="${n}" aria-label="${esc(tr('Domanda {n}',{n}))}"><option value="">${tr('— Rispondi —')}</option>${['si'].concat(no).map(v => `<option value="${v}" ${g.dom[n]===v?'selected':''}>${esc(tr(RISPOSTE_DOMANDA[v]))}</option>`).join('')}</select></div></div>`).join('');
+  return `<div class="g-scheda">${testa}
+    ${campo('g-fonte', tr('Fonte nel registro'), `<div class="campo"><select id="g-fonte" data-gcampo="fonte"><option value="">${tr('— Scegli —')}</option>${REG.dati.fonti.map(x => `<option value="${esc(x.codice)}" ${g.fonte===x.codice?'selected':''}>${esc(etichettaFonte(x))}</option>`).join('')}</select></div>`, esc(notaFonte))}
+    <button class="link" data-az="g-fonti">${tr('Apri l’elenco delle fonti')}</button>
+    ${testo('g-cons', 'consultazione', tr('Data di consultazione'), 10, '', tr('Il giorno in cui hai letto la pagina dell’evento.'), 'date')}
+    ${fo && fo.tipo==='social' ? scelta('g-post', 'post', tr('Post leggibile senza account'), [['si', tr('Sì: l’ho aperto senza accedere e si legge')]], tr('Valgono solo i post che si leggono senza account, nemmeno con quello del progetto; le storie non sono mai fonte (§ 6.4).')) : ''}
+    <h3 class="g-tit">${tr('Le dieci domande')}</h3>
+    <p class="meta">${tr('Si risponde a tutte, prima di pubblicare (§ 3.4). Basta un no per fermarsi: secondo la domanda si corregge l’evento, serve il consenso diretto, oppure l’evento non si pubblica.')}</p>
+    <div class="g-domande">${domande}</div>
+    <details class="g-regole"><summary>${tr('Le regole di scrittura, a portata di mano')}</summary>
+      <ul><li>${tr('Il testo riporta fatti: che cosa, dove, quando, chi organizza, come si partecipa. Nessun giudizio su persone ed enti.')}</li>
+      <li>${tr('La descrizione si riscrive con parole proprie, anche quando arriva dall’organizzatore; nessun brano di testi altrui, nessuna immagine.')}</li>
+      <li>${tr('Gratuità, accessibilità del luogo, età minima: solo se la fonte le dichiara, e attribuite alla fonte («secondo l’organizzatore»).')}</li>
+      <li>${tr('Un nome di persona solo se serve a partecipare e solo nel suo ruolo (relatore, artista, referente). Mai recapiti personali, mai i nomi di chi partecipa, mai il nome di un minore.')}</li>
+      <li>${tr('Eventi politici e religiosi: attribuiti all’ente, senza nomi di persone fisiche, salvo consenso esplicito.')}</li>
+      <li>${tr('Mai «verificato» o «ufficiale» per un evento soltanto ripreso; mai «autorizzato», «in regola», «sicuro», «a norma».')}</li>
+      <li>${tr('Il campo «Fonte:» indica la fonte reale, quella di grado più alto, non un passaggio intermedio né chi ha segnalato l’evento.')}</li>
+      <li>${tr('Se le fonti non concordano su data, ora o luogo e il contrasto non si risolve, l’evento non si pubblica.')}</li></ul></details>
+    <h3 class="g-tit">${tr('Che cosa hai ripreso')}</h3>
+    <div class="g-elementi" role="group" aria-label="${esc(tr('Elementi ripresi'))}">${ELEMENTI_RIPRESI.map(([k, t]) => `<button class="chip-in" data-az="g-elemento" data-k="${k}" aria-pressed="${!!g.elementi[k]}">${esc(tr(t))}</button>`).join('')}</div>
+    ${scelta('g-nomi', 'nomi', tr('Nomi di persone'), [['no', tr('Nessun nome')], ['si', tr('Sì, con il solo ruolo')]])}
+    ${g.nomi==='si' ? testo('g-ruoli', 'ruoli', tr('Ruolo delle persone nominate'), 120, tr('relatore, artista, referente'), tr('Qui si scrive il ruolo, mai il nome: nel registro i nomi non si copiano.'))
+      + testo('g-titoloreg', 'titoloReg', `${tr('Titolo per il registro')} <span class="fac">${fac}</span>`, 100, tr('Concerto di [artista]'), tr('Solo se il titolo contiene il nome di una persona: riscrivilo con il ruolo al posto del nome. Vuoto, vale il titolo dell’evento.')) : ''}
+    ${scelta('g-politico', 'politico', tr('Evento politico o religioso'), [['no', tr('No')], ['si', tr('Sì')]], tr('Conta lo scopo dell’evento, non il luogo: un concerto in una chiesa non è un evento religioso. Se sì, l’evento si attribuisce all’ente e i nomi di persone fisiche compaiono solo con il consenso esplicito.'))}
+    ${scelta('g-avviso', 'avviso', tr('Avviso all’organizzatore'), Object.entries(AVVISI_ORG).map(([v, t]) => [v, tr(t)]), tr('All’organizzatore di cui si conosce un recapito di lavoro si manda l’avviso di pubblicazione (§ 3.3). Data e canale si annotano nel registro.'))}
+    ${g.avviso==='inviato' ? `<div class="due">${testo('g-avvdata', 'avvisoData', tr('Avviso inviato il'), 10, '', '', 'date')}${testo('g-avvcanale', 'avvisoCanale', tr('Canale'), 40, tr('posta, messaggio…'))}</div>` : ''}
+    ${g.avviso==='dopo' || g.avviso==='inviato' ? testo('g-k', 'k', `${tr('Recapito dell’organizzatore (codice K)')} <span class="fac">${fac}</span>`, 12, 'K-0001', tr('Il codice dell’elenco dei contatti: nel registro il recapito non si copia.')) : ''}
+    ${serveConsenso(g) || g.consenso ? testo('g-consenso', 'consenso', tr('Prova del consenso (codice C)'), 12, 'C-0001', tr('Il codice della riga del registro dei consensi dove sta la prova.')) : ''}
+    <div id="g-avvisi" data-firma="${esc(avvisiScheda(f).map(x => x.k+':'+x.firma).join('\n'))}">${avvisiHtml(f)}</div></div>`;
+}
+/* il tasto «Pubblica» e la spia sotto, per il modulo dell'evento */
+const spiaHtml = f => `<p class="meta g-spia" id="g-spia" role="status">${esc(testoSpia(giudizioManca(f)))}</p>`;
+
+/* ---------- Gli eventi preparati ---------- */
+const CAMPI_PREPARATI = ['id', 'titolo', 'strato', 'sub', 'tema', 'inizio', 'fine', 'luogo', 'indirizzo', 'addrFull', 'precision', 'hn', 'comeArrivare', 'organizzatore', 'desc', 'prezzo', 'fonte', 'fonteLink'];
+function preparaScheda(){
+  const f = st.aform; if(!f || f.per==='ripristino' || PB.lavoro) return;
+  if(REG.stato!=='aperto'){ f.errori = [statoRegistro()]; disegnaFoglio(); return; }
+  if(!String(f.titolo||'').trim()){ f.err = {titolo:1}; f.errori = [tr('Titolo: per salvare la scheda tra i preparati serve almeno il titolo.')]; disegnaFoglio(); mostraErroriPb(); return; }
+  const d = REG.dati, dati = {}; CAMPI_PREPARATI.forEach(k => { dati[k] = f[k]==null ? '' : f[k]; });
+  dati.pos = f.pos ? {lat:f.pos.lat, lng:f.pos.lng} : null;
+  let p = f.prep ? d.preparati.find(x => x.codice===f.prep) : null;
+  if(!p){ p = {codice:regCodice('PR', d.prossimi.p++, 4), canale:'singolo'}; d.preparati.push(p); }
+  Object.assign(p, {salvato:new Date().toISOString(), dati, g:JSON.parse(JSON.stringify(f.g))});
+  PB.lavoro = true; disegnaFoglio();
+  regSalva().then(() => { PB.lavoro = false; st.aform = null; PB.msg = tr('Scheda salvata tra i preparati: resta su questo dispositivo, cifrata, finché non la pubblichi o non la togli.'); st.foglio = 'pubblica'; aggiornaPb(); },
+    () => { PB.lavoro = false; f.errori = [tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.')]; disegnaFoglio(); });
+}
+function apriPreparato(codice){
+  const p = REG.dati && REG.dati.preparati.find(x => x.codice===codice); if(!p) return;
+  apriEventoForm(null, 'pubblica');
+  const f = st.aform, dati = p.dati||{};
+  CAMPI_PREPARATI.forEach(k => { if(k==='id') f.id = typeof dati.id==='string' && dati.id ? dati.id : null; else f[k] = typeof dati[k]==='string' ? dati[k] : ''; });
+  f.pos = dati.pos && isFinite(dati.pos.lat) && isFinite(dati.pos.lng) ? {lat:+dati.pos.lat, lng:+dati.pos.lng} : null;
+  f.g = giudizioInForma(p.g); f.prep = p.codice; disegnaFoglio();
+}
+function togliPreparato(codice){
+  const d = REG.dati; if(!d) return Promise.resolve();
+  d.preparati = d.preparati.filter(x => x.codice!==codice); return regSalva().catch(() => {});
+}
+const preparatiHtml = () => {
+  if(REG.stato!=='aperto') return REG.stato ? `<p class="meta" role="status">${esc(statoRegistro())}</p>` : '';
+  const P = REG.dati.preparati; if(!P.length) return '';
+  return `<p class="etich">${tr('Preparati, non ancora pubblicati')} · ${P.length}</p><div class="menu-lista">${P.map(p => { const d = p.dati||{};
+    return `<div class="menu-r" style="cursor:default"><button class="g-prep" data-pbprep="${esc(p.codice)}"><span class="t">${esc(d.titolo||tr('Senza titolo'))}</span><span class="meta">${esc(d.inizio ? giornoOra(d.inizio) : tr('senza data'))}${d.luogo ? ' · '+esc(d.luogo) : ''}</span></button><button class="link" data-az="g-prep-togli" data-c="${esc(p.codice)}">${PB.togliPrep===p.codice ? tr('Tocca ancora per togliere') : tr('Togli')}</button></div>`; }).join('')}</div>
+    <p class="meta">${tr('Le schede preparate stanno solo su questo dispositivo, cifrate con la chiave del registro. Nessuna è sulla mappa.')}</p>`;
+};
+
+/* ---------- Tocchi e campi ---------- */
+function clickScheda(t){
+  const d = t.dataset;
+  if(d.pbfonte){ apriFonte(d.pbfonte); return true; }
+  if(d.pbprep){ PB.togliPrep = null; apriPreparato(d.pbprep); return true; }
+  return false;
+}
+function azioneScheda(az, t){
+  const f = st.aform;
+  switch(az){
+    case 'pb-fonti': PB.fonte = null; PB.errore = ''; regApri().then(ridisegnaPb); apri('pb-fonti'); break;
+    case 'g-fonti': PB.fonte = null; PB.errore = ''; PB.msg = ''; apri('pb-fonti'); break;
+    case 'g-torna': apri(st.aform ? 'aform' : 'pubblica'); break;
+    case 'pb-fonte-nuova': apriFonte(null); break;
+    case 'pb-fonte-salva': salvaFonte(); break;
+    case 'g-elemento': if(f && f.g){ f.g.elementi[t.dataset.k] = f.g.elementi[t.dataset.k] ? 0 : 1; t.setAttribute('aria-pressed', String(!!f.g.elementi[t.dataset.k])); aggiornaSpia(); } break;
+    case 'g-visto': if(f && f.g){ const x = avvisiScheda(f).find(y => y.k===t.dataset.k); if(x){ if(avvisoVisto(f, x)) delete f.g.visti[x.k]; else f.g.visti[x.k] = x.firma; t.setAttribute('aria-pressed', String(avvisoVisto(f, x))); aggiornaSpia(); } } break;
+    case 'g-prepara': preparaScheda(); break;
+    case 'g-prep-togli': { const c = t.dataset.c; if(PB.togliPrep!==c){ PB.togliPrep = c; disegnaFoglio(); break; }
+      PB.togliPrep = null; togliPreparato(c).then(() => { PB.msg = tr('Scheda tolta dai preparati.'); ridisegnaPb(); }); break; }
+    default: return false;
+  }
+  return true;
+}
+function inputScheda(el){
+  const d = el.dataset;
+  if(d.fcampo && PB.fonte){ PB.fonte[d.fcampo] = el.value; return true; }
+  if(d.gcampo && st.aform && st.aform.g && el.tagName!=='SELECT'){ st.aform.g[d.gcampo] = el.value; aggiornaSpia(); return true; }
+  return false;
+}
+function cambioScheda(el){
+  const d = el.dataset, f = st.aform;
+  if(d.fcampo && PB.fonte){ PB.fonte[d.fcampo] = el.value;
+    /* scelto il tipo, il grado di partenza è quello dell'ordine delle fonti (§ 5.4): si può cambiare */
+    if(d.fcampo==='tipo' && !PB.fonte.grado){ const t = tipoFonte(el.value); if(t){ PB.fonte.grado = t[2]; disegnaFoglio(); } }
+    return true; }
+  if(!f || !f.g) return false;
+  if(d.gdom){ if(el.value) f.g.dom[d.gdom] = el.value; else delete f.g.dom[d.gdom]; disegnaFoglio(); return true; }
+  if(d.gcampo){ f.g[d.gcampo] = el.value; if(d.gcampo==='fonte') fonteScelta(f); if(el.tagName==='SELECT') disegnaFoglio(); else aggiornaSpia(); return true; }
   return false;
 }
 
@@ -3515,7 +3954,7 @@ const OP_STORICO = {
   'cassaforte-copia':['accessi','Copia della cassaforte scaricata'], 'cassaforte-riporta':['accessi','Cassaforte riportata da una copia'],
   crea:['eventi','Evento creato'], modifica:['eventi','Evento modificato'], elimina:['eventi','Evento eliminato'], ripristina:['eventi','Eventi ripristinati'],
   pubblica:['eventi','Evento pubblicato'], correggi:['eventi','Correzione pubblicata'], sospendi:['eventi','Evento sospeso'], riattiva:['eventi','Evento riattivato'], ritira:['eventi','Evento ritirato prima della fine'],
-  'ripristina-copia':['eventi','Copia dello storico ripristinata'],
+  'ripristina-copia':['eventi','Copia dello storico ripristinata'], 'fonte-nuova':['eventi','Fonte aggiunta al registro delle fonti'], 'fonte-corretta':['eventi','Fonte del registro corretta'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
   misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']

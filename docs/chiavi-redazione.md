@@ -51,6 +51,10 @@ La firma è di ogni dispositivo. Da una copia di riserva si può:
 
 La revoca vale davvero quando lo sportello toglie la parte pubblica dal suo elenco (blocco 9): fino ad allora questa schermata prepara soltanto l'avviso.
 
+## Il registro delle fonti
+
+Dal blocco 10 (T-041, T-043) la chiave del registro cifra il registro delle fonti e non fa altro. `CHIAVI.registro.cifra(testo)` dà una busta `{tipo: "registro-fonti-redazione", v, iv, dati}` (AES-GCM, con il tipo come dato aggiuntivo); `decifra(busta)` dà il testo, oppure l'errore `registro` se la busta è rovinata o è stata scritta con un'altra chiave. Sul dispositivo il registro sta in una sola voce, `red_registro`, nella base di dati: `leggi()`, `scrivi(testo)` e `busta()`. In chiaro esiste soltanto nella pagina aperta. Un secondo dispositivo riceve la stessa chiave del registro con la copia di riserva, quindi legge le buste scritte dal primo. La stessa busta, con le sole righe di una pubblicazione, viaggia nel pacchetto firmato e resta nel riservato dello sportello (`docs/sportello-pubblicazione.md`).
+
 ## La cassaforte
 
 Voce `red_cassaforte`: per ogni evento nascosto, la password cifrata con la chiave della cassaforte e legata all'identificativo dell'evento, e il momento in cui l'evento finisce. A ogni apertura dell'app della redazione le voci degli eventi finiti si cancellano. La copia di sicurezza (`copia-cassaforte-AAAA-MM-GG.json`) contiene le voci così come sono, cifrate: si legge soltanto con le stesse chiavi, cioè con la copia di riserva delle chiavi e la frase.

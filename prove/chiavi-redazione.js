@@ -96,6 +96,21 @@ async function prova() {
   const cB = JSON.parse((await B.copia()).testo);
   if (cB.dispositivo !== 'Telefono di prova' || (await C.crea({ deposito: deposito(), ora }).daCopia(JSON.stringify(cB), FRASE, 'ripristina')).firma.impronta !== sb.firma.impronta) err('dispositivo in più: la sua copia di riserva deve ridare la sua firma');
 
+  /* 6 bis: la chiave del registro delle fonti cifra il registro, e solo chi ha quella chiave lo rilegge (T-041, T-043) */
+  const RIGA = JSON.stringify({ fonti: [{ codice: 'FS-0001', nome: 'Circolo Inventato, sito' }], eventi: [{ titolo: 'Serata inventata del registro' }] });
+  const busta = await A.registro.cifra(RIGA);
+  if (busta.tipo !== C.TIPO_REGISTRO || JSON.stringify(busta).includes('Inventat') || JSON.stringify(busta).includes('inventata')) err('registro: la busta deve avere il suo tipo e non deve contenere nulla di leggibile');
+  if (await A.registro.decifra(busta) !== RIGA || await B.registro.decifra(busta) !== RIGA) err('registro: la busta non si rilegge con le stesse chiavi (anche da un dispositivo in più)');
+  if ((await A.registro.cifra(RIGA)).dati === busta.dati) err('registro: due cifrature dello stesso testo non devono essere uguali');
+  if (await motivo(() => Z.registro.decifra(busta)) !== 'registro') err('registro: con chiavi diverse la busta non si deve aprire');
+  if (await motivo(() => A.registro.decifra(Object.assign({}, busta, { dati: busta.dati.slice(0, -8) + 'AAAAAAA=' }))) !== 'registro' || await motivo(() => A.registro.decifra({ iv: busta.iv, dati: busta.dati })) !== 'registro') err('registro: una busta rovinata o senza il suo tipo deve essere rifiutata');
+  if (await motivo(() => C.crea({ deposito: deposito(), ora }).registro.cifra(RIGA)) !== 'mancano' || await motivo(() => C.crea({ deposito: deposito(), ora }).registro.leggi()) !== 'mancano') err('registro: senza chiavi non si cifra e non si legge');
+  /* la voce del dispositivo: non c'è finché non si scrive; scritta, è una busta e si rilegge */
+  if (await A.registro.leggi() !== null || await A.registro.busta() !== null) err('registro: prima della prima scrittura la voce del dispositivo non deve esistere');
+  const scritta = await A.registro.scrivi(RIGA), voceReg = dA.m.get('red_registro');
+  if (!voceReg || JSON.stringify(voceReg) !== JSON.stringify(scritta) || JSON.stringify(voceReg).includes('Inventat') || JSON.stringify(await A.registro.busta()) !== JSON.stringify(voceReg)) err('registro: la voce del dispositivo deve essere la busta cifrata, senza nulla di leggibile');
+  if (await A.registro.leggi() !== RIGA) err('registro: la voce del dispositivo non si rilegge');
+
   /* 7 */
   const PW = 'parola-inventata-di-venti-caratteri', ev1 = ids[0], ev2 = ids[1];
   await A.cassaforte.metti(ev1, PW, t + 3600e3); await A.cassaforte.metti(ev2, PW + '-2', t + 10 * 3600e3);

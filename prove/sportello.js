@@ -158,6 +158,28 @@ async function prova() {
   if (JSON.stringify(kr.riepilogo.ritirati) !== JSON.stringify([{ id: ID('quattro'), motivo: 'richiesta', riferimento: 'R inventata 1' }])) err('ritiro: la copia datata non conserva il motivo: ' + JSON.stringify(kr.riepilogo));
   if (S.MOTIVI.join() !== 'annullato,errore,esclusione,richiesta,segnalazione,ordine') err('i motivi del ritiro non sono i sei del cap. 22');
 
+  /* 9 bis: la busta cifrata del registro delle fonti viaggia con la pubblicazione (T-041, T-043; decisione del
+     24/11/2026). Lo sportello non la apre: ne controlla la forma, la conserva nel riservato e dà i codici F in ordine. */
+  const BUSTA = (n = 1) => ({ tipo: 'registro-fonti-redazione', v: 1, iv: 'AAAAAAAAAAAAAAA' + n, dati: 'cifrato-inventato-' + n + '-' + 'x'.repeat(40) });
+  t += 60000; r = await manda(D1, { operazione: 'scrivi', pubblica: [ev('cinque')], registro: BUSTA(1) });
+  const codiceCinque = r.corpo.registro && r.corpo.registro.codici[ID('cinque')];
+  if (r.stato !== 200 || codiceCinque !== 'F-00001') err('registro: il primo evento con la busta doveva ricevere il codice F-00001: ' + JSON.stringify(r.corpo).slice(0, 200));
+  const righe = JSON.parse(dep.m.get(S.RIS + 'registro/righe/' + r.corpo.copia + '.json') || 'null');
+  if (!righe || righe.tipo !== 'registro-righe' || righe.busta.dati !== BUSTA(1).dati || righe.codici[ID('cinque')] !== 'F-00001' || !righe.dispositivo || !righe.dispositivo.impronta) err('registro: la busta non è conservata nel riservato, accanto alla copia, con i codici e il dispositivo');
+  if ([...dep.m.entries()].some(([k, v]) => k.startsWith(S.PUB) && /cifrato-inventato|registro-fonti/.test(v))) err('registro: la busta è finita in un file pubblico');
+  t += 60000; r = await manda(D2, { operazione: 'scrivi', pubblica: [ev('cinque', { titolo: 'Evento inventato cinque, corretto' }), ev('sei')], registro: BUSTA(2) });
+  if (r.stato !== 200 || r.corpo.registro.codici[ID('cinque')] !== 'F-00001' || r.corpo.registro.codici[ID('sei')] !== 'F-00002') err('registro: una correzione tiene il suo codice e un evento nuovo prende il seguente, anche da un altro dispositivo: ' + JSON.stringify(r.corpo.registro));
+  const indicePrimaReg = dep.m.get(S.PUB + 'indice.json');
+  for (const [nome, b] of [['senza tipo', Object.assign(BUSTA(3), { tipo: 'altro' })], ['campo in più', Object.assign(BUSTA(3), { chiaro: 'x' })], ['iv sbagliato', Object.assign(BUSTA(3), { iv: 'corto' })], ['dati non base64', Object.assign(BUSTA(3), { dati: 'non va bene!' })], ['troppo lunga', Object.assign(BUSTA(3), { dati: 'x'.repeat(1500001) })]]) {
+    t += 1000; r = await manda(D1, { operazione: 'scrivi', pubblica: [ev('sette')], registro: b });
+    if (r.stato !== 422 || r.corpo.motivo !== 'registro') err('registro: una busta «' + nome + '» doveva essere rifiutata: ' + JSON.stringify(r.corpo).slice(0, 160));
+  }
+  t += 1000; r = await manda(D1, { operazione: 'scrivi', sospendi: [ID('sei')], registro: BUSTA(4) });
+  if (r.stato !== 422 || r.corpo.motivo !== 'registro') err('registro: una busta con la sola sospensione doveva essere rifiutata');
+  if (dep.m.get(S.PUB + 'indice.json') !== indicePrimaReg) err('registro: un pacchetto rifiutato ha cambiato l\'indice');
+  t += 60000; r = await manda(D1, { operazione: 'scrivi', ritira: [{ id: ID('sei'), motivo: 'annullato' }], registro: BUSTA(5) });
+  if (r.stato !== 200 || r.corpo.registro.codici[ID('sei')] !== 'F-00002') err('registro: il ritiro con la busta tiene il codice della riga');
+
   /* 10 */
   r = await manda(D1, { operazione: 'storico' });
   const copie = r.corpo.copie || [];

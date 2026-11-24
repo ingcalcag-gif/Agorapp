@@ -26,7 +26,7 @@ La firma copre data e ora, numero, dispositivo e contenuto: cambiare una sola le
 
 | Operazione | Che cosa fa |
 | --- | --- |
-| `scrivi` | `pubblica`: eventi nuovi o corretti (un identificativo già pubblicato sostituisce l'evento); `sospendi` e `riattiva`: identificativi; `ritira`: identificativo, motivo e, se c'è, la voce del registro |
+| `scrivi` | `pubblica`: eventi nuovi o corretti (un identificativo già pubblicato sostituisce l'evento); `sospendi` e `riattiva`: identificativi; `ritira`: identificativo, motivo e, se c'è, la voce del registro; `registro` (dal blocco 10): la busta cifrata con le righe del registro delle fonti di questa pubblicazione, solo insieme a `pubblica` o a `ritira` |
 | `ripristina` | Sostituisce l'elenco con gli eventi di una copia dello storico, così come la Redazione li rimanda dopo aver ripetuto le rimozioni |
 | `stato` | Legge l'elenco riservato: eventi pubblicati e sospesi |
 | `storico` | Legge l'elenco delle copie datate |
@@ -59,6 +59,14 @@ Le risposte portano l'esito, il motivo del rifiuto (`forma`, `sconosciuto`, `rev
 | `riservato/storico/elenco.json` | L'elenco delle copie, con il riepilogo |
 | `riservato/chiavi.json` | Le chiavi pubbliche ammesse e le firme revocate |
 | `riservato/visti.json`, `riservato/tentativi.json` | I numeri dei pacchetti ricevuti negli ultimi dieci minuti; le firme sbagliate, per impronta del dispositivo |
+| `riservato/registro/righe/` | Dal blocco 10: per ogni pubblicazione che porta la busta del registro delle fonti, un file con lo stesso nome della copia datata: la busta così come è arrivata, il dispositivo e i codici F dati agli eventi |
+| `riservato/registro/codici.json` | Il codice F di ogni evento che ha una riga nel registro, e il numero del prossimo |
+
+## Il registro delle fonti (T-041, T-043)
+
+Decisione del 24/11/2026: fino allo sportello dell'archivio (T-053) le righe del registro delle fonti arrivano insieme all'evento, nello stesso pacchetto firmato. L'app della redazione prepara le righe della pubblicazione (colonne di fatto e colonne di giudizio della scheda), le cifra con la chiave del registro (`docs/chiavi-redazione.md`) e le mette nel campo `registro` del contenuto: `{tipo: "registro-fonti-redazione", v: 1, iv, dati}`. Nella busta ci sono soltanto le righe di quella pubblicazione e le fonti che citano, com'erano in quel momento: le copie datate conservano il pacchetto intero, e un registro intero ricopiato a ogni pubblicazione le farebbe crescere senza misura.
+
+Lo sportello non sa aprire la busta: ne controlla soltanto la forma (tipo, versione, nessun campo in più, testi in base64 per indirizzi, al massimo 1,5 milioni di caratteri) e rifiuta il pacchetto intero, con il motivo `registro`, se la forma non va o se il pacchetto non pubblica né ritira nulla. Poi dà a ogni evento che non ce l'ha il suo codice F (`F-00001`, `F-00002`…), uno dopo l'altro: i pacchetti passano uno alla volta, quindi due dispositivi non danno mai lo stesso codice a due eventi (§ 18.4). Una correzione e un ritiro tengono il codice della riga. I codici tornano nella risposta (`registro.codici`), e l'app li scrive nella riga del suo registro solo dopo che lo sportello ha accettato: se lo sportello rifiuta, la riga non nasce. La busta non entra mai nei file pubblici.
 
 Prima scrive ciò che è riservato, poi i file pubblici: se la scrittura si interrompe, la pubblicazione seguente ricostruisce tutto dall'elenco. I file dei quadranti hanno la versione nel nome; quelli che l'indice nuovo non nomina si tolgono subito, perché un evento ritirato o sospeso non resti leggibile in un file vecchio. Il telefono che non trova più un file richiede l'indice.
 
@@ -98,4 +106,4 @@ Nella schermata «Pubblicazione» lo sportello di prova ha quattro comandi in pi
 
 ## Ciò che arriva dopo
 
-Le dieci domande, le colonne di giudizio e l'elenco degli eventi preparati (T-041); l'importazione dal file Excel nel formato pubblico (T-042); la riga del registro delle fonti a ogni pubblicazione, con il motivo del ritiro (T-043); gli eventi nascosti, che viaggiano cifrati in file propri (T-045); «Togli questo nome ovunque» (T-047).
+L'importazione dal file Excel nel formato pubblico (T-042); la riga del registro delle fonti a ogni pubblicazione, con il motivo del ritiro (T-043); gli eventi nascosti, che viaggiano cifrati in file propri (T-045); «Togli questo nome ovunque» (T-047).

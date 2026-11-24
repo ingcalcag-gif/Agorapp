@@ -47,7 +47,14 @@
   const MOTIVI = ['annullato', 'errore', 'esclusione', 'richiesta', 'segnalazione', 'ordine'];
   const PUB = 'pubblico/', RIS = 'riservato/';
   const F = { chiavi: RIS + 'chiavi.json', stato: RIS + 'stato.json', visti: RIS + 'visti.json', tentativi: RIS + 'tentativi.json',
-    elenco: RIS + 'storico/elenco.json', copie: RIS + 'storico/copie/' };
+    elenco: RIS + 'storico/elenco.json', copie: RIS + 'storico/copie/', codici: RIS + 'registro/codici.json', righe: RIS + 'registro/righe/' };
+  /* Il registro delle fonti (cap. 22; T-041, T-043): con una pubblicazione può arrivare, nello stesso pacchetto firmato,
+     la busta cifrata con le sue righe. Lo sportello non la sa aprire (la chiave del registro sta solo sui dispositivi
+     della Redazione): ne controlla la forma, la conserva in riservato/registro/righe/ accanto alla copia datata e dà a
+     ogni evento nuovo il suo codice F, uno dopo l'altro, così due dispositivi non danno mai lo stesso codice a due
+     eventi (§ 18.4: i codici non si riusano e non si rinumerano). La busta non entra mai nei file pubblici.
+     Decisione del 24/11/2026: fino allo sportello dell'archivio (T-053) il registro arriva insieme all'evento. */
+  const TIPO_BUSTA = 'registro-fonti-redazione', TIPO_RIGHE = 'registro-righe', MAX_BUSTA = 1500000;
   const TIPO_COPIA = 'copia-pubblicazione', TIPO_PUBBLICHE = 'chiavi-pubbliche-redazione', TIPO_REVOCA = 'revoca-chiave-redazione';
   const NOME_COPIA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}$/;
   const RIGA = /^[^\u0000-\u001F\u007F-\u009F]*$/;
@@ -93,10 +100,14 @@
        l'indice, e si tolgono subito tutti quelli che l'indice nuovo non nomina: un evento ritirato o sospeso non deve
        restare leggibile in un file vecchio. Il telefono che ha ancora l'indice di prima e non trova più un file
        richiede l'indice (sorgenti/moduli/archivio.js). */
-    async function pubblica(p, t, operazione, riepilogo, eventi, sospesi) {
+    async function pubblica(p, t, operazione, riepilogo, eventi, sospesi, registro) {
       const { file } = Q.costruisci(eventi, Object.assign({ adesso: t, regioni }, opzEv || {}));
       const quando = iso(t), nome = quando.replace(/[:.]/g, '-') + '-' + p.numero.slice(0, 8);
       await scriviJson(F.stato, { v: VERSIONE, aggiornato: quando, eventi, sospesi });
+      if (registro) {
+        await scriviJson(F.codici, registro.tutti);
+        await scriviJson(F.righe + nome + '.json', { tipo: TIPO_RIGHE, v: VERSIONE, nome, quando, dispositivo: p.dispositivo, codici: registro.codici, busta: registro.busta });
+      }
       await scriviJson(F.copie + nome + '.json', { tipo: TIPO_COPIA, v: VERSIONE, nome, quando, dispositivo: p.dispositivo, operazione, riepilogo, eventi, sospesi, pacchetto: p });
       const elenco = await leggiJson(F.elenco, []);
       const conti = Object.fromEntries(Object.entries(riepilogo).map(([k, v]) => [k, Array.isArray(v) ? v.length : v]));
@@ -108,7 +119,21 @@
       await dep.scrivi(PUB + 'indice.json', file['indice.json']);
       for (const f of presenti) if (!(f.slice(PUB.length) in file)) await dep.togli(f);
       if (o.svuota) { try { await o.svuota(['indice.json']); } catch (e) { /* la rete di consegna si aggiorna da sé alla scadenza */ } }
-      return { quando, copia: nome, eventi: eventi.length, sospesi: sospesi.length, riepilogo };
+      return Object.assign({ quando, copia: nome, eventi: eventi.length, sospesi: sospesi.length, riepilogo }, registro ? { registro: { codici: registro.codici } } : {});
+    }
+    /* La busta del registro: solo la forma, senza aprirla. Ai codici: un codice F per ogni evento che ancora non ne ha
+       uno (pubblicato, corretto o ritirato), lo stesso di prima per quelli che l'hanno già. */
+    function bustaValida(b) {
+      return !!b && typeof b === 'object' && !Array.isArray(b) && b.tipo === TIPO_BUSTA && b.v === 1 && Object.keys(b).every(k => ['tipo', 'v', 'iv', 'dati'].includes(k)) &&
+        typeof b.iv === 'string' && /^[A-Za-z0-9_-]{16}$/.test(b.iv) && typeof b.dati === 'string' && /^[A-Za-z0-9_-]+$/.test(b.dati) && b.dati.length <= MAX_BUSTA;
+    }
+    async function codiciRegistro(ids) {
+      const tutti = await leggiJson(F.codici, null) || { prossimo: 1, codici: {} }, codici = {};
+      for (const id of ids) {
+        if (!tutti.codici[id]) tutti.codici[id] = 'F-' + String(tutti.prossimo++).padStart(5, '0');
+        codici[id] = tutti.codici[id];
+      }
+      return { tutti, codici };
     }
 
     const OPERA = {
@@ -118,6 +143,7 @@
       async scrivi(c, p, t) {
         const pub = lista(c, 'pubblica'), sos = lista(c, 'sospendi'), ria = lista(c, 'riattiva'), rit = lista(c, 'ritira');
         if (!(pub.length + sos.length + ria.length + rit.length)) throw rifiuto('vuoto');
+        if (c.registro !== undefined && (!bustaValida(c.registro) || !(pub.length + rit.length))) throw rifiuto('registro');
         controllaEventi(pub);
         const s = await statoVivo(t), eventi = new Map(s.eventi.map(e => [e.id, e])), sospesi = new Map(s.sospesi.map(e => [e.id, e]));
         const r = { pubblicati: [], corretti: [], sospesi: [], riattivati: [], ritirati: [] };
@@ -135,7 +161,8 @@
           eventi.delete(x.id); sospesi.delete(x.id);
           r.ritirati.push(Object.assign({ id: x.id, motivo: x.motivo }, x.riferimento ? { riferimento: x.riferimento } : {}));
         }
-        return pubblica(p, t, 'scrivi', r, [...eventi.values()], [...sospesi.values()]);
+        const reg = c.registro === undefined ? null : Object.assign(await codiciRegistro(r.pubblicati.concat(r.corretti, r.ritirati.map(x => x.id))), { busta: c.registro });
+        return pubblica(p, t, 'scrivi', r, [...eventi.values()], [...sospesi.values()], reg);
       },
       /* Ripristinare una copia dello storico: la Redazione la legge, ripete le rimozioni di nomi chieste dopo la sua
          data (§ 3.13, passo 4) e rimanda gli eventi firmati; l'elenco di prima viene sostituito. */

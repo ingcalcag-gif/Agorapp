@@ -52,6 +52,11 @@ PAROLE.es['frase sui dati abbreviata'] = p('datos[^.<"\'`]{0,60}(?:no salen|se q
 /* Casi ammessi dopo la revisione di T-013: la parola compare dentro la frase indicata, che non è riferita agli eventi
    né alla mappa e non dichiara una conformità. Ogni riga: lingua, frase esatta (o un suo pezzo), motivo. */
 const AMMESSI = [
+  // scheda di pubblicazione e registro delle fonti (T-041, solo nell'app della redazione): le parole sono nominate per dire a chi scrive un evento di non usarle, o descrivono una pagina e non un evento
+  ['it', 'Mai «verificato» o «ufficiale» per un evento soltanto ripreso; mai «autorizzato», «in regola», «sicuro», «a norma».', 'scheda di pubblicazione: la regola di scrittura dell\'allegato A, A.2, che nomina le parole da non usare'],
+  ['it', 'in regola|sicur[oaie]|a norma', 'scheda di pubblicazione: l\'elenco delle parole che l\'app segnala a chi scrive un evento'],
+  ['it', 'Pagina ufficiale su un social network', 'registro delle fonti: tipo di fonte del cap. 22; «ufficiale» è la pagina dell\'organizzatore, non un evento'],
+  ['it', 'il suo sito o la sua pagina ufficiale', 'registro delle fonti: ordine delle fonti del § 5.4; «ufficiale» è la pagina dell\'organizzatore, non un evento'],
   ['it', 'crea invece un evento on-grid completo', 'amministrazione: «completo» è il modulo, non la mappa'],
   ['it', 'Per una copia completa, con i tuoi Off-Grid', 'copia di sicurezza dei dati del telefono'],
   ['it', 'come farlo restando conformi', 'Misure (amministrazione): intenzione di rispettare le regole, non dichiarazione di conformità'],

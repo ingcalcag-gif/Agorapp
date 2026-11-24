@@ -112,6 +112,8 @@
       cosa: 'Le chiavi della Redazione (firma, cifratura, registro delle fonti, marcatore, cassaforte), non estraibili, e la loro copia di riserva cifrata con la frase (T-034)' },
     { nome: 'red_cassaforte', dove: 'base', redazione: true,
       cosa: 'La cassaforte cifrata delle password degli eventi nascosti, cancellate alla fine dell\'evento (T-034)' },
+    { nome: 'red_registro', dove: 'base', redazione: true,
+      cosa: 'Il registro delle fonti sul dispositivo (fonti, righe degli eventi pubblicati, schede preparate), in una busta cifrata con la chiave del registro (T-041, T-043)' },
     /* Solo sul collegamento di prova (voci con «prova»): non sta nella scheda e sul sito vero non nasce mai. La scrive
        lo sportello di prova dell'app della redazione; l'app pubblica di prova, che lì sta allo stesso indirizzo, la
        legge soltanto. Contiene soli eventi inventati. */
@@ -1027,7 +1029,7 @@
   const ID = /^([a-z2-7]{16})-([a-z2-7]{8})$/;
   const ID_OVUNQUE = /(?<![a-z2-7])[a-z2-7]{16}-[a-z2-7]{8}(?![a-z2-7])/g;
   const TIPO_COPIA = 'copia-chiavi-redazione', TIPO_PUBBLICHE = 'chiavi-pubbliche-redazione',
-    TIPO_REVOCA = 'revoca-chiave-redazione', TIPO_CASSAFORTE = 'copia-cassaforte-redazione';
+    TIPO_REVOCA = 'revoca-chiave-redazione', TIPO_CASSAFORTE = 'copia-cassaforte-redazione', TIPO_REGISTRO = 'registro-fonti-redazione';
 
   /* Un errore con un motivo breve, che la schermata traduce in una frase. */
   function errore(motivo, dettaglio) { const e = new Error('Chiavi della Redazione, ' + motivo + (dettaglio ? ' (' + dettaglio + ')' : '')); e.motivo = motivo; return e; }
@@ -1268,11 +1270,36 @@
       return { rientrate, scartate };
     }
 
+    /* ---------- Registro delle fonti: la sua chiave cifra e non fa altro (T-041, T-043; cap. 22; § 3.11) ----------
+       cifra(testo) → busta {tipo, v, iv, dati}; decifra(busta) → il testo. Una busta scritta con un'altra chiave, o
+       rovinata, dà l'errore «registro»: non si legge a pezzi. La busta è ciò che resta sul dispositivo e ciò che si
+       deposita nell'archivio riservato: chi la trova senza la chiave del registro non ne ricava nulla. */
+    async function cifraRegistro(testo) {
+      const v = await attive();
+      if (typeof testo !== 'string') throw errore('registro');
+      const iv = casuali(12);
+      return { tipo: TIPO_REGISTRO, v: VERSIONE, iv: b64(iv),
+        dati: b64(await sub.encrypt({ name: 'AES-GCM', iv, additionalData: testoInByte(TIPO_REGISTRO) }, v.chiavi.registro, testoInByte(testo))) };
+    }
+    async function decifraRegistro(busta) {
+      const v = await attive();
+      if (!busta || busta.tipo !== TIPO_REGISTRO || typeof busta.iv !== 'string' || typeof busta.dati !== 'string') throw errore('registro');
+      try { return byteInTesto(await sub.decrypt({ name: 'AES-GCM', iv: daB64(busta.iv), additionalData: testoInByte(TIPO_REGISTRO) }, v.chiavi.registro, daB64(busta.dati))); }
+      catch (e) { throw errore('registro'); }
+    }
+    /* La voce «red_registro» del dispositivo: la busta del registro. leggi() dà il testo, o null se il registro non è
+       ancora nato; scrivi(testo) lo cifra e lo conserva, e restituisce la busta; busta() dà la busta così com'è, per
+       depositarla nell'archivio riservato. */
+    async function leggiRegistro() { await attive(); const b = await dep.leggi('red_registro'); return b ? decifraRegistro(b) : null; }
+    async function scriviRegistro(testo) { const b = await cifraRegistro(testo); await dep.scrivi('red_registro', b); return b; }
+    async function bustaRegistro() { return (await dep.leggi('red_registro')) || null; }
+
     return { stato, genera, daCopia, copia, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, nuovoId, viene, controllaTesto,
+      registro: { cifra: cifraRegistro, decifra: decifraRegistro, leggi: leggiRegistro, scrivi: scriviRegistro, busta: bustaRegistro },
       cassaforte: { metti: mettiPassword, leggi: leggiPassword, togli: togliPassword, pulisci: pulisciCassaforte, copia: copiaCassaforte, ripristina: ripristinaCassaforte } };
   }
 
-  return { VERSIONE, GIRI, FRASE_MIN, NOME_MAX, ID, TIPO_COPIA, TIPO_PUBBLICHE, TIPO_REVOCA, TIPO_CASSAFORTE, crea };
+  return { VERSIONE, GIRI, FRASE_MIN, NOME_MAX, ID, TIPO_COPIA, TIPO_PUBBLICHE, TIPO_REVOCA, TIPO_CASSAFORTE, TIPO_REGISTRO, crea };
 });
 
 /* Il pacchetto firmato della Redazione (voce T-038 del piano di adeguamento; documento: docs/sportello-pubblicazione.md).
@@ -1423,7 +1450,14 @@
   const MOTIVI = ['annullato', 'errore', 'esclusione', 'richiesta', 'segnalazione', 'ordine'];
   const PUB = 'pubblico/', RIS = 'riservato/';
   const F = { chiavi: RIS + 'chiavi.json', stato: RIS + 'stato.json', visti: RIS + 'visti.json', tentativi: RIS + 'tentativi.json',
-    elenco: RIS + 'storico/elenco.json', copie: RIS + 'storico/copie/' };
+    elenco: RIS + 'storico/elenco.json', copie: RIS + 'storico/copie/', codici: RIS + 'registro/codici.json', righe: RIS + 'registro/righe/' };
+  /* Il registro delle fonti (cap. 22; T-041, T-043): con una pubblicazione può arrivare, nello stesso pacchetto firmato,
+     la busta cifrata con le sue righe. Lo sportello non la sa aprire (la chiave del registro sta solo sui dispositivi
+     della Redazione): ne controlla la forma, la conserva in riservato/registro/righe/ accanto alla copia datata e dà a
+     ogni evento nuovo il suo codice F, uno dopo l'altro, così due dispositivi non danno mai lo stesso codice a due
+     eventi (§ 18.4: i codici non si riusano e non si rinumerano). La busta non entra mai nei file pubblici.
+     Decisione del 24/11/2026: fino allo sportello dell'archivio (T-053) il registro arriva insieme all'evento. */
+  const TIPO_BUSTA = 'registro-fonti-redazione', TIPO_RIGHE = 'registro-righe', MAX_BUSTA = 1500000;
   const TIPO_COPIA = 'copia-pubblicazione', TIPO_PUBBLICHE = 'chiavi-pubbliche-redazione', TIPO_REVOCA = 'revoca-chiave-redazione';
   const NOME_COPIA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}$/;
   const RIGA = /^[^\u0000-\u001F\u007F-\u009F]*$/;
@@ -1469,10 +1503,14 @@
        l'indice, e si tolgono subito tutti quelli che l'indice nuovo non nomina: un evento ritirato o sospeso non deve
        restare leggibile in un file vecchio. Il telefono che ha ancora l'indice di prima e non trova più un file
        richiede l'indice (sorgenti/moduli/archivio.js). */
-    async function pubblica(p, t, operazione, riepilogo, eventi, sospesi) {
+    async function pubblica(p, t, operazione, riepilogo, eventi, sospesi, registro) {
       const { file } = Q.costruisci(eventi, Object.assign({ adesso: t, regioni }, opzEv || {}));
       const quando = iso(t), nome = quando.replace(/[:.]/g, '-') + '-' + p.numero.slice(0, 8);
       await scriviJson(F.stato, { v: VERSIONE, aggiornato: quando, eventi, sospesi });
+      if (registro) {
+        await scriviJson(F.codici, registro.tutti);
+        await scriviJson(F.righe + nome + '.json', { tipo: TIPO_RIGHE, v: VERSIONE, nome, quando, dispositivo: p.dispositivo, codici: registro.codici, busta: registro.busta });
+      }
       await scriviJson(F.copie + nome + '.json', { tipo: TIPO_COPIA, v: VERSIONE, nome, quando, dispositivo: p.dispositivo, operazione, riepilogo, eventi, sospesi, pacchetto: p });
       const elenco = await leggiJson(F.elenco, []);
       const conti = Object.fromEntries(Object.entries(riepilogo).map(([k, v]) => [k, Array.isArray(v) ? v.length : v]));
@@ -1484,7 +1522,21 @@
       await dep.scrivi(PUB + 'indice.json', file['indice.json']);
       for (const f of presenti) if (!(f.slice(PUB.length) in file)) await dep.togli(f);
       if (o.svuota) { try { await o.svuota(['indice.json']); } catch (e) { /* la rete di consegna si aggiorna da sé alla scadenza */ } }
-      return { quando, copia: nome, eventi: eventi.length, sospesi: sospesi.length, riepilogo };
+      return Object.assign({ quando, copia: nome, eventi: eventi.length, sospesi: sospesi.length, riepilogo }, registro ? { registro: { codici: registro.codici } } : {});
+    }
+    /* La busta del registro: solo la forma, senza aprirla. Ai codici: un codice F per ogni evento che ancora non ne ha
+       uno (pubblicato, corretto o ritirato), lo stesso di prima per quelli che l'hanno già. */
+    function bustaValida(b) {
+      return !!b && typeof b === 'object' && !Array.isArray(b) && b.tipo === TIPO_BUSTA && b.v === 1 && Object.keys(b).every(k => ['tipo', 'v', 'iv', 'dati'].includes(k)) &&
+        typeof b.iv === 'string' && /^[A-Za-z0-9_-]{16}$/.test(b.iv) && typeof b.dati === 'string' && /^[A-Za-z0-9_-]+$/.test(b.dati) && b.dati.length <= MAX_BUSTA;
+    }
+    async function codiciRegistro(ids) {
+      const tutti = await leggiJson(F.codici, null) || { prossimo: 1, codici: {} }, codici = {};
+      for (const id of ids) {
+        if (!tutti.codici[id]) tutti.codici[id] = 'F-' + String(tutti.prossimo++).padStart(5, '0');
+        codici[id] = tutti.codici[id];
+      }
+      return { tutti, codici };
     }
 
     const OPERA = {
@@ -1494,6 +1546,7 @@
       async scrivi(c, p, t) {
         const pub = lista(c, 'pubblica'), sos = lista(c, 'sospendi'), ria = lista(c, 'riattiva'), rit = lista(c, 'ritira');
         if (!(pub.length + sos.length + ria.length + rit.length)) throw rifiuto('vuoto');
+        if (c.registro !== undefined && (!bustaValida(c.registro) || !(pub.length + rit.length))) throw rifiuto('registro');
         controllaEventi(pub);
         const s = await statoVivo(t), eventi = new Map(s.eventi.map(e => [e.id, e])), sospesi = new Map(s.sospesi.map(e => [e.id, e]));
         const r = { pubblicati: [], corretti: [], sospesi: [], riattivati: [], ritirati: [] };
@@ -1511,7 +1564,8 @@
           eventi.delete(x.id); sospesi.delete(x.id);
           r.ritirati.push(Object.assign({ id: x.id, motivo: x.motivo }, x.riferimento ? { riferimento: x.riferimento } : {}));
         }
-        return pubblica(p, t, 'scrivi', r, [...eventi.values()], [...sospesi.values()]);
+        const reg = c.registro === undefined ? null : Object.assign(await codiciRegistro(r.pubblicati.concat(r.corretti, r.ritirati.map(x => x.id))), { busta: c.registro });
+        return pubblica(p, t, 'scrivi', r, [...eventi.values()], [...sospesi.values()], reg);
       },
       /* Ripristinare una copia dello storico: la Redazione la legge, ripete le rimozioni di nomi chieste dopo la sua
          data (§ 3.13, passo 4) e rimanda gli eventi firmati; l'elenco di prima viene sostituito. */
