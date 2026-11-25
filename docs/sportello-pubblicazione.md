@@ -101,7 +101,7 @@ Le copie contengono i testi degli eventi, compresi eventuali nomi: si conservano
 
 ## Lo sportello di prova
 
-Finché la configurazione non ha l'indirizzo dello sportello (`indirizzi.sportello_pubblicazione`, T-065), l'app della redazione fa girare la stessa logica dentro il browser, con un archivio finto nella memoria del browser per i file (`prova_sportello`, `docs/dati-locali.md`). Sul collegamento di prova l'app pubblica sta allo stesso indirizzo e, quando lo sportello di prova ha pubblicato qualcosa, legge quell'archivio al posto di quello del repository. Nulla esce dal dispositivo; gli eventi sono solo inventati.
+Finché la configurazione non ha l'indirizzo dello sportello (`indirizzi.sportello_pubblicazione`, T-065), l'app della redazione fa girare la stessa logica dentro il browser, con un archivio finto nella memoria del browser per i file (`prova_sportello`, `docs/dati-locali.md`). Sul collegamento di prova l'app pubblica sta allo stesso indirizzo e, quando lo sportello di prova ha pubblicato qualcosa, legge quell'archivio al posto di quello del repository, e la barra degli strati lo dice («archivio dello sportello di prova di questo browser»). L'archivio finto vale solo per il browser che ha pubblicato: un altro dispositivo, o un altro browser sullo stesso dispositivo, continua a leggere l'archivio del repository (o il proprio archivio finto). Nulla esce dal dispositivo; gli eventi sono solo inventati.
 
 Nella schermata «Pubblicazione» lo sportello di prova ha quattro comandi in più: consegnare le chiavi di questo dispositivo, portare nell'archivio finto gli eventi inventati dell'archivio di prova del repository (quelli non ancora finiti), provare a consegnare un pacchetto con la firma sbagliata, svuotare lo sportello di prova.
 

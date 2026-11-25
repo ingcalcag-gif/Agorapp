@@ -516,6 +516,8 @@ function disegnaPeek(){
   if(!st.tipi.og) extra.push(tr('senza i tuoi Off-Grid'));
   /* da lontano (T-022): l'invito ad avvicinarsi, accanto ai numeri per regione sulla mappa */
   if(ZONA.lontano && ARCHIVIO && ARCHIVIO.pronto()) extra.push(tr('avvicinati a una città per vedere gli eventi'));
+  /* sul solo collegamento di prova: l'app legge l'archivio finto dello sportello di prova di questo browser (testo approvato da Lorenzo il 25/11/2026) */
+  if(ARCHIVIO_FINTO) extra.push(tr('archivio dello sportello di prova di questo browser'));
   if(vuotiAttivi()){ const v = quartieriVuoti(visibili()).length; if(v) extra.push(v===1 ? tr('1 quartiere vuoto') : tr('{n} quartieri vuoti',{n:v})); }
   const N = LAYERS.length, k = st.strati.size;
   const accesi = k===N ? tr('Tutti i {n} strati accesi',{n:N}) : k===1 ? tr('1 strato su {n} acceso',{n:N}) : k ? tr('{k} strati su {n} accesi',{k, n:N}) : tr('Nessuno strato acceso');

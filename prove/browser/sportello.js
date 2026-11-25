@@ -12,7 +12,9 @@
    6. Storico: una copia per pubblicazione; il confronto dice che cosa è cambiato; il ripristino ricorda le rimozioni di
       nomi chieste dopo la data della copia e non parte finché non si conferma di averle ripetute.
    7. Un pacchetto con la firma sbagliata è rifiutato; dopo cinque lo sportello non risponde più a questo dispositivo.
-   8. Svuotato lo sportello di prova, l'app pubblica torna all'archivio di prima. */
+   8. Svuotato lo sportello di prova, l'app pubblica torna all'archivio di prima.
+   A ogni lettura la barra degli strati dell'app pubblica dice «archivio dello sportello di prova di questo browser»
+   quando, e solo quando, l'app legge l'archivio finto. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
 const { playwright, server, apri, giorno, pausa, archivio, eventoProva, eventiCaricati, giudizioProva } = require('./comune.js');
@@ -45,8 +47,11 @@ async function prova() {
     const pubblica = async attesi => {
       await pp.goto(s.url.replace('/dist/redazione/', '/dist/pubblica/') + 'index.html'); await pp.waitForSelector('[data-az="elenco"]');
       if (attesi) await eventiCaricati(pp, attesi); else await pausa(1500);
+      const barra = (await pp.locator('#peek').textContent()) || '';
       await pp.click('[data-az="elenco"]'); await pausa(500);
       const a = await pp.evaluate(() => Object.assign(window.AGR.archivio(), { titoli: [...document.querySelectorAll('#foglio-slot [data-ev]')].map(x => x.textContent) }));
+      /* sul collegamento di prova la barra degli strati dice quando l'app legge l'archivio finto (testo approvato il 25/11/2026) */
+      if (/archivio dello sportello di prova di questo browser/.test(barra) !== !!a.finto) err('la barra degli strati deve dire «archivio dello sportello di prova di questo browser» solo quando l\'app legge l\'archivio finto: ' + JSON.stringify({ finto: a.finto, barra }));
       return { finto: a.finto, n: a.pubblici, titoli: a.titoli.join(' | ') };
     };
     const compila = async titolo => {
