@@ -12,7 +12,8 @@
    6. Storico: una copia per pubblicazione; il confronto dice che cosa è cambiato; il ripristino ricorda le rimozioni di
       nomi chieste dopo la data della copia e non parte finché non si conferma di averle ripetute.
    7. Un pacchetto con la firma sbagliata è rifiutato; dopo cinque lo sportello non risponde più a questo dispositivo.
-   8. Svuotato lo sportello di prova, l'app pubblica torna all'archivio di prima.
+   8. Svuotato lo sportello di prova, l'app pubblica torna all'archivio di prima; nella redazione nessun errore in
+      rosso, solo il riquadro che chiede di consegnare di nuovo le chiavi.
    A ogni lettura la barra degli strati dell'app pubblica dice «archivio dello sportello di prova di questo browser»
    quando, e solo quando, l'app legge l'archivio finto. */
 'use strict';
@@ -189,7 +190,11 @@ async function prova() {
 
     /* 8 */
     await tocca(F + '[data-az="pb-svuota"]', 'svuota'); await tocca(F + '[data-az="pb-svuota"]', 'svuota, conferma');
-    await aspetta(/Sportello di prova svuotato/, 'svuotamento');
+    await aspetta(/Sportello di prova svuotato/, 'svuotamento'); await pausa(800);
+    /* svuotato, lo sportello di prova non conosce più le chiavi: il riquadro lo dice, senza un rifiuto in rosso (blocco 10, prova di Lorenzo del 25/11) */
+    const rosso = await p.locator(F + '.err').allInnerTexts();
+    if (rosso.length) err('dopo lo svuotamento la schermata non deve mostrare un errore: ' + rosso.join(' | '));
+    if (!/non conosce ancora questo dispositivo/.test(await testo())) err('dopo lo svuotamento il riquadro deve dire che lo sportello di prova non conosce ancora questo dispositivo');
     a = await pubblica(2);
     if (a.finto || a.n !== 2) err('svuotato lo sportello di prova, l\'app pubblica deve tornare all\'archivio di prima: ' + JSON.stringify(a));
     e.note.push('giro intero dallo sportello di prova all\'app pubblica: pubblicazione, correzione, sospensione, riattivazione, ritiro con il motivo, 5 copie nello storico, confronto, ripristino con il promemoria delle rimozioni, Misure con i soli conteggi dello storico, 5 firme sbagliate e fermo');

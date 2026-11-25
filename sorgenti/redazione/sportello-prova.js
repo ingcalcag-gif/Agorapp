@@ -53,7 +53,7 @@ const SPORTELLO = (() => {
     async stato(){
       const k = await sportello().chiavi(); let s = null; try{ s = await CHIAVI.stato(); }catch(e){ s = null; }
       const mia = s && s.ci_sono ? s.firma.impronta : '';
-      return {ammessi:k.ammesse.length, revocati:k.revocate.length, ammesso:!!mia && k.ammesse.some(x => x.impronta===mia), revocato:!!mia && k.revocate.some(x => x.impronta===mia)};
+      return {ammessi:k.ammesse.length, revocati:k.revocate.length, chiavi:!!mia, ammesso:!!mia && k.ammesse.some(x => x.impronta===mia), revocato:!!mia && k.revocate.some(x => x.impronta===mia)};
     },
     async consegnaChiavi(){ return sportello().ammetti(await CHIAVI.pubbliche()); },
     revoca: avviso => sportello().revoca(avviso),

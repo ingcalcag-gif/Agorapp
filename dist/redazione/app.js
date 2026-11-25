@@ -2414,7 +2414,7 @@ const SPORTELLO = (() => {
     async stato(){
       const k = await sportello().chiavi(); let s = null; try{ s = await CHIAVI.stato(); }catch(e){ s = null; }
       const mia = s && s.ci_sono ? s.firma.impronta : '';
-      return {ammessi:k.ammesse.length, revocati:k.revocate.length, ammesso:!!mia && k.ammesse.some(x => x.impronta===mia), revocato:!!mia && k.revocate.some(x => x.impronta===mia)};
+      return {ammessi:k.ammesse.length, revocati:k.revocate.length, chiavi:!!mia, ammesso:!!mia && k.ammesse.some(x => x.impronta===mia), revocato:!!mia && k.revocate.some(x => x.impronta===mia)};
     },
     async consegnaChiavi(){ return sportello().ammetti(await CHIAVI.pubbliche()); },
     revoca: avviso => sportello().revoca(avviso),
@@ -2483,7 +2483,10 @@ const ridisegnaPb = () => { if(!fogliPb.includes(st.foglio)) return;
 function aggiornaPb(){
   PB.carico = true; ridisegnaPb();
   const prova = SPORTELLO.diProva() ? SPORTELLO.prova.stato().then(s => { PB.prova = s; }, () => { PB.prova = null; }) : Promise.resolve();
-  return prova.then(() => SPORTELLO.chiedi({operazione:'stato'})).then(s => { PB.stato = s; PB.errore = ''; }, e => { PB.stato = null; PB.errore = errorePb(e); })
+  /* allo sportello di prova che non conosce ancora le chiavi di questo dispositivo (per esempio appena svuotato) l'elenco
+     non si chiede: risponderebbe con un rifiuto in rosso, mentre il riquadro lo dice già, con «Consegna le chiavi» */
+  const nonAmmesso = () => SPORTELLO.diProva() && PB.prova && PB.prova.chiavi && !PB.prova.ammesso && !PB.prova.revocato;
+  return prova.then(() => nonAmmesso() ? (PB.stato = null) : SPORTELLO.chiedi({operazione:'stato'}).then(s => { PB.stato = s; PB.errore = ''; }, e => { PB.stato = null; PB.errore = errorePb(e); }))
     .then(() => { PB.carico = false; ridisegnaPb(); });
 }
 /* manda un pacchetto che scrive; poi rilegge l'elenco e torna alla schermata «Pubblicazione» */
