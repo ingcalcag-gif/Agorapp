@@ -70,6 +70,8 @@
     { nome: 'dl_mappa', dove: 'file', riga: 'mappa', cosa: 'I tasselli della mappa delle zone viste, fino a 50 MB, e la copia del piccolo indice della mappa (T-029)' },
     { nome: 'dl_archivio', dove: 'file', riga: 'zone', prima: 'agorapp_archivio',
       cosa: 'Indice e quadranti dell\'archivio degli eventi scaricati per le zone consultate (T-022)' },
+    { nome: 'dl_nascosti', dove: 'memoria', forma: 'json', riga: 'nascosti',
+      cosa: 'Gli eventi nascosti sbloccati con la loro password, fino a tre ore dopo la fine dell\'evento; la persona li può togliere prima (T-046)' },
     { nome: 'red_storico', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_storico',
       cosa: 'Storico delle operazioni della Redazione' },
     { nome: 'red_misure', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_misure',

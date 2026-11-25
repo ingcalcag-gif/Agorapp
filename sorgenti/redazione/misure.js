@@ -52,22 +52,25 @@ function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.
    l'indice nomina. Di ogni evento tiene, finché il pannello è aperto, soltanto ciò che serve ai conteggi. Lo storico
    delle pubblicazioni si legge più sotto (mzLeggiStorico). */
 let MZ_EVENTI = [];
-const MZ_ARCH = {stato:'', quadranti:0, quando:null, lettore:null};
+const MZ_ARCH = {stato:'', quadranti:0, quando:null, lettore:null, nascosti:0};
 const daArchivioMz = ev => ({id:ev.id, category:ev.strato, datetime:new Date(FORMATO.istante(ev.inizio)).toISOString(), lat:ev.lat, lng:ev.lng,
   price:ev.prezzo||'', address:ev.indirizzo||'', addressFull:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · ')});
 function mzLeggiArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !window.fetch){ MZ_ARCH.stato = 'assente'; return Promise.resolve(false); }
   if(!MZ_ARCH.quando) MZ_ARCH.stato = 'leggo';
   let A;
+  /* gli eventi nascosti contano come gli altri, con città e strato (decisione del 25/11/2026): quelli che questo
+     dispositivo sa aprire con le password della sua cassaforte (eventi-nascosti.js); mai nei numeri pubblici per regione */
+  let nas = [];
   /* sul collegamento di prova l'archivio può essere quello finto dello sportello di prova (sorgenteArchivio, app2.js) */
   return sorgenteArchivio().then(s => {
     if(!MZ_ARCH.lettore || MZ_ARCH.dove!==s.dove){ MZ_ARCH.lettore = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch}); MZ_ARCH.dove = s.dove; }
     A = MZ_ARCH.lettore; return A.controllaNovita();
-  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => regApri().catch(() => null)).then(() => {
+  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => nrPerMisure().then(l => { nas = l; }, () => {})).then(() => regApri().catch(() => null)).then(() => {
     /* «Da import Excel» (T-043): gli eventi che nel registro delle fonti del dispositivo hanno il canale «file Excel» o
        «calendario in dati aperti»; senza le chiavi il registro non si legge e il conteggio resta a zero */
     const imp = new Set(REG.stato==='aperto' ? REG.dati.eventi.filter(r => r.canale==='excel' || r.canale==='calendario').map(r => r.id) : []);
-    MZ_EVENTI = A.eventi().map(x => Object.assign(daArchivioMz(x.ev), imp.has(x.ev.id) ? {importato:true} : {})); MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
+    MZ_EVENTI = A.eventi().map(x => x.ev).concat(nas).map(ev => Object.assign(daArchivioMz(ev), imp.has(ev.id) ? {importato:true} : {})); MZ_ARCH.nascosti = nas.length; MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
   }).catch(() => { MZ_ARCH.stato = MZ_ARCH.quando ? 'vecchio' : 'errore'; return false; });
 }
 function mzEventi(){ return MZ_EVENTI.filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
@@ -76,7 +79,8 @@ function rigaArchivioMz(){
   const t = {leggo:tr('Leggo l’archivio degli eventi…'), assente:tr('Nessun archivio degli eventi da leggere: i conteggi degli eventi restano vuoti.'),
     errore:tr('L’archivio degli eventi non risponde: i conteggi degli eventi restano vuoti finché non torna la rete.'),
     vecchio:tr('L’archivio degli eventi non risponde: i conteggi sono quelli dell’ultima lettura.')}[MZ_ARCH.stato];
-  return `<p class="meta mz-archivio" role="status">${t || tr('Eventi letti dall’archivio pubblicato: {n}, in {q} quadranti · lettura delle {o}',{n:nfm(MZ_EVENTI.length), q:MZ_ARCH.quadranti, o:MZ_ARCH.quando ? hm(MZ_ARCH.quando) : '–'})}</p>`;
+  return `<p class="meta mz-archivio" role="status">${t || tr('Eventi letti dall’archivio pubblicato: {n}, in {q} quadranti · lettura delle {o}',{n:nfm(MZ_EVENTI.length), q:MZ_ARCH.quadranti, o:MZ_ARCH.quando ? hm(MZ_ARCH.quando) : '–'})
+    + (MZ_ARCH.nascosti ? ' · '+tr('di cui {k} nascosti, aperti con le password di questo dispositivo',{k:nfm(MZ_ARCH.nascosti)}) : '')}</p>`;
 }
 function cittaDi(e){
   let best = 'altro', bd = 1e9; const la = +e.lat, ln = +e.lng;
@@ -133,7 +137,7 @@ function mzLeggiStorico(){
       if(!ultima) continue;
       if(d<g && prima[d] && prima[d].da===ultima.nome){ P[d] = prima[d]; continue; }
       const v = {n:0, p:0, c:0, s:0, a:0, r:0, rip:0, m:{}, da:ultima.nome}, k = await leggi(ultima.nome);
-      v.n = (k.eventi||[]).filter(e => FORMATO.uscitaMs(e) > inizio).length;
+      v.n = (k.eventi||[]).filter(e => FORMATO.uscitaMs(e) > inizio).length + (k.nascosti||[]).filter(x => x && typeof x.giorno==='string' && x.giorno >= d).length;   /* i nascosti fino al giorno di uscita */
       for(const x of copie.filter(y => { const t = Date.parse(y.quando); return t>=inizio && t<fine; })){
         const q = x.riepilogo||{}, num = c => Array.isArray(q[c]) ? q[c].length : numMz(q[c]);
         if(x.operazione==='ripristina') v.rip++;

@@ -1,6 +1,6 @@
 # Dati locali: che cosa l'app salva sul telefono
 
-Voce T-026 del piano di adeguamento; libro mastro, § 3.7 («Dati salvati sul telefono»), cap. 30 (scheda «Dati locali»), § 2.5 (principio 4) e § 4.1. Stato al 21/11/2026, blocco 7.
+Voce T-026 del piano di adeguamento; libro mastro, § 3.7 («Dati salvati sul telefono»), cap. 30 (scheda «Dati locali»), § 2.5 (principio 4) e § 4.1. Stato al 25/11/2026, blocco 11.
 
 Il libro mastro chiede che l'app salvi sul telefono soltanto ciò che serve al servizio chiesto dalla persona e che tutto ciò che salva sia descritto, riga per riga, nella scheda «Dati locali»: una riga in più o in meno è uno scarto da correggere prima del rilascio (§ 30.1, scelta 2). Questo documento è l'inventario tecnico che sta dietro la scheda: dice quali chiavi esistono, in quale riga della scheda rientrano e come si controlla che non ce ne siano altre.
 
@@ -38,18 +38,15 @@ Le chiavi dell'app pubblica. «Memoria» è la memoria del browser a coppie chia
 | `dl_app` | file | L'app | La copia dei file dell'app, per aprirla senza rete; la scrive il service worker (T-029) | Alla prima apertura e a ogni versione nuova | Fino alla versione successiva, che la sostituisce |
 | `dl_mappa` | file | La mappa delle zone che hai guardato | I tasselli della mappa disegnati, uno per uno, e la copia del piccolo indice della mappa (T-029) | Quando l'app disegna un tassello che non aveva | Fino a 50 MB, poi i più vecchi lasciano posto ai nuovi; a ogni versione nuova della mappa i tasselli di prima si cancellano |
 | `dl_archivio` | file | Gli eventi delle zone che hai aperto | L'indice dell'archivio e i file dei quadranti scaricati per le zone consultate (T-022) | Quando la mappa si ferma su una zona e a ogni controllo delle novità | Un file si cancella quando l'indice non lo nomina più; gli eventi finiti da più di tre ore l'app non li mostra |
+| `dl_nascosti` | memoria | Gli eventi nascosti che hai sbloccato | Per ogni evento nascosto sbloccato: la password, come la persona l'ha scritta (solo le parole), l'impronta, l'evento decifrato e un segno del file da cui viene (T-046; `docs/eventi-nascosti.md`) | Quando la persona sblocca un evento con la password, e a ogni controllo delle novità se il file è cambiato o non c'è più | Fino a tre ore dopo la fine dell'evento, poi si cancella da solo con la password; la persona lo può togliere prima dalla scheda dell'evento. Se il file non c'è più (evento sospeso o ritirato) l'evento non si mostra ma resta fino a quel momento, e ricompare se il file torna (decisione del 25/11/2026) |
 
 Nell'app pubblica `dl_eventi` contiene soltanto gli Off-Grid della persona. Nell'app della redazione, fino al blocco 10, contiene anche gli eventi che la Redazione prepara o importa, che non vanno sulla mappa finché non si pubblicano (piano, criterio d'ordine 6).
 
 Prima del blocco 6 le chiavi portavano il nome del servizio. I nomi di prima sono, nell'ordine della tabella: `agorapp_events`, `agorapp_cal`, `agorapp_theme`, `agorapp_lang`, `agorapp_layers`, `agorapp_city`, `agorapp_simple`, `agorapp_day_mode`, `agorapp_presets`, `agorapp_temi_slots`, `agorapp_guida`, `agorapp_archivio`.
 
-## Righe della scheda che l'app non scrive ancora
+## Righe della scheda
 
-La scheda (§ 30.2) ha sette righe. Sei sono nell'elenco; l'ultima arriva con la voce indicata, che aggiunge la chiave all'elenco quando la funzione nasce.
-
-| Riga della scheda | Voce | Stato |
-| --- | --- | --- |
-| Gli eventi nascosti che hai sbloccato | T-046 | Oggi lo sblocco vale finché l'app resta aperta e non si salva |
+La scheda (§ 30.2) ha sette righe, e dal blocco 11 (T-046) l'app le scrive tutte: l'ultima, «Gli eventi nascosti che hai sbloccato», è la chiave `dl_nascosti`.
 
 ## Strumenti della Redazione
 
@@ -112,7 +109,7 @@ La verifica chiesta dal § 30.3 («che la tabella corrisponda a ciò che l'app s
 
 - Le righe «L'app», «Gli eventi delle zone che hai aperto», «La mappa delle zone che hai guardato», «I tuoi eventi Off-Grid» e «Il tuo calendario» corrispondono a ciò che l'app salva (le prime tre dal blocco 7, T-029).
 - La riga delle preferenze va aggiornata, nel § 3.7 e nel § 30.2, come deciso con QB-5: l'app salva tema, lingua, città, strati visibili e combinazioni, lenti, Modalità semplice, mezzo della giornata, guida già vista e avvisi delle novità già visti (T-031).
-- La riga «Gli eventi nascosti che hai sbloccato» descrive una funzione non ancora costruita (T-046): fino ad allora l'app salva meno di ciò che la scheda dice.
+- La riga «Gli eventi nascosti che hai sbloccato» corrisponde dal blocco 11 (T-046) a ciò che l'app salva: evento e password restano fino a tre ore dopo la fine, poi si cancellano da soli, e la persona li può togliere prima dall'app. Un evento sospeso o ritirato non si mostra più, ma resta sul telefono fino a quel momento e ricompare se torna (decisione del 25/11/2026): la riga del § 30.2 («Escono come gli altri, tre ore dopo la fine») lo copre; il § 3.3 sulla revoca del consenso («l'evento si toglie entro 48 ore») va letto per l'archivio, non per i telefoni (voce LM-77).
 - Il testo di riferimento nomina, tra parentesi, tre strumenti (localStorage, IndexedDB e Cache Storage): l'app pubblica usa il primo e il terzo; il secondo lo usa soltanto l'app della redazione, per le sue chiavi (blocco 8).
 - Gli Off-Grid restano 92 giorni dopo la fine («tre mesi» nella scheda).
 - Dal blocco 8 (T-033) l'app pubblica non ha più un'area riservata e non scrive nessuna chiave della Redazione; a ogni apertura cancella, senza leggerle, quelle di Misure e storico rimaste da prima.

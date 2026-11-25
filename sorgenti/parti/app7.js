@@ -60,7 +60,7 @@ const colpisce = (keys, scelti) => keys.some(k => (scelti||TM.scelti).includes(k
 function quanti(chiavi){ return EV.filter(e => e.tipo!=='og' && !e.nascosto && !finito(e) && !sparito(e) && colpisce(tagsEv(e), chiavi)).length; }
 function trovati(){
   return EV.filter(e => e.tipo!=='og')
-    .filter(e => !e.nascosto || (TM.strumenti.nascosti && st.sbloccati.has(e.raw.hiddenPassword)))
+    .filter(e => !e.nascosto || TM.strumenti.nascosti)
     .filter(e => !sparito(e) && (TM.strumenti.terminati || !finito(e)))
     .filter(e => colpisce(tagsEv(e)))
     .sort((a,b) => (finito(a)-finito(b)) || (a.a-b.a));
@@ -164,7 +164,7 @@ function lenteDentro(){
 function fTemi(){
   const testa = `<div class="riga-titolo"><div><div class="tipo">${TM.foglio==='lente'?tr('Lente'):tr('Strumenti')}</div><h2>${TM.foglio==='lente'?tr('Cerca e combina'):TM.salva?tr('Salva come lente'):tr('Cosa vedere, e le tue lenti')}</h2></div>${chiudiBtn()}</div>`;
   if(TM.foglio==='lente') return foglio('forte alto sez-temi', testa + `<label class="campo">${ICT.lente}<input id="tz-q" value="${esc(TM.q)}" placeholder="${esc(tr('Cerca uno strato o un tema…'))}" autocomplete="off"></label>`, `<div id="tz-lente" class="stack-s">${lenteDentro()}</div>`);
-  const n = TM.scelti.length, sv = TM.salva, sbl = st.sbloccati.size;
+  const n = TM.scelti.length, sv = TM.salva, sbl = nascostiVisti().length;
   const slot = (l,i) => l
     ? `<div class="t-slot pieno"><span class="t-slot-i">${ICT.segno}</span><div><div class="t">${esc(l.nome)}</div><div class="meta">${l.k.map(k => (byK(k)||{label:k}).label).map(esc).join(' · ')}</div></div><button class="link" data-tz-lente="${i}">${tr('Applica')}</button><button class="t-icona p" data-tz-via="${i}" aria-label="${esc(tr('Elimina la lente {n}',{n:l.nome}))}">${ICT.cestino}</button></div>`
     : `<button class="t-slot" data-tz-slot="${i}"><span class="t-slot-i">${ICT.piu}</span><div><div class="t">${tr('Lente {n} libera',{n:i+1})}</div><div class="meta">${n?tr('Tocca per salvarci la scelta di adesso'):tr('Vuota')}</div></div></button>`;

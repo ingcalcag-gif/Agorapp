@@ -161,13 +161,34 @@ function vistaArchivio(x){
     nomeLuogo:ev.luogo||'', indirizzo:ev.indirizzo||'', descLuogo:ev.descrizione_luogo||'', aMano:ev.collocazione==='a_mano', organizzatore:ev.organizzatore||'',
     prezzo:ev.prezzo||'', desc:ev.descrizione||'', nascosto:false, serie:null, suMappa:true, citta:'', fineMs:fm, fonte:ev.fonte};
 }
+/* Un evento nascosto sbloccato (T-046; libro mastro § 2.3): lo stesso formato pubblico, decifrato su questo telefono
+   con la password. Non appartiene a un quadrante: sta nell'elenco e sulla mappa ovunque sia, finché il comando degli
+   strati «Nascosti che hai sbloccato» lo mostra. */
+function vistaNascosto(x){ const v = vistaArchivio({ev:x.evento, q:null}); if(!v) return null; v.archivio = false; v.nascosto = true; return v; }
+/* Gli eventi nascosti sbloccati su questo telefono (voce dl_nascosti, riga «Gli eventi nascosti che hai sbloccato» della
+   scheda «Dati locali»): per ognuno la password come la persona l'ha scritta (solo le parole), l'impronta, l'evento
+   decifrato, un segno del file (v) e se il file c'è ancora. Restano fino a tre ore dopo la fine dell'evento, poi si
+   cancellano da soli (§ 3.7); se il file non c'è più (evento sospeso o ritirato) l'evento non si mostra ma resta fino a
+   quel momento, e ricompare se il file torna (decisione del 25/11/2026). Lo sblocco è in app2.js. */
+const NASC = {voci:[]};
+function leggiNascosti(){
+  const d = MEM.leggi('dl_nascosti', null), t = Date.now();
+  const voci = (d && Array.isArray(d.voci) ? d.voci : []).filter(x => x && typeof x.password==='string' && typeof x.impronta==='string' && x.evento &&
+    FORMATO.valido(x.evento) && FORMATO.uscitaMs(x.evento) > t);
+  NASC.voci = voci;
+  if(d && (!Array.isArray(d.voci) || d.voci.length!==voci.length)) salvaNascosti();
+}
+function salvaNascosti(){ if(NASC.voci.length) MEM.scrivi('dl_nascosti', {v:1, voci:NASC.voci}); else MEM.togli('dl_nascosti'); }
+const nascostiVisti = () => NASC.voci.filter(x => !x.assente && FORMATO.uscitaMs(x.evento) > Date.now());
+leggiNascosti();
 let EV = [];
 let ARCHIVIO = null;                             /* lettore dell'archivio (app2.js) */
 const ZONA = {ids:new Set(), lontano:false};     /* quadranti della zona inquadrata; lontano = mappa troppo lontana per gli eventi */
 function ricostruisci(){
   const og = events.filter(e => e && (e.personal || e.offgrid)).map(vista).filter(Boolean);
   const pub = ARCHIVIO ? ARCHIVIO.eventi().map(vistaArchivio).filter(Boolean) : [];
-  EV = og.concat(pub);
+  const nas = nascostiVisti().map(vistaNascosto).filter(Boolean);
+  EV = og.concat(pub, nas);
 }
 const byId = id => EV.find(e => e.id===id);
 const rawById = id => events.find(e => e.id===id);
@@ -180,7 +201,7 @@ const st = {
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, /*@red*/aform:null, /*@fine*/conferma:null, legale:'privacy', semplice:false,
-  /*@red*/admin:true, eliminati:[], importa:null, msgAdmin:null, /*@fine*/guida:null, sbloccati:new Set(), lente:null, vuoti:false
+  /*@red*/admin:true, eliminati:[], importa:null, msgAdmin:null, /*@fine*/guida:null, sblocco:null, togliNasc:null, lente:null, vuoti:false
 };
 (function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = MEM.testo('dl_semplice','0')==='1';
@@ -244,10 +265,11 @@ function nelTempo(e){
   if(st.tempo==='adesso') return e.a <= f[1];
   return e.a < f[1] && (e.b > f[0] || e.a >= f[0]);
 }
-function nelloStrato(e){ if(e.tipo==='og') return true; if(!st.strati.has(e.strato)) return false; return !st.subOff.has(e.strato+'|'+e.sub); }
+/* gli eventi nascosti sbloccati non dipendono dagli strati: li mostra o li nasconde il loro comando (T-046) */
+function nelloStrato(e){ if(e.tipo==='og' || e.nascosto) return true; if(!st.strati.has(e.strato)) return false; return !st.subOff.has(e.strato+'|'+e.sub); }
 const gratuito = p => /^(gratuito|gratis|free|ingresso libero|libero|0\s*€?)$/i.test(String(p||'').trim());
 function nelPrezzo(e){ if(e.tipo==='og' || st.prezzo==='tutti' || !e.prezzo) return true; return st.prezzo==='gratis' ? gratuito(e.prezzo) : !gratuito(e.prezzo); }
-function nascostoOk(e){ return !e.nascosto || (st.sbloccati.has(e.raw.hiddenPassword) && st.nascostiOn); }
+function nascostoOk(e){ return !e.nascosto || st.nascostiOn; }
 function serieOk(e){ if(!e.serie) return true; return !EV.some(x => x.serie===e.serie && x.id!==e.id && !sparito(x) && x.a < e.a); }
 function temaOk(e){ if(!st.lente) return true; const L = st.lente; return (L.strati||[]).includes(e.strato) || temiDi(e).some(t => (L.temi||[]).includes(t)); }
 function temiDi(e){ return e.raw.tema ? [e.raw.tema] : []; }

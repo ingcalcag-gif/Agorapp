@@ -26,16 +26,23 @@
    Responsabile infrastruttura con i file della schermata «Chiavi» (le parti pubbliche, l'avviso di revoca); nello
    sportello di prova lo scrivono i comandi «ammetti» e «revoca» qui sotto.
 
-   Nel browser si trova in window.AGR_MODULI.sportello (dopo eventi.js, quadranti.js e pacchetto.js); in Node con require(). */
+   Gli eventi nascosti (T-045; § 2.3; docs/eventi-nascosti.md) arrivano già cifrati: lo sportello non sa aprirli. Di
+   ognuno conosce l'identificativo, l'impronta della password (il nome del file), il giorno in cui esce dalla mappa
+   (decisione del 25/11/2026: soltanto il giorno, non l'ora) e il file illeggibile, che scrive in pubblico/nascosti/
+   con l'impronta come nome. Due eventi nascosti non possono avere la stessa impronta, cioè la stessa password.
+
+   Nel browser si trova in window.AGR_MODULI.sportello (dopo eventi.js, nascosti.js, quadranti.js e pacchetto.js); in
+   Node con require(). */
 (function (radice, fabbrica) {
   const nodo = typeof module === 'object' && module.exports && typeof require === 'function';
-  const M = nodo ? { eventi: require('../sorgenti/moduli/eventi.js'), quadranti: require('../sorgenti/moduli/quadranti.js'), pacchetto: require('../sorgenti/moduli/pacchetto.js') } : (radice.AGR_MODULI || {});
-  const m = fabbrica(M.eventi, M.quadranti, M.pacchetto, radice);
+  const M = nodo ? { eventi: require('../sorgenti/moduli/eventi.js'), quadranti: require('../sorgenti/moduli/quadranti.js'), pacchetto: require('../sorgenti/moduli/pacchetto.js'),
+    nascosti: require('../sorgenti/moduli/nascosti.js') } : (radice.AGR_MODULI || {});
+  const m = fabbrica(M.eventi, M.quadranti, M.pacchetto, M.nascosti, radice);
   if (nodo) module.exports = m;
   else (radice.AGR_MODULI = radice.AGR_MODULI || {}).sportello = m;
-})(typeof self !== 'undefined' ? self : this, function (E, Q, P, radice) {
+})(typeof self !== 'undefined' ? self : this, function (E, Q, P, N, radice) {
   'use strict';
-  if (!E || !Q || !P) throw new Error('sportello: servono prima eventi.js, quadranti.js e pacchetto.js');
+  if (!E || !Q || !P || !N) throw new Error('sportello: servono prima eventi.js, nascosti.js, quadranti.js e pacchetto.js');
 
   const VERSIONE = 1;
   const TENTATIVI = 5;                    // firme sbagliate, a nome dello stesso dispositivo…
@@ -45,7 +52,7 @@
   const CINQUE_ANNI_MS = 5 * 365.25 * 864e5;   // § 3.14: lo storico si conserva cinque anni (si controlla nel riesame)
   /* I motivi del ritiro prima della fine (cap. 22, colonna «Ritiro prima della fine»; §§ 5.2 e 7.5). */
   const MOTIVI = ['annullato', 'errore', 'esclusione', 'richiesta', 'segnalazione', 'ordine'];
-  const PUB = 'pubblico/', RIS = 'riservato/';
+  const PUB = 'pubblico/', RIS = 'riservato/', NASC = PUB + 'nascosti/';
   const F = { chiavi: RIS + 'chiavi.json', stato: RIS + 'stato.json', visti: RIS + 'visti.json', tentativi: RIS + 'tentativi.json',
     elenco: RIS + 'storico/elenco.json', copie: RIS + 'storico/copie/', codici: RIS + 'registro/codici.json', righe: RIS + 'registro/righe/' };
   /* Il registro delle fonti (cap. 22; T-041, T-043): con una pubblicazione può arrivare, nello stesso pacchetto firmato,
@@ -82,7 +89,9 @@
       const s = await leggiJson(F.stato, null) || {};
       const vivo = ev => E.uscitaMs(ev) > t, tutti = (s.eventi || []).concat(s.sospesi || []);
       const eventi = (s.eventi || []).filter(vivo), sospesi = (s.sospesi || []).filter(vivo);
-      return { eventi, sospesi, usciti: tutti.length - eventi.length - sospesi.length, aggiornato: s.aggiornato || null };
+      /* gli eventi nascosti restano fino alla fine del giorno in cui escono dalla mappa (ora italiana) */
+      const vivoN = x => !!x && N.vivo(x.giorno, t), nascosti = (s.nascosti || []).filter(vivoN), nascostiSospesi = (s.nascostiSospesi || []).filter(vivoN);
+      return { eventi, sospesi, nascosti, nascostiSospesi, usciti: tutti.length - eventi.length - sospesi.length, aggiornato: s.aggiornato || null };
     }
     /* Ogni evento passa dallo stesso controllo dell'app (sorgenti/moduli/eventi.js): se uno solo non lo supera, il
        pacchetto si rifiuta intero e non si scrive nulla. */
@@ -97,6 +106,26 @@
       }
       if (dettagli.length) throw rifiuto('evento', { dettagli: dettagli.slice(0, 20) });
     }
+    /* Un evento nascosto arriva come {id, impronta, giorno, file}: lo sportello ne controlla soltanto la forma (il
+       contenuto non lo sa leggere). Due voci dello stesso pacchetto con lo stesso identificativo o la stessa impronta
+       fanno rifiutare il pacchetto intero. */
+    function controllaNascosti(lista) {
+      const dettagli = [], ids = new Set(), impronte = new Set();
+      for (const x of lista) {
+        const err = [];
+        if (!x || typeof x !== 'object' || Array.isArray(x) || Object.keys(x).sort().join() !== 'file,giorno,id,impronta') err.push('campi diversi da id, impronta, giorno, file');
+        else {
+          if (typeof x.id !== 'string' || !E.ID.test(x.id)) err.push('id');
+          if (typeof x.impronta !== 'string' || !N.IMPRONTA.test(x.impronta)) err.push('impronta');
+          if (!N.giornoValido(x.giorno)) err.push('giorno');
+          err.push(...N.controllaFile(x.file));
+        }
+        if (!err.length && (ids.has(x.id) || impronte.has(x.impronta))) throw rifiuto('impronta', { id: corto(x.id) });
+        if (!err.length) { ids.add(x.id); impronte.add(x.impronta); }
+        else dettagli.push({ id: x && typeof x.id === 'string' ? corto(x.id) : null, errori: err.slice(0, 5) });
+      }
+      if (dettagli.length) throw rifiuto('nascosto', { dettagli: dettagli.slice(0, 20) });
+    }
     const lista = (c, k) => { const v = c[k]; if (v === undefined) return []; if (!Array.isArray(v) || v.length > MAX_EVENTI) throw rifiuto('contenuto'); return v; };
 
     /* ---------- Scrivere: l'elenco riservato, la copia datata nello storico, poi l'archivio pubblico ----------
@@ -105,26 +134,33 @@
        l'indice, e si tolgono subito tutti quelli che l'indice nuovo non nomina: un evento ritirato o sospeso non deve
        restare leggibile in un file vecchio. Il telefono che ha ancora l'indice di prima e non trova più un file
        richiede l'indice (sorgenti/moduli/archivio.js). */
-    async function pubblica(p, t, operazione, riepilogo, eventi, sospesi, registro) {
+    async function pubblica(p, t, operazione, riepilogo, eventi, sospesi, registro, nascosti, nascostiSospesi) {
+      nascosti = nascosti || []; nascostiSospesi = nascostiSospesi || [];
       const { file } = Q.costruisci(eventi, Object.assign({ adesso: t, regioni }, opzEv || {}));
       const quando = iso(t), nome = quando.replace(/[:.]/g, '-') + '-' + p.numero.slice(0, 8);
-      await scriviJson(F.stato, { v: VERSIONE, aggiornato: quando, eventi, sospesi });
+      await scriviJson(F.stato, { v: VERSIONE, aggiornato: quando, eventi, sospesi, nascosti, nascostiSospesi });
       if (registro) {
         await scriviJson(F.codici, registro.tutti);
         await scriviJson(F.righe + nome + '.json', { tipo: TIPO_RIGHE, v: VERSIONE, nome, quando, dispositivo: p.dispositivo, codici: registro.codici, busta: registro.busta });
       }
-      await scriviJson(F.copie + nome + '.json', { tipo: TIPO_COPIA, v: VERSIONE, nome, quando, dispositivo: p.dispositivo, operazione, riepilogo, eventi, sospesi, pacchetto: p });
+      await scriviJson(F.copie + nome + '.json', { tipo: TIPO_COPIA, v: VERSIONE, nome, quando, dispositivo: p.dispositivo, operazione, riepilogo, eventi, sospesi, nascosti, nascostiSospesi, pacchetto: p });
       const elenco = await leggiJson(F.elenco, []);
       const conti = Object.fromEntries(Object.entries(riepilogo).map(([k, v]) => [k, Array.isArray(v) ? v.length : v]));
-      elenco.push({ nome, quando, dispositivo: p.dispositivo, operazione, riepilogo: conti, eventi: eventi.length, sospesi: sospesi.length });
+      elenco.push({ nome, quando, dispositivo: p.dispositivo, operazione, riepilogo: conti, eventi: eventi.length, sospesi: sospesi.length, nascosti: nascosti.length, nascostiSospesi: nascostiSospesi.length });
       await scriviJson(F.elenco, elenco);
 
       const presenti = await dep.elenca(PUB + 'quadranti/');
       for (const [f, testo] of Object.entries(file)) if (f !== 'indice.json' && !presenti.includes(PUB + f)) await dep.scrivi(PUB + f, testo);
       await dep.scrivi(PUB + 'indice.json', file['indice.json']);
       for (const f of presenti) if (!(f.slice(PUB.length) in file)) await dep.togli(f);
-      if (o.svuota) { try { await o.svuota(['indice.json']); } catch (e) { /* la rete di consegna si aggiorna da sé alla scadenza */ } }
-      return Object.assign({ quando, copia: nome, eventi: eventi.length, sospesi: sospesi.length, riepilogo }, registro ? { registro: { codici: registro.codici } } : {});
+      /* Gli eventi nascosti: un file per evento, con l'impronta come nome. Il nome non cambia con una correzione (la
+         password resta la stessa, decisione del 25/11/2026): il file si riscrive solo se è cambiato, e la rete di consegna
+         va aggiornata anche per lui. I file degli eventi sospesi, ritirati o usciti si tolgono subito. */
+      const voluti = new Map(nascosti.map(x => [NASC + x.impronta + '.json', JSON.stringify(x.file)])), cambiati = [];
+      for (const [f, testo] of voluti) if ((await dep.leggi(f)) !== testo) { await dep.scrivi(f, testo); cambiati.push(f.slice(PUB.length)); }
+      for (const f of await dep.elenca(NASC)) if (!voluti.has(f)) { await dep.togli(f); cambiati.push(f.slice(PUB.length)); }
+      if (o.svuota) { try { await o.svuota(['indice.json'].concat(cambiati)); } catch (e) { /* la rete di consegna si aggiorna da sé alla scadenza */ } }
+      return Object.assign({ quando, copia: nome, eventi: eventi.length, sospesi: sospesi.length, nascosti: nascosti.length, nascostiSospesi: nascostiSospesi.length, riepilogo }, registro ? { registro: { codici: registro.codici } } : {});
     }
     /* La busta del registro: solo la forma, senza aprirla. Ai codici: un codice F per ogni evento che ancora non ne ha
        uno (pubblicato, corretto o ritirato), lo stesso di prima per quelli che l'hanno già. */
@@ -147,41 +183,58 @@
          esce dall'archivio pubblico e resta nell'elenco riservato: § 3.13, limitazione), riattivare, ritirare prima
          della fine con il motivo (cap. 22). */
       async scrivi(c, p, t) {
-        const pub = lista(c, 'pubblica'), sos = lista(c, 'sospendi'), ria = lista(c, 'riattiva'), rit = lista(c, 'ritira');
-        if (!(pub.length + sos.length + ria.length + rit.length)) throw rifiuto('vuoto');
-        if (c.registro !== undefined && (!bustaValida(c.registro) || !(pub.length + rit.length))) throw rifiuto('registro');
+        const pub = lista(c, 'pubblica'), nas = lista(c, 'nascosti'), sos = lista(c, 'sospendi'), ria = lista(c, 'riattiva'), rit = lista(c, 'ritira');
+        if (!(pub.length + nas.length + sos.length + ria.length + rit.length)) throw rifiuto('vuoto');
+        if (c.registro !== undefined && (!bustaValida(c.registro) || !(pub.length + nas.length + rit.length))) throw rifiuto('registro');
         if (c.registroDa !== undefined && (c.registro === undefined || !Number.isInteger(c.registroDa) || c.registroDa < 1 || c.registroDa > MAX_F)) throw rifiuto('registro');
-        controllaEventi(pub);
+        controllaEventi(pub); controllaNascosti(nas);
         const s = await statoVivo(t), eventi = new Map(s.eventi.map(e => [e.id, e])), sospesi = new Map(s.sospesi.map(e => [e.id, e]));
+        const nascosti = new Map(s.nascosti.map(x => [x.id, x])), nascSos = new Map(s.nascostiSospesi.map(x => [x.id, x]));
+        const nascosto = id => nascosti.has(id) || nascSos.has(id), pubblico = id => eventi.has(id) || sospesi.has(id);
         const r = { pubblicati: [], corretti: [], sospesi: [], riattivati: [], ritirati: [] };
         for (const ev of pub) {
           if (E.uscitaMs(ev) <= t) throw rifiuto('passato', { id: corto(ev.id) });
+          if (nascosto(ev.id)) throw rifiuto('nascosto', { id: corto(ev.id) });   // un evento nascosto non diventa pubblico
           if (sospesi.has(ev.id)) { sospesi.set(ev.id, ev); r.corretti.push(ev.id); }   // un evento sospeso si corregge e resta sospeso
           else { (eventi.has(ev.id) ? r.corretti : r.pubblicati).push(ev.id); eventi.set(ev.id, ev); }
         }
-        for (const id of sos) { if (!eventi.has(id)) throw rifiuto('manca', { id: corto(id) }); sospesi.set(id, eventi.get(id)); eventi.delete(id); r.sospesi.push(id); }
-        for (const id of ria) { if (!sospesi.has(id)) throw rifiuto('manca', { id: corto(id) }); eventi.set(id, sospesi.get(id)); sospesi.delete(id); r.riattivati.push(id); }
+        /* Gli eventi nascosti: nuovi o corretti. Una correzione ha la stessa impronta (la stessa password); un'impronta
+           che appartiene a un altro evento nascosto vuol dire una password già usata, e il pacchetto si rifiuta. */
+        for (const x of nas) {
+          if (!N.vivo(x.giorno, t)) throw rifiuto('passato', { id: corto(x.id) });
+          if (pubblico(x.id)) throw rifiuto('nascosto', { id: corto(x.id) });
+          const prima = nascosti.get(x.id) || nascSos.get(x.id);
+          if ((prima && prima.impronta !== x.impronta) || [...nascosti.values(), ...nascSos.values()].some(y => y.impronta === x.impronta && y.id !== x.id)) throw rifiuto('impronta', { id: corto(x.id) });
+          if (nascSos.has(x.id)) { nascSos.set(x.id, x); r.corretti.push(x.id); }
+          else { (nascosti.has(x.id) ? r.corretti : r.pubblicati).push(x.id); nascosti.set(x.id, x); }
+        }
+        const sposta = (da, a, id) => { a.set(id, da.get(id)); da.delete(id); };
+        for (const id of sos) { if (eventi.has(id)) sposta(eventi, sospesi, id); else if (nascosti.has(id)) sposta(nascosti, nascSos, id); else throw rifiuto('manca', { id: corto(id) }); r.sospesi.push(id); }
+        for (const id of ria) { if (sospesi.has(id)) sposta(sospesi, eventi, id); else if (nascSos.has(id)) sposta(nascSos, nascosti, id); else throw rifiuto('manca', { id: corto(id) }); r.riattivati.push(id); }
         for (const x of rit) {
           if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !MOTIVI.includes(x.motivo) ||
             (x.riferimento !== undefined && (typeof x.riferimento !== 'string' || x.riferimento.length > 40 || !RIGA.test(x.riferimento)))) throw rifiuto('ritiro');
-          if (!eventi.has(x.id) && !sospesi.has(x.id)) throw rifiuto('manca', { id: corto(x.id) });
-          eventi.delete(x.id); sospesi.delete(x.id);
+          if (!pubblico(x.id) && !nascosto(x.id)) throw rifiuto('manca', { id: corto(x.id) });
+          eventi.delete(x.id); sospesi.delete(x.id); nascosti.delete(x.id); nascSos.delete(x.id);
           r.ritirati.push(Object.assign({ id: x.id, motivo: x.motivo }, x.riferimento ? { riferimento: x.riferimento } : {}));
         }
         const reg = c.registro === undefined ? null : Object.assign(await codiciRegistro(r.pubblicati.concat(r.corretti, r.ritirati.map(x => x.id)), c.registroDa), { busta: c.registro });
-        return pubblica(p, t, 'scrivi', r, [...eventi.values()], [...sospesi.values()], reg);
+        return pubblica(p, t, 'scrivi', r, [...eventi.values()], [...sospesi.values()], reg, [...nascosti.values()], [...nascSos.values()]);
       },
       /* Ripristinare una copia dello storico: la Redazione la legge, ripete le rimozioni di nomi chieste dopo la sua
          data (§ 3.13, passo 4) e rimanda gli eventi firmati; l'elenco di prima viene sostituito. */
       async ripristina(c, p, t) {
         if (typeof c.da !== 'string' || !NOME_COPIA.test(c.da) || !(await leggiJson(F.elenco, [])).some(x => x.nome === c.da)) throw rifiuto('copia');
-        const ev = lista(c, 'eventi'), sos = lista(c, 'sospesi');
-        controllaEventi(ev.concat(sos));
-        const vivo = e => E.uscitaMs(e) > t;
-        return pubblica(p, t, 'ripristina', { da: c.da }, ev.filter(vivo), sos.filter(vivo));
+        const ev = lista(c, 'eventi'), sos = lista(c, 'sospesi'), nas = lista(c, 'nascosti'), nsos = lista(c, 'nascostiSospesi');
+        controllaEventi(ev.concat(sos)); controllaNascosti(nas.concat(nsos));
+        const ids = new Set(ev.concat(sos).map(e => e.id)), doppio = nas.concat(nsos).find(x => ids.has(x.id));
+        if (doppio) throw rifiuto('nascosto', { id: corto(doppio.id) });
+        /* gli eventi nascosti della copia tornano così come sono, cifrati: la Redazione può soltanto toglierli */
+        const vivo = e => E.uscitaMs(e) > t, vivoN = x => N.vivo(x.giorno, t);
+        return pubblica(p, t, 'ripristina', { da: c.da }, ev.filter(vivo), sos.filter(vivo), null, nas.filter(vivoN), nsos.filter(vivoN));
       },
       /* Letture riservate alla Redazione: anche queste chiedono la firma. */
-      async stato(c, p, t) { const s = await statoVivo(t); return { eventi: s.eventi, sospesi: s.sospesi, aggiornato: s.aggiornato, copie: (await leggiJson(F.elenco, [])).length }; },
+      async stato(c, p, t) { const s = await statoVivo(t); return { eventi: s.eventi, sospesi: s.sospesi, nascosti: s.nascosti, nascostiSospesi: s.nascostiSospesi, aggiornato: s.aggiornato, copie: (await leggiJson(F.elenco, [])).length }; },
       async storico(c, p, t) {
         const elenco = await leggiJson(F.elenco, []);
         return { copie: elenco.slice().reverse().map(x => Object.assign({}, x, Date.parse(x.quando) < t - CINQUE_ANNI_MS ? { scaduta: true } : {})) };
@@ -216,7 +269,8 @@
         if (typeof c.nome !== 'string' || !NOME_COPIA.test(c.nome)) throw rifiuto('copia');
         const k = await leggiJson(F.copie + c.nome + '.json', null);
         if (!k || k.tipo !== TIPO_COPIA) throw rifiuto('copia');
-        return { copia: { nome: k.nome, quando: k.quando, dispositivo: k.dispositivo, operazione: k.operazione, riepilogo: k.riepilogo, eventi: k.eventi, sospesi: k.sospesi } };
+        return { copia: { nome: k.nome, quando: k.quando, dispositivo: k.dispositivo, operazione: k.operazione, riepilogo: k.riepilogo, eventi: k.eventi, sospesi: k.sospesi,
+          nascosti: k.nascosti || [], nascostiSospesi: k.nascostiSospesi || [] } };
       }
     };
 
@@ -283,5 +337,5 @@
     return { ricevi, ammetti, revoca, chiavi };
   }
 
-  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, TIPO_COPIA, NOME_COPIA, MAX_BUSTE, crea };
+  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, NASC, TIPO_COPIA, NOME_COPIA, MAX_BUSTE, crea };
 });

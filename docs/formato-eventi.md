@@ -34,7 +34,7 @@ I testi su una riga non possono contenere a capo né caratteri di controllo; `de
 
 ## Che cosa resta fuori
 
-Nel formato non c'è posto per: immagini (§ 6.2), password, la provenienza interna e il flusso dell'evento (consenso dell'organizzatore o fonte pubblica: stanno nel registro delle fonti, cap. 22), le colonne del registro delle fonti, i nomi di chi ha segnalato l'evento (§ 5.3, regola 5). Non c'è neppure un collegamento separato al sito di chi organizza: il collegamento è quello della fonte (§ 5.3, tabella). Gli eventi nascosti non usano questo formato: viaggiano cifrati, in file propri (§ 2.3; blocco 11).
+Nel formato non c'è posto per: immagini (§ 6.2), password, la provenienza interna e il flusso dell'evento (consenso dell'organizzatore o fonte pubblica: stanno nel registro delle fonti, cap. 22), le colonne del registro delle fonti, i nomi di chi ha segnalato l'evento (§ 5.3, regola 5). Non c'è neppure un collegamento separato al sito di chi organizza: il collegamento è quello della fonte (§ 5.3, tabella). Gli eventi nascosti usano lo stesso formato, ma viaggiano cifrati, in file propri fuori dall'indice e dai quadranti (§ 2.3; blocco 11, `docs/eventi-nascosti.md`).
 
 ## Le ore
 

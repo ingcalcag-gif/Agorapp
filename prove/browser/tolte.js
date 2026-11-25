@@ -78,8 +78,9 @@ async function prova() {
     }
     // La vecchia formula delle Fate è una password come le altre.
     await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="cerca"]'); await pausa(300);
-    await p.click('[data-az="cerca"]'); await pausa(300); await p.fill('#pw', VECCHIA_FORMULA); await p.click('[data-az="sblocca"]'); await pausa(300);
-    const errPw = await p.locator('#pw-err').isVisible().catch(() => false);
+    await p.click('[data-az="cerca"]'); await pausa(300); await p.fill('#pw', VECCHIA_FORMULA); await p.click('[data-az="sblocca"]');
+    /* dal blocco 11 (T-046) lo sblocco calcola l'impronta e chiede il file: la risposta arriva dopo un attimo */
+    const errPw = await p.waitForFunction(() => /Nessun evento nascosto con questa password/.test((document.querySelector('#pw-err') || {}).textContent || '') && !document.querySelector('#pw-err').hidden, null, { timeout: 20000 }).then(() => true, () => false);
     if (!errPw) e.errori.push('Cerca: la vecchia formula delle Fate non risponde «Nessun evento nascosto con questa password»');
     if (await p.locator('.fate-msg').count()) e.errori.push('Cerca: compare ancora un messaggio delle Fate');
     // Calendario e Strati: niente tasto dorato, niente strato delle Fate.

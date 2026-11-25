@@ -190,13 +190,34 @@ function vistaArchivio(x){
     nomeLuogo:ev.luogo||'', indirizzo:ev.indirizzo||'', descLuogo:ev.descrizione_luogo||'', aMano:ev.collocazione==='a_mano', organizzatore:ev.organizzatore||'',
     prezzo:ev.prezzo||'', desc:ev.descrizione||'', nascosto:false, serie:null, suMappa:true, citta:'', fineMs:fm, fonte:ev.fonte};
 }
+/* Un evento nascosto sbloccato (T-046; libro mastro § 2.3): lo stesso formato pubblico, decifrato su questo telefono
+   con la password. Non appartiene a un quadrante: sta nell'elenco e sulla mappa ovunque sia, finché il comando degli
+   strati «Nascosti che hai sbloccato» lo mostra. */
+function vistaNascosto(x){ const v = vistaArchivio({ev:x.evento, q:null}); if(!v) return null; v.archivio = false; v.nascosto = true; return v; }
+/* Gli eventi nascosti sbloccati su questo telefono (voce dl_nascosti, riga «Gli eventi nascosti che hai sbloccato» della
+   scheda «Dati locali»): per ognuno la password come la persona l'ha scritta (solo le parole), l'impronta, l'evento
+   decifrato, un segno del file (v) e se il file c'è ancora. Restano fino a tre ore dopo la fine dell'evento, poi si
+   cancellano da soli (§ 3.7); se il file non c'è più (evento sospeso o ritirato) l'evento non si mostra ma resta fino a
+   quel momento, e ricompare se il file torna (decisione del 25/11/2026). Lo sblocco è in app2.js. */
+const NASC = {voci:[]};
+function leggiNascosti(){
+  const d = MEM.leggi('dl_nascosti', null), t = Date.now();
+  const voci = (d && Array.isArray(d.voci) ? d.voci : []).filter(x => x && typeof x.password==='string' && typeof x.impronta==='string' && x.evento &&
+    FORMATO.valido(x.evento) && FORMATO.uscitaMs(x.evento) > t);
+  NASC.voci = voci;
+  if(d && (!Array.isArray(d.voci) || d.voci.length!==voci.length)) salvaNascosti();
+}
+function salvaNascosti(){ if(NASC.voci.length) MEM.scrivi('dl_nascosti', {v:1, voci:NASC.voci}); else MEM.togli('dl_nascosti'); }
+const nascostiVisti = () => NASC.voci.filter(x => !x.assente && FORMATO.uscitaMs(x.evento) > Date.now());
+leggiNascosti();
 let EV = [];
 let ARCHIVIO = null;                             /* lettore dell'archivio (app2.js) */
 const ZONA = {ids:new Set(), lontano:false};     /* quadranti della zona inquadrata; lontano = mappa troppo lontana per gli eventi */
 function ricostruisci(){
   const og = events.filter(e => e && (e.personal || e.offgrid)).map(vista).filter(Boolean);
   const pub = ARCHIVIO ? ARCHIVIO.eventi().map(vistaArchivio).filter(Boolean) : [];
-  EV = og.concat(pub);
+  const nas = nascostiVisti().map(vistaNascosto).filter(Boolean);
+  EV = og.concat(pub, nas);
 }
 const byId = id => EV.find(e => e.id===id);
 const rawById = id => events.find(e => e.id===id);
@@ -209,7 +230,7 @@ const st = {
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
-  admin:true, eliminati:[], importa:null, msgAdmin:null, guida:null, sbloccati:new Set(), lente:null, vuoti:false
+  admin:true, eliminati:[], importa:null, msgAdmin:null, guida:null, sblocco:null, togliNasc:null, lente:null, vuoti:false
 };
 (function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = MEM.testo('dl_semplice','0')==='1';
@@ -273,10 +294,11 @@ function nelTempo(e){
   if(st.tempo==='adesso') return e.a <= f[1];
   return e.a < f[1] && (e.b > f[0] || e.a >= f[0]);
 }
-function nelloStrato(e){ if(e.tipo==='og') return true; if(!st.strati.has(e.strato)) return false; return !st.subOff.has(e.strato+'|'+e.sub); }
+/* gli eventi nascosti sbloccati non dipendono dagli strati: li mostra o li nasconde il loro comando (T-046) */
+function nelloStrato(e){ if(e.tipo==='og' || e.nascosto) return true; if(!st.strati.has(e.strato)) return false; return !st.subOff.has(e.strato+'|'+e.sub); }
 const gratuito = p => /^(gratuito|gratis|free|ingresso libero|libero|0\s*€?)$/i.test(String(p||'').trim());
 function nelPrezzo(e){ if(e.tipo==='og' || st.prezzo==='tutti' || !e.prezzo) return true; return st.prezzo==='gratis' ? gratuito(e.prezzo) : !gratuito(e.prezzo); }
-function nascostoOk(e){ return !e.nascosto || (st.sbloccati.has(e.raw.hiddenPassword) && st.nascostiOn); }
+function nascostoOk(e){ return !e.nascosto || st.nascostiOn; }
 function serieOk(e){ if(!e.serie) return true; return !EV.some(x => x.serie===e.serie && x.id!==e.id && !sparito(x) && x.a < e.a); }
 function temaOk(e){ if(!st.lente) return true; const L = st.lente; return (L.strati||[]).includes(e.strato) || temiDi(e).some(t => (L.temi||[]).includes(t)); }
 function temiDi(e){ return e.raw.tema ? [e.raw.tema] : []; }
@@ -538,25 +560,98 @@ async function sorgenteArchivio(){
     return {dove, finto:true, fetch:async u => (await c.match(String(u))) || new Response('', {status:404})};
   }catch(e){ return vera; }
 }
-let ARCHIVIO_FINTO = false;
+let ARCHIVIO_FINTO = false, SORG_ARCH = null;
 function avviaArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
   sorgenteArchivio().then(s => {
-    ARCHIVIO_FINTO = s.finto;
+    ARCHIVIO_FINTO = s.finto; SORG_ARCH = s;
     ARCHIVIO = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch, casse:MEM.file, nomeCassa:'dl_archivio'});
     return ARCHIVIO.apri();
-  }).then(dopoControllo);
-  document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
+  }).then(dopoControllo).then(() => controllaNascosti());
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState!=='visible' || !ARCHIVIO) return;
+    ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); });
+    if(Date.now() - NASC.ultimo > MODULI.archivio.TRENTA_MINUTI) controllaNascosti(); });
 }
 function dopoControllo(){ pulisciCalendarioArchivio(); ricostruisci(); aggiornaZona(true); }
 /* Dal calendario escono gli eventi dell'archivio che non ci sono più (ritirati o usciti dalla mappa); solo se le zone
    consultate restano sul telefono e l'indice è appena arrivato, così un evento non sparisce perché non è caricato. */
 function pulisciCalendarioArchivio(){
   if(!ARCHIVIO || !ARCHIVIO.persistente() || !ARCHIVIO.ultimoControllo()) return;
-  const vivi = new Set(ARCHIVIO.eventi().map(x => x.ev.id)), locali = new Set(events.map(e => e.id));
+  const vivi = new Set(ARCHIVIO.eventi().map(x => x.ev.id).concat(NASC.voci.map(x => x.evento.id))), locali = new Set(events.map(e => e.id));
   const via = Object.keys(calEvents).filter(id => FORMATO.ID.test(id) && !vivi.has(id) && !locali.has(id));
   if(via.length){ via.forEach(id => delete calEvents[id]); saveCal(); }
 }
+/* ======================= Eventi nascosti: lo sblocco (T-046) =======================
+   Libro mastro § 2.3: il telefono di chi scrive la password nella barra dei nascosti (in Cerca) calcola l'impronta,
+   scarica il file con quel nome e lo decifra (sorgenti/moduli/nascosti.js; docs/eventi-nascosti.md). Il file sta
+   nell'archivio degli eventi, sotto nascosti/ (sul collegamento di prova, nell'archivio dello sportello di prova
+   quando c'è). La richiesta non porta cookie né credenziali; il suo nome è l'impronta, non la password, che non lascia
+   mai il telefono. Evento e password restano nella voce dl_nascosti (app1.js) fino a tre ore dopo la fine.
+   Al controllo delle novità (all'apertura e al ritorno dopo trenta minuti) il telefono riguarda i file degli eventi
+   sbloccati: se il file è cambiato (correzione, stessa password) l'evento si aggiorna; se non c'è più (sospeso o
+   ritirato) l'evento non si mostra, ma resta fino a tre ore dopo la fine e ricompare se il file torna (decisione del
+   25/11/2026). Un errore di rete non cambia nulla. */
+const RICH_NASCOSTO = {credentials:'omit', cache:'no-cache', redirect:'error', referrerPolicy:'no-referrer'};
+NASC.ultimo = 0;
+async function fileNascosto(imp){
+  const s = SORG_ARCH || (ARCHIVIO_DOVE ? await sorgenteArchivio() : null); if(!s || !s.dove) return {stato:'manca'};
+  let r; try{ r = await s.fetch(s.dove+'nascosti/'+imp+'.json', RICH_NASCOSTO); }catch(e){ return {stato:'rete'}; }
+  if(r.status===404) return {stato:'manca'};
+  if(!r.ok) return {stato:'rete'};
+  try{ return {stato:'ok', testo:await r.text()}; }catch(e){ return {stato:'rete'}; }
+}
+async function apriFileNascosto(testo, pw, imp){
+  const ev = await MODULI.nascosti.decifra(testo, pw, null, imp);
+  if(!FORMATO.valido(ev, {vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)})) throw new Error('formato');
+  return ev;
+}
+/* sbloccaNascosto(testo scritto) → {esito: 'fatto' | 'manca' | 'rete' | 'finito', id} */
+async function sbloccaNascosto(testo){
+  const N = MODULI.nascosti, pw = N.forma(testo);
+  if(!N.lunga(pw)) return {esito:'manca'};
+  let imp; try{ imp = await N.impronta(pw); }catch(e){ return {esito:'manca'}; }
+  const f = await fileNascosto(imp);
+  if(f.stato!=='ok') return {esito:f.stato};
+  let ev; try{ ev = await apriFileNascosto(f.testo, pw, imp); }catch(e){ return {esito:'manca'}; }
+  if(FORMATO.uscitaMs(ev) <= Date.now()) return {esito:'finito'};
+  NASC.voci = NASC.voci.filter(x => x.impronta!==imp && x.evento.id!==ev.id).concat([{password:pw, impronta:imp, evento:ev, v:QUAD.impronta(f.testo), assente:false}]);
+  salvaNascosti(); ricostruisci();
+  return {esito:'fatto', id:ev.id};
+}
+let nascostiInCorso = null;
+function controllaNascosti(){
+  if(nascostiInCorso) return nascostiInCorso;
+  nascostiInCorso = (async () => {
+    let cambiato = false; const prima = NASC.voci.length;
+    NASC.voci = NASC.voci.filter(x => FORMATO.uscitaMs(x.evento) > Date.now()); if(NASC.voci.length!==prima) cambiato = true;
+    for(const x of NASC.voci.slice()){
+      const f = await fileNascosto(x.impronta);
+      if(f.stato==='rete') continue;
+      const v = f.stato==='ok' ? QUAD.impronta(f.testo) : null;
+      if(f.stato==='ok' && v!==x.v){
+        try{ x.evento = await apriFileNascosto(f.testo, x.password, x.impronta); x.v = v; x.assente = false; cambiato = true; continue; }
+        catch(e){ /* un file che non si apre più vale come un file che non c'è */ }
+      }
+      const assente = f.stato!=='ok' || v!==x.v;
+      if(!!x.assente!==assente){ x.assente = assente; cambiato = true; }
+    }
+    NASC.ultimo = Date.now();
+    if(cambiato){
+      salvaNascosti(); ricostruisci();
+      let chiusa = false; if(st.sel && !byId(st.sel)){ st.sel = null; if(st.foglio==='scheda'){ st.foglio = null; chiusa = true; } }
+      tutto(); if(chiusa) disegnaFoglio();
+    }
+    return cambiato;
+  })().finally(() => { nascostiInCorso = null; });
+  return nascostiInCorso;
+}
+/* «Togli dal telefono»: evento e password se ne vanno subito (§ 3.7: «Dall'app»). */
+function togliNascosto(id){
+  NASC.voci = NASC.voci.filter(x => x.evento.id!==id); salvaNascosti();
+  if(calEvents[id]){ delete calEvents[id]; saveCal(); }
+  ricostruisci(); st.sel = null; st.foglio = null; tutto(); disegnaFoglio();
+}
+
 let zonaT = 0;
 function programmaZona(){ clearTimeout(zonaT); zonaT = setTimeout(() => aggiornaZona(false), 500); }
 /* Il quadrante del centro, se la zona inquadrata sta tutta dentro di lui e degli otto intorno; altrimenti null.
@@ -935,7 +1030,7 @@ function fStrati(){
     <section class="sezione"><div class="sez-testa"><div class="tipo">${tr('Mostra anche')}</div><span class="meta">${tr('Eventi, pratiche e istanze si scelgono sulla mappa')}</span></div>
       <button class="riga-int" data-tipo="og" aria-pressed="${st.tipi.og}">${forma('og',null,30)}<div><span class="t">${tr('I tuoi Off-Grid')} · ${conta('og')}</span><span class="meta">${tr('Solo su questo telefono.')}</span></div><span class="interr" aria-hidden="true"></span></button>
       <button class="riga-int" data-az="finiti" aria-pressed="${st.finiti}"><span class="forma" style="filter:grayscale(1);opacity:.55">${forma('evento','arte',30)}</span><div><span class="t">${tr('Appena finiti')} · ${nFiniti}</span><span class="meta">${tr('Grigi, fino a tre ore dopo la fine. Poi spariscono dalla mappa.')}</span></div><span class="interr" aria-hidden="true"></span></button>
-      ${st.sbloccati.size ? `<button class="riga-int" data-az="nascosti-on" aria-pressed="${st.nascostiOn}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Nascosti che hai sbloccato')} · ${st.sbloccati.size}</span><span class="meta">${tr('Li vedi perché hai la password.')}</span></div><span class="interr" aria-hidden="true"></span></button>` : ''}
+      ${nascostiVisti().length ? `<button class="riga-int" data-az="nascosti-on" aria-pressed="${st.nascostiOn}"><span class="casella" style="background:var(--testo);border-color:var(--testo);color:var(--fondo)">${icoLucchetto(12)}</span><div><span class="t">${tr('Nascosti che hai sbloccato')} · ${nascostiVisti().length}</span><span class="meta">${tr('Li vedi perché hai la password.')}</span></div><span class="interr" aria-hidden="true"></span></button>` : ''}
     </section>
     ${citta==='torino'?`<section class="sezione avanzato"><div class="sez-testa"><div class="tipo">${tr('Leggere la città')}</div></div>
       <button class="riga-int" data-az="vuoti" aria-pressed="${st.vuoti}" style="--pc:var(--testo-2)"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><defs><pattern id="tratteggio-l" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="var(--testo-2)" stroke-width="2" opacity=".45"/></pattern></defs><rect x="2" y="2" width="30" height="30" rx="8" fill="url(#tratteggio-l)" stroke="var(--testo-2)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
@@ -1033,7 +1128,9 @@ function fScheda(e){
         ${e.prezzo?`<div class="dato dato-prezzo">${icoPrezzo}<div><span class="t">${esc(e.prezzo)}</span><span class="meta">${tr('Prezzo indicato dalla fonte')}</span></div></div>`:''}</div>
       ${descrizione(e)}
       <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
-        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>${boxAdmin(e)}`;
+        <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>
+      ${e.nascosto ? `<div class="fonte nascosto-togli"><span class="meta">${tr('Lo vedi perché hai la password. L’evento e la sua password restano su questo telefono fino a tre ore dopo la fine.')}</span>
+        <button class="tasto sec" data-az="togli-nascosto" data-id="${esc(e.id)}">${st.togliNasc===e.id ? tr('Tocca ancora: per rivederlo servirà di nuovo la password') : tr('Togli dal telefono')}</button></div>` : ''}${boxAdmin(e)}`;
   } else {
     const serie = e.serie ? EV.filter(y => y.serie===e.serie) : null, links = (x.links && x.links.length ? x.links : (x.link ? [x.link] : [])).map(normLink).filter(Boolean);
     const repTesto = serie && x.rep ? `${repLabel(x.rep.freq, e.giorno)}${x.rep.until?' · '+tr('fino al {d}',{d:dIso(x.rep.until).toLocaleDateString(dloc(),{day:'numeric',month:'long'})}):''} · ${tr('{n} date',{n:serie.length})}` : '';
@@ -1328,16 +1425,21 @@ function risultatiEventi(){
 function fCerca(){
   const testa = `<div class="riga-titolo"><h2>${tr('Cerca')}</h2>${chiudiBtn()}</div>
     <label class="campo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="m20 20-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="q" type="search" enterkeyhint="search" placeholder="${esc(tr('Eventi, luoghi, indirizzi'))}" value="${esc(st.q)}" autocomplete="off"></label>`;
-  const sbl = EV.filter(e => e.nascosto && st.sbloccati.has(e.raw.hiddenPassword));
+  const sbl = EV.filter(e => e.nascosto && !sparito(e)).sort((a,b) => a.a-b.a);
   const corpo = `<div id="risultati" class="stack">${risultatiEventi()}</div><div id="risultati-luoghi" class="stack"></div>
     <div class="fonte avanzato"><span class="meta"><strong style="color:var(--testo)">${tr('Ricerca avanzata')}</strong>: ${tr('periodo, prezzo e strati sono i filtri sopra la mappa, e valgono anche qui.')}</span>
       <div class="tasti"><button class="tasto sec" data-az="date">${icoGiorni()}${tr('Periodo')}</button><button class="tasto sec" data-az="strati">${icoStrati}${tr('Prezzo e strati')}</button></div></div>
     <div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Ti hanno dato la password di un evento nascosto?')}</strong> ${tr('Inseriscila qui: l’evento compare sulla mappa solo per te.')}</span>
-      <div style="display:flex;gap:8px"><label class="campo" style="flex:1"><input id="pw" type="text" autocapitalize="none" spellcheck="false" placeholder="${esc(tr('Password dell’evento'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="sblocca">${icoLucchetto(14)}${tr('Sblocca')}</button></div>
-      <span class="err" id="pw-err" hidden>${tr('Nessun evento nascosto con questa password.')}</span>
+      <div style="display:flex;gap:8px"><label class="campo" style="flex:1"><input id="pw" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${esc(tr('Password dell’evento'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="sblocca">${icoLucchetto(14)}${tr('Sblocca')}</button></div>
+      <span class="${st.sblocco==='lavoro'?'meta':'err'}" id="pw-err" role="status"${st.sblocco?'':' hidden'}>${testoSblocco()}</span>
       ${sbl.length?`<div class="lista">${sbl.map(rigaEv).join('')}</div>`:''}</div>`;
   return foglio('forte alto', testa, corpo);
 }
+/* Lo stato dello sblocco di un evento nascosto (T-046), sotto la barra: si aggiorna senza ridisegnare il foglio, così
+   la password scritta resta nel campo. */
+const testoSblocco = () => ({lavoro:tr('Sblocco l’evento…'), manca:tr('Nessun evento nascosto con questa password.'),
+  rete:tr('Non riesco a controllare la password: controlla la connessione e riprova.'), finito:tr('Questo evento nascosto è già finito.')})[st.sblocco] || '';
+function mostraSblocco(){ const el = $('pw-err'); if(!el) return; el.hidden = !st.sblocco; el.className = st.sblocco==='lavoro' ? 'meta' : 'err'; el.textContent = testoSblocco(); }
 function cercaInvio(){
   const q = st.q.trim(); if(q.length<3) return;
   if(sugg.lista.length && sugg.dove==='cerca') return scegliLuogo(0);
@@ -1832,7 +1934,7 @@ const colpisce = (keys, scelti) => keys.some(k => (scelti||TM.scelti).includes(k
 function quanti(chiavi){ return EV.filter(e => e.tipo!=='og' && !e.nascosto && !finito(e) && !sparito(e) && colpisce(tagsEv(e), chiavi)).length; }
 function trovati(){
   return EV.filter(e => e.tipo!=='og')
-    .filter(e => !e.nascosto || (TM.strumenti.nascosti && st.sbloccati.has(e.raw.hiddenPassword)))
+    .filter(e => !e.nascosto || TM.strumenti.nascosti)
     .filter(e => !sparito(e) && (TM.strumenti.terminati || !finito(e)))
     .filter(e => colpisce(tagsEv(e)))
     .sort((a,b) => (finito(a)-finito(b)) || (a.a-b.a));
@@ -1936,7 +2038,7 @@ function lenteDentro(){
 function fTemi(){
   const testa = `<div class="riga-titolo"><div><div class="tipo">${TM.foglio==='lente'?tr('Lente'):tr('Strumenti')}</div><h2>${TM.foglio==='lente'?tr('Cerca e combina'):TM.salva?tr('Salva come lente'):tr('Cosa vedere, e le tue lenti')}</h2></div>${chiudiBtn()}</div>`;
   if(TM.foglio==='lente') return foglio('forte alto sez-temi', testa + `<label class="campo">${ICT.lente}<input id="tz-q" value="${esc(TM.q)}" placeholder="${esc(tr('Cerca uno strato o un tema…'))}" autocomplete="off"></label>`, `<div id="tz-lente" class="stack-s">${lenteDentro()}</div>`);
-  const n = TM.scelti.length, sv = TM.salva, sbl = st.sbloccati.size;
+  const n = TM.scelti.length, sv = TM.salva, sbl = nascostiVisti().length;
   const slot = (l,i) => l
     ? `<div class="t-slot pieno"><span class="t-slot-i">${ICT.segno}</span><div><div class="t">${esc(l.nome)}</div><div class="meta">${l.k.map(k => (byK(k)||{label:k}).label).map(esc).join(' · ')}</div></div><button class="link" data-tz-lente="${i}">${tr('Applica')}</button><button class="t-icona p" data-tz-via="${i}" aria-label="${esc(tr('Elimina la lente {n}',{n:l.nome}))}">${ICT.cestino}</button></div>`
     : `<button class="t-slot" data-tz-slot="${i}"><span class="t-slot-i">${ICT.piu}</span><div><div class="t">${tr('Lente {n} libera',{n:i+1})}</div><div class="meta">${n?tr('Tocca per salvarci la scelta di adesso'):tr('Vuota')}</div></div></button>`;
@@ -2470,6 +2572,8 @@ function errorePb(e){
     passato:() => tr('L’evento è già finito da più di tre ore: non si pubblica.'),
     manca:() => tr('L’evento non c’è più nell’archivio: aggiorna l’elenco.'),
     copia:() => tr('Lo sportello non trova questa copia.'),
+    impronta:() => tr('Lo sportello ha rifiutato la password: è già usata da un altro evento nascosto, oppure non è quella dell’evento da correggere.'),
+    nascosto:() => tr('Lo sportello ha rifiutato l’evento nascosto: il file cifrato non è nella forma attesa, oppure un evento nascosto e uno pubblico hanno lo stesso identificativo.'),
     rete:() => tr('Lo sportello non risponde: controlla la connessione e riprova.'),
     assente:() => tr('Su questo indirizzo non c’è uno sportello a cui consegnare i pacchetti.')
   };
@@ -2487,7 +2591,7 @@ function aggiornaPb(){
      non si chiede: risponderebbe con un rifiuto in rosso, mentre il riquadro lo dice già, con «Consegna le chiavi» */
   const nonAmmesso = () => SPORTELLO.diProva() && PB.prova && PB.prova.chiavi && !PB.prova.ammesso && !PB.prova.revocato;
   return prova.then(() => nonAmmesso() ? (PB.stato = null) : SPORTELLO.chiedi({operazione:'stato'}).then(s => { PB.stato = s; PB.errore = ''; }, e => { PB.stato = null; PB.errore = errorePb(e); }))
-    .then(() => { PB.carico = false; ridisegnaPb(); });
+    .then(() => { PB.carico = false; ridisegnaPb(); return PB.stato ? nrDecifra(nrVoci(PB.stato)).then(ridisegnaPb) : null; });
 }
 /* manda un pacchetto che scrive; poi rilegge l'elenco e torna alla schermata «Pubblicazione» */
 function scriviPb(contenuto, fatto, torna){
@@ -2496,7 +2600,18 @@ function scriviPb(contenuto, fatto, torna){
   return SPORTELLO.chiedi(contenuto).then(r => { PB.lavoro = false; PB.msg = fatto(r); PB.sel = null; PB.ritiro = null; st.foglio = torna || 'pubblica'; return aggiornaPb().then(() => true); },
     e => { PB.lavoro = false; PB.errore = errorePb(e); ridisegnaPb(); return false; });
 }
-const evPb = id => { const s = PB.stato; if(!s) return null; const e = s.eventi.find(x => x.id===id); if(e) return {ev:e, sospeso:false}; const z = s.sospesi.find(x => x.id===id); return z ? {ev:z, sospeso:true} : null; };
+/* un evento dell'elenco: pubblico, oppure nascosto (T-045: ev c'è solo se questo dispositivo ne ha la password) */
+const evPb = id => { const s = PB.stato; if(!s) return null; const e = s.eventi.find(x => x.id===id); if(e) return {ev:e, sospeso:false}; const z = s.sospesi.find(x => x.id===id); if(z) return {ev:z, sospeso:true};
+  const n = (s.nascosti||[]).find(x => x.id===id), m = n ? null : (s.nascostiSospesi||[]).find(x => x.id===id), v = n || m;
+  return v ? {ev:(NR.chiari.get(id)||{}).ev || null, voce:v, sospeso:!!m, nascosto:true} : null; };
+/* le righe degli eventi nascosti nell'elenco */
+function nascostiPbHtml(s){
+  const l = (s.nascosti||[]).map(x => [x, false]).concat((s.nascostiSospesi||[]).map(x => [x, true]));
+  if(!l.length) return '';
+  return `<p class="etich">${tr('Nascosti')} · ${l.length}</p><div class="menu-lista">${l.map(([x, sos]) => { const c = NR.chiari.get(x.id);
+    return c ? rigaEvPb(c.ev, 'data-pbev', sos ? tr('nascosto, sospeso: fuori dall’archivio') : tr('nascosto'))
+      : `<button class="menu-r" data-pbev="${esc(x.id)}">${icoCal()}<div><span class="t">${tr('Evento nascosto')}</span><span class="meta">${tr('La password non è su questo dispositivo')} · ${tr('esce dall’archivio dopo il {g}',{g:esc(x.giorno)})}${sos?' · '+tr('sospeso'):''}</span></div>${freccia}</button>`; }).join('')}</div>`;
+}
 const rigaEvPb = (ev, attr, nota) => `<button class="menu-r" ${attr}="${esc(ev.id)}">${icoCal()}<div><span class="t">${esc(ev.titolo)}</span><span class="meta">${esc(quandoEv(ev))} · ${esc(ev.luogo)}${nota?' · '+esc(nota):''}</span></div>${freccia}</button>`;
 const statoPb = () => `${PB.errore?`<p class="err" role="alert">${esc(PB.errore)}</p>`:''}${PB.msg?`<p class="meta" role="status" style="color:var(--testo)">${esc(PB.msg)}</p>`:''}${PB.lavoro?`<p class="caricamento">${tr('Firmo e consegno allo sportello…')}</p>`:''}`;
 
@@ -2514,8 +2629,9 @@ function fPubblica(){
     : `<p class="etich">${tr('Pubblicati')} · ${s.eventi.length}</p>
       ${s.eventi.length ? `<div class="menu-lista">${s.eventi.slice().sort((a,b) => a.inizio<b.inizio?-1:1).map(ev => rigaEvPb(ev, 'data-pbev')).join('')}</div>` : `<p class="meta">${tr('Nessun evento pubblicato.')}</p>`}
       ${s.sospesi.length ? `<p class="etich">${tr('Sospesi')} · ${s.sospesi.length}</p><div class="menu-lista">${s.sospesi.map(ev => rigaEvPb(ev, 'data-pbev', tr('fuori dalla mappa'))).join('')}</div>` : ''}
+      ${nascostiPbHtml(s)}
       <p class="meta">${s.aggiornato ? tr('Ultima pubblicazione: {q}.',{q:esc(quandoPb(s.aggiornato))}) : tr('Non è ancora stato pubblicato nulla.')} ${tr('Gli eventi finiti da più di tre ore escono da soli.')}</p>`;
-  const corpo = `${prova}${statoPb()}
+  const corpo = `${prova}${nrFattoHtml()}${statoPb()}
     <div class="tasti"><button class="tasto pri" data-az="pb-nuovo">${tr('Nuovo evento')}</button><button class="tasto sec" data-az="ix-file">${tr('Importa da Excel')}</button><button class="tasto sec" data-az="pb-registro">${tr('Registro delle fonti')}</button><button class="tasto sec" data-az="pb-storico">${tr('Storico delle pubblicazioni')}</button></div>
     <p class="meta"><button class="link" style="min-height:32px" data-az="pb-calendari">${tr('Importa un calendario aperto di un Comune')}</button>${IX.stato ? ' · <button class="link" style="min-height:32px" data-az="ix-torna">'+tr('Torna all’importazione in corso')+'</button>' : ''}</p>
     ${preparatiHtml()}
@@ -2526,25 +2642,27 @@ function fPubblica(){
 
 function fPbEvento(){
   const x = evPb(PB.sel);
-  const testa = `<div class="riga-titolo"><div><h2>${x ? esc(x.ev.titolo) : tr('Evento')}</h2><p class="meta">${x ? (x.sospeso ? tr('Sospeso: fuori dalla mappa finché non si riattiva') : tr('Pubblicato')) : ''}</p></div>${chiudiBtn('pubblica')}</div>`;
+  const testa = `<div class="riga-titolo"><div><h2>${x ? (x.ev ? esc(x.ev.titolo) : tr('Evento nascosto')) : tr('Evento')}</h2><p class="meta">${x ? (x.nascosto ? tr('Evento nascosto')+' · ' : '')+(x.sospeso ? tr('Sospeso: fuori dalla mappa finché non si riattiva') : tr('Pubblicato')) : ''}</p></div>${chiudiBtn('pubblica')}</div>`;
   if(!x) return foglio('forte', testa, `<p class="meta">${tr('L’evento non c’è più nell’archivio: aggiorna l’elenco.')}</p>`);
-  const ev = x.ev, R = PB.ritiro;
+  const ev = x.ev || {id:PB.sel, titolo:'', luogo:'', indirizzo:'', inizio:'', fonte:{}}, R = PB.ritiro, chiaro = x.nascosto ? NR.chiari.get(PB.sel) : null;
   const ritiro = !R ? '' : `<div class="red-riquadro"><b>${tr('Ritiro prima della fine')}</b>
       <label class="etich" for="pb-motivo">${tr('Motivo')}</label><div class="campo"><select id="pb-motivo" data-pbritiro="motivo"><option value="">${tr('— Scegli —')}</option>${Object.keys(MOTIVI_RITIRO).map(k => `<option value="${k}" ${R.motivo===k?'selected':''}>${esc(tr(MOTIVI_RITIRO[k]))}</option>`).join('')}</select></div>
       <label class="etich" for="pb-rif">${tr('Voce del registro')} <span class="fac">${tr('facoltativo')}</span></label><div class="campo"><input id="pb-rif" data-pbritiro="riferimento" maxlength="40" value="${esc(R.riferimento)}" autocomplete="off"></div>
       <span class="meta">${tr('Il motivo resta nella copia datata dello storico e passerà al registro delle fonti.')}</span>
       <div class="tasti"><button class="tasto sec" data-az="pb-ritira-no">${tr('Annulla')}</button><button class="tasto pericolo" data-az="pb-ritira-ok">${tr('Ritira l’evento')}</button></div></div>`;
-  const corpo = `<p class="meta">${esc(quandoEv(ev))}${ev.fine?' → '+esc(giornoOra(ev.fine)):''}<br>${esc(ev.luogo)} · ${esc(ev.indirizzo)}<br>${tr('Fonte')}: ${esc(ev.fonte && ev.fonte.testo)}</p>
+  const corpo = `${x.ev ? `<p class="meta">${esc(quandoEv(ev))}${ev.fine?' → '+esc(giornoOra(ev.fine)):''}<br>${esc(ev.luogo)} · ${esc(ev.indirizzo)}<br>${tr('Fonte')}: ${esc(ev.fonte && ev.fonte.testo)}</p>`
+      : `<p class="meta">${tr('La password di questo evento non è nella cassaforte di questo dispositivo: lo sportello lo conosce solo cifrato. Si può sospendere, riattivare o ritirare, non correggere. Esce dall’archivio dopo il {g}.',{g:esc(x.voce.giorno)})}</p>`}
     <p class="meta">${tr('Identificativo')}: <code class="red-id">${esc(ev.id)}</code></p>
+    ${chiaro ? riquadroPassword(ev.id, ev.titolo, chiaro.pw, tr('Password dell’evento nascosto')) : ''}
     ${statoPb()}
-    <div class="tasti"><button class="tasto sec" data-az="pb-correggi">${tr('Correggi')}</button>${x.sospeso ? `<button class="tasto pri" data-az="pb-riattiva">${tr('Riattiva')}</button>` : `<button class="tasto sec" data-az="pb-sospendi">${tr('Sospendi')}</button>`}</div>
+    <div class="tasti">${x.ev ? `<button class="tasto sec" data-az="pb-correggi">${tr('Correggi')}</button>` : ''}${x.sospeso ? `<button class="tasto pri" data-az="pb-riattiva">${tr('Riattiva')}</button>` : `<button class="tasto sec" data-az="pb-sospendi">${tr('Sospendi')}</button>`}</div>
     <p class="meta">${x.sospeso ? tr('Riattivato, torna sulla mappa con una nuova pubblicazione firmata.') : tr('Sospeso, esce dalla mappa finché una verifica è in corso; resta nell’elenco riservato dello sportello e si può riattivare.')}</p>
     ${R ? ritiro : `<button class="tasto pericolo pieno" data-az="pb-ritira">${tr('Ritira prima della fine')}</button>`}`;
   return foglio('forte alto', testa, corpo);
 }
 
 /* ---------- Il modulo dell'evento: i campi del formato pubblico ---------- */
-function apriEventoForm(ev, per){
+function apriEventoForm(ev, per, nasc){
   st.aform = ev ? {per, id:ev.id, titolo:ev.titolo||'', strato:ev.strato||'', sub:ev.sottostrato||'', tema:ev.tema||'', inizio:ev.inizio||'', fine:ev.fine||(ev.durata && FORMATO.fineMs(ev)!=null ? dtLocal(new Date(FORMATO.fineMs(ev))) : ''),
       luogo:ev.luogo||'', indirizzo:ev.indirizzo||'', addrFull:ev.indirizzo||'', pos:{lat:ev.lat, lng:ev.lng}, precision:ev.collocazione==='a_mano'?'map':'exact', hn:'', comeArrivare:ev.descrizione_luogo||'', organizzatore:ev.organizzatore||'',
       desc:ev.descrizione||'', prezzo:ev.prezzo||'', fonte:(ev.fonte||{}).testo||'', fonteLink:(ev.fonte||{}).collegamento||'', err:{}, errori:[]}
@@ -2552,6 +2670,8 @@ function apriEventoForm(ev, per){
   /* le colonne di giudizio: vuote per un evento nuovo; per una correzione, quelle della riga già scritta nel registro
      di questo dispositivo, se c'è */
   const f = st.aform; f.g = giudizioNuovo(); f.prep = null;
+  /* un evento nascosto da correggere arriva con la sua password (T-045): resta la stessa */
+  f.nascosto = nasc ? '1' : ''; f.pw = nasc ? nasc.pw : '';
   st.sel = null; st.form = null; apri('aform');
   if(per!=='ripristino') regApri().then(() => { if(st.aform!==f) return; const r = f.id ? regRiga(f.id) : null; if(r) f.g = giudizioInForma(r.g); if(st.foglio==='aform') disegnaFoglio(); });
 }
@@ -2563,6 +2683,7 @@ function fEventoForm(){
   const fac = tr('facoltativo');
   const testa = `<div class="riga-titolo"><div><h2>${imp ? tr('Riga {r} del file',{r:f.imp}) : f.id ? tr('Correggi l’evento') : tr('Nuovo evento')}</h2><p class="meta">${ripr ? tr('Nella copia da ripristinare: si pubblica con la copia') : imp ? tr('Dall’importazione: si pubblica con le altre righe segnate') : tr('Redazione · si pubblica con la firma di questo dispositivo')}</p></div>${chiudiBtn(ripr ? 'pb-copia' : imp ? 'ix-torna' : 'pubblica')}</div>`;
   const corpo = `
+    ${f.per==='pubblica' ? casellaNascosto(f) : ''}
     ${riga('a-titolo', 'titolo', tr('Titolo'), 100, tr('Nome dell’evento'))}
     <div class="due">${campo('a-strato', tr('Strato'), `<div class="campo${E.strato?' errore':''}"><select id="a-strato" data-acampo="strato"><option value="">${tr('— Scegli —')}</option>${LAYERS.map(x => `<option value="${x.id}" ${f.strato===x.id?'selected':''}>${esc(tr(x.label))}</option>`).join('')}</select></div>`)}
       ${campo('a-sub', tr('Sottostrato'), `<div class="campo${l?'':' spento'}"><select id="a-sub" data-acampo="sub" ${l?'':'disabled'}><option value="">${tr('— Nessuno —')}</option>${l?l.sub.map(s => `<option value="${s.id}" ${f.sub===s.id?'selected':''}>${esc(tr(s.label))}</option>`).join(''):''}</select></div>`, '', fac)}</div>
@@ -2637,6 +2758,7 @@ function pubblicaForm(){
     if(f.per!=='ripristino'){ const manca = giudizioManca(f); if(manca.length){ f.errori = [testoSpia(manca)]; disegnaFoglio(); mostraErroriPb(); return; } }
     if(f.per==='importa'){ tieniNellImportazione(f); return; }
     if(f.per==='ripristino'){ const R = PB.ripr; if(R){ const i = R.eventi.findIndex(x => x.id===ev.id), j = R.sospesi.findIndex(x => x.id===ev.id); if(i>=0) R.eventi[i] = ev; else if(j>=0) R.sospesi[j] = ev; R.corretti++; } st.aform = null; apri('pb-copia'); return; }
+    if(f.nascosto){ pubblicaNascosto(f, ev); return; }   /* evento nascosto: cifrato su questo dispositivo (eventi-nascosti.js) */
     const nuovo = !f.id, g = f.g, prepScheda = f.prep;
     /* la riga del registro delle fonti parte cifrata nello stesso pacchetto dell'evento (§ 3.4; cap. 22): se lo sportello
        rifiuta, la riga non nasce */
@@ -2680,7 +2802,9 @@ function fPbStorico(){
   return foglio('forte alto', testa, corpo);
 }
 function confrontaCopie(a, b){
-  const m = k => new Map(k.eventi.map(e => [e.id, {e, sos:false}]).concat(k.sospesi.map(e => [e.id, {e, sos:true}])));
+  /* gli eventi nascosti si confrontano sul file cifrato; il titolo si vede se questo dispositivo ne ha la password */
+  const nas = (x, sos) => { const c = NR.chiari.get(x.id); return [x.id, {e:{id:x.id, titolo:c ? c.ev.titolo : tr('Evento nascosto'), inizio:c ? c.ev.inizio : '', file:x.file}, sos}]; };
+  const m = k => new Map(k.eventi.map(e => [e.id, {e, sos:false}]).concat(k.sospesi.map(e => [e.id, {e, sos:true}]), (k.nascosti||[]).map(x => nas(x, false)), (k.nascostiSospesi||[]).map(x => nas(x, true))));
   const A = m(a), B = m(b), solo = (X, Y) => [...X].filter(([id]) => !Y.has(id)).map(([, x]) => x);
   return {a, b, tolti:solo(A, B), aggiunti:solo(B, A), cambiati:[...B].filter(([id, x]) => A.has(id) && (JSON.stringify(A.get(id).e)!==JSON.stringify(x.e) || A.get(id).sos!==x.sos)).map(([, x]) => x)};
 }
@@ -2700,6 +2824,10 @@ function fPbCopia(){
   const corpo = `<p>${tr('L’archivio torna com’era in questa copia: {n} eventi ancora da svolgere{s}. Quelli già finiti non tornano ({f}).',{n:R.eventi.length, s:R.sospesi.length ? ', '+tr('più {k} sospesi',{k:R.sospesi.length}) : '', f:R.finiti})}</p>
     ${promemoria}
     ${R.eventi.length+R.sospesi.length ? `<div class="menu-lista">${righe(R.eventi)}${righe(R.sospesi, tr('sospeso'))}</div>` : ''}
+    ${R.nascosti.length+R.nascostiSospesi.length ? `<p class="etich">${tr('Nascosti')} · ${R.nascosti.length+R.nascostiSospesi.length}</p>
+      <p class="meta">${tr('Tornano così come sono nella copia, cifrati: si possono soltanto togliere. Se uno porta un nome di cui è stata chiesta la rimozione, toglilo qui e correggilo dopo il ripristino.')}</p>
+      <div class="menu-lista">${R.nascosti.map(x => [x, false]).concat(R.nascostiSospesi.map(x => [x, true])).map(([x, sos]) => { const c = NR.chiari.get(x.id);
+        return `<div class="menu-r" style="cursor:default"><div><span class="t">${c ? esc(c.ev.titolo) : tr('Evento nascosto')}</span><span class="meta">${c ? esc(quandoEv(c.ev))+' · ' : ''}${tr('nascosto')}${sos?' · '+tr('sospeso'):''}</span></div><button class="link" data-az="pb-ripr-togli" data-id="${esc(x.id)}">${tr('Togli')}</button></div>`; }).join('')}</div>` : ''}
     ${statoPb()}
     <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${rim.length && !R.fatto ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
   return foglio('forte alto', testa, corpo);
@@ -2725,34 +2853,37 @@ function azionePubblica(az, t){
     case 'pb-venti': esito(prova.eventiDelRepository().then(ev => SPORTELLO.chiedi({operazione:'scrivi', pubblica:ev})), r => tr('Portati {n} eventi inventati, pubblicati alle {o}.',{n:r.riepilogo.pubblicati.length+r.riepilogo.corretti.length, o:oraPb(r.quando)})); break;
     case 'pb-falsa': esito(prova.firmaSbagliata().then(r => r), r => r.stato===200 ? tr('Attenzione: lo sportello ha accettato un pacchetto con la firma sbagliata.') : r.corpo.motivo==='fermo' ? tr('Rifiutato: troppe firme sbagliate, lo sportello non risponde a questo dispositivo fino alle {o}.',{o:oraPb(r.corpo.fino)}) : tr('Rifiutato dallo sportello (motivo: {m}). Dopo cinque firme sbagliate in un quarto d’ora smette di rispondere a questo dispositivo per quindici minuti.',{m:r.corpo.motivo})); break;
     case 'pb-svuota': if(!PB.svuota){ PB.svuota = true; disegnaFoglio(); break; } PB.svuota = false; PB.stato = null; esito(prova.svuota(), () => tr('Sportello di prova svuotato.')); break;
-    case 'pb-correggi': if(x){ PB.errore = ''; PB.msg = ''; apriEventoForm(x.ev, 'pubblica'); } break;
-    case 'pb-sospendi': if(x) scriviPb({operazione:'scrivi', sospendi:[x.ev.id]}, r => { registra('sospendi', {id:x.ev.id, s:x.ev.strato}); return tr('Sospeso alle {o}: non è più sulla mappa.',{o:oraPb(r.quando)}); }); break;
-    case 'pb-riattiva': if(x) scriviPb({operazione:'scrivi', riattiva:[x.ev.id]}, r => { registra('riattiva', {id:x.ev.id, s:x.ev.strato}); return tr('Riattivato alle {o}: è di nuovo sulla mappa.',{o:oraPb(r.quando)}); }); break;
+    case 'pb-correggi': if(x && x.ev){ PB.errore = ''; PB.msg = ''; apriEventoForm(x.ev, 'pubblica', x.nascosto ? {pw:NR.chiari.get(PB.sel).pw} : null); } break;
+    case 'pb-sospendi': if(x) scriviPb({operazione:'scrivi', sospendi:[PB.sel]}, r => { registra('sospendi', {id:PB.sel, s:(x.ev||{}).strato||''}); return tr('Sospeso alle {o}: non è più sulla mappa.',{o:oraPb(r.quando)}); }); break;
+    case 'pb-riattiva': if(x) scriviPb({operazione:'scrivi', riattiva:[PB.sel]}, r => { registra('riattiva', {id:PB.sel, s:(x.ev||{}).strato||''}); return tr('Riattivato alle {o}: è di nuovo sulla mappa.',{o:oraPb(r.quando)}); }); break;
     case 'pb-ritira': PB.ritiro = {motivo:'', riferimento:''}; PB.errore = ''; disegnaFoglio(); break;
     case 'pb-ritira-no': PB.ritiro = null; PB.errore = ''; disegnaFoglio(); break;
     case 'pb-ritira-ok': { const R = PB.ritiro; if(!x || !R) break;
       if(!MOTIVI_RITIRO[R.motivo]){ PB.errore = tr('Scegli il motivo del ritiro.'); disegnaFoglio(); break; }
-      const rit = {id:x.ev.id, motivo:R.motivo}; if(R.riferimento.trim()) rit.riferimento = R.riferimento.trim();
+      const rit = {id:PB.sel, motivo:R.motivo}; if(R.riferimento.trim()) rit.riferimento = R.riferimento.trim();
       /* data e motivo del ritiro passano alla riga del registro delle fonti, se sta su questo dispositivo (cap. 22,
          «Ritiro prima della fine»), nello stesso pacchetto; il motivo resta comunque nella copia datata dello storico */
       regApri().then(() => REG.stato==='aperto' ? regPrepara([{id:rit.id, ritiro:rit.motivo, riferimento:rit.riferimento}]) : null).catch(() => null).then(rp => {
         const c = conRegistro({operazione:'scrivi', ritira:[rit]}, rp);
-        scriviPb(c, r => { registra('ritira', {id:x.ev.id, s:x.ev.strato, m:R.motivo}); misureConta('rimossi'); regConferma(rp, (r.registro||{}).codici).catch(() => {});
+        scriviPb(c, r => { registra('ritira', {id:rit.id, s:(x.ev||{}).strato||'', m:R.motivo}); misureConta('rimossi'); regConferma(rp, (r.registro||{}).codici).catch(() => {});
           return tr('Ritirato alle {o}.',{o:oraPb(r.quando)}); }); }); break; }
     case 'pb-storico': apriStoricoPb(); break;
     case 'pb-confronta': { if(PB.scelte.length!==2) break; PB.errore = '';
       Promise.all(PB.scelte.map(leggiCopiaPb)).then(k => { k.sort((a,b) => a.quando<b.quando?-1:1); PB.confronto = confrontaCopie(k[0], k[1]); }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
     case 'pb-ripristina': { if(PB.scelte.length!==1) break; PB.ripr = null; PB.errore = ''; PB.msg = ''; apri('pb-copia');
       leggiCopiaPb(PB.scelte[0]).then(k => { const vivo = e => FORMATO.uscitaMs(e) > Date.now(), ordine = (x, y) => x.inizio<y.inizio?-1:1, ev = k.eventi.filter(vivo).sort(ordine), sos = k.sospesi.filter(vivo).sort(ordine);
-        PB.ripr = {copia:k, eventi:ev, sospesi:sos, finiti:k.eventi.length+k.sospesi.length-ev.length-sos.length, rimozioni:rimozioniDopo(k.quando), fatto:false, corretti:0}; }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
+        /* gli eventi nascosti della copia tornano così come sono, cifrati (T-045): si possono soltanto togliere */
+        const vivoN = x => MODULI.nascosti.vivo(x.giorno, Date.now()), nas = (k.nascosti||[]).filter(vivoN), nsos = (k.nascostiSospesi||[]).filter(vivoN);
+        PB.ripr = {copia:k, eventi:ev, sospesi:sos, nascosti:nas, nascostiSospesi:nsos, finiti:k.eventi.length+k.sospesi.length-ev.length-sos.length, rimozioni:rimozioniDopo(k.quando), fatto:false, corretti:0};
+        return nrDecifra(nas.concat(nsos)); }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
     case 'pb-copia': st.aform = null; apri('pb-copia'); break;
     case 'pb-ripr-fatto': if(PB.ripr){ PB.ripr.fatto = !PB.ripr.fatto; disegnaFoglio(); } break;
     case 'pb-ripr-correggi': { const R = PB.ripr, ev = R && R.eventi.concat(R.sospesi).find(e => e.id===t.dataset.id); if(ev) apriEventoForm(ev, 'ripristino'); break; }
-    case 'pb-ripr-togli': { const R = PB.ripr; if(R){ R.eventi = R.eventi.filter(e => e.id!==t.dataset.id); R.sospesi = R.sospesi.filter(e => e.id!==t.dataset.id); disegnaFoglio(); } break; }
+    case 'pb-ripr-togli': { const R = PB.ripr, via = x => x.id!==t.dataset.id; if(R){ R.eventi = R.eventi.filter(via); R.sospesi = R.sospesi.filter(via); R.nascosti = R.nascosti.filter(via); R.nascostiSospesi = R.nascostiSospesi.filter(via); disegnaFoglio(); } break; }
     case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
-      scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}); }); break; }
+      scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi, nascosti:R.nascosti, nascostiSospesi:R.nascostiSospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}) + (r.nascosti ? ' '+tr('Più {k} eventi nascosti.',{k:r.nascosti}) : ''); }); break; }
     case 'ix-torna': st.aform = null; apri('pb-importa'); break;
-    default: return azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t) || azioneCalendari(az, t);
+    default: return azioneNascosti(az, t) || azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t) || azioneCalendari(az, t);
   }
   return true;
 }
@@ -2966,7 +3097,7 @@ const ETICHETTE_RIGA = {titolo:'Titolo', testoFonte:'Testo del campo «Fonte:»'
 const rigaPerRettifica = r => { const g = r.g||{}; return {titolo:r.titolo, testoFonte:r.testoFonte, collegamento:r.collegamento, fonte:g.fonte, consultazione:g.consultazione,
   dieci:g.domFile || DIECI_DOMANDE.map(([n]) => g.dom && g.dom[n] || '-').join(''), elementi:ELEMENTI_RIPRESI.filter(([k]) => g.elementi && g.elementi[k]).map(x => x[0]).join(' '),
   nomi:(g.nomi||'')+(g.ruoli ? ' '+g.ruoli : ''), politico:g.politico, avviso:[g.avviso, g.avvisoData, g.avvisoCanale, g.k].filter(Boolean).join(' '), consenso:g.consenso}; };
-/* cambi: [{ev, g, titolo, canale}] per pubblicare o correggere; [{id, ritiro, riferimento}] per un ritiro. → {busta, nuovo, quando, minimo} o null */
+/* cambi: [{ev, g, titolo, canale, nascosto}] per pubblicare o correggere (nascosto: un evento nascosto, T-045, colonna «Evento nascosto»); [{id, ritiro, riferimento}] per un ritiro. → {busta, nuovo, quando, minimo} o null */
 function regPrepara(cambi){
   if(REG.stato!=='aperto' || !REG.dati) return Promise.reject(new Error('registro'));
   const nuovo = JSON.parse(JSON.stringify(REG.dati)), quando = new Date().toISOString(), righe = [], fonti = new Map();
@@ -2976,7 +3107,7 @@ function regPrepara(cambi){
       if(c.chiave) fatti.chiave = testoReg(c.chiave, 200);   /* l'identificativo dell'evento nel calendario del Comune (T-044) */
       let r = nuovo.eventi.find(x => x.id===ev.id);
       if(r){ rettifica(r, rigaPerRettifica(r), rigaPerRettifica(fatti), ETICHETTE_RIGA); Object.assign(r, fatti, {corretto:quando}); }
-      else { r = Object.assign({codice:'', id:ev.id, quando:c.correzione ? '' : quando, corretto:c.correzione ? quando : '', nascosto:false, canale:c.canale||'singolo', funzione:'Redazione eventi', ritiro:null, scadenza:c.correzione ? '' : scadenzaRiga(quando), rettifiche:[]}, fatti); nuovo.eventi.push(r); }
+      else { r = Object.assign({codice:'', id:ev.id, quando:c.correzione ? '' : quando, corretto:c.correzione ? quando : '', nascosto:!!c.nascosto, canale:c.canale||'singolo', funzione:'Redazione eventi', ritiro:null, scadenza:c.correzione ? '' : scadenzaRiga(quando), rettifiche:[]}, fatti); nuovo.eventi.push(r); }
       righe.push(r);
       const fo = nuovo.fonti.find(f => f.codice===c.g.fonte); if(fo) fonti.set(fo.codice, fo);
     } else if(c.ritiro){
@@ -3106,8 +3237,12 @@ function giudizioManca(f){
   if(!AVVISI_ORG[g.avviso]) m.push(tr('l’avviso all’organizzatore'));
   else if(g.avviso==='inviato' && (!/^\d{4}-\d{2}-\d{2}$/.test(g.avvisoData) || !g.avvisoCanale.trim())) m.push(tr('data e canale dell’avviso'));
   if(g.k.trim() && !CODICE_K.test(g.k.trim())) m.push(tr('un codice K scritto come «K-0001»'));
-  if(serveConsenso(g) && !CODICE_C.test(g.consenso.trim())) m.push(g.politico==='si' && g.nomi==='si' ? tr('il codice C del consenso esplicito (evento politico o religioso con nomi)') : tr('il codice C del consenso diretto'));
+  /* un evento nascosto si pubblica solo con il consenso dell'organizzatore (§ 3.3, passo 4; allegato C, C.2) e non è mai una
+     manifestazione (§ 9.2, regola 2) */
+  if((serveConsenso(g) || f.nascosto) && !CODICE_C.test(g.consenso.trim())) m.push(g.politico==='si' && g.nomi==='si' ? tr('il codice C del consenso esplicito (evento politico o religioso con nomi)')
+    : f.nascosto ? tr('il codice C del consenso dell’organizzatore all’evento nascosto') : tr('il codice C del consenso diretto'));
   else if(g.consenso.trim() && !CODICE_C.test(g.consenso.trim())) m.push(tr('un codice C scritto come «C-0001»'));
+  if(f.nascosto && f.strato==='manifestazioni') m.push(tr('un altro strato: un evento nascosto non è mai una manifestazione (§ 9.2)'));
   if(IMMAGINI.test(TESTI_SCHEDA(f).join('\n'))) m.push(tr('un testo senza immagini: nei testi c’è il collegamento a un’immagine'));
   const daVedere = avvisiScheda(f).filter(x => !avvisoVisto(f, x)).length;
   if(daVedere) m.push(daVedere===1 ? tr('la conferma di un avviso') : tr('la conferma di {n} avvisi',{n:daVedere}));
@@ -3177,14 +3312,15 @@ function schedaGiudizio(f){
     ${scelta('g-avviso', 'avviso', tr('Avviso all’organizzatore'), Object.entries(AVVISI_ORG).map(([v, t]) => [v, tr(t)]), tr('All’organizzatore di cui si conosce un recapito di lavoro si manda l’avviso di pubblicazione (§ 3.3). Data e canale si annotano nel registro.'))}
     ${g.avviso==='inviato' ? `<div class="due">${testo('g-avvdata', 'avvisoData', tr('Avviso inviato il'), 10, '', '', 'date')}${testo('g-avvcanale', 'avvisoCanale', tr('Canale'), 40, tr('posta, messaggio…'))}</div>` : ''}
     ${g.avviso==='dopo' || g.avviso==='inviato' ? testo('g-k', 'k', `${tr('Recapito dell’organizzatore (codice K)')} <span class="fac">${fac}</span>`, 12, 'K-0001', tr('Il codice dell’elenco dei contatti: nel registro il recapito non si copia.')) : ''}
-    ${serveConsenso(g) || g.consenso ? testo('g-consenso', 'consenso', tr('Prova del consenso (codice C)'), 12, 'C-0001', tr('Il codice della riga del registro dei consensi dove sta la prova.')) : ''}
+    ${serveConsenso(g) || g.consenso || f.nascosto ? testo('g-consenso', 'consenso', tr('Prova del consenso (codice C)'), 12, 'C-0001', tr('Il codice della riga del registro dei consensi dove sta la prova.')) : ''}
     <div id="g-avvisi" data-firma="${esc(avvisiScheda(f).map(x => x.k+':'+x.firma).join('\n'))}">${avvisiHtml(f)}</div></div>`;
 }
 /* il tasto «Pubblica» e la spia sotto, per il modulo dell'evento */
 const spiaHtml = f => `<p class="meta g-spia" id="g-spia" role="status">${esc(testoSpia(giudizioManca(f)))}</p>`;
 
 /* ---------- Gli eventi preparati ---------- */
-const CAMPI_PREPARATI = ['id', 'titolo', 'strato', 'sub', 'tema', 'inizio', 'fine', 'luogo', 'indirizzo', 'addrFull', 'precision', 'hn', 'comeArrivare', 'organizzatore', 'desc', 'prezzo', 'fonte', 'fonteLink', 'testoCal'];
+/* «nascosto» resta tra i preparati, la password no: non va in nessun registro (§ 18.4), e alla ripresa l'app ne genera una nuova */
+const CAMPI_PREPARATI = ['id', 'titolo', 'strato', 'sub', 'tema', 'inizio', 'fine', 'luogo', 'indirizzo', 'addrFull', 'precision', 'hn', 'comeArrivare', 'organizzatore', 'desc', 'prezzo', 'fonte', 'fonteLink', 'testoCal', 'nascosto'];
 function preparaScheda(){
   const f = st.aform; if(!f || f.per==='ripristino' || PB.lavoro) return;
   if(REG.stato!=='aperto'){ f.errori = [statoRegistro()]; disegnaFoglio(); return; }
@@ -3263,6 +3399,121 @@ function cambioScheda(el){
   if(!f || !f.g) return false;
   if(d.gdom){ if(el.value) f.g.dom[d.gdom] = el.value; else delete f.g.dom[d.gdom]; delete f.g.domFile; disegnaFoglio(); return true; }
   if(d.gcampo){ f.g[d.gcampo] = el.value; if(d.gcampo==='fonte') fonteScelta(f); if(el.tagName==='SELECT') disegnaFoglio(); else aggiornaSpia(); return true; }
+  return false;
+}
+
+/* ======================= Eventi nascosti nell'app della redazione (T-045) =======================
+   Libro mastro: § 2.3 (eventi nascosti); § 3.3, passo 4 (consenso dell'organizzatore, prima di pubblicare); § 3.11
+   (cifratura sul dispositivo); § 3.14 (le password si cancellano quando l'evento finisce); § 9.2 (a che cosa servono:
+   niente ritrovi privati né manifestazioni; i casi in luogo pubblico li valuta la Redazione); allegato A, A.2, punto 10;
+   allegato C, C.2 (i due messaggi all'organizzatore). Documento: docs/eventi-nascosti.md.
+
+   Il modulo dell'evento (pubblicazione.js) ha la casella «Evento nascosto». Accesa: l'app genera la password (cinque
+   parole a caso, sorgenti/moduli/nascosti.js e parole-nascosti.js; decisione del 25/11/2026), chiede il codice C del
+   consenso e ricorda le regole del § 9.2. «Pubblica» cifra l'evento su questo dispositivo, mette la password nella
+   cassaforte (CHIAVI.cassaforte) e manda allo sportello soltanto il file illeggibile, con il nome che si ricava dalla
+   password e il giorno in cui l'evento esce dalla mappa. Poi mostra la password con «Copia la password» e «Copia il
+   messaggio di conferma» (il testo C.2), da mandare all'organizzatore sul canale del consenso. La password non va in
+   nessun registro: nella riga del registro delle fonti c'è solo «Evento nascosto: sì».
+
+   Lo sportello conosce gli eventi nascosti soltanto cifrati. Questo dispositivo li apre con le password della sua
+   cassaforte (NR.chiari) per mostrarli nell'elenco, correggerli (stessa password), contarli nelle Misure (decisione del
+   25/11/2026: come gli altri, con città e strato). Un evento nascosto di cui qui non c'è la password si può sospendere,
+   riattivare o ritirare, non correggere. Nessun evento nascosto si importa da un file Excel (importa-excel.js).
+
+   Testi come testo (T-024): titoli e password entrano nella pagina solo con esc(). */
+const NR = {chiari:new Map(), fatto:null, copiato:''};
+
+/* Apre con le password della cassaforte le voci nascoste lette dallo sportello: {id, impronta, giorno, file}. */
+async function nrDecifra(voci){
+  for(const x of voci || []){
+    const v = JSON.stringify(x.file), c = NR.chiari.get(x.id);
+    if(c && c.v===v) continue;
+    let pw = null; try{ pw = await CHIAVI.cassaforte.leggi(x.id); }catch(e){ pw = null; }
+    if(!pw){ NR.chiari.delete(x.id); continue; }
+    try{ NR.chiari.set(x.id, {ev:await MODULI.nascosti.decifra(x.file, pw, null, x.impronta), pw, v}); }catch(e){ NR.chiari.delete(x.id); }
+  }
+}
+const nrVoci = s => s ? (s.nascosti||[]).concat(s.nascostiSospesi||[]) : [];
+/* Gli eventi nascosti pubblicati (non sospesi) che questo dispositivo sa aprire: per le Misure. */
+function nrPerMisure(){
+  if(typeof SPORTELLO==='undefined' || !SPORTELLO) return Promise.resolve([]);
+  return SPORTELLO.chiedi({operazione:'stato'}).then(s => nrDecifra(s.nascosti).then(() => (s.nascosti||[]).map(x => NR.chiari.get(x.id)).filter(Boolean).map(c => c.ev)), () => []);
+}
+
+/* Il messaggio di conferma del modello C.2, con titolo e password. */
+const messaggioC2 = (titolo, pw) => tr('Grazie! Abbiamo pubblicato «{t}» come evento nascosto. La password è {p}: condividila soltanto con chi vuoi invitare. Per togliere l’evento basta scriverci.',{t:titolo, p:pw});
+/* Password e tasti per copiarla, dopo la pubblicazione e nella scheda dell'evento. */
+function riquadroPassword(id, titolo, pw, testa, altro){
+  return `<div class="red-riquadro nr-consegna" role="note"><b>${testa}</b>
+    <p class="nr-password"><code>${esc(pw)}</code></p>
+    <span class="meta">${tr('Si consegna all’organizzatore con il messaggio di conferma (allegato C, C.2), sul canale del consenso. Resta nella cassaforte di questo dispositivo fino alla fine dell’evento, poi si cancella da sola. Non va scritta in nessun registro.')}</span>
+    <div class="tasti"><button class="tasto sec" data-az="nr-copia-pw" data-id="${esc(id)}">${NR.copiato==='pw|'+id ? tr('Password copiata') : tr('Copia la password')}</button><button class="tasto sec" data-az="nr-copia-msg" data-id="${esc(id)}">${NR.copiato==='msg|'+id ? tr('Messaggio copiato') : tr('Copia il messaggio di conferma')}</button>${altro||''}</div></div>`;
+}
+/* Dopo la pubblicazione di un evento nascosto, in cima alla schermata «Pubblicazione». */
+const nrFattoHtml = () => !NR.fatto ? '' : riquadroPassword(NR.fatto.id, NR.fatto.titolo, NR.fatto.pw, tr('Evento nascosto pubblicato: «{t}». Ecco la password',{t:esc(NR.fatto.titolo)}),
+  `<button class="tasto pri" data-az="nr-fatto-ok">${tr('Fatto')}</button>`);
+
+/* La casella e il riquadro del modulo dell'evento. */
+function casellaNascosto(f){
+  if(f.id && !f.nascosto) return '';
+  const on = !!f.nascosto;
+  if(on && !f.pw) f.pw = MODULI.nascosti.genera(MODULI.paroleNascosti);
+  const riquadro = !on ? '' : `<div class="red-riquadro nr-regole" role="note"><b>${tr('Evento nascosto')}</b>
+      <span class="meta">${tr('Leggibile solo da chi ha la password (§ 2.3). Si usa per eventi socioculturali di dimensioni contenute, annunciati altrove dall’organizzatore, di cui si tiene riservato il luogo o un altro dettaglio. Mai per ritrovi privati, che restano Off-Grid, né per cortei, presidi o manifestazioni (§ 9.2).')}</span>
+      <span class="meta">${tr('Se si svolge in luogo pubblico, valuta caso per caso se può essere una riunione in luogo pubblico e se custodirne il luogo farebbe di noi il suo canale riservato; annota la valutazione e le sue ragioni nelle note della voce del registro dei consensi.')}</span>
+      <span class="meta">${tr('Prima di pubblicare serve il consenso dell’organizzatore (messaggio C.2), con il suo codice C qui sotto. La password si consegna dopo la pubblicazione, con il messaggio di conferma.')}</span>
+      <span class="etich">${tr('Password generata dall’app')}</span><p class="nr-password"><code>${esc(f.pw)}</code></p>
+      ${f.id ? `<span class="meta">${tr('Una correzione tiene la stessa password: chi ha già sbloccato l’evento vede la correzione.')}</span>` : `<button class="link" data-az="nr-altra">${tr('Generane un’altra')}</button>`}</div>`;
+  return `${f.id ? '' : `<button class="riga-int" data-az="nr-nascosto" aria-pressed="${on}"><span class="casella" aria-hidden="true"></span><div><span class="t">${tr('Evento nascosto')}</span><span class="meta">${tr('Leggibile solo con la password: il contenuto si cifra su questo dispositivo.')}</span></div></button>`}${riquadro}`;
+}
+
+/* «Pubblica» per un evento nascosto: ev è già nel formato pubblico e controllato (pubblicazione.js). */
+function pubblicaNascosto(f, ev){
+  const N = MODULI.nascosti, nuovo = !f.id, g = f.g, prepScheda = f.prep, pw = N.forma(f.pw), titolo = ev.titolo;
+  if(PB.lavoro) return;
+  PB.lavoro = true; PB.errore = ''; ridisegnaPb();
+  (async () => {
+    const imp = await N.impronta(pw);
+    /* la password non deve essere già usata da un altro evento nascosto (§ 2.3): lo sportello lo controlla comunque */
+    if(nuovo){ const s = await SPORTELLO.chiedi({operazione:'stato'}); if(nrVoci(s).some(x => x.impronta===imp)) throw Object.assign(new Error('impronta'), {motivo:'impronta'}); }
+    const {file} = await N.cifra(ev, pw, null, imp);
+    /* la password entra nella cassaforte prima di partire: se lo sportello rifiuta, per un evento nuovo si toglie */
+    if(nuovo) await CHIAVI.cassaforte.metti(ev.id, pw, FORMATO.fineMs(ev));
+    const rp = await regPrepara([{ev, g, titolo:g.nomi==='si' && g.titoloReg.trim() ? g.titoloReg.trim() : titolo, canale:'singolo', correzione:!nuovo, nascosto:true}]);
+    return {voce:{id:ev.id, impronta:imp, giorno:N.giornoUscita(ev), file}, rp, file};
+  })().then(({voce, rp, file}) => { PB.lavoro = false;
+    return scriviPb(conRegistro({operazione:'scrivi', nascosti:[voce]}, rp), r => {
+      st.aform = null; st.ultimoId = ev.id; registra(nuovo ? 'pubblica' : 'correggi', {id:ev.id, s:ev.strato}); if(!nuovo) misureConta('corretti');
+      NR.chiari.set(ev.id, {ev, pw, v:JSON.stringify(file)}); NR.fatto = nuovo ? {id:ev.id, titolo, pw} : null; NR.copiato = '';
+      if(!nuovo) CHIAVI.cassaforte.metti(ev.id, pw, FORMATO.fineMs(ev)).catch(() => {});
+      const codice = ((r.registro||{}).codici||{})[ev.id] || '';
+      regConferma(rp, (r.registro||{}).codici).then(() => prepScheda ? togliPreparato(prepScheda) : null)
+        .catch(() => { PB.errore = tr('L’evento è pubblicato e la riga {c} è allo sportello, ma non sono riuscito a salvarla nel registro di questo dispositivo.',{c:codice}); ridisegnaPb(); });
+      return (nuovo ? tr('Evento nascosto pubblicato alle {o} (ora dello sportello).',{o:oraPb(r.quando)}) : tr('Correzione dell’evento nascosto pubblicata alle {o} (ora dello sportello).',{o:oraPb(r.quando)}))
+        + (codice ? ' '+tr('Riga {c} nel registro delle fonti.',{c:codice}) : '');
+    }).then(ok => { if(!ok && nuovo) CHIAVI.cassaforte.togli(ev.id).catch(() => {}); });
+  }, e => {
+    PB.lavoro = false; if(nuovo) CHIAVI.cassaforte.togli(ev.id).catch(() => {});
+    if(st.aform!==f) return;
+    f.errori = [e && e.motivo==='impronta' ? tr('Questa password è già usata da un altro evento nascosto: tocca «Generane un’altra» e riprova.')
+      : e && e.motivo ? errorePb(e) : tr('Non sono riuscito a cifrare l’evento o a preparare la riga del registro delle fonti: non pubblico.')];
+    disegnaFoglio(); mostraErroriPb();
+  });
+}
+
+/* ---------- Tocchi ---------- */
+function azioneNascosti(az, t){
+  const f = st.aform, id = t && t.dataset ? t.dataset.id : '';
+  const chiaro = id ? (NR.fatto && NR.fatto.id===id ? {ev:{titolo:NR.fatto.titolo}, pw:NR.fatto.pw} : NR.chiari.get(id)) : null;
+  const copia = (k, testo) => copiaTesto(testo).then(ok => { NR.copiato = ok ? k+'|'+id : ''; ridisegnaPb(); });
+  switch(az){
+    case 'nr-nascosto': if(f && !f.id){ f.nascosto = f.nascosto ? '' : '1'; f.pw = ''; disegnaFoglio(); aggiornaSpia(); } return true;
+    case 'nr-altra': if(f && !f.id && f.nascosto){ f.pw = MODULI.nascosti.genera(MODULI.paroleNascosti); disegnaFoglio(); } return true;
+    case 'nr-copia-pw': if(chiaro) copia('pw', chiaro.pw); return true;
+    case 'nr-copia-msg': if(chiaro) copia('msg', messaggioC2(chiaro.ev.titolo, chiaro.pw)); return true;
+    case 'nr-fatto-ok': NR.fatto = null; NR.copiato = ''; disegnaFoglio(); return true;
+  }
   return false;
 }
 
@@ -4288,22 +4539,25 @@ function libSet(n, campi){ const m = mz(); m.lib = m.lib||{}; m.lib[n] = Object.
    l'indice nomina. Di ogni evento tiene, finché il pannello è aperto, soltanto ciò che serve ai conteggi. Lo storico
    delle pubblicazioni si legge più sotto (mzLeggiStorico). */
 let MZ_EVENTI = [];
-const MZ_ARCH = {stato:'', quadranti:0, quando:null, lettore:null};
+const MZ_ARCH = {stato:'', quadranti:0, quando:null, lettore:null, nascosti:0};
 const daArchivioMz = ev => ({id:ev.id, category:ev.strato, datetime:new Date(FORMATO.istante(ev.inizio)).toISOString(), lat:ev.lat, lng:ev.lng,
   price:ev.prezzo||'', address:ev.indirizzo||'', addressFull:[ev.luogo, ev.indirizzo].filter(Boolean).join(' · ')});
 function mzLeggiArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !window.fetch){ MZ_ARCH.stato = 'assente'; return Promise.resolve(false); }
   if(!MZ_ARCH.quando) MZ_ARCH.stato = 'leggo';
   let A;
+  /* gli eventi nascosti contano come gli altri, con città e strato (decisione del 25/11/2026): quelli che questo
+     dispositivo sa aprire con le password della sua cassaforte (eventi-nascosti.js); mai nei numeri pubblici per regione */
+  let nas = [];
   /* sul collegamento di prova l'archivio può essere quello finto dello sportello di prova (sorgenteArchivio, app2.js) */
   return sorgenteArchivio().then(s => {
     if(!MZ_ARCH.lettore || MZ_ARCH.dove!==s.dove){ MZ_ARCH.lettore = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch}); MZ_ARCH.dove = s.dove; }
     A = MZ_ARCH.lettore; return A.controllaNovita();
-  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => regApri().catch(() => null)).then(() => {
+  }).then(() => { if(!A.pronto()) throw new Error('indice'); return A.carica(A.quadranti()); }).then(() => nrPerMisure().then(l => { nas = l; }, () => {})).then(() => regApri().catch(() => null)).then(() => {
     /* «Da import Excel» (T-043): gli eventi che nel registro delle fonti del dispositivo hanno il canale «file Excel» o
        «calendario in dati aperti»; senza le chiavi il registro non si legge e il conteggio resta a zero */
     const imp = new Set(REG.stato==='aperto' ? REG.dati.eventi.filter(r => r.canale==='excel' || r.canale==='calendario').map(r => r.id) : []);
-    MZ_EVENTI = A.eventi().map(x => Object.assign(daArchivioMz(x.ev), imp.has(x.ev.id) ? {importato:true} : {})); MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
+    MZ_EVENTI = A.eventi().map(x => x.ev).concat(nas).map(ev => Object.assign(daArchivioMz(ev), imp.has(ev.id) ? {importato:true} : {})); MZ_ARCH.nascosti = nas.length; MZ_ARCH.quadranti = A.quadrantiConservati().length; MZ_ARCH.quando = new Date(); MZ_ARCH.stato = 'letto'; return true;
   }).catch(() => { MZ_ARCH.stato = MZ_ARCH.quando ? 'vecchio' : 'errore'; return false; });
 }
 function mzEventi(){ return MZ_EVENTI.filter(e => MS.ambito==='tutte' || cittaDi(e)===citta); }
@@ -4312,7 +4566,8 @@ function rigaArchivioMz(){
   const t = {leggo:tr('Leggo l’archivio degli eventi…'), assente:tr('Nessun archivio degli eventi da leggere: i conteggi degli eventi restano vuoti.'),
     errore:tr('L’archivio degli eventi non risponde: i conteggi degli eventi restano vuoti finché non torna la rete.'),
     vecchio:tr('L’archivio degli eventi non risponde: i conteggi sono quelli dell’ultima lettura.')}[MZ_ARCH.stato];
-  return `<p class="meta mz-archivio" role="status">${t || tr('Eventi letti dall’archivio pubblicato: {n}, in {q} quadranti · lettura delle {o}',{n:nfm(MZ_EVENTI.length), q:MZ_ARCH.quadranti, o:MZ_ARCH.quando ? hm(MZ_ARCH.quando) : '–'})}</p>`;
+  return `<p class="meta mz-archivio" role="status">${t || tr('Eventi letti dall’archivio pubblicato: {n}, in {q} quadranti · lettura delle {o}',{n:nfm(MZ_EVENTI.length), q:MZ_ARCH.quadranti, o:MZ_ARCH.quando ? hm(MZ_ARCH.quando) : '–'})
+    + (MZ_ARCH.nascosti ? ' · '+tr('di cui {k} nascosti, aperti con le password di questo dispositivo',{k:nfm(MZ_ARCH.nascosti)}) : '')}</p>`;
 }
 function cittaDi(e){
   let best = 'altro', bd = 1e9; const la = +e.lat, ln = +e.lng;
@@ -4369,7 +4624,7 @@ function mzLeggiStorico(){
       if(!ultima) continue;
       if(d<g && prima[d] && prima[d].da===ultima.nome){ P[d] = prima[d]; continue; }
       const v = {n:0, p:0, c:0, s:0, a:0, r:0, rip:0, m:{}, da:ultima.nome}, k = await leggi(ultima.nome);
-      v.n = (k.eventi||[]).filter(e => FORMATO.uscitaMs(e) > inizio).length;
+      v.n = (k.eventi||[]).filter(e => FORMATO.uscitaMs(e) > inizio).length + (k.nascosti||[]).filter(x => x && typeof x.giorno==='string' && x.giorno >= d).length;   /* i nascosti fino al giorno di uscita */
       for(const x of copie.filter(y => { const t = Date.parse(y.quando); return t>=inizio && t<fine; })){
         const q = x.riepilogo||{}, num = c => Array.isArray(q[c]) ? q[c].length : numMz(q[c]);
         if(x.operazione==='ripristina') v.rip++;
@@ -5107,8 +5362,14 @@ $('app').addEventListener('click', ev => {
     case 'indietro-cal': st.pdf = null; apriCalendario(); break;
     case 'scarica-pdf': condividiPdf(); break;
     case 'stampa-pdf': stampaPdf(); break;
-    case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
-      if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
+    case 'sblocca': { if(st.sblocco==='lavoro') break;
+      const testo = $('pw') ? $('pw').value : ''; st.sblocco = 'lavoro'; mostraSblocco();
+      sbloccaNascosto(testo).then(r => {
+        if(r.esito!=='fatto'){ st.sblocco = r.esito; mostraSblocco(); return; }
+        st.sblocco = null; st.nascostiOn = true; selezionaEv(r.id);
+      }, () => { st.sblocco = 'manca'; mostraSblocco(); }); break; }
+    case 'togli-nascosto': if(st.togliNasc===d.id){ st.togliNasc = null; togliNascosto(d.id); }
+      else { st.togliNasc = d.id; disegnaFoglio(); } break;
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; st.msgAdmin = null; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
@@ -5266,6 +5527,7 @@ function avviaCopia(){
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length, finto:ARCHIVIO_FINTO}),
+    nascosti:{conta:() => ({voci:NASC.voci.length, visti:nascostiVisti().length, sullaMappa:EV.filter(e => e.nascosto && visibile(e)).length}), controlla:() => controllaNascosti()},
     tr, dloc, lingua:() => lang, versione:VERSIONE, mappa:() => ({fonte:MAPPA.fonte, sulTelefono:MAPPA_LOCALE ? MAPPA_LOCALE.stato() : Promise.resolve(null)}),
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },

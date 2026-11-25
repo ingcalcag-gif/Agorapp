@@ -117,13 +117,22 @@ function fileArchivio(eventi, grezzi = []) {
   file['indice.json'] = JSON.stringify(indice) + '\n';
   return file;
 }
-async function archivio(ctx, eventi, grezzi = []) {
-  const file = fileArchivio(eventi, grezzi);
+/* nascosti: file di eventi nascosti da aggiungere all'archivio, {percorso: testo} (nascostoProva qui sotto). Il file
+   dell'archivio resta modificabile: togliere o cambiare una voce cambia ciò che il server di prova risponde. */
+async function archivio(ctx, eventi, grezzi = [], nascosti = {}) {
+  const file = Object.assign(fileArchivio(eventi, grezzi), nascosti);
   await ctx.route(u => u.pathname.includes(ZONA_ARCHIVIO), r => {
     const k = new URL(r.request().url()).pathname.split(ZONA_ARCHIVIO)[1];
     return k in file ? r.fulfill({ status: 200, contentType: 'application/json', body: file[k] }) : r.fulfill({ status: 404, body: 'non trovato' });
   });
   return file;
+}
+/* Un evento nascosto inventato (T-045, T-046): cifrato con la password come fa l'app della redazione.
+   → {password, impronta, percorso nell'archivio, testo del file}. */
+const NASC = require('../../sorgenti/moduli/nascosti.js');
+async function nascostoProva(evento, password) {
+  const { impronta, file } = await NASC.cifra(evento, password);
+  return { password, impronta, percorso: 'nascosti/' + impronta + '.json', testo: JSON.stringify(file) };
 }
 /* Aspetta che l'app abbia caricato almeno n eventi dell'archivio. */
 async function eventiCaricati(p, n = 1, ms = 20000) {
@@ -149,4 +158,4 @@ async function giudizioProva(p) {
   await p.selectOption('#g-nomi', 'no'); await p.selectOption('#g-politico', 'no'); await p.selectOption('#g-avviso', 'nessuno');
 }
 
-module.exports = { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, idProva, eventiCaricati, ZONA_ARCHIVIO, EVF, QUAD, giudizioProva };
+module.exports = { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, idProva, eventiCaricati, ZONA_ARCHIVIO, EVF, QUAD, giudizioProva, nascostoProva, NASC };

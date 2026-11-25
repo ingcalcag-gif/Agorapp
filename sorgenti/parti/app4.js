@@ -111,16 +111,21 @@ function risultatiEventi(){
 function fCerca(){
   const testa = `<div class="riga-titolo"><h2>${tr('Cerca')}</h2>${chiudiBtn()}</div>
     <label class="campo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/><path d="m20 20-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="q" type="search" enterkeyhint="search" placeholder="${esc(tr('Eventi, luoghi, indirizzi'))}" value="${esc(st.q)}" autocomplete="off"></label>`;
-  const sbl = EV.filter(e => e.nascosto && st.sbloccati.has(e.raw.hiddenPassword));
+  const sbl = EV.filter(e => e.nascosto && !sparito(e)).sort((a,b) => a.a-b.a);
   const corpo = `<div id="risultati" class="stack">${risultatiEventi()}</div><div id="risultati-luoghi" class="stack"></div>
     <div class="fonte avanzato"><span class="meta"><strong style="color:var(--testo)">${tr('Ricerca avanzata')}</strong>: ${tr('periodo, prezzo e strati sono i filtri sopra la mappa, e valgono anche qui.')}</span>
       <div class="tasti"><button class="tasto sec" data-az="date">${icoGiorni()}${tr('Periodo')}</button><button class="tasto sec" data-az="strati">${icoStrati}${tr('Prezzo e strati')}</button></div></div>
     <div class="fonte"><span class="meta"><strong style="color:var(--testo)">${tr('Ti hanno dato la password di un evento nascosto?')}</strong> ${tr('Inseriscila qui: l’evento compare sulla mappa solo per te.')}</span>
-      <div style="display:flex;gap:8px"><label class="campo" style="flex:1"><input id="pw" type="text" autocapitalize="none" spellcheck="false" placeholder="${esc(tr('Password dell’evento'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="sblocca">${icoLucchetto(14)}${tr('Sblocca')}</button></div>
-      <span class="err" id="pw-err" hidden>${tr('Nessun evento nascosto con questa password.')}</span>
+      <div style="display:flex;gap:8px"><label class="campo" style="flex:1"><input id="pw" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${esc(tr('Password dell’evento'))}" autocomplete="off"></label><button class="tasto sec" style="flex:none" data-az="sblocca">${icoLucchetto(14)}${tr('Sblocca')}</button></div>
+      <span class="${st.sblocco==='lavoro'?'meta':'err'}" id="pw-err" role="status"${st.sblocco?'':' hidden'}>${testoSblocco()}</span>
       ${sbl.length?`<div class="lista">${sbl.map(rigaEv).join('')}</div>`:''}</div>`;
   return foglio('forte alto', testa, corpo);
 }
+/* Lo stato dello sblocco di un evento nascosto (T-046), sotto la barra: si aggiorna senza ridisegnare il foglio, così
+   la password scritta resta nel campo. */
+const testoSblocco = () => ({lavoro:tr('Sblocco l’evento…'), manca:tr('Nessun evento nascosto con questa password.'),
+  rete:tr('Non riesco a controllare la password: controlla la connessione e riprova.'), finito:tr('Questo evento nascosto è già finito.')})[st.sblocco] || '';
+function mostraSblocco(){ const el = $('pw-err'); if(!el) return; el.hidden = !st.sblocco; el.className = st.sblocco==='lavoro' ? 'meta' : 'err'; el.textContent = testoSblocco(); }
 function cercaInvio(){
   const q = st.q.trim(); if(q.length<3) return;
   if(sugg.lista.length && sugg.dove==='cerca') return scegliLuogo(0);

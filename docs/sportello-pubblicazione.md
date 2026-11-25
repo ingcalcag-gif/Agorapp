@@ -26,9 +26,9 @@ La firma copre data e ora, numero, dispositivo e contenuto: cambiare una sola le
 
 | Operazione | Che cosa fa |
 | --- | --- |
-| `scrivi` | `pubblica`: eventi nuovi o corretti (un identificativo già pubblicato sostituisce l'evento); `sospendi` e `riattiva`: identificativi; `ritira`: identificativo, motivo e, se c'è, la voce del registro; `registro` (dal blocco 10): la busta cifrata con le righe del registro delle fonti di questa pubblicazione, solo insieme a `pubblica` o a `ritira`; `registroDa` (T-043): il primo numero F che lo sportello può dare, solo insieme a `registro` |
-| `ripristina` | Sostituisce l'elenco con gli eventi di una copia dello storico, così come la Redazione li rimanda dopo aver ripetuto le rimozioni |
-| `stato` | Legge l'elenco riservato: eventi pubblicati e sospesi |
+| `scrivi` | `pubblica`: eventi nuovi o corretti (un identificativo già pubblicato sostituisce l'evento); `nascosti` (dal blocco 11, T-045): eventi nascosti nuovi o corretti, già cifrati, `{id, impronta, giorno, file}` (`docs/eventi-nascosti.md`); `sospendi` e `riattiva`: identificativi, anche di eventi nascosti; `ritira`: identificativo, motivo e, se c'è, la voce del registro; `registro` (dal blocco 10): la busta cifrata con le righe del registro delle fonti di questa pubblicazione, solo insieme a `pubblica` o a `ritira`; `registroDa` (T-043): il primo numero F che lo sportello può dare, solo insieme a `registro` |
+| `ripristina` | Sostituisce l'elenco con gli eventi di una copia dello storico, così come la Redazione li rimanda dopo aver ripetuto le rimozioni; gli eventi nascosti tornano così come sono, cifrati |
+| `stato` | Legge l'elenco riservato: eventi pubblicati e sospesi, ed eventi nascosti pubblicati e sospesi (cifrati) |
 | `storico` | Legge l'elenco delle copie datate |
 | `copia` | Legge una copia |
 | `registro` | Dal blocco 10 (T-043): le buste del registro delle fonti conservate, chiuse (tutte, o quelle dopo la copia `dopo`; al più 500 per volta), e, con `da` e `a` (giorni `aaaa-mm-gg`), gli eventi pubblicati la prima volta nel periodo secondo le copie dello storico, ciascuno con il suo codice F |
@@ -48,14 +48,15 @@ Nell'ordine:
 
 I numeri (cinque minuti; cinque tentativi, un quarto d'ora, quindici minuti, contati per dispositivo) sono la decisione del 23/11/2026. Lo sportello riceve soltanto il testo del pacchetto: non legge e non conserva l'indirizzo di chi lo manda. Chi non è un dispositivo ammesso non può chiudere la porta agli altri.
 
-Le risposte portano l'esito, il motivo del rifiuto (`forma`, `sconosciuto`, `revocata`, `fermo`, `firma`, `tempo`, `ripetuto`, `evento`, `passato`, `manca`, `ritiro`, `copia`, `vuoto`) e l'ora dello sportello; una pubblicazione riuscita porta l'ora di pubblicazione, che l'app della redazione mostra.
+Le risposte portano l'esito, il motivo del rifiuto (`forma`, `sconosciuto`, `revocata`, `fermo`, `firma`, `tempo`, `ripetuto`, `evento`, `passato`, `manca`, `ritiro`, `copia`, `vuoto`, `registro`; dal blocco 11 `nascosto`, una voce nascosta fuori forma o un identificativo usato sia da un evento pubblico sia da uno nascosto, e `impronta`, una password già usata da un altro evento nascosto o diversa da quella dell'evento da correggere) e l'ora dello sportello; una pubblicazione riuscita porta l'ora di pubblicazione, che l'app della redazione mostra.
 
 ## Che cosa scrive
 
 | Dove | Che cosa |
 | --- | --- |
 | `pubblico/indice.json`, `pubblico/quadranti/` | L'archivio che i telefoni leggono (`docs/formato-eventi.md`), scritto con `quadranti.costruisci` |
-| `riservato/stato.json` | L'elenco completo: eventi pubblicati ed eventi sospesi |
+| `pubblico/nascosti/` | Dal blocco 11 (T-045): un file cifrato per ogni evento nascosto pubblicato, con l'impronta della password come nome; fuori dall'indice, dai quadranti e dai numeri per regione; si toglie alla prima pubblicazione dopo la mezzanotte del giorno in cui l'evento esce dalla mappa (`docs/eventi-nascosti.md`) |
+| `riservato/stato.json` | L'elenco completo: eventi pubblicati ed eventi sospesi; dal blocco 11 anche gli eventi nascosti, pubblicati e sospesi, cifrati, con l'impronta e il giorno di uscita |
 | `riservato/storico/copie/` | Una copia datata per ogni pubblicazione: eventi, sospesi, che cosa è cambiato, chi ha firmato e il pacchetto firmato |
 | `riservato/storico/elenco.json` | L'elenco delle copie, con il riepilogo |
 | `riservato/chiavi.json` | Le chiavi pubbliche ammesse e le firme revocate |
@@ -111,4 +112,4 @@ Nella schermata «Pubblicazione» lo sportello di prova ha quattro comandi in pi
 
 ## Ciò che arriva dopo
 
-Dal blocco 10 la scheda di pubblicazione (T-041) e l'importazione dal file Excel (T-042) mandano gli eventi con le righe del registro delle fonti, e l'app della redazione esporta il registro, importa quello tenuto a mano e lo confronta con lo storico (T-043); i calendari aperti dei Comuni passano dalla stessa anteprima, con il canale «calendario», e un loro aggiornamento manda le correzioni con lo stesso identificativo (T-044). Restano: il deposito dei registri nello sportello dell'archivio (T-053), che prenderà il posto delle buste conservate qui; gli eventi nascosti, che viaggiano cifrati in file propri (T-045); «Togli questo nome ovunque» (T-047).
+Dal blocco 10 la scheda di pubblicazione (T-041) e l'importazione dal file Excel (T-042) mandano gli eventi con le righe del registro delle fonti, e l'app della redazione esporta il registro, importa quello tenuto a mano e lo confronta con lo storico (T-043); i calendari aperti dei Comuni passano dalla stessa anteprima, con il canale «calendario», e un loro aggiornamento manda le correzioni con lo stesso identificativo (T-044). Dal blocco 11 gli eventi nascosti viaggiano cifrati in file propri (T-045, `docs/eventi-nascosti.md`). Restano: il deposito dei registri nello sportello dell'archivio (T-053), che prenderà il posto delle buste conservate qui; «Togli questo nome ovunque» (T-047).

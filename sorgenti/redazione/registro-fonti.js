@@ -186,7 +186,7 @@ const ETICHETTE_RIGA = {titolo:'Titolo', testoFonte:'Testo del campo «Fonte:»'
 const rigaPerRettifica = r => { const g = r.g||{}; return {titolo:r.titolo, testoFonte:r.testoFonte, collegamento:r.collegamento, fonte:g.fonte, consultazione:g.consultazione,
   dieci:g.domFile || DIECI_DOMANDE.map(([n]) => g.dom && g.dom[n] || '-').join(''), elementi:ELEMENTI_RIPRESI.filter(([k]) => g.elementi && g.elementi[k]).map(x => x[0]).join(' '),
   nomi:(g.nomi||'')+(g.ruoli ? ' '+g.ruoli : ''), politico:g.politico, avviso:[g.avviso, g.avvisoData, g.avvisoCanale, g.k].filter(Boolean).join(' '), consenso:g.consenso}; };
-/* cambi: [{ev, g, titolo, canale}] per pubblicare o correggere; [{id, ritiro, riferimento}] per un ritiro. → {busta, nuovo, quando, minimo} o null */
+/* cambi: [{ev, g, titolo, canale, nascosto}] per pubblicare o correggere (nascosto: un evento nascosto, T-045, colonna «Evento nascosto»); [{id, ritiro, riferimento}] per un ritiro. → {busta, nuovo, quando, minimo} o null */
 function regPrepara(cambi){
   if(REG.stato!=='aperto' || !REG.dati) return Promise.reject(new Error('registro'));
   const nuovo = JSON.parse(JSON.stringify(REG.dati)), quando = new Date().toISOString(), righe = [], fonti = new Map();
@@ -196,7 +196,7 @@ function regPrepara(cambi){
       if(c.chiave) fatti.chiave = testoReg(c.chiave, 200);   /* l'identificativo dell'evento nel calendario del Comune (T-044) */
       let r = nuovo.eventi.find(x => x.id===ev.id);
       if(r){ rettifica(r, rigaPerRettifica(r), rigaPerRettifica(fatti), ETICHETTE_RIGA); Object.assign(r, fatti, {corretto:quando}); }
-      else { r = Object.assign({codice:'', id:ev.id, quando:c.correzione ? '' : quando, corretto:c.correzione ? quando : '', nascosto:false, canale:c.canale||'singolo', funzione:'Redazione eventi', ritiro:null, scadenza:c.correzione ? '' : scadenzaRiga(quando), rettifiche:[]}, fatti); nuovo.eventi.push(r); }
+      else { r = Object.assign({codice:'', id:ev.id, quando:c.correzione ? '' : quando, corretto:c.correzione ? quando : '', nascosto:!!c.nascosto, canale:c.canale||'singolo', funzione:'Redazione eventi', ritiro:null, scadenza:c.correzione ? '' : scadenzaRiga(quando), rettifiche:[]}, fatti); nuovo.eventi.push(r); }
       righe.push(r);
       const fo = nuovo.fonti.find(f => f.codice===c.g.fonte); if(fo) fonti.set(fo.codice, fo);
     } else if(c.ritiro){

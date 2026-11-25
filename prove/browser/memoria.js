@@ -6,8 +6,8 @@
       (lingua, tema, città, Modalità semplice, mezzo, Off-Grid, calendario); i nomi di prima, le chiavi delle funzioni
       tolte e i file con il nome di prima spariscono; ciò che appartiene ad altre pagine dello stesso indirizzo resta.
    2. Un telefono nuovo, dopo un giro completo nell'app (guida, strati e combinazioni, scheda e calendario, Off-Grid
-      nuovo, giornata e PDF, ricerca, città, tema, lingua, Modalità semplice, Temi e lenti, Agorà e Progetti, testi
-      legali): nella memoria del browser ci sono soltanto chiavi dell'elenco, e il giro le ha toccate tutte; niente
+      nuovo, giornata e PDF, ricerca, evento nascosto sbloccato con la password, città, tema, lingua, Modalità semplice,
+      Temi e lenti, Agorà e Progetti, testi legali): nella memoria del browser ci sono soltanto chiavi dell'elenco, e il giro le ha toccate tutte; niente
       nella memoria della scheda, nessun cookie, nessuna base di dati, nessun programma in sottofondo; nella memoria
       per i file solo le voci dell'elenco, ognuna con dentro solo i file suoi (gli eventi delle zone consultate, i
       tasselli della mappa); nessuna chiave della Redazione. La copia dell'app, che scrive il service worker, la
@@ -21,7 +21,7 @@
    Dati inventati; ogni richiesta verso l'esterno è bloccata. */
 'use strict';
 const { esito, eseguiDaSola } = require('../comune.js');
-const { playwright, server, apri, giorno, pausa, eventiCaricati, ZONA_ARCHIVIO } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa, eventiCaricati, ZONA_ARCHIVIO, eventoProva, nascostoProva } = require('./comune.js');
 const M = require('../../sorgenti/moduli/memoria.js');
 
 const PUBBLICHE = M.chiavi(false, 'memoria'), REDAZIONE = M.ELENCO.filter(v => v.redazione).map(v => v.nome);
@@ -57,8 +57,12 @@ async function prova() {
   const err = x => e.errori.push(x);
   const F = '#foglio-slot ';
 
+  /* un evento nascosto inventato, servito accanto all'archivio di prova, per far scrivere al giro la chiave degli eventi
+     nascosti sbloccati (T-046) */
+  const NASCOSTO = await nascostoProva(eventoProva('memorianascosto', { titolo: 'Evento nascosto inventato' }), 'castoro piuma treno salvia ponte');
   const strumenti = async (ctx, p) => {
     await ctx.route(u => /\/avvisi\.json$/.test(u.pathname), r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(AVVISI) }));
+    await ctx.route(u => u.pathname.endsWith(ZONA_ARCHIVIO + NASCOSTO.percorso), r => r.fulfill({ status: 200, contentType: 'application/json', body: NASCOSTO.testo }));
     await ctx.route(u => u.hostname === 'photon.komoot.io', r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(RICERCA) }));
     p.on('pageerror', x => err('errore nella pagina: ' + x.message));
     /* la mappa che l'app crea si tiene da parte, per spostarla */
@@ -172,6 +176,10 @@ async function prova() {
         /* ricerca di eventi e di indirizzi */
         await avvia();
         if (await tocca('[data-az="cerca"]', 'cerca')) { await p.locator('#q').fill('Via Inventata 5'); await pausa(1200); await tocca('#risultati-luoghi [data-si="0"]', 'cerca, luogo', true); }
+        /* un evento nascosto sbloccato con la password (T-046) */
+        await avvia();
+        if (await tocca('[data-az="cerca"]', 'cerca')) { await p.locator('#pw').fill(NASCOSTO.password); await tocca('[data-az="sblocca"]', 'cerca, sblocca');
+          try { await p.waitForFunction(() => /Evento nascosto inventato/.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 20000 }); } catch (x) { err('telefono nuovo: l\'evento nascosto non si sblocca, il giro non è completo'); } }
         /* città: un'altra, e ritorno */
         await avvia();
         if (await tocca('[data-az="citta"]', 'città')) await tocca(F + '[data-citta="venezia"]', 'città, Venezia');

@@ -250,25 +250,98 @@ async function sorgenteArchivio(){
     return {dove, finto:true, fetch:async u => (await c.match(String(u))) || new Response('', {status:404})};
   }catch(e){ return vera; }
 }
-let ARCHIVIO_FINTO = false;
+let ARCHIVIO_FINTO = false, SORG_ARCH = null;
 function avviaArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
   sorgenteArchivio().then(s => {
-    ARCHIVIO_FINTO = s.finto;
+    ARCHIVIO_FINTO = s.finto; SORG_ARCH = s;
     ARCHIVIO = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch, casse:MEM.file, nomeCassa:'dl_archivio'});
     return ARCHIVIO.apri();
-  }).then(dopoControllo);
-  document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && ARCHIVIO) ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); }); });
+  }).then(dopoControllo).then(() => controllaNascosti());
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState!=='visible' || !ARCHIVIO) return;
+    ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); });
+    if(Date.now() - NASC.ultimo > MODULI.archivio.TRENTA_MINUTI) controllaNascosti(); });
 }
 function dopoControllo(){ pulisciCalendarioArchivio(); ricostruisci(); aggiornaZona(true); }
 /* Dal calendario escono gli eventi dell'archivio che non ci sono più (ritirati o usciti dalla mappa); solo se le zone
    consultate restano sul telefono e l'indice è appena arrivato, così un evento non sparisce perché non è caricato. */
 function pulisciCalendarioArchivio(){
   if(!ARCHIVIO || !ARCHIVIO.persistente() || !ARCHIVIO.ultimoControllo()) return;
-  const vivi = new Set(ARCHIVIO.eventi().map(x => x.ev.id)), locali = new Set(events.map(e => e.id));
+  const vivi = new Set(ARCHIVIO.eventi().map(x => x.ev.id).concat(NASC.voci.map(x => x.evento.id))), locali = new Set(events.map(e => e.id));
   const via = Object.keys(calEvents).filter(id => FORMATO.ID.test(id) && !vivi.has(id) && !locali.has(id));
   if(via.length){ via.forEach(id => delete calEvents[id]); saveCal(); }
 }
+/* ======================= Eventi nascosti: lo sblocco (T-046) =======================
+   Libro mastro § 2.3: il telefono di chi scrive la password nella barra dei nascosti (in Cerca) calcola l'impronta,
+   scarica il file con quel nome e lo decifra (sorgenti/moduli/nascosti.js; docs/eventi-nascosti.md). Il file sta
+   nell'archivio degli eventi, sotto nascosti/ (sul collegamento di prova, nell'archivio dello sportello di prova
+   quando c'è). La richiesta non porta cookie né credenziali; il suo nome è l'impronta, non la password, che non lascia
+   mai il telefono. Evento e password restano nella voce dl_nascosti (app1.js) fino a tre ore dopo la fine.
+   Al controllo delle novità (all'apertura e al ritorno dopo trenta minuti) il telefono riguarda i file degli eventi
+   sbloccati: se il file è cambiato (correzione, stessa password) l'evento si aggiorna; se non c'è più (sospeso o
+   ritirato) l'evento non si mostra, ma resta fino a tre ore dopo la fine e ricompare se il file torna (decisione del
+   25/11/2026). Un errore di rete non cambia nulla. */
+const RICH_NASCOSTO = {credentials:'omit', cache:'no-cache', redirect:'error', referrerPolicy:'no-referrer'};
+NASC.ultimo = 0;
+async function fileNascosto(imp){
+  const s = SORG_ARCH || (ARCHIVIO_DOVE ? await sorgenteArchivio() : null); if(!s || !s.dove) return {stato:'manca'};
+  let r; try{ r = await s.fetch(s.dove+'nascosti/'+imp+'.json', RICH_NASCOSTO); }catch(e){ return {stato:'rete'}; }
+  if(r.status===404) return {stato:'manca'};
+  if(!r.ok) return {stato:'rete'};
+  try{ return {stato:'ok', testo:await r.text()}; }catch(e){ return {stato:'rete'}; }
+}
+async function apriFileNascosto(testo, pw, imp){
+  const ev = await MODULI.nascosti.decifra(testo, pw, null, imp);
+  if(!FORMATO.valido(ev, {vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)})) throw new Error('formato');
+  return ev;
+}
+/* sbloccaNascosto(testo scritto) → {esito: 'fatto' | 'manca' | 'rete' | 'finito', id} */
+async function sbloccaNascosto(testo){
+  const N = MODULI.nascosti, pw = N.forma(testo);
+  if(!N.lunga(pw)) return {esito:'manca'};
+  let imp; try{ imp = await N.impronta(pw); }catch(e){ return {esito:'manca'}; }
+  const f = await fileNascosto(imp);
+  if(f.stato!=='ok') return {esito:f.stato};
+  let ev; try{ ev = await apriFileNascosto(f.testo, pw, imp); }catch(e){ return {esito:'manca'}; }
+  if(FORMATO.uscitaMs(ev) <= Date.now()) return {esito:'finito'};
+  NASC.voci = NASC.voci.filter(x => x.impronta!==imp && x.evento.id!==ev.id).concat([{password:pw, impronta:imp, evento:ev, v:QUAD.impronta(f.testo), assente:false}]);
+  salvaNascosti(); ricostruisci();
+  return {esito:'fatto', id:ev.id};
+}
+let nascostiInCorso = null;
+function controllaNascosti(){
+  if(nascostiInCorso) return nascostiInCorso;
+  nascostiInCorso = (async () => {
+    let cambiato = false; const prima = NASC.voci.length;
+    NASC.voci = NASC.voci.filter(x => FORMATO.uscitaMs(x.evento) > Date.now()); if(NASC.voci.length!==prima) cambiato = true;
+    for(const x of NASC.voci.slice()){
+      const f = await fileNascosto(x.impronta);
+      if(f.stato==='rete') continue;
+      const v = f.stato==='ok' ? QUAD.impronta(f.testo) : null;
+      if(f.stato==='ok' && v!==x.v){
+        try{ x.evento = await apriFileNascosto(f.testo, x.password, x.impronta); x.v = v; x.assente = false; cambiato = true; continue; }
+        catch(e){ /* un file che non si apre più vale come un file che non c'è */ }
+      }
+      const assente = f.stato!=='ok' || v!==x.v;
+      if(!!x.assente!==assente){ x.assente = assente; cambiato = true; }
+    }
+    NASC.ultimo = Date.now();
+    if(cambiato){
+      salvaNascosti(); ricostruisci();
+      let chiusa = false; if(st.sel && !byId(st.sel)){ st.sel = null; if(st.foglio==='scheda'){ st.foglio = null; chiusa = true; } }
+      tutto(); if(chiusa) disegnaFoglio();
+    }
+    return cambiato;
+  })().finally(() => { nascostiInCorso = null; });
+  return nascostiInCorso;
+}
+/* «Togli dal telefono»: evento e password se ne vanno subito (§ 3.7: «Dall'app»). */
+function togliNascosto(id){
+  NASC.voci = NASC.voci.filter(x => x.evento.id!==id); salvaNascosti();
+  if(calEvents[id]){ delete calEvents[id]; saveCal(); }
+  ricostruisci(); st.sel = null; st.foglio = null; tutto(); disegnaFoglio();
+}
+
 let zonaT = 0;
 function programmaZona(){ clearTimeout(zonaT); zonaT = setTimeout(() => aggiornaZona(false), 500); }
 /* Il quadrante del centro, se la zona inquadrata sta tutta dentro di lui e degli otto intorno; altrimenti null.

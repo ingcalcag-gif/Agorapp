@@ -10,7 +10,7 @@ const RADICE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const leggi = (...p) => fs.readFileSync(path.join(RADICE, ...p), 'utf8');
 
 export function montaSportello() {
-  const moduli = ['sorgenti/moduli/eventi.js', 'sorgenti/moduli/quadranti.js', 'sorgenti/moduli/pacchetto.js', 'sportelli/pubblicazione.js'].map(f => leggi(f)).join('\n');
+  const moduli = ['sorgenti/moduli/eventi.js', 'sorgenti/moduli/nascosti.js', 'sorgenti/moduli/quadranti.js', 'sorgenti/moduli/pacchetto.js', 'sportelli/pubblicazione.js'].map(f => leggi(f)).join('\n');
   let t = leggi('sportelli', 'bunny-pubblicazione.js');
   for (const k of ['MODULI', 'REGIONI', 'VOCABOLARIO']) if (!t.includes('/*@@' + k + '@@*/')) throw new Error('sportelli/bunny-pubblicazione.js: manca il segnaposto ' + k);
   return t.replace('/*@@MODULI@@*/', () => moduli)

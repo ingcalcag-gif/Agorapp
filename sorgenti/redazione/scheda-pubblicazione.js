@@ -95,8 +95,12 @@ function giudizioManca(f){
   if(!AVVISI_ORG[g.avviso]) m.push(tr('l’avviso all’organizzatore'));
   else if(g.avviso==='inviato' && (!/^\d{4}-\d{2}-\d{2}$/.test(g.avvisoData) || !g.avvisoCanale.trim())) m.push(tr('data e canale dell’avviso'));
   if(g.k.trim() && !CODICE_K.test(g.k.trim())) m.push(tr('un codice K scritto come «K-0001»'));
-  if(serveConsenso(g) && !CODICE_C.test(g.consenso.trim())) m.push(g.politico==='si' && g.nomi==='si' ? tr('il codice C del consenso esplicito (evento politico o religioso con nomi)') : tr('il codice C del consenso diretto'));
+  /* un evento nascosto si pubblica solo con il consenso dell'organizzatore (§ 3.3, passo 4; allegato C, C.2) e non è mai una
+     manifestazione (§ 9.2, regola 2) */
+  if((serveConsenso(g) || f.nascosto) && !CODICE_C.test(g.consenso.trim())) m.push(g.politico==='si' && g.nomi==='si' ? tr('il codice C del consenso esplicito (evento politico o religioso con nomi)')
+    : f.nascosto ? tr('il codice C del consenso dell’organizzatore all’evento nascosto') : tr('il codice C del consenso diretto'));
   else if(g.consenso.trim() && !CODICE_C.test(g.consenso.trim())) m.push(tr('un codice C scritto come «C-0001»'));
+  if(f.nascosto && f.strato==='manifestazioni') m.push(tr('un altro strato: un evento nascosto non è mai una manifestazione (§ 9.2)'));
   if(IMMAGINI.test(TESTI_SCHEDA(f).join('\n'))) m.push(tr('un testo senza immagini: nei testi c’è il collegamento a un’immagine'));
   const daVedere = avvisiScheda(f).filter(x => !avvisoVisto(f, x)).length;
   if(daVedere) m.push(daVedere===1 ? tr('la conferma di un avviso') : tr('la conferma di {n} avvisi',{n:daVedere}));
@@ -166,14 +170,15 @@ function schedaGiudizio(f){
     ${scelta('g-avviso', 'avviso', tr('Avviso all’organizzatore'), Object.entries(AVVISI_ORG).map(([v, t]) => [v, tr(t)]), tr('All’organizzatore di cui si conosce un recapito di lavoro si manda l’avviso di pubblicazione (§ 3.3). Data e canale si annotano nel registro.'))}
     ${g.avviso==='inviato' ? `<div class="due">${testo('g-avvdata', 'avvisoData', tr('Avviso inviato il'), 10, '', '', 'date')}${testo('g-avvcanale', 'avvisoCanale', tr('Canale'), 40, tr('posta, messaggio…'))}</div>` : ''}
     ${g.avviso==='dopo' || g.avviso==='inviato' ? testo('g-k', 'k', `${tr('Recapito dell’organizzatore (codice K)')} <span class="fac">${fac}</span>`, 12, 'K-0001', tr('Il codice dell’elenco dei contatti: nel registro il recapito non si copia.')) : ''}
-    ${serveConsenso(g) || g.consenso ? testo('g-consenso', 'consenso', tr('Prova del consenso (codice C)'), 12, 'C-0001', tr('Il codice della riga del registro dei consensi dove sta la prova.')) : ''}
+    ${serveConsenso(g) || g.consenso || f.nascosto ? testo('g-consenso', 'consenso', tr('Prova del consenso (codice C)'), 12, 'C-0001', tr('Il codice della riga del registro dei consensi dove sta la prova.')) : ''}
     <div id="g-avvisi" data-firma="${esc(avvisiScheda(f).map(x => x.k+':'+x.firma).join('\n'))}">${avvisiHtml(f)}</div></div>`;
 }
 /* il tasto «Pubblica» e la spia sotto, per il modulo dell'evento */
 const spiaHtml = f => `<p class="meta g-spia" id="g-spia" role="status">${esc(testoSpia(giudizioManca(f)))}</p>`;
 
 /* ---------- Gli eventi preparati ---------- */
-const CAMPI_PREPARATI = ['id', 'titolo', 'strato', 'sub', 'tema', 'inizio', 'fine', 'luogo', 'indirizzo', 'addrFull', 'precision', 'hn', 'comeArrivare', 'organizzatore', 'desc', 'prezzo', 'fonte', 'fonteLink', 'testoCal'];
+/* «nascosto» resta tra i preparati, la password no: non va in nessun registro (§ 18.4), e alla ripresa l'app ne genera una nuova */
+const CAMPI_PREPARATI = ['id', 'titolo', 'strato', 'sub', 'tema', 'inizio', 'fine', 'luogo', 'indirizzo', 'addrFull', 'precision', 'hn', 'comeArrivare', 'organizzatore', 'desc', 'prezzo', 'fonte', 'fonteLink', 'testoCal', 'nascosto'];
 function preparaScheda(){
   const f = st.aform; if(!f || f.per==='ripristino' || PB.lavoro) return;
   if(REG.stato!=='aperto'){ f.errori = [statoRegistro()]; disegnaFoglio(); return; }

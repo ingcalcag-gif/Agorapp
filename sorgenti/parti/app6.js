@@ -90,8 +90,14 @@ $('app').addEventListener('click', ev => {
     case 'indietro-cal': st.pdf = null; apriCalendario(); break;
     case 'scarica-pdf': condividiPdf(); break;
     case 'stampa-pdf': stampaPdf(); break;
-    case 'sblocca': { const pw = ($('pw').value||'').trim(); const e = pw && events.find(x => x.hidden && x.hiddenPassword===pw);
-      if(e){ st.sbloccati.add(pw); st.nascostiOn = true; $('pw').value = ''; disegnaFoglio(); tutto(); } else { const er = $('pw-err'); if(er) er.hidden = false; } break; }
+    case 'sblocca': { if(st.sblocco==='lavoro') break;
+      const testo = $('pw') ? $('pw').value : ''; st.sblocco = 'lavoro'; mostraSblocco();
+      sbloccaNascosto(testo).then(r => {
+        if(r.esito!=='fatto'){ st.sblocco = r.esito; mostraSblocco(); return; }
+        st.sblocco = null; st.nascostiOn = true; selezionaEv(r.id);
+      }, () => { st.sblocco = 'manca'; mostraSblocco(); }); break; }
+    case 'togli-nascosto': if(st.togliNasc===d.id){ st.togliNasc = null; togliNascosto(d.id); }
+      else { st.togliNasc = d.id; disegnaFoglio(); } break;
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; /*@red*/st.msgAdmin = null; /*@fine*/apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
@@ -249,6 +255,7 @@ function avviaCopia(){
   setInterval(() => { const p = purgeExpired(); ricostruisci(); if(st.sezione==='mappa') { disegnaChips(); disegnaPins(); disegnaPeek(); } if(p && st.foglio && ['elenco','calendario'].includes(st.foglio)) disegnaFoglio(); }, 60000);
   window.AGR = Object.assign(window.AGR || {}, {versione:'restyling-3', stato:st, eventi:() => events,
     archivio:() => ({zona:[...ZONA.ids].sort(), lontano:ZONA.lontano, conservati:ARCHIVIO ? ARCHIVIO.quadrantiConservati().sort() : [], pubblici:EV.filter(e => e.archivio).length, finto:ARCHIVIO_FINTO}),
+    nascosti:{conta:() => ({voci:NASC.voci.length, visti:nascostiVisti().length, sullaMappa:EV.filter(e => e.nascosto && visibile(e)).length}), controlla:() => controllaNascosti()},
     tr, dloc, lingua:() => lang, versione:VERSIONE, mappa:() => ({fonte:MAPPA.fonte, sulTelefono:MAPPA_LOCALE ? MAPPA_LOCALE.stato() : Promise.resolve(null)}),
     salvati:{has:id => inCal(id), add:id => { calEvents[id] = true; saveCal(); }, delete:id => { delete calEvents[id]; saveCal(); }},
     foglio(html, scope){ st.foglio = 'html'; st.fHtml = html; st.fScope = scope||''; ultimoFoglio = null; disegnaFoglio(); posizioni(); },

@@ -6,6 +6,7 @@
    - due eventi dell'archivio, nel formato pubblico (docs/formato-eventi.md), con testi ostili in ogni campo, e un terzo
      nello stesso punto per avere il gruppo «Qui vicino»;
    - un indice dell'archivio con il nome di una regione ostile;
+   - un evento nascosto (T-046), cifrato con la sua password, con testi ostili: si sblocca dalla Cerca e si mostra;
    - gli Off-Grid nella memoria del telefono (uno con la ripetizione), con testi e collegamenti ostili;
    - le altre chiavi della memoria del telefono che contengono testi: lenti dei Temi, combinazioni, preferenze;
    - il registro delle fonti dell'app della redazione (T-041): nome e attribuzione di una fonte, titolo di una scheda
@@ -18,7 +19,7 @@
    dell'archivio con un collegamento javascript: non deve comparire affatto (il formato accetta solo https). */
 'use strict';
 const { esito, eseguiDaSola, confronta } = require('../comune.js');
-const { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, eventiCaricati, ZONA_ARCHIVIO } = require('./comune.js');
+const { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, eventiCaricati, ZONA_ARCHIVIO, nascostoProva } = require('./comune.js');
 
 const O_ = n => `<img src=x data-ostile="${n}" onerror="window.__ostile='${n}'"><b data-ostile="${n}">prova</b>`;
 const ATTR_ = n => `" data-ostile="${n}-a" x="' data-ostile='${n}-b' y='`;
@@ -119,12 +120,15 @@ function calendarioOstile() {
 }
 const STORICO = () => [{ t: new Date().toISOString(), op: 'importa', n: 2, x: 'nota ' + O_('storico-x'), s: 'musica' + ATTR_('storico-s') }, { t: new Date().toISOString(), op: 'modifica', id: ID_OG, r: O_('storico-r') }];
 
+/* Un evento nascosto con testi ostili (T-046): si sblocca con la password dalla barra dei nascosti. */
+const PW_NASCOSTO = 'lanterna violino scogliera tartaruga ponte';
+const NASCOSTO = () => eventoProva('provaostilenasco', { titolo: 'Festa ' + B_('nasc-titolo'), luogo: 'Cortile ' + O_('nasc-luogo'), descrizione: 'Descrizione ' + O_('nasc-desc'), organizzatore: 'Gruppo ' + B_('nasc-org') });
 /* I testi ostili che la prova deve ritrovare, come testo, in almeno una pagina. */
 const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizione-luogo', 'prezzo', 'fonte', 'vicino', 'vicino-luogo', 'regione',
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
   'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo',
-  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev', 'cal-titolo', 'cal-luogo', 'cal-testo'];
+  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev', 'cal-titolo', 'cal-luogo', 'cal-testo', 'nasc-titolo', 'nasc-luogo', 'nasc-desc', 'nasc-org'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
@@ -157,6 +161,7 @@ async function prova() {
       const file = fileArchivio(pubblici().concat([vicino()]), [RIFIUTATO()]);
       const indice = JSON.parse(file['indice.json']); indice.regioni.forEach(r => { r.nome = B_('regione'); });   // al massimo 40 caratteri, come chiede il controllo dell'indice
       file['indice.json'] = JSON.stringify(indice) + '\n';
+      const n = await nascostoProva(NASCOSTO(), PW_NASCOSTO); file[n.percorso] = n.testo;   // l'evento nascosto ostile, cifrato
       await ctx.route(u => u.pathname.includes(ZONA_ARCHIVIO), r => { const k = new URL(r.request().url()).pathname.split(ZONA_ARCHIVIO)[1];
         return k in file ? r.fulfill({ status: 200, contentType: 'application/json', body: file[k] }) : r.fulfill({ status: 404, body: 'non trovato' }); });
       /* il file degli avvisi delle novità, con un testo ostile (T-031) */
@@ -272,6 +277,15 @@ async function prova() {
       }
       await avvia();
       if (await tocca('[data-az="cerca"]', 'cerca')) { await p.locator('#q').fill(O_('cerca-testo')); await pausa(1200); await controlla('cerca, testo ostile'); }
+      /* l'evento nascosto ostile: sbloccato, la sua scheda; riaperta l'app, la Cerca con l'elenco dei nascosti sbloccati */
+      await avvia();
+      if (await tocca('[data-az="cerca"]', 'cerca')) {
+        await p.locator('#pw').fill(PW_NASCOSTO); await tocca('[data-az="sblocca"]', 'cerca, sblocca');
+        try { await p.waitForFunction(() => /Evento nascosto, sbloccato con la password/.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 20000 }); } catch (x) { e.errori.push('evento nascosto ostile: non si sblocca'); }
+        await controlla('scheda dell\'evento nascosto');
+      }
+      await avvia();
+      if (await tocca('[data-az="cerca"]', 'cerca')) await controlla('cerca, nascosti sbloccati');
       await avvia();
       if (await tocca('[data-az="date"]', 'scegli i giorni')) await controlla('scegli i giorni');
       await avvia();

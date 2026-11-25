@@ -4,7 +4,7 @@
    Questo file è soltanto l'involucro: riceve la richiesta, passa il testo del pacchetto alla logica dello sportello
    (sportelli/pubblicazione.js, la stessa che in Fase 1 gira nello sportello di prova) e risponde. Lo strumento
    strumenti/monta-sportello.mjs ne fa un file solo, mettendo al posto dei tre segnaposto i moduli comuni
-   (eventi, quadranti, pacchetto, logica dello sportello), i confini delle regioni e gli strati e i temi dell'app.
+   (eventi, nascosti, quadranti, pacchetto, logica dello sportello), i confini delle regioni e gli strati e i temi dell'app.
 
    Che cosa gli serve, nelle variabili e nei segreti dello script su Bunny (mai nel codice, mai nel repository):
      ZONA_EVENTI, CHIAVE_ZONA_EVENTI         la zona pubblica degli eventi e la sua password di scrittura
