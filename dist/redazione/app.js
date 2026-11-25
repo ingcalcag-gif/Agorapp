@@ -3558,7 +3558,7 @@ const giornoRiga = r => { const d = new Date(r.quando||''); return r.quando && !
 const gradoDi = c => { const f = regFonte(c); return f ? (f.grado==='esclusa' ? 'Esclusa' : f.grado) : ''; };
 const diversaDi = gr => gr==='3' || gr==='4' ? 'Sì' : gr==='1' || gr==='2' ? 'No' : '';
 const ultimoEvento = c => REG.dati.eventi.filter(r => fsRiga(r)===c && r.quando).reduce((m, r) => giornoRiga(r) > m ? giornoRiga(r) : m, '');
-function rigaFonte(f){
+function rigaFonteReg(f){
   const persona = CODICE_P.test(f.nome), lette = f.lette, ultimo = ultimoEvento(f.codice), x = f.extra||{};
   const stato = f.esito==='esclusa' || f.grado==='esclusa' ? 'Esclusa' : STATI_FONTE[f.stato] || 'In uso';
   const scad = persona ? (ultimo ? giornoD(piuAnni(ultimo, CINQUE_ANNI)) : '') : 'Durata del servizio';
@@ -3582,7 +3582,7 @@ function elementiPerFile(g){
   if(g.nomi==='si' && g.ruoli) t += (t ? '; ' : '')+'ruoli: '+g.ruoli;
   return t;
 }
-function rigaEvento(r){
+function rigaEventoReg(r){
   /* una riga portata dal file tenuto a mano esce com'era scritta, con le date di nuovo come date */
   if(r.mano) return COL_EVENTI.map(c => { const v = (r.colonne||{})[c]; return v==null ? '' : typeof v!=='number' ? v : COL_ORA.has(c) ? {data:daSeriale(v), ora:true} : COL_DATA.has(c) ? daSeriale(Math.floor(v)) : v; });
   const g = r.g||{}, gr = gradoDi(g.fonte), [dieci, corr] = dieciPerFile(g), pub = giornoRiga(r), scad = r.scadenza || piuAnni(pub, CINQUE_ANNI);
@@ -3596,7 +3596,7 @@ function rigaEvento(r){
     [g.k, g.consenso, rit && rit.riferimento].filter(Boolean).join('; '), rit ? 'Ritirato prima della fine' : finito ? 'Concluso' : 'Pubblicato', '', giornoD(scad),
     giornoReg(scad) && scad < oggi() ? 'Sì' : '', testoRettifiche(r.rettifiche), note];
 }
-function rigaNp(x){
+function rigaNpReg(x){
   const scad = x.chiusa ? piuAnni(x.chiusa, CINQUE_ANNI) : '', e = x.extra||{};
   return [x.codice, giornoD(x.registrata), e.funzione || 'Redazione eventi', giornoD(x.richiesta), x.organizzatore, x.evento, V_MOTIVO_NP[x.motivo]||'', giornoD(x.motivazioneData), x.motivazioneCanale,
     e.rif || '§ 7.5', e.collegamenti || '', x.chiusa ? 'Chiusa' : 'Aperta', giornoD(x.chiusa), e.contestazione || '', giornoD(scad), giornoReg(scad) && scad < oggi() ? 'Sì' : '', testoRettifiche(x.rettifiche), x.note||''];
@@ -3610,7 +3610,7 @@ function riepilogoAnno(anno){
   const np = d.nonPubblicati.filter(x => String(x.richiesta).slice(0, 4)===String(anno)).length;
   const scaduti = d.fonti.filter(f => fonteDaRicontrollare(f)).length, inUso = d.fonti.filter(f => f.stato!=='non' && f.esito!=='esclusa' && f.grado!=='esclusa').length;
   const canc = (righe, col) => righe.filter(x => x[col.indexOf('Da cancellare al riesame')]==='Sì').length;
-  const daCanc = canc(d.eventi.map(rigaEvento), COL_EVENTI) + canc(d.fonti.map(rigaFonte), COL_FONTI) + canc(d.nonPubblicati.map(rigaNp), COL_NP);
+  const daCanc = canc(d.eventi.map(rigaEventoReg), COL_EVENTI) + canc(d.fonti.map(rigaFonteReg), COL_FONTI) + canc(d.nonPubblicati.map(rigaNpReg), COL_NP);
   const rap = n => n>0 && n<5 ? 'meno di 5' : n;
   const per = {}; conGrado.forEach(({r, gr}) => { const c = fsRiga(r)||'—'; per[c] = per[c] || {n:0, gr}; per[c].n++; });
   return {anno, righe:righe.length, org, div, quota:righe.length ? Math.round(div/righe.length*1000)/10 : '', nascosti:righe.filter(r => r.nascosto).length,
@@ -3632,9 +3632,9 @@ function fogliRegistro(dispositivo){
     ['Regole'], ['Nessuna voce si riscrive: le correzioni sono nella colonna «Rettifiche», con la data (§ 18.4, regola 5).'], ['Nessun nome di persona: le persone fisiche con il codice P; nei titoli il ruolo al posto del nome (§ 5.3; § 18.5).'],
     ['Lo strumento «Togli questo nome ovunque» non modifica il registro (§ 3.13; cap. 22, conservazione).'], [],
     ['Dove sta il file'], ['Questo file non ha password. Si apre con il programma installato sul dispositivo della redazione, si salva con la password del registro e si cancella la copia senza password (§ 18.3). Mai sulla piattaforma del codice, presso strumenti di intelligenza artificiale o nel gestionale.']];
-  const fonti = titolo('Fonti valutate', 'Una riga per sito, pagina o calendario · §§ 5.4, 6.3 e 6.4').concat([COL_FONTI], d.fonti.slice().sort(ordine).map(rigaFonte));
-  const ev = titolo('Eventi pubblicati', 'Una riga per evento, al momento della pubblicazione · §§ 3.4 e 5.3').concat([COL_EVENTI], eventi.map(rigaEvento));
-  const np = titolo('Richieste di pubblicazione non accolte per ragioni di fatto', '§ 7.5, caso 2; § 8.5, passo 1 · cinque anni dalla chiusura').concat([COL_NP], d.nonPubblicati.slice().sort(ordine).map(rigaNp));
+  const fonti = titolo('Fonti valutate', 'Una riga per sito, pagina o calendario · §§ 5.4, 6.3 e 6.4').concat([COL_FONTI], d.fonti.slice().sort(ordine).map(rigaFonteReg));
+  const ev = titolo('Eventi pubblicati', 'Una riga per evento, al momento della pubblicazione · §§ 3.4 e 5.3').concat([COL_EVENTI], eventi.map(rigaEventoReg));
+  const np = titolo('Richieste di pubblicazione non accolte per ragioni di fatto', '§ 7.5, caso 2; § 8.5, passo 1 · cinque anni dalla chiusura').concat([COL_NP], d.nonPubblicati.slice().sort(ordine).map(rigaNpReg));
   const rie = titolo('Riepilogo', 'Calcolato dall’app al momento dell’esportazione. Sotto i cinque casi il valore per il rapporto compare come «meno di 5» (§ 4.4; § 18.8)').concat([
     ['Voce', 'Valore', 'Per il rapporto interno'], ['Anno del riepilogo', anno, ''], ['Eventi pubblicati nell’anno'], ['Eventi pubblicati', R.righe, '—'], ['da fonti degli organizzatori (gradi 1 e 2)', R.org, '—'],
     ['da fonti diverse dagli organizzatori (gradi 3 e 4)', R.div, '—'], ['Quota da fonti diverse dagli organizzatori (%)', R.quota, '—'], ['Eventi nascosti', R.nascosti, '—'], ['Eventi ritirati prima della fine', R.ritirati, '—'],

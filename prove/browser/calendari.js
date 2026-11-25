@@ -10,6 +10,7 @@
       di riferimento); due righe riscritte e segnate si pubblicano con il canale «calendario».
    3. Un aggiornamento dello stesso calendario: l'evento cambiato torna come correzione (stesso identificativo, stesso
       codice F); quello che il Comune ha tolto si elenca «da ritirare» e si ritira dalla sua scheda.
+   Nell'app della redazione la scheda di un evento pubblicato si apre, con la riga «Fonte:».
    4. Un calendario iCalendar (ora in tempo universale portata all'ora italiana, righe ripiegate, evento annullato,
       evento di tutto il giorno) e uno JSON con i campi annidati e una colonna scelta a mano. */
 'use strict';
@@ -17,6 +18,7 @@ const { esito, eseguiDaSola } = require('../comune.js');
 const { playwright, server, apri, giorno, pausa, archivio, eventoProva } = require('./comune.js');
 
 const FRASE = 'una frase inventata per la prova';
+const TUTTI = Object.fromEntries(['musica', 'arte', 'sport', 'sociale', 'cibo', 'teatro', 'cinema', 'conferenze', 'laboratori', 'manifestazioni', 'mercati', 'benessere', 'volontariato'].map(k => [k, { on: true }]));
 const ATTR = 'Comune Inventato, dati aperti (CC BY 4.0)';
 const DESC = 'Una descrizione inventata, riscritta con parole proprie per la prova.';
 /* il calendario CSV inventato del Comune; con «aggiornato» il secondo invio: A tolto, B con l'ora cambiata, D nuovo */
@@ -53,7 +55,7 @@ async function prova() {
   if (!pw) { e.saltata = true; e.note.push('Playwright non installato: npm ci in prove/ (su GitHub Actions gira sempre)'); return e; }
   const err = x => e.errori.push(x);
   const F = '#foglio-slot ';
-  const s = await server('redazione'), { browser, ctx } = await apri(pw, { dl_guida: '1' });
+  const s = await server('redazione'), { browser, ctx } = await apri(pw, { dl_guida: '1', dl_strati: TUTTI });
   try {
     await archivio(ctx, [eventoProva('calprima', { titolo: 'Evento dell’archivio di prima' })]);
     const p = await ctx.newPage();
@@ -121,8 +123,13 @@ async function prova() {
     if (!A || !B || A.fonte.testo !== ATTR || A.fonte.collegamento !== 'https://comune-inventato.example/eventi/A' || A.descrizione !== DESC || A.strato !== 'musica') err('sportello: gli eventi A e B devono essere pubblicati con l\'attribuzione, il collegamento, la descrizione riscritta e lo strato scelto: ' + JSON.stringify(A).slice(0, 300));
     if (Object.values((sp.codici || {}).codici || {}).sort().join() !== 'F-00001,F-00002') err('sportello: attesi i codici F-00001 e F-00002: ' + JSON.stringify(sp.codici));
 
-    /* 3 */
+    /* nell'app della redazione la scheda di un evento pubblicato si apre, con la riga «Fonte:» (blocco 10: un nome
+       doppio la faceva fallire) */
     await tocca(F + '[data-az="ix-chiudi"]', 'chiudi'); await tocca(F + '[data-az="ix-chiudi"]', 'chiudi davvero');
+    await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]'); await pausa(1500);
+    if (await tocca('[data-az="elenco"]', 'elenco della redazione') && await tocca(F + '[data-ev]', 'evento nell\'elenco della redazione')) await aspetta(/Fonte: Comune Inventato, dati aperti/, 'scheda dell\'evento nell\'app della redazione');
+
+    /* 3 */
     await calendari('FS-0001');
     await p.setInputFiles('#fileRegistro', { name: 'calendario-inventato-2.csv', mimeType: 'text/csv', buffer: csv(true) });
     await aspetta(/5 eventi nel file/, 'calendario aggiornato letto');

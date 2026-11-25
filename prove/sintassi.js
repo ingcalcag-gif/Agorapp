@@ -19,6 +19,17 @@ function prova() {
     try { execFileSync(process.execPath, ['--check', f], { stdio: 'pipe' }); }
     catch (err) { e.errori.push(path.relative(RADICE, f) + ': ' + String(err.stderr).split('\n').filter(Boolean).slice(0, 3).join(' | ')); }
   }
+  /* L'app è un solo modulo montato da più file (sorgenti/build.js): due funzioni con lo stesso nome non danno errore di
+     sintassi, ma l'ultima prende il posto della prima in silenzio. È successo nel blocco 10 (una funzione del registro
+     delle fonti aveva il nome di quella che scrive la riga «Fonte:» della scheda, che nell'app della redazione non si
+     apriva più): ora un nome doppio ferma la prova. */
+  for (const app of ['pubblica', 'redazione']) {
+    const f = path.join(DIST, app, 'app.js'); if (!fs.existsSync(f)) continue;
+    const conti = {};
+    for (const m of fs.readFileSync(f, 'utf8').matchAll(/^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/gm)) conti[m[1]] = (conti[m[1]] || 0) + 1;
+    const doppi = Object.keys(conti).filter(k => conti[k] > 1);
+    if (doppi.length) e.errori.push(`dist/${app}/app.js: funzioni con lo stesso nome in più file dei sorgenti (l'ultima prende il posto della prima): ${doppi.join(', ')}`);
+  }
   const json = ['sorgenti/dati/legali_tradotti.json', 'sorgenti/dati/regioni.json', 'strumenti/archivio-prova.json', 'strumenti/package.json', 'package.json', 'prove/package.json'].filter(f => fs.existsSync(path.join(RADICE, f)));
   for (const f of json) { try { JSON.parse(fs.readFileSync(path.join(RADICE, f), 'utf8')); } catch (err) { e.errori.push(f + ': ' + err.message); } }
   e.note.push(`${js.length} file JavaScript, ${json.length} file JSON`);
