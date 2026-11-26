@@ -14,15 +14,9 @@ const SPORTELLO = (() => {
   const vero = (CFG.indirizzi||{}).sportello_pubblicazione || '';
   const base = SPORTELLO_PROVA_DOVE;
   const diProva = () => !vero && !!base && !!MEM.file && !!MODULI.sportello;
-  let cassa = null, logica = null;
-  const apriCassa = async () => cassa || (cassa = await MEM.file.open('prova_sportello'));
-  /* il deposito dello sportello di prova: i percorsi diventano indirizzi finti sotto prova/sportello/, che nessuno chiede alla rete */
-  const deposito = {
-    leggi: async p => { const r = await (await apriCassa()).match(base + p); return r ? r.text() : null; },
-    scrivi: async (p, t) => { await (await apriCassa()).put(base + p, new Response(t, {headers:{'content-type':'application/json'}})); },
-    togli: async p => { await (await apriCassa()).delete(base + p); },
-    elenca: async pre => (await (await apriCassa()).keys()).map(r => r.url).filter(u => u.startsWith(base + pre)).map(u => u.slice(base.length))
-  };
+  let logica = null;
+  /* il deposito dello sportello di prova (app2.js): lo stesso dello sportello delle segnalazioni di prova (T-051) */
+  const deposito = depositoProva();
   const sportello = () => logica || (logica = MODULI.sportello.crea({deposito, regioni:MODULI.regioni, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)}));
   function errore(motivo, corpo){ const e = new Error('sportello: '+motivo); e.motivo = motivo; e.corpo = corpo||null; return e; }
 
@@ -69,7 +63,7 @@ const SPORTELLO = (() => {
       await A.carica(A.quadranti());
       return A.eventi().map(x => x.ev);
     },
-    async svuota(){ cassa = null; logica = null; await MEM.file.delete('prova_sportello'); }
+    async svuota(){ logica = null; await MEM.file.delete('prova_sportello'); }
   };
   return {chiedi, diProva, vero:() => vero, prova};
 })();

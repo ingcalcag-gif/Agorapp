@@ -24,6 +24,9 @@ window.AGR_CONFIG = {
   "https://www.openstreetmap.org/copyright",
   "https://www.garanteprivacy.it"
  ],
+ "segnalazioni": {
+  "sportello": false
+ },
  "funzioni": {
   "esporta_assistenza": false
  },

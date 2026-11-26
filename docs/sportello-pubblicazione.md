@@ -82,7 +82,9 @@ La lettura firmata `registro` restituisce le buste, chiuse, e gli eventi pubblic
 
 Le chiavi non arrivano mai con un pacchetto. `riservato/chiavi.json` ha questa forma:
 
-`{ "ammesse": [{ "dispositivo", "impronta", "pubblica", "dal" }], "revocate": [{ "dispositivo", "impronta", "quando" }] }`
+`{ "ammesse": [{ "dispositivo", "impronta", "pubblica", "dal", "cifratura": { "pubblica", "impronta" } }], "revocate": [{ "dispositivo", "impronta", "quando" }] }`
+
+Dal blocco 13 la voce tiene anche `cifratura`, la parte pubblica di cifratura del file delle parti pubbliche (con l'impronta controllata): la legge lo sportello delle segnalazioni, che la dà al telefono come lucchetto (`docs/segnalazioni.md`). Lo stesso file serve ai due sportelli, che stanno nella stessa zona riservata. Ogni sportello rifiuta, con il motivo `operazione`, i pacchetti firmati che chiedono le operazioni dell'altro.
 
 Su Bunny lo scrive il Responsabile infrastruttura, con la password dell'account, a partire dai file che la schermata «Chiavi» fa scaricare: le parti pubbliche di un dispositivo (campo `firma`) e l'avviso di revoca. Una firma revocata non si può riammettere: il dispositivo se ne fa una nuova. Nello sportello di prova lo scrivono «Consegna le chiavi allo sportello di prova» e la revoca dalla schermata «Chiavi».
 

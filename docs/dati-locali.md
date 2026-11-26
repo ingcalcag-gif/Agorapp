@@ -73,7 +73,7 @@ Una voce che sul sito vero non nasce mai (T-038). Sul collegamento di prova l'ap
 
 | Chiave | Dove | Che cosa contiene | Prima si chiamava |
 | --- | --- | --- | --- |
-| `prova_sportello` | file | L'archivio finto dello sportello di prova: i file pubblici degli eventi (indice e quadranti), l'elenco riservato con gli eventi sospesi, lo storico delle pubblicazioni, le chiavi pubbliche ammesse, i numeri dei pacchetti già ricevuti e i tentativi errati (`docs/sportello-pubblicazione.md`) | nessuno |
+| `prova_sportello` | file | L'archivio finto dello sportello di prova: i file pubblici degli eventi (indice e quadranti), l'elenco riservato con gli eventi sospesi, lo storico delle pubblicazioni, le chiavi pubbliche ammesse, i numeri dei pacchetti già ricevuti e i tentativi errati (`docs/sportello-pubblicazione.md`); dal blocco 13 anche le segnalazioni inventate depositate dal modulo «Segnala» dell'app pubblica di prova, chiuse nella busta, e i conti del limite (`docs/segnalazioni.md`) | nessuno |
 
 ## Chiavi tolte
 

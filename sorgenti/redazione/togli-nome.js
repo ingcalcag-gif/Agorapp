@@ -22,7 +22,8 @@
    della copia, prima che si ripubblichi: una richiesta alla volta, con il nome ripreso dall'anagrafica.
 
    Testi come testo (T-024): titoli, brani e forme entrano nella pagina solo con esc(). */
-const TN = {modo:'archivio', k:null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false};
+/* daSegn: quando si arriva da una segnalazione (segnalazioni.js, T-052), da quale e su quale evento */
+const TN = {modo:'archivio', k:null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false, daSegn:''};
 const CODICE_RICHIESTA = 'R-0001';
 fogliPb.push('tn');
 /* i campi del modulo dell'evento (schede preparate, righe dell'importazione) con il nome del campo nel formato pubblico */
@@ -33,7 +34,7 @@ const scadenzaTn = iso => new Date(new Date(iso).getTime() + 48*36e5);
 const adessoIso = () => new Date().toISOString().slice(0,19)+'Z';
 
 function apriTn(modo, k){
-  Object.assign(TN, {modo, k:modo==='copia' ? k : null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false});
+  Object.assign(TN, {modo, k:modo==='copia' ? k : null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false, daSegn:''});
   apri('tn');
 }
 
@@ -136,7 +137,7 @@ function risultatiTnHtml(){
 
 function fTn(){
   const copia = TN.modo==='copia', rc = copia && PB.ripr ? PB.ripr.rimozioni[TN.k] : null;
-  const testa = `<div class="riga-titolo"><div><h2>${copia ? tr('Togli il nome da questa copia') : tr('Togli questo nome ovunque')}</h2><p class="meta">${copia ? (rc ? (rc.r ? esc(rc.r)+' · ' : '')+tr('ricevuta il {q}',{q:esc(quandoPb(rc.ric))}) : '') : tr('Entro 48 ore dalla richiesta (§§ 3.5 e 3.13)')}</p></div>${chiudiBtn(copia ? 'pb-copia' : 'admin')}</div>`;
+  const testa = `<div class="riga-titolo"><div><h2>${copia ? tr('Togli il nome da questa copia') : tr('Togli questo nome ovunque')}</h2><p class="meta">${copia ? (rc ? (rc.r ? esc(rc.r)+' · ' : '')+tr('ricevuta il {q}',{q:esc(quandoPb(rc.ric))}) : '') : tr('Entro 48 ore dalla richiesta (§§ 3.5 e 3.13)')}</p></div>${chiudiBtn(copia ? 'pb-copia' : 'admin')}</div>${TN.daSegn ? `<p class="meta">${esc(TN.daSegn)}</p>` : ''}`;
   const avviso = `${TN.errore ? `<p class="err" role="alert">${esc(TN.errore)}</p>` : ''}${TN.lavoro ? `<p class="caricamento">${TN.ris ? tr('Correggo e consegno allo sportello…') : tr('Cerco il nome…')}</p>` : ''}`;
   if(TN.fatto) return foglio('forte alto', testa, `<p role="status">${esc(TN.msg)}</p>
     <div class="tasti"><button class="tasto sec" data-az="tn">${tr('Togli un altro nome')}</button><button class="tasto pri" data-az="pubblica">${tr('Vai a «Pubblicazione»')}</button></div>`);

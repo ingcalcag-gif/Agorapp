@@ -550,6 +550,19 @@ const ARCHIVIO_DOVE = (() => {
    del repository. Così il giro intero (pubblica, correggi, sospendi, ritira) si prova sul telefono senza Bunny. Con
    l'indirizzo degli eventi nella configurazione (T-065) questo tratto non fa più nulla. */
 const SPORTELLO_PROVA_DOVE = !(CFG.indirizzi||{}).eventi && ARCHIVIO_DOVE ? ARCHIVIO_DOVE.replace(/prova\/archivio\/$/, 'prova/sportello/') : '';
+/* Il deposito dello sportello di prova: i percorsi diventano indirizzi finti sotto prova/sportello/, nella memoria del
+   browser per i file (voce prova_sportello), che nessuno chiede alla rete. Lo usano lo sportello di pubblicazione di prova
+   dell'app della redazione (T-038) e lo sportello delle segnalazioni di prova (T-051), in tutte e due le app. La memoria si
+   apre a ogni passo: dopo «Svuota lo sportello di prova» non resta in mano una memoria cancellata. */
+function depositoProva(){
+  const base = SPORTELLO_PROVA_DOVE, cassa = () => MEM.file.open('prova_sportello');
+  return {
+    leggi: async p => { const r = await (await cassa()).match(base + p); return r ? r.text() : null; },
+    scrivi: async (p, t) => { await (await cassa()).put(base + p, new Response(t, {headers:{'content-type':'application/json'}})); },
+    togli: async p => { await (await cassa()).delete(base + p); },
+    elenca: async pre => (await (await cassa()).keys()).map(r => r.url).filter(u => u.startsWith(base + pre)).map(u => u.slice(base.length))
+  };
+}
 async function sorgenteArchivio(){
   const vera = {dove:ARCHIVIO_DOVE, fetch:window.fetch.bind(window), finto:false};
   if(!SPORTELLO_PROVA_DOVE || !MEM.file) return vera;
@@ -935,7 +948,7 @@ function posizioni(){
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.aform = null; st.conferma = null; st.pdf = null; st.segn = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
@@ -1004,7 +1017,7 @@ function disegnaFoglio(){
     strati:fStrati,
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
-    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, conferma:fConferma,
+    scheda:() => fScheda(byId(st.sel)), segnala:fSegnala, punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, conferma:fConferma,
     impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
   };
@@ -1105,7 +1118,7 @@ const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
    Tutto ciò che serve per andare all'evento sta qui, in forma di testo: nome del luogo e indirizzo su righe proprie, la
    descrizione del luogo per gli eventi collocati a mano, l'organizzatore quando è noto, il prezzo come lo indica la fonte.
    In fondo «Fonte:» e, accanto, l'avviso breve del § 5.2. Nessun collegamento separato al sito di chi organizza: il
-   collegamento è quello della fonte. La segnalazione arriva con il modulo «Segnala» (T-050). */
+   collegamento è quello della fonte. Sotto «Fonte:» il comando «Segnala» (T-050, qui sotto). */
 /* «Fonte:» (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e senza referrer (regola 3);
    se il collegamento manca o non è https, resta il nome (regola 4). */
 function rigaFonte(f){
@@ -1137,6 +1150,7 @@ function fScheda(e){
       ${descrizione(e)}
       <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
         <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>
+      ${MODULI.segnalazione && MODULI.segnalazione.ID.test(e.id) ? `<div class="tasti tasti-segnala"><button class="tasto sec" data-az="segnala" data-id="${esc(e.id)}">${tr('Segnala')}</button></div>` : ''}
       ${e.nascosto ? `<div class="fonte nascosto-togli"><span class="meta">${tr('Lo vedi perché hai la password. L’evento e la sua password restano su questo telefono fino a tre ore dopo la fine.')}</span>
         <button class="tasto sec" data-az="togli-nascosto" data-id="${esc(e.id)}">${st.togliNasc===e.id ? tr('Tocca ancora: per rivederlo servirà di nuovo la password') : tr('Togli dal telefono')}</button></div>` : ''}${boxAdmin(e)}`;
   } else {
@@ -1155,6 +1169,124 @@ function fScheda(e){
       <div class="og-box">${GLIFO_OG}<span class="meta" style="color:var(--testo)">${tr('Vive solo nella memoria di questo telefono: non passa da nessun server. È già nel tuo calendario e sparisce dalla mappa tre ore dopo la fine; nel calendario resta per tre mesi.')}</span></div>`;
   }
   return foglio('forte medio', testa, corpo);
+}
+
+/* ======================= Segnala (T-050, T-051; libro mastro § 7.5, misura 3; docs/segnalazioni.md) =======================
+   «Segnala», sotto il riquadro «Fonte:» della scheda di un evento pubblico, apre il modulo: l'evento è già indicato con il
+   suo identificativo (regola 1); il motivo tra i cinque del libro mastro, con «Di chi è il nome?» obbligatoria per il nome
+   da togliere e la dichiarazione di buona fede proposta per i contenuti illeciti; la descrizione libera, con l'avvertenza
+   di non scrivere dati di altre persone (regola 2) e con l'aiuto per chi ha difficoltà a usare l'app (§ 11.4); email e
+   nome facoltativi, solo per conferma ed esito (regola 3); accanto, la casella per gli utenti e l'informativa.
+   Due modi d'invio (decisioni del 26/11/2026). Con lo sportello il telefono chiede il lucchetto e il piccolo compito,
+   chiude la segnalazione nella busta, risolve il compito e la deposita (sorgenti/moduli/segnalazione.js,
+   sportelli/segnalazioni.js). Con la posta (il ponte) il modulo prepara il messaggio già compilato verso la casella per
+   gli utenti, e lo manda la persona dalla sua app di posta. Sul sito vero si usa la posta finché segnalazioni.sportello
+   non si accende (T-071); sul collegamento di prova lo sportello di prova, quando ha il lucchetto, altrimenti la posta.
+   Se lo sportello rifiuta o non risponde, il modulo propone la posta.
+   Nulla resta sul telefono (regola 4): il modulo vive soltanto in st.segn, nella pagina aperta; chiudi() lo toglie, e dopo
+   l'invio restano solo evento e titolo per il messaggio di conferma. Nessun identificativo del telefono, nessuna
+   memoria scritta, i campi senza completamento automatico. La richiesta allo sportello non porta cookie né referrer. */
+const MOTIVI_SEGN = {dati:'Dati dell’evento errati', annullato:'Annullato o rinviato', nome:'Nome o altro dato personale da togliere', illecito:'Contenuto che ritieni illecito', altro:'Altro'};
+const BUONA_FEDE = 'Confermo di ritenere in buona fede che le informazioni e le affermazioni di questa segnalazione siano esatte e complete.';
+const casellaUtenti = () => String((CFG.caselle||{}).contatto || '');
+const segnVero = () => (CFG.indirizzi||{}).sportello_segnalazioni || '';
+let segnProva = null;
+/* lo sportello delle segnalazioni di prova: la stessa logica dello sportello vero, sull'archivio finto dello sportello di prova;
+   l'app pubblica usa soltanto la porta aperta, la redazione anche quella firmata (con il pacchetto) */
+const sportelloSegnProva = () => SPORTELLO_PROVA_DOVE && MEM.file && MODULI.segnalazioniSportello
+  ? (segnProva || (segnProva = MODULI.segnalazioniSportello.crea({deposito:depositoProva(), pacchetto:MODULI.pacchetto}))) : null;
+/* una richiesta allo sportello delle segnalazioni (testo) → {stato, corpo} */
+async function chiediSegnalazioni(testo){
+  const vero = segnVero();
+  if(vero){
+    let r; try{ r = await fetch(vero, {method:'POST', body:testo, headers:{'content-type':'application/json'}, credentials:'omit', cache:'no-store', redirect:'error', referrerPolicy:'no-referrer'}); }catch(e){ return {stato:0, corpo:{motivo:'rete'}}; }
+    let c = null; try{ c = await r.json(); }catch(e){ c = null; }
+    return {stato:r.status, corpo:c||{}};
+  }
+  const p = sportelloSegnProva(); if(!p) return {stato:0, corpo:{motivo:'assente'}};
+  return p.ricevi(testo);
+}
+/* come parte la segnalazione: «sportello» (vero), «prova» (sportello di prova con il lucchetto) o «posta» */
+async function modoSegnalazione(){
+  if(segnVero()) return (CFG.segnalazioni||{}).sportello ? 'sportello' : 'posta';
+  const p = sportelloSegnProva();
+  if(p){ try{ if(await MEM.file.has('prova_sportello') && await p.lucchetto()) return 'prova'; }catch(e){} }
+  return 'posta';
+}
+function apriSegnala(id){
+  const e = byId(id); if(!e || e.tipo!=='evento') return;
+  const s = st.segn = {id:e.id, titolo:e.titolo, motivo:'', chi:'', buona:false, desc:'', email:'', nome:'', err:{}, fase:'modulo', modo:null};
+  apri('segnala');
+  modoSegnalazione().then(m => { if(st.segn===s){ s.modo = m; if(st.foglio==='segnala') disegnaFoglio(); } });
+}
+function erroriSegn(s, posta){
+  const e = {};
+  if(!s.motivo) e.motivo = 1;
+  if(s.motivo==='nome' && !s.chi) e.chi = 1;
+  if((s.motivo==='illecito' || s.motivo==='altro') && !s.desc.trim()) e.desc = 1;
+  if(!posta && s.email.trim() && !MODULI.segnalazione.EMAIL.test(s.email.trim())) e.email = 1;
+  return e;
+}
+function fuocoErrore(){ const x = document.querySelector('#foglio-slot .errore input, #foglio-slot .errore textarea'); if(x) x.focus(); }
+/* il messaggio di posta già compilato (strada b): destinatario, oggetto, identificativo dell'evento e testo */
+function mailtoSegn(s){
+  const r = [tr('Segnalazione dall’app {nome}'), tr('Evento: {titolo}',{titolo:s.titolo}), tr('Codice dell’evento: {codice}',{codice:s.id}), tr('Motivo: {motivo}',{motivo:s.motivo ? tr(MOTIVI_SEGN[s.motivo]) : ''})];
+  if(s.motivo==='nome' && s.chi) r.push(tr('Di chi è il nome: {risposta}',{risposta:s.chi==='mio' ? tr('Il mio') : tr('Di un’altra persona')}));
+  if(s.motivo==='illecito' && s.buona) r.push(tr(BUONA_FEDE));
+  r.push('', tr('Descrizione:'), s.desc.trim());
+  if(s.nome.trim()) r.push('', tr('Nome: {persona}',{persona:s.nome.trim()}));
+  return 'mailto:'+encodeURIComponent(casellaUtenti())+'?subject='+encodeURIComponent(tr('Segnalazione: {titolo}',{titolo:s.titolo}))+'&body='+encodeURIComponent(r.join('\r\n'));
+}
+function fSegnala(){
+  const s = st.segn; if(!s) return '';
+  const testa = `<div class="riga-titolo"><h2>${tr('Segnala questo evento')}</h2>${chiudiBtn()}</div>
+    <p class="meta segn-evento"><span class="t">${esc(s.titolo)}</span><span>${esc(tr('Codice dell’evento: {codice}',{codice:s.id}))}</span></p>`;
+  const casella = `<span dir="ltr" translate="no">${esc(casellaUtenti())}</span>`, chiudi_ = `<div class="tasti"><button class="tasto pri" data-az="chiudi">${tr('Chiudi')}</button></div>`;
+  if(s.fase==='inviata') return foglio('forte alto', testa, `<p class="segn-esito" role="status">${tr('Segnalazione inviata. Se hai lasciato un indirizzo email, riceverai una conferma.')}</p>${chiudi_}`);
+  if(s.fase==='posta') return foglio('forte alto', testa, `<p class="segn-esito" role="status">${esc(tr('Si è aperta la tua app di posta con il messaggio pronto: la segnalazione parte quando lo invii tu. Se non si è aperta nessuna app, scrivi a {casella}.',{casella:'\u0001'})).split('\u0001').join(casella)}</p>${chiudi_}`);
+  /* con lo sportello che rifiuta o non risponde restano «Invia la segnalazione» (per riprovare) e, sotto, la posta */
+  const err = s.err || {}, lavoro = s.fase==='lavoro', sportello = s.modo==='sportello' || s.modo==='prova', posta = s.modo==='posta' || s.fase==='troppe' || s.fase==='errore';
+  const scelta = (k, v, t, sel) => `<label class="segn-scelta"><input type="radio" name="s-${k}" value="${v}" data-segn-scelta="${k}"${sel===v?' checked':''}${lavoro?' disabled':''}><span>${t}</span></label>`;
+  const gruppo = (k, titolo, righe, errore) => `<fieldset class="segn-gruppo${err[k]?' errore':''}"${err[k]?` aria-describedby="s-err-${k}"`:''}><legend class="etich">${titolo}</legend>${righe}${err[k]?`<span class="err" id="s-err-${k}">${errore}</span>`:''}</fieldset>`;
+  const corpo = `
+    ${gruppo('motivo', tr('Motivo'), Object.entries(MOTIVI_SEGN).map(([v, t]) => scelta('motivo', v, tr(t), s.motivo)).join(''), tr('Scegli un motivo.'))}
+    ${s.motivo==='nome' ? gruppo('chi', tr('Di chi è il nome?'), scelta('chi', 'mio', tr('Il mio'), s.chi)+scelta('chi', 'altro', tr('Di un’altra persona'), s.chi), tr('Scegli di chi è il nome.')) : ''}
+    ${s.motivo==='illecito' ? `<label class="segn-scelta segn-buona"><input type="checkbox" data-segn-scelta="buona"${s.buona?' checked':''}${lavoro?' disabled':''}><span>${tr(BUONA_FEDE)}</span></label>` : ''}
+    <div class="stack-s"><label class="etich" for="s-desc">${tr('Descrizione')}</label><div class="campo${err.desc?' errore':''}"><textarea id="s-desc" data-segn="desc" maxlength="${MODULI.segnalazione.MAX_DESCRIZIONE}" autocomplete="off" aria-describedby="s-desc-aiuto${err.desc?' s-err-desc':''}"${lavoro?' disabled':''}>${esc(s.desc)}</textarea></div>
+      <span class="meta" id="s-desc-aiuto">${tr('Scrivi che cosa non va. Non inserire dati di altre persone che non servono. Puoi scrivere anche se hai difficoltà a usare l’app.')}</span>${err.desc?`<span class="err" id="s-err-desc">${tr('Scrivi una descrizione.')}</span>`:''}</div>
+    ${sportello ? `<div class="stack-s"><label class="etich" for="s-email">${tr('Email (facoltativa)')}</label><div class="campo${err.email?' errore':''}"><input id="s-email" type="email" inputmode="email" autocomplete="off" data-segn="email" maxlength="${MODULI.segnalazione.MAX_EMAIL}" value="${esc(s.email)}"${err.email?' aria-describedby="s-err-email"':''}${lavoro?' disabled':''}></div>${err.email?`<span class="err" id="s-err-email">${tr('Controlla l’indirizzo email.')}</span>`:''}</div>` : ''}
+    <div class="stack-s"><label class="etich" for="s-nome">${tr('Nome (facoltativo)')}</label><div class="campo"><input id="s-nome" autocomplete="off" data-segn="nome" maxlength="${MODULI.segnalazione.MAX_NOME}" value="${esc(s.nome)}"${lavoro?' disabled':''}></div>
+      <span class="meta">${sportello ? tr('Servono solo per mandarti la conferma e l’esito.') : tr('La conferma e l’esito arriveranno all’indirizzo da cui invii il messaggio.')}</span></div>
+    ${s.fase==='troppe' ? `<p class="err" role="alert">${tr('In questo momento arrivano troppe segnalazioni. Riprova più tardi, oppure mandala per posta.')}</p>` : ''}
+    ${s.fase==='errore' ? `<p class="err" role="alert">${tr('Non riesco a inviare la segnalazione. Controlla la connessione e riprova, oppure mandala per posta.')}</p>` : ''}
+    <p class="meta">${esc(tr('Puoi scrivere anche a {casella}.',{casella:'\u0001'})).split('\u0001').join(casella)} <button class="link" data-legale="privacy">${tr('Informativa sulla privacy')}</button></p>
+    <p class="meta" role="status" aria-live="polite">${lavoro ? tr('Preparo l’invio…') : ''}</p>
+    ${sportello ? `<button class="tasto pri pieno" data-az="segnala-invia"${lavoro?' disabled aria-busy="true"':''}>${lavoro ? tr('Preparo l’invio…') : tr('Invia la segnalazione')}</button>` : ''}
+    ${s.modo && posta ? `<a class="tasto ${sportello ? 'sec' : 'pri'} pieno" id="s-posta" data-segn-posta href="${esc(mailtoSegn(s))}">${tr('Prepara il messaggio di posta')}</a>` : ''}`;
+  return foglio('forte alto', testa, corpo);
+}
+/* l'invio con lo sportello: lucchetto e compito, busta, compito risolto, deposito */
+async function inviaSegnalazione(){
+  const s = st.segn; if(!s || s.fase==='lavoro' || !(s.modo==='sportello' || s.modo==='prova')) return;
+  s.err = erroriSegn(s, false);
+  if(Object.keys(s.err).length){ disegnaFoglio(); fuocoErrore(); return; }
+  s.fase = 'lavoro'; disegnaFoglio();
+  const fine = f => {
+    if(st.segn!==s) return;
+    if(f==='inviata') st.segn = {id:s.id, titolo:s.titolo, fase:'inviata', err:{}};   // dopo l'invio non resta nulla di ciò che la persona ha scritto
+    else s.fase = f;
+    if(st.foglio==='segnala') disegnaFoglio();
+  };
+  try{
+    const SG = MODULI.segnalazione;
+    const l = await chiediSegnalazioni(JSON.stringify({porta:'aperta', operazione:'lucchetto'}));
+    const c = l.corpo && l.corpo.compito;
+    if(l.stato!==200 || !l.corpo.lucchetto || !c || !Number.isInteger(c.bit) || c.bit<0 || c.bit>24) return fine(l.stato===429 ? 'troppe' : 'errore');
+    const busta = await SG.cifra(SG.prepara({id:s.id, titolo:s.titolo, motivo:s.motivo, chi:s.chi, buonaFede:s.buona, descrizione:s.desc, email:s.email, nome:s.nome}), l.corpo.lucchetto.pubblica);
+    const compito = await SG.risolvi(busta, c.quando, c.bit, () => st.segn!==s);
+    const r = await chiediSegnalazioni(JSON.stringify({porta:'aperta', operazione:'deposita', busta, compito}));
+    fine(r.stato===200 ? 'inviata' : r.stato===429 ? 'troppe' : 'errore');
+  }catch(e){ fine('errore'); }
 }
 
 /* ======================= Calendario: Giornata · Mese · Agenda (OG 1.3–1.4) ======================= */
@@ -2133,6 +2265,7 @@ function fAdmin(){
   const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
     <div class="menu-lista">
       <button class="menu-r" data-az="pubblica">${icoCal()}<div><span class="t">${tr('Pubblicazione')}</span><span class="meta">${tr('Eventi pubblicati, nuovo evento, correzione, sospensione, ritiro e storico')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="segnalazioni">${icoNote}<div><span class="t">${tr('Segnalazioni')}</span><span class="meta">${tr('Arrivate con il modulo «Segnala»: lettura e righe dei registri')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx o .csv: una riga per evento')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne del file degli eventi, i valori ammessi e l’elenco degli strati')}</span></div>${freccia}</button></div>
     <div class="menu-lista">
@@ -2228,6 +2361,7 @@ function clickRed(t){
 }
 function azioneRed(az, t){
   if(azioneChiavi(az, t)) return;
+  if(azioneSg(az, t)) return;   /* le segnalazioni (segnalazioni.js, T-052) */
   if(DIRITTI.some(d => d.azione && d.azione(az, t))) return;
   if(azionePubblica(az, t)) return;
   switch(az){
@@ -2244,6 +2378,7 @@ function azioneRed(az, t){
 /* un campo dei moduli della Redazione: true se era suo */
 function inputRed(el){
   if(inputChiavi(el)) return true;
+  if(inputSg(el)) return true;
   if(DIRITTI.some(d => d.input && d.input(el))) return true;
   if(inputPubblica(el)) return true;
   return false;
@@ -2434,15 +2569,9 @@ const SPORTELLO = (() => {
   const vero = (CFG.indirizzi||{}).sportello_pubblicazione || '';
   const base = SPORTELLO_PROVA_DOVE;
   const diProva = () => !vero && !!base && !!MEM.file && !!MODULI.sportello;
-  let cassa = null, logica = null;
-  const apriCassa = async () => cassa || (cassa = await MEM.file.open('prova_sportello'));
-  /* il deposito dello sportello di prova: i percorsi diventano indirizzi finti sotto prova/sportello/, che nessuno chiede alla rete */
-  const deposito = {
-    leggi: async p => { const r = await (await apriCassa()).match(base + p); return r ? r.text() : null; },
-    scrivi: async (p, t) => { await (await apriCassa()).put(base + p, new Response(t, {headers:{'content-type':'application/json'}})); },
-    togli: async p => { await (await apriCassa()).delete(base + p); },
-    elenca: async pre => (await (await apriCassa()).keys()).map(r => r.url).filter(u => u.startsWith(base + pre)).map(u => u.slice(base.length))
-  };
+  let logica = null;
+  /* il deposito dello sportello di prova (app2.js): lo stesso dello sportello delle segnalazioni di prova (T-051) */
+  const deposito = depositoProva();
   const sportello = () => logica || (logica = MODULI.sportello.crea({deposito, regioni:MODULI.regioni, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)}));
   function errore(motivo, corpo){ const e = new Error('sportello: '+motivo); e.motivo = motivo; e.corpo = corpo||null; return e; }
 
@@ -2489,7 +2618,7 @@ const SPORTELLO = (() => {
       await A.carica(A.quadranti());
       return A.eventi().map(x => x.ev);
     },
-    async svuota(){ cassa = null; logica = null; await MEM.file.delete('prova_sportello'); }
+    async svuota(){ logica = null; await MEM.file.delete('prova_sportello'); }
   };
   return {chiedi, diProva, vero:() => vero, prova};
 })();
@@ -5261,7 +5390,8 @@ document.addEventListener('click', ev => {
    della copia, prima che si ripubblichi: una richiesta alla volta, con il nome ripreso dall'anagrafica.
 
    Testi come testo (T-024): titoli, brani e forme entrano nella pagina solo con esc(). */
-const TN = {modo:'archivio', k:null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false};
+/* daSegn: quando si arriva da una segnalazione (segnalazioni.js, T-052), da quale e su quale evento */
+const TN = {modo:'archivio', k:null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false, daSegn:''};
 const CODICE_RICHIESTA = 'R-0001';
 fogliPb.push('tn');
 /* i campi del modulo dell'evento (schede preparate, righe dell'importazione) con il nome del campo nel formato pubblico */
@@ -5272,7 +5402,7 @@ const scadenzaTn = iso => new Date(new Date(iso).getTime() + 48*36e5);
 const adessoIso = () => new Date().toISOString().slice(0,19)+'Z';
 
 function apriTn(modo, k){
-  Object.assign(TN, {modo, k:modo==='copia' ? k : null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false});
+  Object.assign(TN, {modo, k:modo==='copia' ? k : null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false, daSegn:''});
   apri('tn');
 }
 
@@ -5375,7 +5505,7 @@ function risultatiTnHtml(){
 
 function fTn(){
   const copia = TN.modo==='copia', rc = copia && PB.ripr ? PB.ripr.rimozioni[TN.k] : null;
-  const testa = `<div class="riga-titolo"><div><h2>${copia ? tr('Togli il nome da questa copia') : tr('Togli questo nome ovunque')}</h2><p class="meta">${copia ? (rc ? (rc.r ? esc(rc.r)+' · ' : '')+tr('ricevuta il {q}',{q:esc(quandoPb(rc.ric))}) : '') : tr('Entro 48 ore dalla richiesta (§§ 3.5 e 3.13)')}</p></div>${chiudiBtn(copia ? 'pb-copia' : 'admin')}</div>`;
+  const testa = `<div class="riga-titolo"><div><h2>${copia ? tr('Togli il nome da questa copia') : tr('Togli questo nome ovunque')}</h2><p class="meta">${copia ? (rc ? (rc.r ? esc(rc.r)+' · ' : '')+tr('ricevuta il {q}',{q:esc(quandoPb(rc.ric))}) : '') : tr('Entro 48 ore dalla richiesta (§§ 3.5 e 3.13)')}</p></div>${chiudiBtn(copia ? 'pb-copia' : 'admin')}</div>${TN.daSegn ? `<p class="meta">${esc(TN.daSegn)}</p>` : ''}`;
   const avviso = `${TN.errore ? `<p class="err" role="alert">${esc(TN.errore)}</p>` : ''}${TN.lavoro ? `<p class="caricamento">${TN.ris ? tr('Correggo e consegno allo sportello…') : tr('Cerco il nome…')}</p>` : ''}`;
   if(TN.fatto) return foglio('forte alto', testa, `<p role="status">${esc(TN.msg)}</p>
     <div class="tasti"><button class="tasto sec" data-az="tn">${tr('Togli un altro nome')}</button><button class="tasto pri" data-az="pubblica">${tr('Vai a «Pubblicazione»')}</button></div>`);
@@ -5828,6 +5958,189 @@ DIRITTI.push({
 });
 Object.assign(FOGLI_RED, {pa:fPa});
 
+/* ======================= Segnalazioni: lettura e righe dei registri (T-052) =======================
+   Libro mastro, § 7.5, misura 3, regole 6-8; cap. 25 (registro delle segnalazioni); cap. 26 (registro delle richieste);
+   § 18.5 (le persone nei registri con il codice P dell'anagrafica); § 3.13 (rimozione entro 48 ore). Documento:
+   docs/segnalazioni.md.
+
+   L'app della redazione chiede allo sportello delle segnalazioni, con il pacchetto firmato, le buste depositate dal
+   modulo «Segnala» (sportelli/segnalazioni.js, porta firmata), le apre sul dispositivo con la parte segreta di cifratura
+   (CHIAVI.segretoSegnalazione) e le mostra. Le segnalazioni aperte vivono soltanto nella pagina: sul dispositivo non si
+   scrive nulla.
+
+   Per ognuna prepara, da copiare e incollare nel file del registro tenuto a mano (decisioni del 26/11/2026, dubbio 7):
+   - la riga del registro delle segnalazioni (cap. 25), con il codice S scritto dalla Redazione (la numerazione è una
+     sola anche per le segnalazioni arrivate per posta, dalla casella o dagli avvisi del fornitore) e il codice P
+     dell'anagrafica al posto della persona: i recapiti non entrano mai nella riga;
+   - se chiede di togliere il nome di chi scrive («Di chi è il nome?»: «Il mio»), anche la riga del registro delle
+     richieste (cap. 26), con la scadenza delle 48 ore dall'arrivo, e il passaggio a «Togli questo nome ovunque» con il
+     codice R, che annota la richiesta nel registro delle richieste di rimozione delle Misure.
+   Il recapito si copia a parte, per l'anagrafica e per la conferma dalla casella per gli utenti.
+   «Presa in carico» (due tocchi) toglie la segnalazione dallo sportello, che non ne tiene traccia (dubbio 8), e conta
+   la segnalazione nelle Misure, nel giorno dell'arrivo. */
+const SG = {lista:null, lavoro:false, errore:'', msg:'', aperta:null, campi:{}, conferma:false, copiata:''};
+const MOTIVI_REG = {dati:'Dati errati', annullato:'Annullato o rinviato', nome:'Nome o dato personale da togliere', illecito:'Contenuto ritenuto illecito', altro:'Altro'};
+const CHI_SEGNALA = ['Utente', 'Organizzatore', 'Persona nominata', 'Fornitore', 'Altro'];
+const CANALE_SPORTELLO = 'Modulo con lo sportello';
+/* le colonne, nell'ordine del cap. 25 (foglio «Segnalazioni») tra le colonne comuni del § 18.4 */
+const COL_SEGN = ['Codice', 'Data di registrazione', 'Funzione che annota', 'Data e ora di ricevimento', 'Canale', 'Chi segnala', 'Segnalante', 'Evento', 'Motivo', 'Descrizione',
+  'Dichiarazione di buona fede', 'Conferma di ricevimento', 'Richiesta sui propri dati', 'Errore su data, ora o luogo', 'Verifica', 'Esito e data della decisione', 'Esito al segnalante',
+  'Motivazione', 'Esclusione collegata', 'Riesame chiesto', 'Pericolo per la vita o la sicurezza', 'Giorni fino alla decisione',
+  'Rif. libro mastro', 'Collegamenti', 'Stato', 'Contestazione in corso', 'Scadenza della conservazione', 'Da cancellare al riesame', 'Rettifiche', 'Note'];
+/* le colonne del cap. 26 (foglio «Richieste»), con le colonne comuni */
+const COL_RICH = ['Codice', 'Data di registrazione', 'Funzione che annota', 'Data e ora di ricevimento', 'Canale', 'Richiedente', 'Per conto di', 'Diritto esercitato', 'Dati o eventi interessati',
+  'Verifica dell’identità', 'Scadenza delle 48 ore', 'Esecuzione', 'Da ripetere in un ripristino', 'Scadenza di un mese', 'Proroga', 'Data della risposta; nel termine', 'Esito',
+  'Rif. libro mastro', 'Collegamenti', 'Stato', 'Contestazione in corso', 'Scadenza della conservazione', 'Da cancellare al riesame', 'Rettifiche', 'Note'];
+fogliPb.push('rd-segn', 'rd-segn-una');
+
+/* date come nei registri (§ 18.4): gg/mm/aaaa e, se c'è, l'ora */
+const dataReg = (d, conOra) => { d = new Date(d); return isNaN(d) ? '' : pad2(d.getDate())+'/'+pad2(d.getMonth()+1)+'/'+d.getFullYear()+(conOra ? ' '+pad2(d.getHours())+':'+pad2(d.getMinutes()) : ''); };
+const unMesePiu = iso => { const d = new Date(iso); d.setMonth(d.getMonth()+1); return d; };
+/* una cella che si incolla: niente tabulazioni né a capo, che spezzerebbero la riga */
+const cellaReg = x => String(x==null ? '' : x).replace(/[\t\r\n]+/g, ' ').trim();
+const nomeMio = x => x && x.s && x.s.motivo==='nome' && x.s.chi==='mio';
+const sgUna = () => (SG.lista || []).find(x => x.nome===SG.aperta) || null;
+const campiSg = x => SG.campi[x.nome] || (SG.campi[x.nome] = {s:'', p:'', chiSegnala:nomeMio(x) ? 'Persona nominata' : 'Utente', desc:x.s ? x.s.descrizione : '', r:''});
+
+/* ---------- Lo sportello: la porta firmata ---------- */
+async function chiediSg(contenuto){
+  const s = await CHIAVI.stato(); if(!s.ci_sono) throw Object.assign(new Error('chiavi'), {motivo:'chiavi'});
+  const p = await MODULI.pacchetto.forma(contenuto, {firma:CHIAVI.firma, dispositivo:{nome:s.dispositivo, impronta:s.firma.impronta}});
+  const r = await chiediSegnalazioni(JSON.stringify(p));
+  if(r.stato!==200 || !r.corpo || r.corpo.esito!=='fatto') throw Object.assign(new Error('sportello'), {motivo:(r.corpo && r.corpo.motivo) || 'guasto'});
+  return r.corpo;
+}
+const sgDisponibile = () => !!(segnVero() || sportelloSegnProva());
+async function caricaSg(){
+  if(SG.lavoro) return;
+  SG.lavoro = true; SG.errore = ''; disegnaFoglio();
+  try{
+    const r = await chiediSg({operazione:'segnalazioni'}), lista = [];
+    for(const x of r.segnalazioni || []){
+      let s = null; try{ s = await MODULI.segnalazione.apri(x.busta, CHIAVI.segretoSegnalazione); }catch(e){ s = null; }
+      lista.push({nome:x.nome, arrivo:x.arrivo, s});
+    }
+    SG.lista = lista;
+  }catch(e){
+    SG.errore = e.motivo==='chiavi' ? tr('Servono le chiavi di questo dispositivo: crea le chiavi o riprendile dalla copia di riserva (Strumenti della redazione → Chiavi).')
+      : e.motivo==='sconosciuto' ? tr('Lo sportello non conosce ancora questo dispositivo: consegna le chiavi (Pubblicazione → «Consegna le chiavi allo sportello di prova»).')
+      : e.motivo==='rete' ? tr('Lo sportello non risponde: controlla la connessione e riprova.') : tr('Lo sportello non ha consegnato le segnalazioni ({m}).',{m:e.motivo||'guasto'});
+  }
+  SG.lavoro = false; if(['rd-segn', 'rd-segn-una'].includes(st.foglio)) disegnaFoglio();
+}
+async function presaSg(x){
+  if(SG.lavoro) return;
+  SG.lavoro = true; SG.errore = ''; disegnaFoglio();
+  try{
+    await chiediSg({operazione:'presa', nomi:[x.nome]});
+    const m = mz(), g = ymd(new Date(x.arrivo)); m.segnalazioni[g] = (m.segnalazioni[g]||0)+1; mzSalva();   // le segnalazioni nelle Misure, nel giorno dell'arrivo
+    SG.lista = SG.lista.filter(y => y!==x); delete SG.campi[x.nome]; SG.aperta = null; SG.conferma = false;
+    SG.msg = tr('Segnalazione presa in carico e tolta dallo sportello. Contata nelle Misure.');
+    SG.lavoro = false; apri('rd-segn'); return;
+  }catch(e){ SG.errore = tr('Lo sportello non ha tolto la segnalazione ({m}): riprova.',{m:e.motivo||'guasto'}); }
+  SG.lavoro = false; disegnaFoglio();
+}
+
+/* ---------- Le righe dei registri ---------- */
+function rigaSegnalazione(x){
+  const s = x.s, c = campiSg(x), mio = nomeMio(x);
+  const v = {'Codice':c.s, 'Data di registrazione':dataReg(new Date()), 'Funzione che annota':'Relazioni con gli utenti', 'Data e ora di ricevimento':dataReg(x.arrivo, true), 'Canale':CANALE_SPORTELLO,
+    'Chi segnala':c.chiSegnala, 'Segnalante':c.p, 'Evento':s.evento.id, 'Motivo':MOTIVI_REG[s.motivo], 'Descrizione':c.desc, 'Dichiarazione di buona fede':s.motivo==='illecito' ? (s.buonaFede ? 'Sì' : 'No') : '',
+    'Richiesta sui propri dati':mio ? c.r : '', 'Rif. libro mastro':'§ 7.5, misura 3', 'Collegamenti':mio ? c.r : '', 'Stato':'Aperta', 'Contestazione in corso':'No'};
+  return COL_SEGN.map(k => cellaReg(v[k])).join('\t');
+}
+function rigaRichiesta(x){
+  const c = campiSg(x);
+  const v = {'Codice':c.r, 'Data di registrazione':dataReg(new Date()), 'Funzione che annota':'Referente privacy', 'Data e ora di ricevimento':dataReg(x.arrivo, true), 'Canale':CANALE_SPORTELLO,
+    'Richiedente':c.p, 'Per conto di':'Sé stesso', 'Diritto esercitato':'Cancellazione (art. 17)', 'Dati o eventi interessati':x.s.evento.id, 'Scadenza delle 48 ore':dataReg(scadenzaTn(x.arrivo), true),
+    'Scadenza di un mese':dataReg(unMesePiu(x.arrivo)), 'Rif. libro mastro':'§ 3.13; § 7.5, misura 3', 'Collegamenti':[c.s, c.p].filter(Boolean).join(' '), 'Stato':'Aperta', 'Contestazione in corso':'No'};
+  return COL_RICH.map(k => cellaReg(v[k])).join('\t');
+}
+
+/* ---------- Le schermate ---------- */
+function fSg(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Segnalazioni')}</h2><p class="meta">${tr('Arrivate con il modulo «Segnala» della scheda degli eventi')}</p></div>${chiudiBtn()}</div>`;
+  if(!sgDisponibile()) return foglio('forte alto', testa, `<p class="meta">${tr('Lo sportello delle segnalazioni non è ancora allacciato: per ora le segnalazioni arrivano per posta alla casella per gli utenti.')}</p>`);
+  const L = SG.lista;
+  const riga = x => `<button class="riga-int" data-az="sg-apri" data-n="${esc(x.nome)}"><div><span class="t">${x.s ? esc(x.s.evento.titolo || x.s.evento.id) : tr('Segnalazione che non si apre')}</span>
+    <span class="meta">${esc(quandoPb(x.arrivo))}${x.s ? ' · '+esc(MOTIVI_REG[x.s.motivo]) : ''}${nomeMio(x) ? ' · <strong>'+esc(tr('il suo nome: entro il {q}',{q:quandoPb(scadenzaTn(x.arrivo).toISOString())}))+'</strong>' : ''}</span></div>${freccia}</button>`;
+  const corpo = `${SG.msg ? `<p class="meta" role="status" style="color:var(--testo)">${esc(SG.msg)}</p>` : ''}${SG.errore ? `<p class="err" role="alert">${esc(SG.errore)}</p>` : ''}
+    ${SG.lavoro ? `<p class="caricamento">${tr('Chiedo le segnalazioni allo sportello…')}</p>` : ''}
+    ${L ? (L.length ? `<div class="menu-lista">${L.map(riga).join('')}</div>` : `<p class="meta">${tr('Nessuna segnalazione in attesa.')}</p>`) : ''}
+    <div class="tasti"><button class="tasto sec" data-az="sg-carica" ${SG.lavoro ? 'disabled' : ''}>${tr('Chiedi di nuovo allo sportello')}</button></div>
+    <p class="meta">${tr('Le segnalazioni si aprono su questo dispositivo e restano soltanto in questa pagina. Il recapito di chi scrive va nell’anagrafica (§ 18.5), mai nei registri.')}</p>`;
+  return foglio('forte alto', testa, corpo);
+}
+function fSgUna(){
+  const x = sgUna(); if(!x){ st.foglio = 'rd-segn'; return fSg(); }
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Segnalazione')}</h2><p class="meta">${tr('Arrivata il {q}',{q:esc(quandoPb(x.arrivo))})}</p></div>${chiudiBtn()}</div>`;
+  const indietro = `<button class="link" data-az="sg-indietro">${frecciaSx} ${tr('Tutte le segnalazioni')}</button>`;
+  if(!x.s) return foglio('forte alto', testa, `${indietro}<p class="err">${tr('Questa segnalazione non si apre con le chiavi di questo dispositivo: è rovinata o è stata chiusa per altre chiavi.')}</p>
+    ${presaHtml()}`);
+  const s = x.s, c = campiSg(x), mio = nomeMio(x);
+  const dato = (t, v) => v ? `<div class="stack-s"><span class="etich">${t}</span><span style="white-space:pre-wrap;color:var(--testo)">${esc(v)}</span></div>` : '';
+  const campo = (id, k, t, ph, aiuto) => `<div class="stack-s"><label class="etich" for="sg-${id}">${t}</label><div class="campo"><input id="sg-${id}" data-sg="${k}" maxlength="12" autocomplete="off" value="${esc(c[k])}" placeholder="${esc(ph)}"></div>${aiuto ? `<span class="meta">${aiuto}</span>` : ''}</div>`;
+  const recapito = [s.nome, s.email].filter(Boolean).join(' · ');
+  const corpo = `${indietro}${SG.errore ? `<p class="err" role="alert">${esc(SG.errore)}</p>` : ''}
+    ${mio ? `<div class="red-riquadro" role="note"><strong>${tr('Chiede di togliere il suo nome: entro il {q}',{q:esc(quandoPb(scadenzaTn(x.arrivo).toISOString()))})}</strong>
+      <span class="meta">${tr('È anche una richiesta sui propri dati: una riga anche nel registro delle richieste (cap. 26) e la rimozione con «Togli questo nome ovunque» (§ 3.13).')}</span></div>` : ''}
+    ${dato(tr('Evento'), (s.evento.titolo ? s.evento.titolo+'\n' : '')+s.evento.id)}
+    ${dato(tr('Motivo'), MOTIVI_REG[s.motivo])}
+    ${s.motivo==='nome' ? dato(tr('Di chi è il nome'), s.chi==='mio' ? tr('Il suo') : tr('Di un’altra persona')) : ''}
+    ${s.motivo==='illecito' ? dato(tr('Dichiarazione di buona fede'), s.buonaFede ? tr('Sì') : tr('No')) : ''}
+    ${dato(tr('Descrizione'), s.descrizione || '—')}
+    ${recapito ? `<div class="stack-s"><span class="etich">${tr('Recapito')}</span><span style="color:var(--testo)">${esc(recapito)}</span>
+      <span class="meta">${tr('Per l’anagrafica (codice P) e per la conferma dalla casella per gli utenti: non entra nei registri.')}</span>
+      <div class="tasti"><button class="tasto sec" data-az="sg-copia" data-che="recapito">${SG.copiata==='recapito' ? tr('Copiato') : tr('Copia il recapito')}</button></div></div>` : `<p class="meta">${tr('Nessun recapito: niente conferma né esito da mandare.')}</p>`}
+    <p class="etich">${tr('Per il registro')}</p>
+    <div class="due">${campo('s', 's', tr('Codice S'), 'S-0001', '')}${campo('p', 'p', tr('Codice P'), 'P-0001', recapito ? '' : tr('Solo se ha lasciato un recapito'))}</div>
+    <div class="stack-s"><label class="etich" for="sg-chi">${tr('Chi segnala')}</label><div class="campo"><select id="sg-chi" data-sg="chiSegnala">${CHI_SEGNALA.map(v => `<option ${c.chiSegnala===v ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div></div>
+    <div class="stack-s"><label class="etich" for="sg-desc">${tr('Descrizione per il registro')}</label><div class="campo"><textarea id="sg-desc" data-sg="desc" maxlength="2000">${esc(c.desc)}</textarea></div>
+      <span class="meta">${tr('Una sintesi, senza dati di altre persone che non servono (cap. 25).')}</span></div>
+    ${mio ? campo('r', 'r', tr('Codice R'), CODICE_RICHIESTA, tr('Il codice della voce nel registro delle richieste (cap. 26).')) : ''}
+    <div class="tasti"><button class="tasto pri" data-az="sg-copia" data-che="segnalazione">${SG.copiata==='segnalazione' ? tr('Copiata') : tr('Copia la riga del registro delle segnalazioni')}</button></div>
+    ${mio ? `<div class="tasti"><button class="tasto sec" data-az="sg-copia" data-che="richiesta">${SG.copiata==='richiesta' ? tr('Copiata') : tr('Copia la riga del registro delle richieste')}</button></div>
+      <div class="tasti"><button class="tasto sec" data-az="sg-togli">${tr('Togli questo nome ovunque')}</button></div>` : ''}
+    <details class="meta"><summary>${tr('Le colonne delle righe')}</summary><p>${esc(COL_SEGN.join(' · '))}</p>${mio ? `<p>${esc(COL_RICH.join(' · '))}</p>` : ''}</details>
+    ${presaHtml()}`;
+  return foglio('forte alto', testa, corpo);
+}
+const presaHtml = () => `<div class="tasti"><button class="tasto pericolo pieno" data-az="sg-presa" ${SG.lavoro ? 'disabled' : ''}>${SG.conferma ? tr('Tocca ancora: la segnalazione esce dallo sportello') : tr('Presa in carico')}</button></div>
+  <p class="meta">${tr('Prima copia la riga e il recapito: dopo, la segnalazione non si può più leggere.')}</p>`;
+Object.assign(FOGLI_RED, {'rd-segn':fSg, 'rd-segn-una':fSgUna});
+
+/* ---------- Le interazioni ---------- */
+function azioneSg(az, t){
+  switch(az){
+    case 'segnalazioni': Object.assign(SG, {aperta:null, msg:'', errore:'', conferma:false, copiata:''}); apri('rd-segn'); if(sgDisponibile()) caricaSg(); return true;
+    case 'sg-carica': SG.msg = ''; caricaSg(); return true;
+    case 'sg-apri': SG.aperta = t.dataset.n; SG.conferma = false; SG.copiata = ''; SG.errore = ''; SG.msg = ''; apri('rd-segn-una'); return true;
+    case 'sg-indietro': SG.aperta = null; SG.conferma = false; apri('rd-segn'); return true;
+    case 'sg-copia': {
+      const x = sgUna(); if(!x || !x.s) return true;
+      const che = t.dataset.che, testo = che==='recapito' ? [x.s.nome, x.s.email].filter(Boolean).join(' <')+(x.s.nome && x.s.email ? '>' : '') : che==='richiesta' ? rigaRichiesta(x) : rigaSegnalazione(x);
+      copiaTesto(testo).then(ok => { SG.copiata = ok ? che : ''; if(!ok) SG.errore = tr('Copia non riuscita: riprova.'); if(st.foglio==='rd-segn-una') disegnaFoglio(); });
+      return true; }
+    case 'sg-togli': {
+      const x = sgUna(); if(!x || !x.s) return true;
+      const c = campiSg(x); apriTn('archivio');
+      TN.rich = 'nuova'; TN.nuova = {ric:dtLocal(new Date(x.arrivo)), r:c.r};
+      TN.daSegn = tr('Dalla segnalazione {s} sull’evento «{t}» ({id})',{s:c.s || tr('senza codice S'), t:x.s.evento.titolo, id:x.s.evento.id});
+      disegnaFoglio(); return true; }
+    case 'sg-presa': {
+      const x = sgUna(); if(!x) return true;
+      if(!SG.conferma){ SG.conferma = true; disegnaFoglio(); return true; }
+      presaSg(x); return true; }
+  }
+  return false;
+}
+function inputSg(el){
+  const k = el.dataset.sg; if(!k) return false;
+  const x = sgUna(); if(!x) return true;
+  campiSg(x)[k] = el.value; SG.copiata = '';
+  return true;
+}
+
 
 /* ======================= Interazioni ======================= */
 $('app').addEventListener('click', ev => {
@@ -5928,6 +6241,8 @@ $('app').addEventListener('click', ev => {
       }, () => { st.sblocco = 'manca'; mostraSblocco(); }); break; }
     case 'togli-nascosto': if(st.togliNasc===d.id){ st.togliNasc = null; togliNascosto(d.id); }
       else { st.togliNasc = d.id; disegnaFoglio(); } break;
+    case 'segnala': apriSegnala(d.id); break;
+    case 'segnala-invia': inviaSegnalazione(); break;
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; st.msgAdmin = null; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
@@ -5966,6 +6281,8 @@ $('foglio-slot').addEventListener('input', ev => {
   const el = ev.target;
   if(el.id==='tz-q'){ TM.q = el.value; const d = $('tz-lente'); if(d) d.innerHTML = lenteDentro(); return; }
   if(el.id==='q'){ st.q = el.value; $('risultati').innerHTML = risultatiEventi(); chiediSuggerimenti(el.value, 'cerca', 'risultati-luoghi'); return; }
+  /* il modulo «Segnala» (T-050): il messaggio di posta si tiene sempre al passo con ciò che si scrive */
+  if(el.dataset.segn && st.segn){ st.segn[el.dataset.segn] = el.value; const a = $('s-posta'); if(a) a.href = mailtoSegn(st.segn); return; }
   if(inputRed(el)) return;
   if(!st.form) return;
   if(el.dataset.link!=null){ st.form.links[+el.dataset.link] = el.value; return; }
@@ -5979,10 +6296,28 @@ $('foglio-slot').addEventListener('input', ev => {
 });
 $('foglio-slot').addEventListener('change', ev => {
   const el = ev.target;
+  /* «Segnala»: motivo, «Di chi è il nome?» e buona fede ridisegnano il modulo; il fuoco torna sulla scelta fatta */
+  if(el.dataset.segnScelta && st.segn){
+    const s = st.segn, k = el.dataset.segnScelta;
+    if(k==='buona') s.buona = el.checked;
+    else { s[k] = el.value; if(k==='motivo' && el.value!=='nome') s.chi = ''; if(s.err) s.err[k] = 0; }
+    disegnaFoglio();
+    const x = document.querySelector(k==='buona' ? '#foglio-slot [data-segn-scelta="buona"]' : `#foglio-slot [data-segn-scelta="${k}"][value="${el.value}"]`); if(x) x.focus();
+    return;
+  }
   if(cambioRed(el)) return;
   if(!st.form) return;
   const c = el.dataset.campo;
   if(c==='rep' || c==='giorno' || c==='fino'){ st.form[c] = el.value; if(c==='giorno' && el.value && (!st.form.fino || st.form.fino < el.value)) st.form.fino = piuMesi(el.value,3); disegnaFoglio(); }
+});
+/* «Prepara il messaggio di posta» è un collegamento vero (mailto): se il modulo non è completo non si apre; se lo è,
+   parte il messaggio aggiornato e il modulo dice che cosa succede, senza tenere nulla di ciò che si è scritto */
+$('foglio-slot').addEventListener('click', ev => {
+  const a = ev.target.closest && ev.target.closest('[data-segn-posta]'); if(!a || !st.segn) return;
+  const s = st.segn; s.err = erroriSegn(s, true);
+  if(Object.keys(s.err).length){ ev.preventDefault(); disegnaFoglio(); fuocoErrore(); return; }
+  a.href = mailtoSegn(s);
+  setTimeout(() => { if(st.segn===s){ st.segn = {id:s.id, titolo:s.titolo, fase:'posta', err:{}}; if(st.foglio==='segnala') disegnaFoglio(); } }, 0);
 });
 $('foglio-slot').addEventListener('keydown', ev => {
   if(ev.key!=='Enter') return;

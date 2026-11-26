@@ -279,6 +279,7 @@
       let letto; try { letto = P.leggi(testo); } catch (e) { return risposta(400, { esito: 'rifiutato', motivo: 'forma' }); }
       const p = letto.pacchetto, c = letto.contenuto, t = ora(), imp = p.dispositivo.impronta;
       const no = (stato, motivo, extra) => risposta(stato, Object.assign({ esito: 'rifiutato', motivo }, extra || {}));
+      if (!Object.prototype.hasOwnProperty.call(OPERA, c.operazione)) return no(400, 'operazione');   // un'operazione dello sportello delle segnalazioni (T-052)
       const chiavi = await leggiJson(F.chiavi, {});
       if ((chiavi.revocate || []).some(k => k.impronta === imp)) return no(403, 'revocata');
       const nota = (chiavi.ammesse || []).find(k => k.impronta === imp);
@@ -317,7 +318,11 @@
       if (imp !== f.impronta) throw rifiuto('chiavi');
       const k = await leggiJson(F.chiavi, {}); k.ammesse = k.ammesse || []; k.revocate = k.revocate || [];
       if (k.revocate.some(x => x.impronta === imp)) throw rifiuto('revocata');   // una firma revocata non torna: il dispositivo se ne fa una nuova
-      k.ammesse = k.ammesse.filter(x => x.impronta !== imp).concat([{ dispositivo: String(pubbliche.dispositivo || '').slice(0, 80), impronta: imp, pubblica: f.pubblica, dal: iso(ora()) }]);
+      /* dal blocco 13 la voce tiene anche la parte pubblica di cifratura, che lo sportello delle segnalazioni dà come
+         lucchetto (sportelli/segnalazioni.js; decisione del 26/11/2026) */
+      const ci = pubbliche.cifratura, cifratura = ci && typeof ci.pubblica === 'string' && /^[A-Za-z0-9_-]{80,100}$/.test(ci.pubblica) && ci.impronta === await P.impronta(ci.pubblica, cripto)
+        ? { pubblica: ci.pubblica, impronta: ci.impronta } : null;
+      k.ammesse = k.ammesse.filter(x => x.impronta !== imp).concat([Object.assign({ dispositivo: String(pubbliche.dispositivo || '').slice(0, 80), impronta: imp, pubblica: f.pubblica, dal: iso(ora()) }, cifratura ? { cifratura } : {})]);
       await scriviJson(F.chiavi, k);
       return imp;
     }

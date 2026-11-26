@@ -98,6 +98,8 @@ $('app').addEventListener('click', ev => {
       }, () => { st.sblocco = 'manca'; mostraSblocco(); }); break; }
     case 'togli-nascosto': if(st.togliNasc===d.id){ st.togliNasc = null; togliNascosto(d.id); }
       else { st.togliNasc = d.id; disegnaFoglio(); } break;
+    case 'segnala': apriSegnala(d.id); break;
+    case 'segnala-invia': inviaSegnalazione(); break;
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; /*@red*/st.msgAdmin = null; /*@fine*/apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
@@ -136,6 +138,8 @@ $('foglio-slot').addEventListener('input', ev => {
   const el = ev.target;
   if(el.id==='tz-q'){ TM.q = el.value; const d = $('tz-lente'); if(d) d.innerHTML = lenteDentro(); return; }
   if(el.id==='q'){ st.q = el.value; $('risultati').innerHTML = risultatiEventi(); chiediSuggerimenti(el.value, 'cerca', 'risultati-luoghi'); return; }
+  /* il modulo «Segnala» (T-050): il messaggio di posta si tiene sempre al passo con ciò che si scrive */
+  if(el.dataset.segn && st.segn){ st.segn[el.dataset.segn] = el.value; const a = $('s-posta'); if(a) a.href = mailtoSegn(st.segn); return; }
   /*@red*/if(inputRed(el)) return;/*@fine*/
   if(!st.form) return;
   if(el.dataset.link!=null){ st.form.links[+el.dataset.link] = el.value; return; }
@@ -149,10 +153,28 @@ $('foglio-slot').addEventListener('input', ev => {
 });
 $('foglio-slot').addEventListener('change', ev => {
   const el = ev.target;
+  /* «Segnala»: motivo, «Di chi è il nome?» e buona fede ridisegnano il modulo; il fuoco torna sulla scelta fatta */
+  if(el.dataset.segnScelta && st.segn){
+    const s = st.segn, k = el.dataset.segnScelta;
+    if(k==='buona') s.buona = el.checked;
+    else { s[k] = el.value; if(k==='motivo' && el.value!=='nome') s.chi = ''; if(s.err) s.err[k] = 0; }
+    disegnaFoglio();
+    const x = document.querySelector(k==='buona' ? '#foglio-slot [data-segn-scelta="buona"]' : `#foglio-slot [data-segn-scelta="${k}"][value="${el.value}"]`); if(x) x.focus();
+    return;
+  }
   /*@red*/if(cambioRed(el)) return;/*@fine*/
   if(!st.form) return;
   const c = el.dataset.campo;
   if(c==='rep' || c==='giorno' || c==='fino'){ st.form[c] = el.value; if(c==='giorno' && el.value && (!st.form.fino || st.form.fino < el.value)) st.form.fino = piuMesi(el.value,3); disegnaFoglio(); }
+});
+/* «Prepara il messaggio di posta» è un collegamento vero (mailto): se il modulo non è completo non si apre; se lo è,
+   parte il messaggio aggiornato e il modulo dice che cosa succede, senza tenere nulla di ciò che si è scritto */
+$('foglio-slot').addEventListener('click', ev => {
+  const a = ev.target.closest && ev.target.closest('[data-segn-posta]'); if(!a || !st.segn) return;
+  const s = st.segn; s.err = erroriSegn(s, true);
+  if(Object.keys(s.err).length){ ev.preventDefault(); disegnaFoglio(); fuocoErrore(); return; }
+  a.href = mailtoSegn(s);
+  setTimeout(() => { if(st.segn===s){ st.segn = {id:s.id, titolo:s.titolo, fase:'posta', err:{}}; if(st.foglio==='segnala') disegnaFoglio(); } }, 0);
 });
 $('foglio-slot').addEventListener('keydown', ev => {
   if(ev.key!=='Enter') return;

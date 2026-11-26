@@ -48,6 +48,12 @@ module.exports = {
     'https://www.garanteprivacy.it',           // autorità di controllo, nei testi legali
   ],
 
+  // Il modulo «Segnala» (T-050, T-051; § 7.5, misura 3). sportello: false = la segnalazione parte con il messaggio di
+  // posta già compilato verso la casella per gli utenti (soluzione ponte, anche al lancio); true = parte, chiusa, per lo
+  // sportello delle segnalazioni (indirizzi.sportello_segnalazioni). Si accende con T-071, dopo l'allacciamento (T-065).
+  // Sul collegamento di prova il modulo usa lo sportello di prova quando questo ha il lucchetto (decisione del 26/11/2026).
+  segnalazioni: { sportello: false },
+
   // Strumenti che aspettano una decisione prima dell'uso. false = spento con lo sportello vero (con lo sportello di prova
   // funziona sugli eventi inventati). esporta_assistenza: «Esporta per assistenza» (T-049; § 2.6), si accende soltanto
   // dopo il sì nella revisione finale del libro mastro (sezione 6 del piano).

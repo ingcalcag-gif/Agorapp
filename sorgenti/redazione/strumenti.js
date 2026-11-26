@@ -21,6 +21,7 @@ function fAdmin(){
   const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
     <div class="menu-lista">
       <button class="menu-r" data-az="pubblica">${icoCal()}<div><span class="t">${tr('Pubblicazione')}</span><span class="meta">${tr('Eventi pubblicati, nuovo evento, correzione, sospensione, ritiro e storico')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="segnalazioni">${icoNote}<div><span class="t">${tr('Segnalazioni')}</span><span class="meta">${tr('Arrivate con il modulo «Segnala»: lettura e righe dei registri')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-importa">${icoImporta}<div><span class="t">${tr('Importa eventi da Excel')}</span><span class="meta">${tr('File .xlsx o .csv: una riga per evento')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne del file degli eventi, i valori ammessi e l’elenco degli strati')}</span></div>${freccia}</button></div>
     <div class="menu-lista">
@@ -116,6 +117,7 @@ function clickRed(t){
 }
 function azioneRed(az, t){
   if(azioneChiavi(az, t)) return;
+  if(azioneSg(az, t)) return;   /* le segnalazioni (segnalazioni.js, T-052) */
   if(DIRITTI.some(d => d.azione && d.azione(az, t))) return;
   if(azionePubblica(az, t)) return;
   switch(az){
@@ -132,6 +134,7 @@ function azioneRed(az, t){
 /* un campo dei moduli della Redazione: true se era suo */
 function inputRed(el){
   if(inputChiavi(el)) return true;
+  if(inputSg(el)) return true;
   if(DIRITTI.some(d => d.input && d.input(el))) return true;
   if(inputPubblica(el)) return true;
   return false;

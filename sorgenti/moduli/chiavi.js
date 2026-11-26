@@ -216,6 +216,17 @@
       } catch (e) { return false; }
     }
 
+    /* ---------- Cifratura: le segnalazioni (blocco 13, T-052) ----------
+       La busta di una segnalazione porta la parte pubblica usa e getta del telefono che l'ha chiusa
+       (sorgenti/moduli/segnalazione.js): con la parte segreta di cifratura del dispositivo se ne ricava il segreto comune,
+       da cui il modulo della segnalazione ricava la chiave che apre la busta. La parte segreta non esce mai di qui, e
+       serve soltanto a questo (ogni chiave apre una sola porta, § 3.11). */
+    async function segretoSegnalazione(effimera) {
+      const v = await attive();
+      const k = await sub.importKey('raw', effimera, { name: 'ECDH', namedCurve: CURVA }, false, []);
+      return sub.deriveBits({ name: 'ECDH', public: k }, v.chiavi.cifratura.privata, 256);
+    }
+
     /* ---------- Marcatore (T-037) ----------
        L'identificativo di un evento: 16 caratteri a caso, un trattino e 8 caratteri di segno, ricavati dalla parte a
        caso con la chiave del marcatore. Il segno è uguale per tutti, non dice nulla a chi lo guarda e lo può verificare
@@ -307,7 +318,7 @@
     async function scriviRegistro(testo) { const b = await cifraRegistro(testo); await dep.scrivi('red_registro', b); return b; }
     async function bustaRegistro() { return (await dep.leggi('red_registro')) || null; }
 
-    return { stato, genera, daCopia, copia, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, nuovoId, viene, controllaTesto,
+    return { stato, genera, daCopia, copia, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, segretoSegnalazione, nuovoId, viene, controllaTesto,
       registro: { cifra: cifraRegistro, decifra: decifraRegistro, leggi: leggiRegistro, scrivi: scriviRegistro, busta: bustaRegistro },
       cassaforte: { metti: mettiPassword, leggi: leggiPassword, togli: togliPassword, pulisci: pulisciCassaforte, copia: copiaCassaforte, ripristina: ripristinaCassaforte } };
   }

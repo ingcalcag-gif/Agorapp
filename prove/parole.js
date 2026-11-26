@@ -52,6 +52,12 @@ PAROLE.es['frase sui dati abbreviata'] = p('datos[^.<"\'`]{0,60}(?:no salen|se q
 /* Casi ammessi dopo la revisione di T-013: la parola compare dentro la frase indicata, che non è riferita agli eventi
    né alla mappa e non dichiara una conformità. Ogni riga: lingua, frase esatta (o un suo pezzo), motivo. */
 const AMMESSI = [
+  // modulo «Segnala» (T-050): la dichiarazione di buona fede del DSA, art. 16, par. 2, lett. d («esattezza e completezza delle informazioni»); dice com'è la segnalazione, non un evento né l'app
+  ['it', 'siano esatte e complete', 'modulo «Segnala»: la dichiarazione di buona fede dell\'art. 16, par. 2, DSA (testo approvato il 26/11/2026)'],
+  ['en', 'are accurate and complete', 'modulo «Segnala»: la dichiarazione di buona fede dell\'art. 16, par. 2, DSA, tradotta'],
+  ['es', 'son exactas y completas', 'modulo «Segnala»: la dichiarazione di buona fede dell\'art. 16, par. 2, DSA, tradotta'],
+  ['fr', 'sont exactes et complètes', 'modulo «Segnala»: la dichiarazione di buona fede dell\'art. 16, par. 2, DSA, tradotta'],
+  ['ar', 'دقيقة وكاملة', 'modulo «Segnala»: la dichiarazione di buona fede dell\'art. 16, par. 2, DSA, tradotta'],
   ['it', 'Sì, verificato senza accedere', 'importazione Excel (T-042): valore ammesso della colonna «Post leggibile senza account» del file degli eventi del 13/11/2026: dice che il post si legge senza account, non che l\'evento è verificato'],
   // scheda di pubblicazione e registro delle fonti (T-041, solo nell'app della redazione): le parole sono nominate per dire a chi scrive un evento di non usarle, o descrivono una pagina e non un evento
   ['it', 'Mai «verificato» o «ufficiale» per un evento soltanto ripreso; mai «autorizzato», «in regola», «sicuro», «a norma».', 'scheda di pubblicazione: la regola di scrittura dell\'allegato A, A.2, che nomina le parole da non usare'],

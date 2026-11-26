@@ -19,7 +19,7 @@ Nella base di dati del browser, voce `red_chiavi` (`docs/dati-locali.md`):
 | Chiave | A che cosa serve | Strumento | Chi la usa |
 | --- | --- | --- | --- |
 | Firma (coppia) | Firmare i pacchetti da pubblicare; gli sportelli verificano con la parte pubblica | ECDSA, curva P-256, SHA-256 | Blocco 9 e seguenti |
-| Cifratura (coppia) | Gli sportelli cifrano le segnalazioni con la parte pubblica; le legge solo la Redazione | ECDH, curva P-256 | Blocco 13 |
+| Cifratura (coppia) | Il telefono di chi segnala chiude la segnalazione con la parte pubblica, che gli dà lo sportello delle segnalazioni (il «lucchetto»); la apre solo la parte segreta, sui dispositivi della Redazione (`docs/segnalazioni.md`) | ECDH, curva P-256 | Blocco 13 |
 | Registro delle fonti | Cifrare il registro delle fonti; è diversa dalla firma | AES-GCM a 256 bit | Blocchi 10 e 14 |
 | Marcatore | Ricavare il segno negli identificativi degli eventi | HMAC-SHA-256 | T-037, qui sotto |
 | Cassaforte | Cifrare le password degli eventi nascosti | AES-GCM a 256 bit | Blocco 11 |
@@ -43,7 +43,7 @@ La firma è di ogni dispositivo. Da una copia di riserva si può:
 
 ## Le parti pubbliche
 
-«Copia» e «Scarica» nella schermata «Chiavi» danno un piccolo testo in JSON (`chiavi-pubbliche-AAAA-MM-GG.json`) con il nome del dispositivo, la data, la parte pubblica della firma e quella della cifratura, ciascuna con la sua impronta (16 cifre esadecimali, a gruppi di quattro: servono a confrontarle a voce). Non contengono nulla di segreto. Come gli sportelli le ricevono lo decide il blocco 9.
+«Copia» e «Scarica» nella schermata «Chiavi» danno un piccolo testo in JSON (`chiavi-pubbliche-AAAA-MM-GG.json`) con il nome del dispositivo, la data, la parte pubblica della firma e quella della cifratura, ciascuna con la sua impronta (16 cifre esadecimali, a gruppi di quattro: servono a confrontarle a voce). Non contengono nulla di segreto. Gli sportelli le ricevono nell'elenco delle chiavi ammesse (`docs/sportello-pubblicazione.md`); dal blocco 13 la voce di ogni dispositivo tiene anche la parte pubblica di cifratura, che lo sportello delle segnalazioni dà al telefono come lucchetto (decisione del 26/11/2026). Nel codice e nel repository non c'è nessuna chiave, nemmeno questa.
 
 ## La revoca
 

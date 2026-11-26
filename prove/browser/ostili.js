@@ -14,7 +14,9 @@
    - le risposte della ricerca degli indirizzi (Photon), servite dalla prova con nomi, vie e numeri civici ostili;
    - un file da importare nell'area riservata (CSV) con celle ostili, lo storico e gli appunti delle Misure;
    - nell'app della redazione, gli stessi eventi ostili nei punti trovati da «Togli questo nome ovunque» e nei brani del
-     resoconto dell'accesso (T-047, T-048); la copia per l'assistenza (T-049) ha la sua prova ostile in assistenza.js.
+     resoconto dell'accesso (T-047, T-048); la copia per l'assistenza (T-049) ha la sua prova ostile in assistenza.js;
+   - il modulo «Segnala» (T-050) con il titolo ostile dell'evento, e una segnalazione con descrizione e nome ostili che
+     passa dallo sportello di prova e si legge nell'app della redazione, nell'elenco e nella scheda (T-051, T-052).
    La prova apre tutte le viste dell'app, compresi l'anteprima del PDF, la pagina di stampa e il PDF scaricato, e
    controlla che nessun testo sia diventato un elemento o sia stato eseguito, che nessun collegamento javascript:,
    data: o http: arrivi nella pagina e che nessun elemento abbia un gestore scritto nella pagina (on…=). Un evento
@@ -130,7 +132,7 @@ const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizio
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
   'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo',
-  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev', 'cal-titolo', 'cal-luogo', 'cal-testo', 'nasc-titolo', 'nasc-luogo', 'nasc-desc', 'nasc-org'];
+  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev', 'cal-titolo', 'cal-luogo', 'cal-testo', 'nasc-titolo', 'nasc-luogo', 'nasc-desc', 'nasc-org', 'segn-desc', 'segn-nome'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
@@ -413,6 +415,23 @@ async function prova() {
           if (await entra() && await tocca(F + '[data-az="rn"]', 'cerca un nome')) {
             await p.fill('#rn-forme', 'Sala\nGruppo\nDescrizione\nConcerto'); await tocca(F + '[data-az="rn-cerca"]', 'accesso, cerca', true); await pausa(2500);
             await controlla('accesso, eventi trovati');
+          }
+          /* segnalazioni (T-050-T-052): il modulo «Segnala» mostra il titolo ostile come testo; una segnalazione con testi
+             ostili passa dallo sportello di prova e si legge nell'app della redazione, nell'elenco e nella scheda */
+          await avvia();
+          if (await tocca('[data-az="elenco"]', 'segnala, elenco', true) && await tocca(F + '[data-ev="' + ID_EV + '"]', 'segnala, evento', true) && await tocca(F + '[data-az="segnala"]', 'segnala', true)) {
+            try { await p.waitForSelector(F + '[data-az="segnala-invia"]', { timeout: 15000 }); } catch (err) { e.errori.push('segnala: con le chiavi consegnate il modulo deve usare lo sportello di prova'); }
+            await controlla('segnala, modulo');
+            await tocca(F + 'label:has([data-segn-scelta="motivo"][value="altro"])', 'segnala, motivo', true);
+            await p.fill('#s-desc', 'Descrizione ' + O_('segn-desc')); await p.fill('#s-nome', B_('segn-nome'));
+            await tocca(F + '[data-az="segnala-invia"]', 'segnala, invia', true);
+            try { await p.waitForFunction(() => /Segnalazione inviata/.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 20000 }); } catch (err) { e.errori.push('segnala: la segnalazione con i testi ostili non parte'); }
+            await controlla('segnala, inviata');
+            if (await entra() && await tocca(F + '[data-az="segnalazioni"]', 'segnalazioni')) {
+              try { await p.waitForSelector(F + '[data-az="sg-apri"]', { timeout: 20000 }); } catch (err) { e.errori.push('segnalazioni: la segnalazione ostile non arriva nell\'elenco'); }
+              await controlla('segnalazioni, elenco');
+              if (await tocca(F + '[data-az="sg-apri"]', 'segnalazioni, una', true)) { await pausa(300); await controlla('segnalazioni, scheda'); }
+            }
           }
           /* poi lo sportello di prova si svuota: Misure e il resto leggono di nuovo l'archivio ostile della prova */
           if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione')) { await pausa(400); await tocca(F + '[data-az="pb-svuota"]', 'svuota', true); await tocca(F + '[data-az="pb-svuota"]', 'svuota, conferma', true); await pausa(600); }

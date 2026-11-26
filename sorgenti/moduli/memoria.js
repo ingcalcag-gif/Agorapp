@@ -86,9 +86,10 @@
       cosa: 'Il registro delle fonti sul dispositivo (fonti, righe degli eventi pubblicati, schede preparate), in una busta cifrata con la chiave del registro (T-041, T-043)' },
     /* Solo sul collegamento di prova (voci con «prova»): non sta nella scheda e sul sito vero non nasce mai. La scrive
        lo sportello di prova dell'app della redazione; l'app pubblica di prova, che lì sta allo stesso indirizzo, la
-       legge soltanto. Contiene soli eventi inventati. */
+       legge e, dal blocco 13, vi deposita soltanto le segnalazioni chiuse nella busta (sportello delle segnalazioni di
+       prova, T-051). Contiene soli eventi e segnalazioni inventati. */
     { nome: 'prova_sportello', dove: 'file', prova: true,
-      cosa: 'L\'archivio finto dello sportello di prova: i file pubblici degli eventi, l\'elenco riservato, lo storico e le chiavi ammesse (T-038)' }
+      cosa: 'L\'archivio finto dello sportello di prova: i file pubblici degli eventi, l\'elenco riservato, lo storico, le chiavi ammesse (T-038) e le segnalazioni inventate depositate (T-051)' }
   ];
   /* Il segno dell'app della redazione e la base di dati dei suoi strumenti. */
   const SEGNO_REDAZIONE = 'red_qui', BASE = 'red_strumenti', DEPOSITO = 'voci';

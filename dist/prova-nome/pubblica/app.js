@@ -550,6 +550,19 @@ const ARCHIVIO_DOVE = (() => {
    del repository. Così il giro intero (pubblica, correggi, sospendi, ritira) si prova sul telefono senza Bunny. Con
    l'indirizzo degli eventi nella configurazione (T-065) questo tratto non fa più nulla. */
 const SPORTELLO_PROVA_DOVE = !(CFG.indirizzi||{}).eventi && ARCHIVIO_DOVE ? ARCHIVIO_DOVE.replace(/prova\/archivio\/$/, 'prova/sportello/') : '';
+/* Il deposito dello sportello di prova: i percorsi diventano indirizzi finti sotto prova/sportello/, nella memoria del
+   browser per i file (voce prova_sportello), che nessuno chiede alla rete. Lo usano lo sportello di pubblicazione di prova
+   dell'app della redazione (T-038) e lo sportello delle segnalazioni di prova (T-051), in tutte e due le app. La memoria si
+   apre a ogni passo: dopo «Svuota lo sportello di prova» non resta in mano una memoria cancellata. */
+function depositoProva(){
+  const base = SPORTELLO_PROVA_DOVE, cassa = () => MEM.file.open('prova_sportello');
+  return {
+    leggi: async p => { const r = await (await cassa()).match(base + p); return r ? r.text() : null; },
+    scrivi: async (p, t) => { await (await cassa()).put(base + p, new Response(t, {headers:{'content-type':'application/json'}})); },
+    togli: async p => { await (await cassa()).delete(base + p); },
+    elenca: async pre => (await (await cassa()).keys()).map(r => r.url).filter(u => u.startsWith(base + pre)).map(u => u.slice(base.length))
+  };
+}
 async function sorgenteArchivio(){
   const vera = {dove:ARCHIVIO_DOVE, fetch:window.fetch.bind(window), finto:false};
   if(!SPORTELLO_PROVA_DOVE || !MEM.file) return vera;
@@ -935,7 +948,7 @@ function posizioni(){
 /* ======================= Fogli ======================= */
 let ultimoFoglio = null;
 function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFoglio(); disegnaPins(); posizioni(); }
-function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.conferma = null; st.pdf = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
+function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.conferma = null; st.pdf = null; st.segn = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
   return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
@@ -1004,7 +1017,7 @@ function disegnaFoglio(){
     strati:fStrati,
     elenco:() => fElenco(visibili(), etichettaTempo().t, tr('In ordine di orario, non di popolarità.'), true),
     gruppo:() => { const l = st.gruppo.map(byId).filter(Boolean).sort((a,b) => a.a-b.a); return fElenco(l, tr('Qui vicino · {n}',{n:l.length}), tr('Tocca per aprire la scheda.'), false); },
-    scheda:() => fScheda(byId(st.sel)), punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, conferma:fConferma,
+    scheda:() => fScheda(byId(st.sel)), segnala:fSegnala, punto:fPunto, cerca:fCerca, date:fDate, calendario:fCalendario, pdf:fPdf, form:fForm, conferma:fConferma,
     impostazioni:fImpostazioni, senzarete:fSenzaRete, legale:fLegale, citta:fCitta, temi:fTemi,
     html:() => foglio('forte alto', `<div class="riga-titolo"><div></div>${chiudiBtn()}</div>`, `<div class="${esc(st.fScope)}">${st.fHtml}</div>`)
   };
@@ -1105,7 +1118,7 @@ const hostDi = u => u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,'');
    Tutto ciò che serve per andare all'evento sta qui, in forma di testo: nome del luogo e indirizzo su righe proprie, la
    descrizione del luogo per gli eventi collocati a mano, l'organizzatore quando è noto, il prezzo come lo indica la fonte.
    In fondo «Fonte:» e, accanto, l'avviso breve del § 5.2. Nessun collegamento separato al sito di chi organizza: il
-   collegamento è quello della fonte. La segnalazione arriva con il modulo «Segnala» (T-050). */
+   collegamento è quello della fonte. Sotto «Fonte:» il comando «Segnala» (T-050, qui sotto). */
 /* «Fonte:» (§ 5.3): il nome della fonte e, se c'è, il collegamento, che si apre solo al tocco e senza referrer (regola 3);
    se il collegamento manca o non è https, resta il nome (regola 4). */
 function rigaFonte(f){
@@ -1137,6 +1150,7 @@ function fScheda(e){
       ${descrizione(e)}
       <div class="fonte${man?' attenzione':''}">${rigaFonte(e.fonte)}
         <span class="meta avviso-fonte">${avvisoFonte(e)}</span></div>
+      ${MODULI.segnalazione && MODULI.segnalazione.ID.test(e.id) ? `<div class="tasti tasti-segnala"><button class="tasto sec" data-az="segnala" data-id="${esc(e.id)}">${tr('Segnala')}</button></div>` : ''}
       ${e.nascosto ? `<div class="fonte nascosto-togli"><span class="meta">${tr('Lo vedi perché hai la password. L’evento e la sua password restano su questo telefono fino a tre ore dopo la fine.')}</span>
         <button class="tasto sec" data-az="togli-nascosto" data-id="${esc(e.id)}">${st.togliNasc===e.id ? tr('Tocca ancora: per rivederlo servirà di nuovo la password') : tr('Togli dal telefono')}</button></div>` : ''}`;
   } else {
@@ -1155,6 +1169,124 @@ function fScheda(e){
       <div class="og-box">${GLIFO_OG}<span class="meta" style="color:var(--testo)">${tr('Vive solo nella memoria di questo telefono: non passa da nessun server. È già nel tuo calendario e sparisce dalla mappa tre ore dopo la fine; nel calendario resta per tre mesi.')}</span></div>`;
   }
   return foglio('forte medio', testa, corpo);
+}
+
+/* ======================= Segnala (T-050, T-051; libro mastro § 7.5, misura 3; docs/segnalazioni.md) =======================
+   «Segnala», sotto il riquadro «Fonte:» della scheda di un evento pubblico, apre il modulo: l'evento è già indicato con il
+   suo identificativo (regola 1); il motivo tra i cinque del libro mastro, con «Di chi è il nome?» obbligatoria per il nome
+   da togliere e la dichiarazione di buona fede proposta per i contenuti illeciti; la descrizione libera, con l'avvertenza
+   di non scrivere dati di altre persone (regola 2) e con l'aiuto per chi ha difficoltà a usare l'app (§ 11.4); email e
+   nome facoltativi, solo per conferma ed esito (regola 3); accanto, la casella per gli utenti e l'informativa.
+   Due modi d'invio (decisioni del 26/11/2026). Con lo sportello il telefono chiede il lucchetto e il piccolo compito,
+   chiude la segnalazione nella busta, risolve il compito e la deposita (sorgenti/moduli/segnalazione.js,
+   sportelli/segnalazioni.js). Con la posta (il ponte) il modulo prepara il messaggio già compilato verso la casella per
+   gli utenti, e lo manda la persona dalla sua app di posta. Sul sito vero si usa la posta finché segnalazioni.sportello
+   non si accende (T-071); sul collegamento di prova lo sportello di prova, quando ha il lucchetto, altrimenti la posta.
+   Se lo sportello rifiuta o non risponde, il modulo propone la posta.
+   Nulla resta sul telefono (regola 4): il modulo vive soltanto in st.segn, nella pagina aperta; chiudi() lo toglie, e dopo
+   l'invio restano solo evento e titolo per il messaggio di conferma. Nessun identificativo del telefono, nessuna
+   memoria scritta, i campi senza completamento automatico. La richiesta allo sportello non porta cookie né referrer. */
+const MOTIVI_SEGN = {dati:'Dati dell’evento errati', annullato:'Annullato o rinviato', nome:'Nome o altro dato personale da togliere', illecito:'Contenuto che ritieni illecito', altro:'Altro'};
+const BUONA_FEDE = 'Confermo di ritenere in buona fede che le informazioni e le affermazioni di questa segnalazione siano esatte e complete.';
+const casellaUtenti = () => String((CFG.caselle||{}).contatto || '');
+const segnVero = () => (CFG.indirizzi||{}).sportello_segnalazioni || '';
+let segnProva = null;
+/* lo sportello delle segnalazioni di prova: la stessa logica dello sportello vero, sull'archivio finto dello sportello di prova;
+   l'app pubblica usa soltanto la porta aperta, la redazione anche quella firmata (con il pacchetto) */
+const sportelloSegnProva = () => SPORTELLO_PROVA_DOVE && MEM.file && MODULI.segnalazioniSportello
+  ? (segnProva || (segnProva = MODULI.segnalazioniSportello.crea({deposito:depositoProva()}))) : null;
+/* una richiesta allo sportello delle segnalazioni (testo) → {stato, corpo} */
+async function chiediSegnalazioni(testo){
+  const vero = segnVero();
+  if(vero){
+    let r; try{ r = await fetch(vero, {method:'POST', body:testo, headers:{'content-type':'application/json'}, credentials:'omit', cache:'no-store', redirect:'error', referrerPolicy:'no-referrer'}); }catch(e){ return {stato:0, corpo:{motivo:'rete'}}; }
+    let c = null; try{ c = await r.json(); }catch(e){ c = null; }
+    return {stato:r.status, corpo:c||{}};
+  }
+  const p = sportelloSegnProva(); if(!p) return {stato:0, corpo:{motivo:'assente'}};
+  return p.ricevi(testo);
+}
+/* come parte la segnalazione: «sportello» (vero), «prova» (sportello di prova con il lucchetto) o «posta» */
+async function modoSegnalazione(){
+  if(segnVero()) return (CFG.segnalazioni||{}).sportello ? 'sportello' : 'posta';
+  const p = sportelloSegnProva();
+  if(p){ try{ if(await MEM.file.has('prova_sportello') && await p.lucchetto()) return 'prova'; }catch(e){} }
+  return 'posta';
+}
+function apriSegnala(id){
+  const e = byId(id); if(!e || e.tipo!=='evento') return;
+  const s = st.segn = {id:e.id, titolo:e.titolo, motivo:'', chi:'', buona:false, desc:'', email:'', nome:'', err:{}, fase:'modulo', modo:null};
+  apri('segnala');
+  modoSegnalazione().then(m => { if(st.segn===s){ s.modo = m; if(st.foglio==='segnala') disegnaFoglio(); } });
+}
+function erroriSegn(s, posta){
+  const e = {};
+  if(!s.motivo) e.motivo = 1;
+  if(s.motivo==='nome' && !s.chi) e.chi = 1;
+  if((s.motivo==='illecito' || s.motivo==='altro') && !s.desc.trim()) e.desc = 1;
+  if(!posta && s.email.trim() && !MODULI.segnalazione.EMAIL.test(s.email.trim())) e.email = 1;
+  return e;
+}
+function fuocoErrore(){ const x = document.querySelector('#foglio-slot .errore input, #foglio-slot .errore textarea'); if(x) x.focus(); }
+/* il messaggio di posta già compilato (strada b): destinatario, oggetto, identificativo dell'evento e testo */
+function mailtoSegn(s){
+  const r = [tr('Segnalazione dall’app {nome}'), tr('Evento: {titolo}',{titolo:s.titolo}), tr('Codice dell’evento: {codice}',{codice:s.id}), tr('Motivo: {motivo}',{motivo:s.motivo ? tr(MOTIVI_SEGN[s.motivo]) : ''})];
+  if(s.motivo==='nome' && s.chi) r.push(tr('Di chi è il nome: {risposta}',{risposta:s.chi==='mio' ? tr('Il mio') : tr('Di un’altra persona')}));
+  if(s.motivo==='illecito' && s.buona) r.push(tr(BUONA_FEDE));
+  r.push('', tr('Descrizione:'), s.desc.trim());
+  if(s.nome.trim()) r.push('', tr('Nome: {persona}',{persona:s.nome.trim()}));
+  return 'mailto:'+encodeURIComponent(casellaUtenti())+'?subject='+encodeURIComponent(tr('Segnalazione: {titolo}',{titolo:s.titolo}))+'&body='+encodeURIComponent(r.join('\r\n'));
+}
+function fSegnala(){
+  const s = st.segn; if(!s) return '';
+  const testa = `<div class="riga-titolo"><h2>${tr('Segnala questo evento')}</h2>${chiudiBtn()}</div>
+    <p class="meta segn-evento"><span class="t">${esc(s.titolo)}</span><span>${esc(tr('Codice dell’evento: {codice}',{codice:s.id}))}</span></p>`;
+  const casella = `<span dir="ltr" translate="no">${esc(casellaUtenti())}</span>`, chiudi_ = `<div class="tasti"><button class="tasto pri" data-az="chiudi">${tr('Chiudi')}</button></div>`;
+  if(s.fase==='inviata') return foglio('forte alto', testa, `<p class="segn-esito" role="status">${tr('Segnalazione inviata. Se hai lasciato un indirizzo email, riceverai una conferma.')}</p>${chiudi_}`);
+  if(s.fase==='posta') return foglio('forte alto', testa, `<p class="segn-esito" role="status">${esc(tr('Si è aperta la tua app di posta con il messaggio pronto: la segnalazione parte quando lo invii tu. Se non si è aperta nessuna app, scrivi a {casella}.',{casella:'\u0001'})).split('\u0001').join(casella)}</p>${chiudi_}`);
+  /* con lo sportello che rifiuta o non risponde restano «Invia la segnalazione» (per riprovare) e, sotto, la posta */
+  const err = s.err || {}, lavoro = s.fase==='lavoro', sportello = s.modo==='sportello' || s.modo==='prova', posta = s.modo==='posta' || s.fase==='troppe' || s.fase==='errore';
+  const scelta = (k, v, t, sel) => `<label class="segn-scelta"><input type="radio" name="s-${k}" value="${v}" data-segn-scelta="${k}"${sel===v?' checked':''}${lavoro?' disabled':''}><span>${t}</span></label>`;
+  const gruppo = (k, titolo, righe, errore) => `<fieldset class="segn-gruppo${err[k]?' errore':''}"${err[k]?` aria-describedby="s-err-${k}"`:''}><legend class="etich">${titolo}</legend>${righe}${err[k]?`<span class="err" id="s-err-${k}">${errore}</span>`:''}</fieldset>`;
+  const corpo = `
+    ${gruppo('motivo', tr('Motivo'), Object.entries(MOTIVI_SEGN).map(([v, t]) => scelta('motivo', v, tr(t), s.motivo)).join(''), tr('Scegli un motivo.'))}
+    ${s.motivo==='nome' ? gruppo('chi', tr('Di chi è il nome?'), scelta('chi', 'mio', tr('Il mio'), s.chi)+scelta('chi', 'altro', tr('Di un’altra persona'), s.chi), tr('Scegli di chi è il nome.')) : ''}
+    ${s.motivo==='illecito' ? `<label class="segn-scelta segn-buona"><input type="checkbox" data-segn-scelta="buona"${s.buona?' checked':''}${lavoro?' disabled':''}><span>${tr(BUONA_FEDE)}</span></label>` : ''}
+    <div class="stack-s"><label class="etich" for="s-desc">${tr('Descrizione')}</label><div class="campo${err.desc?' errore':''}"><textarea id="s-desc" data-segn="desc" maxlength="${MODULI.segnalazione.MAX_DESCRIZIONE}" autocomplete="off" aria-describedby="s-desc-aiuto${err.desc?' s-err-desc':''}"${lavoro?' disabled':''}>${esc(s.desc)}</textarea></div>
+      <span class="meta" id="s-desc-aiuto">${tr('Scrivi che cosa non va. Non inserire dati di altre persone che non servono. Puoi scrivere anche se hai difficoltà a usare l’app.')}</span>${err.desc?`<span class="err" id="s-err-desc">${tr('Scrivi una descrizione.')}</span>`:''}</div>
+    ${sportello ? `<div class="stack-s"><label class="etich" for="s-email">${tr('Email (facoltativa)')}</label><div class="campo${err.email?' errore':''}"><input id="s-email" type="email" inputmode="email" autocomplete="off" data-segn="email" maxlength="${MODULI.segnalazione.MAX_EMAIL}" value="${esc(s.email)}"${err.email?' aria-describedby="s-err-email"':''}${lavoro?' disabled':''}></div>${err.email?`<span class="err" id="s-err-email">${tr('Controlla l’indirizzo email.')}</span>`:''}</div>` : ''}
+    <div class="stack-s"><label class="etich" for="s-nome">${tr('Nome (facoltativo)')}</label><div class="campo"><input id="s-nome" autocomplete="off" data-segn="nome" maxlength="${MODULI.segnalazione.MAX_NOME}" value="${esc(s.nome)}"${lavoro?' disabled':''}></div>
+      <span class="meta">${sportello ? tr('Servono solo per mandarti la conferma e l’esito.') : tr('La conferma e l’esito arriveranno all’indirizzo da cui invii il messaggio.')}</span></div>
+    ${s.fase==='troppe' ? `<p class="err" role="alert">${tr('In questo momento arrivano troppe segnalazioni. Riprova più tardi, oppure mandala per posta.')}</p>` : ''}
+    ${s.fase==='errore' ? `<p class="err" role="alert">${tr('Non riesco a inviare la segnalazione. Controlla la connessione e riprova, oppure mandala per posta.')}</p>` : ''}
+    <p class="meta">${esc(tr('Puoi scrivere anche a {casella}.',{casella:'\u0001'})).split('\u0001').join(casella)} <button class="link" data-legale="privacy">${tr('Informativa sulla privacy')}</button></p>
+    <p class="meta" role="status" aria-live="polite">${lavoro ? tr('Preparo l’invio…') : ''}</p>
+    ${sportello ? `<button class="tasto pri pieno" data-az="segnala-invia"${lavoro?' disabled aria-busy="true"':''}>${lavoro ? tr('Preparo l’invio…') : tr('Invia la segnalazione')}</button>` : ''}
+    ${s.modo && posta ? `<a class="tasto ${sportello ? 'sec' : 'pri'} pieno" id="s-posta" data-segn-posta href="${esc(mailtoSegn(s))}">${tr('Prepara il messaggio di posta')}</a>` : ''}`;
+  return foglio('forte alto', testa, corpo);
+}
+/* l'invio con lo sportello: lucchetto e compito, busta, compito risolto, deposito */
+async function inviaSegnalazione(){
+  const s = st.segn; if(!s || s.fase==='lavoro' || !(s.modo==='sportello' || s.modo==='prova')) return;
+  s.err = erroriSegn(s, false);
+  if(Object.keys(s.err).length){ disegnaFoglio(); fuocoErrore(); return; }
+  s.fase = 'lavoro'; disegnaFoglio();
+  const fine = f => {
+    if(st.segn!==s) return;
+    if(f==='inviata') st.segn = {id:s.id, titolo:s.titolo, fase:'inviata', err:{}};   // dopo l'invio non resta nulla di ciò che la persona ha scritto
+    else s.fase = f;
+    if(st.foglio==='segnala') disegnaFoglio();
+  };
+  try{
+    const SG = MODULI.segnalazione;
+    const l = await chiediSegnalazioni(JSON.stringify({porta:'aperta', operazione:'lucchetto'}));
+    const c = l.corpo && l.corpo.compito;
+    if(l.stato!==200 || !l.corpo.lucchetto || !c || !Number.isInteger(c.bit) || c.bit<0 || c.bit>24) return fine(l.stato===429 ? 'troppe' : 'errore');
+    const busta = await SG.cifra(SG.prepara({id:s.id, titolo:s.titolo, motivo:s.motivo, chi:s.chi, buonaFede:s.buona, descrizione:s.desc, email:s.email, nome:s.nome}), l.corpo.lucchetto.pubblica);
+    const compito = await SG.risolvi(busta, c.quando, c.bit, () => st.segn!==s);
+    const r = await chiediSegnalazioni(JSON.stringify({porta:'aperta', operazione:'deposita', busta, compito}));
+    fine(r.stato===200 ? 'inviata' : r.stato===429 ? 'troppe' : 'errore');
+  }catch(e){ fine('errore'); }
 }
 
 /* ======================= Calendario: Giornata · Mese · Agenda (OG 1.3–1.4) ======================= */
@@ -2210,6 +2342,8 @@ $('app').addEventListener('click', ev => {
       }, () => { st.sblocco = 'manca'; mostraSblocco(); }); break; }
     case 'togli-nascosto': if(st.togliNasc===d.id){ st.togliNasc = null; togliNascosto(d.id); }
       else { st.togliNasc = d.id; disegnaFoglio(); } break;
+    case 'segnala': apriSegnala(d.id); break;
+    case 'segnala-invia': inviaSegnalazione(); break;
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
@@ -2248,6 +2382,8 @@ $('foglio-slot').addEventListener('input', ev => {
   const el = ev.target;
   if(el.id==='tz-q'){ TM.q = el.value; const d = $('tz-lente'); if(d) d.innerHTML = lenteDentro(); return; }
   if(el.id==='q'){ st.q = el.value; $('risultati').innerHTML = risultatiEventi(); chiediSuggerimenti(el.value, 'cerca', 'risultati-luoghi'); return; }
+  /* il modulo «Segnala» (T-050): il messaggio di posta si tiene sempre al passo con ciò che si scrive */
+  if(el.dataset.segn && st.segn){ st.segn[el.dataset.segn] = el.value; const a = $('s-posta'); if(a) a.href = mailtoSegn(st.segn); return; }
   
   if(!st.form) return;
   if(el.dataset.link!=null){ st.form.links[+el.dataset.link] = el.value; return; }
@@ -2261,10 +2397,28 @@ $('foglio-slot').addEventListener('input', ev => {
 });
 $('foglio-slot').addEventListener('change', ev => {
   const el = ev.target;
+  /* «Segnala»: motivo, «Di chi è il nome?» e buona fede ridisegnano il modulo; il fuoco torna sulla scelta fatta */
+  if(el.dataset.segnScelta && st.segn){
+    const s = st.segn, k = el.dataset.segnScelta;
+    if(k==='buona') s.buona = el.checked;
+    else { s[k] = el.value; if(k==='motivo' && el.value!=='nome') s.chi = ''; if(s.err) s.err[k] = 0; }
+    disegnaFoglio();
+    const x = document.querySelector(k==='buona' ? '#foglio-slot [data-segn-scelta="buona"]' : `#foglio-slot [data-segn-scelta="${k}"][value="${el.value}"]`); if(x) x.focus();
+    return;
+  }
   
   if(!st.form) return;
   const c = el.dataset.campo;
   if(c==='rep' || c==='giorno' || c==='fino'){ st.form[c] = el.value; if(c==='giorno' && el.value && (!st.form.fino || st.form.fino < el.value)) st.form.fino = piuMesi(el.value,3); disegnaFoglio(); }
+});
+/* «Prepara il messaggio di posta» è un collegamento vero (mailto): se il modulo non è completo non si apre; se lo è,
+   parte il messaggio aggiornato e il modulo dice che cosa succede, senza tenere nulla di ciò che si è scritto */
+$('foglio-slot').addEventListener('click', ev => {
+  const a = ev.target.closest && ev.target.closest('[data-segn-posta]'); if(!a || !st.segn) return;
+  const s = st.segn; s.err = erroriSegn(s, true);
+  if(Object.keys(s.err).length){ ev.preventDefault(); disegnaFoglio(); fuocoErrore(); return; }
+  a.href = mailtoSegn(s);
+  setTimeout(() => { if(st.segn===s){ st.segn = {id:s.id, titolo:s.titolo, fase:'posta', err:{}}; if(st.foglio==='segnala') disegnaFoglio(); } }, 0);
 });
 $('foglio-slot').addEventListener('keydown', ev => {
   if(ev.key!=='Enter') return;

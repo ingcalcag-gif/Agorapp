@@ -24,6 +24,17 @@ const spia = () => {   // tiene da parte la mappa che l'app crea, per spostarla 
   let ml; Object.defineProperty(window, 'maplibregl', { configurable: true, get() { return ml; },
     set(v) { const M = v.Map; v.Map = function (...a) { const m = new M(...a); window.__mappaProva = m; return m; }; v.Map.prototype = M.prototype; ml = v; } });
 };
+/* Gli eventi dell'archivio di prova del repository che stanno a Torino e sono ancora sulla mappa adesso, con cinque minuti
+   di margine: la prova non deve dipendere dal giorno né dall'ora in cui gira (riscontro del 26/11/2026: con un evento
+   uscito alle 18:30 «almeno dieci» non valeva più). L'archivio si rigenera con strumenti/genera-archivio-prova.mjs. */
+const EVF = require('../../sorgenti/moduli/eventi.js');
+function torinoVivi() {
+  const dir = path.join(RADICE, 'prova', 'archivio'), indice = JSON.parse(fs.readFileSync(path.join(dir, 'indice.json'), 'utf8')), adesso = Date.now() + 5 * 6e4;
+  let n = 0;
+  for (const x of Object.values(indice.quadranti)) for (const ev of JSON.parse(fs.readFileSync(path.join(dir, x.file), 'utf8')).eventi)
+    if (ev.lat > 44.9 && ev.lat < 45.25 && ev.lng > 7.45 && ev.lng < 7.9 && EVF.uscitaMs(ev) > adesso) n++;
+  return n;
+}
 const vai = (p, lng, lat, zoom) => p.evaluate(([lng, lat, zoom]) => window.__mappaProva.jumpTo({ center: [lng, lat], zoom }), [lng, lat, zoom]);
 
 /* Gli eventi che hanno un segnaposto (da soli o in un gruppo), con le etichette dei segnaposto singoli. */
@@ -57,7 +68,9 @@ async function prova() {
     p.on('pageerror', err => e.errori.push('errore nella pagina: ' + err.message));
     await p.addInitScript(spia);
     await p.goto(s.url + 'index.html'); await p.waitForSelector('[data-az="elenco"]');
-    if (!(await eventiCaricati(p, 10))) e.errori.push('gli eventi dell\'archivio di prova non arrivano');
+    const nT = torinoVivi(), minimo = Math.min(10, nT);
+    if (nT < 5) e.errori.push('l\'archivio di prova ha soltanto ' + nT + ' eventi a Torino ancora sulla mappa: rigeneralo con strumenti/genera-archivio-prova.mjs');
+    if (!(await eventiCaricati(p, minimo))) e.errori.push('gli eventi dell\'archivio di prova non arrivano');
     await pausa(800);
     const strati = await p.evaluate(() => window.AGR.dati.strati.map(l => ({ id: l.id, nome: window.AGR.tr(l.label) })));
     let etichetteViste = 0; const esempi = [];
@@ -87,7 +100,7 @@ async function prova() {
     };
 
     let x = await confronta('Torino, tutti gli strati');
-    if (x.ids.length < 10) e.errori.push('Torino: mi aspettavo almeno dieci eventi, ne trovo ' + x.ids.length);
+    if (x.ids.length < minimo) e.errori.push('Torino: mi aspettavo almeno ' + minimo + ' eventi, ne trovo ' + x.ids.length);
     if (!x.ids.includes(ID_OG)) e.errori.push('Torino: l\'Off-Grid non è nell\'elenco');
     const nTorino = x.ids.length;
 
@@ -116,7 +129,7 @@ async function prova() {
     /* un evento salvato: l'etichetta lo dice; «Il tuo calendario» mostra solo i salvati e gli Off-Grid, su mappa ed elenco */
     const salvato = x.ids.find(i => i !== ID_OG) || (await sullaMappa(p)).ids.find(i => i !== ID_OG);
     await p.evaluate(id => { window.AGR.salvati.add(id); }, salvato);
-    await p.reload(); await p.waitForSelector('[data-az="elenco"]'); await eventiCaricati(p, 10); await pausa(800);
+    await p.reload(); await p.waitForSelector('[data-az="elenco"]'); await eventiCaricati(p, minimo); await pausa(800);
     x = await confronta('Torino, dopo aver salvato un evento');
     const et = x.m.etichette[salvato];
     if (et !== undefined && !/, nel calendario$/.test(et)) e.errori.push(`evento salvato: l'etichetta del segnaposto non dice «nel calendario» («${et}»)`);

@@ -240,6 +240,19 @@ const ARCHIVIO_DOVE = (() => {
    del repository. Così il giro intero (pubblica, correggi, sospendi, ritira) si prova sul telefono senza Bunny. Con
    l'indirizzo degli eventi nella configurazione (T-065) questo tratto non fa più nulla. */
 const SPORTELLO_PROVA_DOVE = !(CFG.indirizzi||{}).eventi && ARCHIVIO_DOVE ? ARCHIVIO_DOVE.replace(/prova\/archivio\/$/, 'prova/sportello/') : '';
+/* Il deposito dello sportello di prova: i percorsi diventano indirizzi finti sotto prova/sportello/, nella memoria del
+   browser per i file (voce prova_sportello), che nessuno chiede alla rete. Lo usano lo sportello di pubblicazione di prova
+   dell'app della redazione (T-038) e lo sportello delle segnalazioni di prova (T-051), in tutte e due le app. La memoria si
+   apre a ogni passo: dopo «Svuota lo sportello di prova» non resta in mano una memoria cancellata. */
+function depositoProva(){
+  const base = SPORTELLO_PROVA_DOVE, cassa = () => MEM.file.open('prova_sportello');
+  return {
+    leggi: async p => { const r = await (await cassa()).match(base + p); return r ? r.text() : null; },
+    scrivi: async (p, t) => { await (await cassa()).put(base + p, new Response(t, {headers:{'content-type':'application/json'}})); },
+    togli: async p => { await (await cassa()).delete(base + p); },
+    elenca: async pre => (await (await cassa()).keys()).map(r => r.url).filter(u => u.startsWith(base + pre)).map(u => u.slice(base.length))
+  };
+}
 async function sorgenteArchivio(){
   const vera = {dove:ARCHIVIO_DOVE, fetch:window.fetch.bind(window), finto:false};
   if(!SPORTELLO_PROVA_DOVE || !MEM.file) return vera;

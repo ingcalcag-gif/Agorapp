@@ -46,7 +46,15 @@ async function prova() {
     await avvia(); await analizza('mappa');
     if (await tocca('[data-az="elenco"]', 'elenco')) {
       await analizza('elenco');
-      if (await tocca('#foglio-slot [data-ev="' + ID_EV + '"]', 'scheda evento')) await analizza('scheda evento');
+      if (await tocca('#foglio-slot [data-ev="' + ID_EV + '"]', 'scheda evento')) {
+        await analizza('scheda evento');
+        /* il modulo «Segnala» (T-050), anche con gli errori in vista (il messaggio di posta non parte senza motivo) */
+        if (await tocca('#foglio-slot [data-az="segnala"]', 'segnala')) {
+          await p.waitForSelector('#foglio-slot #s-posta, #foglio-slot [data-az="segnala-invia"]', { timeout: 15000 }).catch(() => {});
+          await analizza('segnala');
+          if (await tocca('#foglio-slot #s-posta', 'segnala, errori')) await analizza('segnala, errori');
+        }
+      }
     }
     await avvia(); if (await tocca('[data-az="calendario"]', 'calendario')) await analizza('calendario');
     await avvia(); if (await tocca('[data-az="cerca"]', 'cerca')) await analizza('cerca');
@@ -55,7 +63,7 @@ async function prova() {
     await browser.close(); await s.chiudi();
   }
   confronta(e, 'accessibilita', trovati);
-  e.note.push('schermate: mappa, elenco, scheda evento, calendario, cerca, impostazioni; regole ' + REGOLE.join(', '));
+  e.note.push('schermate: mappa, elenco, scheda evento, modulo «Segnala» (anche con gli errori), calendario, cerca, impostazioni; regole ' + REGOLE.join(', '));
   return e;
 }
 

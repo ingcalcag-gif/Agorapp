@@ -118,9 +118,10 @@
       cosa: 'Il registro delle fonti sul dispositivo (fonti, righe degli eventi pubblicati, schede preparate), in una busta cifrata con la chiave del registro (T-041, T-043)' },
     /* Solo sul collegamento di prova (voci con «prova»): non sta nella scheda e sul sito vero non nasce mai. La scrive
        lo sportello di prova dell'app della redazione; l'app pubblica di prova, che lì sta allo stesso indirizzo, la
-       legge soltanto. Contiene soli eventi inventati. */
+       legge e, dal blocco 13, vi deposita soltanto le segnalazioni chiuse nella busta (sportello delle segnalazioni di
+       prova, T-051). Contiene soli eventi e segnalazioni inventati. */
     { nome: 'prova_sportello', dove: 'file', prova: true,
-      cosa: 'L\'archivio finto dello sportello di prova: i file pubblici degli eventi, l\'elenco riservato, lo storico e le chiavi ammesse (T-038)' }
+      cosa: 'L\'archivio finto dello sportello di prova: i file pubblici degli eventi, l\'elenco riservato, lo storico, le chiavi ammesse (T-038) e le segnalazioni inventate depositate (T-051)' }
   ];
   /* Il segno dell'app della redazione e la base di dati dei suoi strumenti. */
   const SEGNO_REDAZIONE = 'red_qui', BASE = 'red_strumenti', DEPOSITO = 'voci';
@@ -1121,5 +1122,364 @@
   }
 
   return { TIPI, APRE, errori, daMostrare, conVisto };
+});
+
+/* La segnalazione di un evento (voci T-050, T-051 e T-052 del piano di adeguamento; documento: docs/segnalazioni.md).
+
+   Libro mastro, § 7.5, misura 3 (regole 1-8, strade a e b): il modulo «Segnala» nella scheda dell'evento indica l'evento
+   con il suo identificativo, chiede il motivo tra cinque e una descrizione libera; email e nome sono facoltativi e servono
+   solo a ricevere conferma ed esito; per i contenuti illeciti propone la dichiarazione di buona fede. Nessun
+   identificativo del telefono; nulla resta sul telefono dopo l'invio. § 4.2 (invii volontari); § 11.4 (le richieste di
+   adattamento arrivano anche dal modulo, con «Altro»).
+
+   Questo modulo è scritto una volta sola e lo usano tutti e tre i lati:
+   - l'app pubblica controlla la segnalazione, la chiude nella busta e risolve il piccolo compito prima dell'invio;
+   - lo sportello delle segnalazioni (sportelli/segnalazioni.js) controlla la forma della busta e il compito;
+   - l'app della redazione apre la busta con la chiave di cifratura del dispositivo (sorgenti/moduli/chiavi.js).
+
+   La busta (strada a, decisione del 26/11/2026: chiude il telefono, il lucchetto lo dà lo sportello). Il telefono crea
+   una coppia di chiavi usa e getta (ECDH P-256), ricava con la parte pubblica di cifratura della Redazione un segreto
+   comune e, da quello, una chiave AES-GCM a 256 bit (HKDF-SHA-256); chiude il testo e butta la sua parte segreta. Nella
+   busta viaggiano soltanto la sua parte pubblica usa e getta, il vettore iniziale e il testo chiuso: la riapre solo chi
+   ha la parte segreta di cifratura della Redazione. Lo sportello e Bunny conservano un file illeggibile.
+
+   Il piccolo compito (decisione del 26/11/2026, dubbio 4): prima dell'invio il telefono cerca un numero che, insieme
+   all'ora data dallo sportello e all'impronta della busta, dia un'impronta SHA-256 che comincia con un certo numero di
+   bit a zero. Per una persona è un'attesa breve; per chi volesse mandare migliaia di segnalazioni diventa lento. Il
+   compito non dice nulla di chi scrive: lega soltanto la busta all'ora.
+
+   Nel browser si trova in window.AGR_MODULI.segnalazione; in Node (prove, sportello) con require(). */
+(function (radice, fabbrica) {
+  const m = fabbrica(radice);
+  if (typeof module === 'object' && module.exports) module.exports = m;
+  else (radice.AGR_MODULI = radice.AGR_MODULI || {}).segnalazione = m;
+})(typeof self !== 'undefined' ? self : this, function (radice) {
+  'use strict';
+  const VERSIONE = 1, TIPO_BUSTA = 'segnalazione-redazione';
+  /* I cinque motivi del § 7.5, regola 2 (e della colonna «Motivo» del cap. 25), nell'ordine del modulo. */
+  const MOTIVI = ['dati', 'annullato', 'nome', 'illecito', 'altro'];
+  /* Con il motivo «nome» la domanda «Di chi è il nome?» è obbligatoria (decisione del 26/11/2026): il proprio nome è
+     una richiesta sui propri dati, da evadere entro 48 ore (§ 3.13; cap. 26). */
+  const CHI = ['mio', 'altro'];
+  const MAX_DESCRIZIONE = 2000, MAX_EMAIL = 254, MAX_NOME = 100, MAX_TITOLO = 200;
+  const MAX_DATI = 24000;                 // il testo chiuso, in base64 per indirizzi
+  const INFO = 'segnalazione-redazione-v1';
+  const ID = /^[a-z2-7]{16}-[a-z2-7]{8}$/;
+  const EMAIL = /^[^\s@<>()[\]\\,;:"]+@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:"]+$/;
+  const B64 = /^[A-Za-z0-9_-]+$/;
+  const QUANDO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+  const cripto = c => c || radice.crypto || (typeof globalThis === 'object' ? globalThis.crypto : null);
+
+  function b64(b) { b = new Uint8Array(b); let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function daB64(s) { const t = atob(String(s).replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) b[i] = t.charCodeAt(i); return b; }
+  /* testi: senza caratteri di controllo, tranne l'a capo; a capo sempre \n */
+  const pulisci = (x, max) => String(x == null ? '' : x).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u2028\u2029]/g, ' ').trim().slice(0, max);
+  const lunghezza = x => Array.from(String(x == null ? '' : x)).length;
+
+  /* ---------- La segnalazione: forma e controllo ---------- */
+  /* prepara(campi) → la segnalazione nella forma che viaggia: soltanto ciò che la persona ha scritto e l'evento. */
+  function prepara(c) {
+    c = c || {};
+    const s = { v: VERSIONE, evento: { id: String(c.id || ''), titolo: pulisci(c.titolo, MAX_TITOLO) }, motivo: String(c.motivo || ''), descrizione: pulisci(c.descrizione, MAX_DESCRIZIONE) };
+    if (s.motivo === 'nome') s.chi = String(c.chi || '');
+    if (s.motivo === 'illecito') s.buonaFede = !!c.buonaFede;
+    const email = pulisci(c.email, MAX_EMAIL).replace(/\s+/g, ''), nome = pulisci(c.nome, MAX_NOME).replace(/\s+/g, ' ');
+    if (email) s.email = email;
+    if (nome) s.nome = nome;
+    return s;
+  }
+  /* controlla(segnalazione) → l'elenco dei campi da sistemare: evento, motivo, chi, descrizione, email, nome, forma. */
+  function controlla(s) {
+    const e = [];
+    if (!s || typeof s !== 'object' || Array.isArray(s) || s.v !== VERSIONE) return ['forma'];
+    const ammessi = ['v', 'evento', 'motivo', 'chi', 'buonaFede', 'descrizione', 'email', 'nome'];
+    if (Object.keys(s).some(k => !ammessi.includes(k))) e.push('forma');
+    const ev = s.evento;
+    if (!ev || typeof ev !== 'object' || typeof ev.id !== 'string' || !ID.test(ev.id) || typeof ev.titolo !== 'string' || lunghezza(ev.titolo) > MAX_TITOLO || Object.keys(ev).some(k => k !== 'id' && k !== 'titolo')) e.push('evento');
+    if (!MOTIVI.includes(s.motivo)) e.push('motivo');
+    if (s.motivo === 'nome' ? !CHI.includes(s.chi) : s.chi !== undefined) e.push('chi');
+    if (s.motivo === 'illecito' ? typeof s.buonaFede !== 'boolean' : s.buonaFede !== undefined) e.push('forma');
+    if (typeof s.descrizione !== 'string' || lunghezza(s.descrizione) > MAX_DESCRIZIONE || ((s.motivo === 'illecito' || s.motivo === 'altro') && !s.descrizione.trim())) e.push('descrizione');
+    if (s.email !== undefined && (typeof s.email !== 'string' || s.email.length > MAX_EMAIL || !EMAIL.test(s.email))) e.push('email');
+    if (s.nome !== undefined && (typeof s.nome !== 'string' || !s.nome.trim() || lunghezza(s.nome) > MAX_NOME)) e.push('nome');
+    return Array.from(new Set(e));
+  }
+
+  /* ---------- La busta ---------- */
+  const ec = { name: 'ECDH', namedCurve: 'P-256' };
+  async function chiaveDaSegreto(segreto, effimera, c) {
+    const sub = cripto(c).subtle;
+    const base = await sub.importKey('raw', segreto, 'HKDF', false, ['deriveKey']);
+    return sub.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: effimera, info: new TextEncoder().encode(INFO) }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  /* cifra(segnalazione, lucchetto, cripto) → la busta {tipo, v, effimera, iv, dati}. lucchetto: la parte pubblica di
+     cifratura della Redazione (65 byte, in base64 per indirizzi), data dallo sportello. */
+  async function cifra(s, lucchetto, c) {
+    const errori = controlla(s); if (errori.length) throw Object.assign(new Error('segnalazione: ' + errori.join(', ')), { motivo: 'forma', campi: errori });
+    if (typeof lucchetto !== 'string' || !B64.test(lucchetto)) throw Object.assign(new Error('segnalazione: lucchetto'), { motivo: 'lucchetto' });
+    const k = cripto(c), sub = k.subtle;
+    const redazione = await sub.importKey('raw', daB64(lucchetto), ec, false, []);
+    const mia = await sub.generateKey(ec, false, ['deriveBits']);
+    const effimera = new Uint8Array(await sub.exportKey('raw', mia.publicKey));
+    const segreto = await sub.deriveBits({ name: 'ECDH', public: redazione }, mia.privateKey, 256);
+    const chiave = await chiaveDaSegreto(segreto, effimera, c), iv = k.getRandomValues(new Uint8Array(12));
+    const dati = await sub.encrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(TIPO_BUSTA) }, chiave, new TextEncoder().encode(JSON.stringify(s)));
+    const busta = { tipo: TIPO_BUSTA, v: VERSIONE, effimera: b64(effimera), iv: b64(iv), dati: b64(dati) };
+    if (busta.dati.length > MAX_DATI) throw Object.assign(new Error('segnalazione: troppo lunga'), { motivo: 'lunga' });
+    return busta;
+  }
+  function bustaValida(b) {
+    return !!b && typeof b === 'object' && !Array.isArray(b) && b.tipo === TIPO_BUSTA && b.v === VERSIONE && Object.keys(b).every(k => ['tipo', 'v', 'effimera', 'iv', 'dati'].includes(k)) &&
+      typeof b.effimera === 'string' && /^[A-Za-z0-9_-]{87}$/.test(b.effimera) && typeof b.iv === 'string' && /^[A-Za-z0-9_-]{16}$/.test(b.iv) &&
+      typeof b.dati === 'string' && B64.test(b.dati) && b.dati.length >= 24 && b.dati.length <= MAX_DATI;
+  }
+  /* apri(busta, segreto, cripto) → la segnalazione. segreto(effimera in byte) → il segreto comune (256 bit), ricavato
+     dalla parte segreta di cifratura del dispositivo della Redazione (segretoSegnalazione del modulo delle chiavi). Una busta rovinata,
+     scritta per un'altra chiave o con un contenuto fuori forma dà l'errore con motivo «busta». */
+  async function apri(busta, segreto, c) {
+    const no = () => Object.assign(new Error('segnalazione: busta'), { motivo: 'busta' });
+    if (!bustaValida(busta)) throw no();
+    let s;
+    try {
+      const effimera = daB64(busta.effimera), chiave = await chiaveDaSegreto(await segreto(effimera), effimera, c);
+      const testo = await cripto(c).subtle.decrypt({ name: 'AES-GCM', iv: daB64(busta.iv), additionalData: new TextEncoder().encode(TIPO_BUSTA) }, chiave, daB64(busta.dati));
+      s = JSON.parse(new TextDecoder().decode(testo));
+    } catch (e) { throw no(); }
+    if (controlla(s).length) throw no();
+    return s;
+  }
+
+  /* ---------- Il piccolo compito ---------- */
+  /* SHA-256 scritto qui, senza attese: il compito ne calcola decine di migliaia di fila (FIPS 180-4). */
+  const K = new Uint32Array([0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d,
+    0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+    0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]);
+  const W = new Uint32Array(64);
+  function sha256(byte) {
+    const n = byte.length, righe = ((n + 9 + 63) >> 6) << 6, m = new Uint8Array(righe);
+    m.set(byte); m[n] = 0x80;
+    const bit = n * 8; m[righe - 4] = bit >>> 24; m[righe - 3] = (bit >>> 16) & 255; m[righe - 2] = (bit >>> 8) & 255; m[righe - 1] = bit & 255;
+    m[righe - 5] = Math.floor(n / 0x20000000) & 255;
+    let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a, h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+    for (let o = 0; o < righe; o += 64) {
+      for (let i = 0; i < 16; i++) W[i] = (m[o + 4 * i] << 24) | (m[o + 4 * i + 1] << 16) | (m[o + 4 * i + 2] << 8) | m[o + 4 * i + 3];
+      for (let i = 16; i < 64; i++) {
+        const a = W[i - 15], b = W[i - 2];
+        const s0 = ((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ (a >>> 3), s1 = ((b >>> 17) | (b << 15)) ^ ((b >>> 19) | (b << 13)) ^ (b >>> 10);
+        W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+      }
+      let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+      for (let i = 0; i < 64; i++) {
+        const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7)), ch = (e & f) ^ (~e & g);
+        const t1 = (h + S1 + ch + K[i] + W[i]) | 0;
+        const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10)), maj = (a & b) ^ (a & c) ^ (b & c);
+        const t2 = (S0 + maj) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + h) | 0;
+    }
+    const r = new Uint8Array(32), hs = [h0, h1, h2, h3, h4, h5, h6, h7];
+    for (let i = 0; i < 8; i++) { r[4 * i] = hs[i] >>> 24; r[4 * i + 1] = (hs[i] >>> 16) & 255; r[4 * i + 2] = (hs[i] >>> 8) & 255; r[4 * i + 3] = hs[i] & 255; }
+    return r;
+  }
+  const byte = t => new TextEncoder().encode(t);
+  /* l'impronta della busta: i primi 32 caratteri (192 bit) dell'impronta SHA-256 dei suoi tre campi */
+  const improntaBusta = b => b64(sha256(byte(b.effimera + '.' + b.iv + '.' + b.dati))).slice(0, 32);
+  const zeri = h => { let n = 0; for (let i = 0; i < h.length; i++) { if (h[i] === 0) { n += 8; continue; } let x = h[i]; while (!(x & 0x80)) { n++; x <<= 1; } break; } return n; };
+  const testoCompito = (quando, imp, n) => quando + '.' + imp + '.' + n.toString(36);
+  /* verificaCompito(busta, {quando, n}, bit) → vero se il numero risolve il compito per quella busta e quell'ora */
+  function verificaCompito(busta, compito, bit) {
+    if (!compito || typeof compito !== 'object' || typeof compito.quando !== 'string' || !QUANDO.test(compito.quando) || !Number.isSafeInteger(compito.n) || compito.n < 0) return false;
+    return zeri(sha256(byte(testoCompito(compito.quando, improntaBusta(busta), compito.n)))) >= bit;
+  }
+  /* risolvi(busta, quando, bit, fermo) → {quando, n}. Lavora a pezzi e lascia respirare la pagina tra un pezzo e
+     l'altro; fermo() vero interrompe (il modulo è stato chiuso). */
+  async function risolvi(busta, quando, bit, fermo) {
+    const imp = improntaBusta(busta), pausa = () => new Promise(r => setTimeout(r, 0));
+    for (let n = 0; n < Number.MAX_SAFE_INTEGER; n++) {
+      if (zeri(sha256(byte(testoCompito(quando, imp, n)))) >= bit) return { quando, n };
+      if ((n & 2047) === 2047) { await pausa(); if (fermo && fermo()) throw Object.assign(new Error('segnalazione: fermata'), { motivo: 'fermata' }); }
+    }
+    throw new Error('segnalazione: compito');
+  }
+
+  return { VERSIONE, TIPO_BUSTA, MOTIVI, CHI, MAX_DESCRIZIONE, MAX_EMAIL, MAX_NOME, MAX_DATI, ID, EMAIL, prepara, controlla, cifra, apri, bustaValida,
+    sha256, improntaBusta, zeri, verificaCompito, risolvi };
+});
+
+/* Lo sportello delle segnalazioni (voce T-051 del piano di adeguamento; documento: docs/segnalazioni.md).
+
+   Libro mastro, § 7.5, misura 3, strada a (scelta il 12/11/2026): il modulo «Segnala» chiude la segnalazione sul
+   telefono con la chiave pubblica di cifratura della Redazione e la manda a questo piccolo programma, che la deposita
+   nello spazio riservato; il programma limita gli invii senza conservare gli indirizzi e non aggiunge identificativi.
+   Regola 4: nessun identificativo del telefono, nessun indirizzo IP registrato. Strada b (il messaggio di posta già
+   compilato) resta il ponte finché lo sportello non è allacciato e provato (T-065, T-071).
+
+   Lo sportello ha due porte.
+   - La porta aperta, per chiunque, senza firma: «lucchetto» dà la parte pubblica di cifratura della Redazione e il
+     piccolo compito; «deposita» riceve la busta chiusa con il compito risolto. Il lucchetto lo prende dall'elenco delle
+     chiavi ammesse (riservato/chiavi.json), lo stesso dello sportello di pubblicazione: lo scrive il Responsabile
+     infrastruttura con il file delle parti pubbliche della schermata «Chiavi», che contiene già la parte di cifratura
+     (decisione del 26/11/2026, dubbio 1). Nel codice e nel repository non c'è nessuna chiave.
+   - La porta firmata, per i soli dispositivi della Redazione, con il pacchetto firmato di sorgenti/moduli/pacchetto.js
+     e le stesse regole dello sportello di pubblicazione (decisione del 23/11/2026: cinque minuti; cinque firme sbagliate
+     in un quarto d'ora fermano quel dispositivo per quindici minuti; gli estranei sono rifiutati subito):
+     «segnalazioni» restituisce le buste depositate, chiuse; «presa» toglie quelle prese in carico (decisione del
+     26/11/2026, dubbio 8: dopo la presa in carico nello sportello non resta traccia).
+
+   Il limite (decisione del 26/11/2026, dubbio 4): uguale per tutti, contato su tutte le segnalazioni insieme, senza sapere
+   chi le manda: al più 20 in un'ora e 100 in un giorno, al più 300 in attesa di essere lette; ogni busta al più di
+   24.000 caratteri (la descrizione al più di 2.000). In più il piccolo compito (sorgenti/moduli/segnalazione.js) con
+   16 bit a zero: circa sessantamila tentativi, una frazione di secondo su un computer, uno o due secondi su un telefono.
+   L'ora del compito la dà lo sportello con il lucchetto e vale dieci minuti; un compito già usato si rifiuta. Il limite
+   per indirizzo, se serve, è una regola della zona di Bunny (T-064, T-071), che gli indirizzi li tratta già come
+   responsabile: questo programma non li legge e non li conserva.
+
+   Qui c'è soltanto la logica, uguale dovunque giri: su Bunny la avvolge sportelli/bunny-segnalazioni.js (Fase 2,
+   T-065); in Fase 1 gira dentro il browser, nello sportello di prova (sul collegamento di prova l'app pubblica deposita,
+   l'app della redazione legge), con lo stesso archivio finto dello sportello di pubblicazione. Chi la avvolge le dà
+   deposito {leggi, scrivi, togli, elenca}, ora, cripto e, per la porta firmata, pacchetto (nell'app pubblica manca:
+   lì serve solo la porta aperta).
+
+   Nel browser si trova in window.AGR_MODULI.segnalazioniSportello (dopo segnalazione.js); in Node con require(). */
+(function (radice, fabbrica) {
+  const nodo = typeof module === 'object' && module.exports && typeof require === 'function';
+  const M = nodo ? { segnalazione: require('../sorgenti/moduli/segnalazione.js'), pacchetto: require('../sorgenti/moduli/pacchetto.js') } : (radice.AGR_MODULI || {});
+  const m = fabbrica(M.segnalazione, M.pacchetto, radice);
+  if (nodo) module.exports = m;
+  else (radice.AGR_MODULI = radice.AGR_MODULI || {}).segnalazioniSportello = m;
+})(typeof self !== 'undefined' ? self : this, function (S, P0, radice) {
+  'use strict';
+  if (!S) throw new Error('sportello delle segnalazioni: serve prima segnalazione.js');
+
+  const VERSIONE = 1;
+  const LIMITI = { ora: 20, giorno: 100, attesa: 300, bit: 16 };
+  const ORA_MS = 36e5, GIORNO_MS = 864e5;
+  const COMPITO_MS = 10 * 6e4;            // l'ora del compito vale dieci minuti
+  const TENTATIVI = 5, QUARTO_MS = 15 * 6e4, FERMO_MS = 15 * 6e4;   // come lo sportello di pubblicazione
+  const MAX_APERTA = 32000;               // una richiesta alla porta aperta più lunga non si legge nemmeno
+  const PRE = 'riservato/segnalazioni/';
+  const F = { chiavi: 'riservato/chiavi.json', arrivate: PRE + 'arrivate/', conti: PRE + 'conti.json', compiti: PRE + 'compiti.json', visti: PRE + 'visti.json', tentativi: PRE + 'tentativi.json' };
+  const TIPO_ARRIVATA = 'segnalazione-arrivata';
+  const NOME = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}$/;
+  const PUBBLICA = /^[A-Za-z0-9_-]{80,100}$/;
+  const iso = ms => new Date(ms).toISOString();
+
+  function crea(o) {
+    const dep = o.deposito, ora = o.ora || (() => Date.now()), P = o.pacchetto || P0 || null;
+    const cripto = o.cripto || radice.crypto || (typeof globalThis === 'object' ? globalThis.crypto : null);
+    const L = Object.assign({}, LIMITI, o.limiti || {});
+    if (!dep) throw new Error('sportello delle segnalazioni: manca il deposito');
+    async function leggiJson(p, d) { const t = await dep.leggi(p); if (t == null) return d; try { return JSON.parse(t); } catch (e) { return d; } }
+    const scriviJson = (p, v) => dep.scrivi(p, JSON.stringify(v));
+    const risposta = (stato, corpo) => ({ stato, corpo: Object.assign({ sportello: 'segnalazioni', v: VERSIONE, ora: iso(ora()) }, corpo) });
+    const no = (stato, motivo, extra) => risposta(stato, Object.assign({ esito: 'rifiutato', motivo }, extra || {}));
+
+    /* il lucchetto: la parte pubblica di cifratura delle chiavi ammesse (è la stessa per tutti i dispositivi; si prende la
+       più recente), mai di una firma revocata */
+    async function lucchetto() {
+      const k = await leggiJson(F.chiavi, {}), revocate = new Set((k.revocate || []).map(x => x.impronta));
+      const ok = (k.ammesse || []).filter(x => !revocate.has(x.impronta) && x.cifratura && typeof x.cifratura.pubblica === 'string' && PUBBLICA.test(x.cifratura.pubblica));
+      ok.sort((a, b) => String(a.dal || '').localeCompare(String(b.dal || '')));
+      const u = ok[ok.length - 1];
+      return u ? { pubblica: u.cifratura.pubblica, impronta: u.cifratura.impronta || '' } : null;
+    }
+
+    /* ---------- La porta aperta ---------- */
+    async function aperta(r, t) {
+      if (r.operazione === 'lucchetto') {
+        const l = await lucchetto();
+        if (!l) return no(503, 'chiuso');
+        return risposta(200, { esito: 'fatto', lucchetto: l, compito: { quando: iso(t), bit: L.bit } });
+      }
+      if (r.operazione !== 'deposita' || Object.keys(r).some(k => !['porta', 'operazione', 'busta', 'compito'].includes(k))) return no(400, 'forma');
+      const b = r.busta, c = r.compito;
+      if (!S.bustaValida(b) || !c || typeof c !== 'object' || Object.keys(c).some(k => k !== 'quando' && k !== 'n')) return no(400, 'forma');
+      const q = Date.parse(c.quando);
+      if (typeof c.quando !== 'string' || !Number.isFinite(q) || Math.abs(t - q) > COMPITO_MS) return no(400, 'tempo');
+      if (!S.verificaCompito(b, c, L.bit)) return no(400, 'compito');
+      /* un compito risolto vale una volta sola: si tiene l'impronta della busta per il tempo in cui l'ora del compito vale */
+      const compiti = await leggiJson(F.compiti, {}), imp = S.improntaBusta(b);
+      for (const x of Object.keys(compiti)) if (!(compiti[x] > t - 2 * COMPITO_MS)) delete compiti[x];
+      if (compiti[imp]) return no(409, 'ripetuto');
+      /* il limite uguale per tutti: soltanto gli istanti di arrivo dell'ultimo giorno, di nessuno in particolare */
+      const conti = await leggiJson(F.conti, {}), arrivi = (Array.isArray(conti.arrivi) ? conti.arrivi : []).filter(x => typeof x === 'number' && x > t - GIORNO_MS);
+      if (arrivi.filter(x => x > t - ORA_MS).length >= L.ora || arrivi.length >= L.giorno) return no(429, 'troppe');
+      if ((await dep.elenca(F.arrivate)).length >= L.attesa) return no(429, 'troppe');
+      const casuale = Array.from(cripto.getRandomValues(new Uint8Array(4)), x => x.toString(16).padStart(2, '0')).join('');
+      const nome = iso(t).replace(/[:.]/g, '-') + '-' + casuale;
+      await scriviJson(F.arrivate + nome + '.json', { tipo: TIPO_ARRIVATA, v: VERSIONE, nome, arrivo: iso(t), busta: b });
+      compiti[imp] = t; await scriviJson(F.compiti, compiti);
+      arrivi.push(t); await scriviJson(F.conti, { arrivi });
+      return risposta(200, { esito: 'fatto' });
+    }
+
+    /* ---------- La porta firmata: solo i dispositivi della Redazione ---------- */
+    const OPERA = {
+      async segnalazioni() {
+        const nomi = (await dep.elenca(F.arrivate)).map(x => x.slice(F.arrivate.length).replace(/\.json$/, '')).filter(n => NOME.test(n)).sort();
+        const lista = [];
+        for (const n of nomi.slice(0, L.attesa)) {
+          const x = await leggiJson(F.arrivate + n + '.json', null);
+          if (x && x.tipo === TIPO_ARRIVATA && x.nome === n && S.bustaValida(x.busta)) lista.push({ nome: n, arrivo: x.arrivo, busta: x.busta });
+        }
+        return { segnalazioni: lista };
+      },
+      async presa(c) {
+        if (!Array.isArray(c.nomi) || !c.nomi.length || c.nomi.length > L.attesa || c.nomi.some(n => typeof n !== 'string' || !NOME.test(n))) throw Object.assign(new Error('presa'), { rifiuto: { motivo: 'presa' } });
+        const tolte = [];
+        for (const n of c.nomi) if ((await dep.leggi(F.arrivate + n + '.json')) != null) { await dep.togli(F.arrivate + n + '.json'); tolte.push(n); }
+        return { tolte };
+      }
+    };
+    async function firmata(testo, t) {
+      if (!P) return no(400, 'forma');
+      let letto; try { letto = P.leggi(testo); } catch (e) { return no(400, 'forma'); }
+      const p = letto.pacchetto, c = letto.contenuto, imp = p.dispositivo.impronta;
+      if (!OPERA[c.operazione]) return no(400, 'operazione');
+      const chiavi = await leggiJson(F.chiavi, {});
+      if ((chiavi.revocate || []).some(k => k.impronta === imp)) return no(403, 'revocata');
+      const nota = (chiavi.ammesse || []).find(k => k.impronta === imp);
+      if (!nota) return no(403, 'sconosciuto');
+      const tentativi = await leggiJson(F.tentativi, {}), mio = tentativi[imp] || { errori: [] };
+      if (mio.fermo_fino > t) return no(429, 'fermo', { fino: iso(mio.fermo_fino) });
+      if (!(await P.verifica(p, nota.pubblica, cripto))) {
+        mio.errori = (mio.errori || []).filter(x => x > t - QUARTO_MS).concat([t]);
+        const fermo = mio.errori.length >= TENTATIVI;
+        if (fermo) { mio.fermo_fino = t + FERMO_MS; mio.errori = []; }
+        tentativi[imp] = mio; await scriviJson(F.tentativi, tentativi);
+        return fermo ? no(429, 'fermo', { fino: iso(mio.fermo_fino) }) : no(401, 'firma');
+      }
+      if (Math.abs(t - Date.parse(p.quando)) > P.FINESTRA_MS) return no(400, 'tempo');
+      const visti = await leggiJson(F.visti, {});
+      for (const k of Object.keys(visti)) if (!(visti[k] > t - 2 * P.FINESTRA_MS)) delete visti[k];
+      if (visti[p.numero]) return no(409, 'ripetuto');
+      visti[p.numero] = t; await scriviJson(F.visti, visti);
+      try { return risposta(200, Object.assign({ esito: 'fatto', operazione: c.operazione }, await OPERA[c.operazione](c))); }
+      catch (e) { if (e && e.rifiuto) return risposta(422, Object.assign({ esito: 'rifiutato' }, e.rifiuto)); throw e; }
+    }
+
+    /* ---------- Una richiesta alla volta ---------- */
+    async function tratta(testo) {
+      const t = ora();
+      if (typeof testo !== 'string') return no(400, 'forma');
+      let r = null;
+      if (testo.length <= MAX_APERTA) { try { r = JSON.parse(testo); } catch (e) { return no(400, 'forma'); } }
+      if (r && typeof r === 'object' && !Array.isArray(r) && r.porta === 'aperta') return aperta(r, t);
+      return firmata(testo, t);
+    }
+    let coda = Promise.resolve();
+    /* ricevi(testo della richiesta) → {stato, corpo}, come lo sportello di pubblicazione */
+    function ricevi(testo) {
+      const r = coda.then(() => tratta(testo));
+      coda = r.catch(() => {});
+      return r.catch(() => risposta(500, { esito: 'rifiutato', motivo: 'guasto' }));
+    }
+    return { ricevi, lucchetto };
+  }
+
+  return { VERSIONE, LIMITI, COMPITO_MS, PRE, NOME, crea };
 });
 

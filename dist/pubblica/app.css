@@ -563,6 +563,17 @@ a.tasto.sec{color:var(--testo)}
 /* campo della barra dei nascosti: il tasto Sblocca non esce più dal riquadro sui telefoni stretti */
 #pw{min-width:0;width:100%}
 label.campo:has(#pw){min-width:0}
+/* Il modulo «Segnala» nella scheda dell'evento (T-050): scelte grandi da toccare, il gruppo con un errore si colora */
+.segn-evento{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.segn-evento .t{color:var(--testo);font-weight:600}
+.segn-gruppo{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+.segn-gruppo legend{padding:0;margin-bottom:6px}
+.segn-scelta{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding:10px 12px;border:1px solid var(--linea);border-radius:12px;background:var(--superficie);color:var(--testo);font-size:15px;line-height:22px;cursor:pointer}
+.segn-scelta input{margin:1px 0 0;width:20px;height:20px;flex:none;accent-color:var(--verde)}
+.segn-scelta:has(input:checked){border-color:var(--verde);background:var(--verde-tenue)}
+.segn-gruppo.errore .segn-scelta{border-color:var(--rosso)}
+.segn-esito{color:var(--testo);font-size:16px;line-height:24px;margin:8px 0}
+a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 
 /* ===== Temi (come nell'app online: ovali, Strati e Temi trasversali) ===== */
 .pag-temi{flex:1 0 auto;padding:4px 16px 24px;display:flex;flex-direction:column;gap:20px}

@@ -30,8 +30,10 @@
   const MAX_CARATTERI = 2e6;            // un pacchetto più lungo non si legge nemmeno
   /* Che cosa si può chiedere: «scrivi» (pubblicare, correggere, sospendere, riattivare, ritirare), «ripristina» (una
      copia dello storico), e quattro letture riservate alla Redazione: «stato», «storico», «copia» e, dal blocco 10,
-     «registro» (le buste del registro delle fonti, che lo sportello non sa aprire: T-043). */
-  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia', 'registro'];
+     «registro» (le buste del registro delle fonti, che lo sportello non sa aprire: T-043). Dal blocco 13 lo stesso pacchetto
+     serve allo sportello delle segnalazioni (sportelli/segnalazioni.js, T-052): «segnalazioni» (le buste depositate,
+     chiuse) e «presa» (togliere quelle prese in carico). Ogni sportello rifiuta le operazioni dell'altro. */
+  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia', 'registro', 'segnalazioni', 'presa'];
   const IMPRONTA = /^[0-9a-f]{4}( [0-9a-f]{4}){3}$/, NUMERO = /^[0-9a-f]{32}$/, B64 = /^[A-Za-z0-9_-]+$/;
   const QUANDO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
