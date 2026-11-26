@@ -980,6 +980,15 @@ label.campo:has(#pw){min-width:0}
 .g-punti legend{padding:0;margin-bottom:4px}
 /* calendari dei Comuni (T-044): il testo del Comune da riscrivere, con i suoi a capo */
 .ix-testo-cal{white-space:pre-wrap;overflow-wrap:anywhere}
+/* diritti delle persone (blocco 12): i punti in cui compare un nome, con il nome evidenziato */
+.tn-voce{gap:8px}
+.tn-voce>div:first-child{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.tn-punto{min-height:52px}
+.tn-brano{overflow-wrap:anywhere;font-size:14px;line-height:20px}
+.tn-brano mark{background:none;color:inherit;font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.pb-ripr-rich{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-top:1px solid var(--linea)}
+/* «Esporta per assistenza» (T-049): il file che parte, così com'è */
+.pa-anteprima{white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:18px;margin:0;padding:10px;border-radius:10px;border:1px solid var(--linea);flex-shrink:0}
 
 /* ======================= Misure (solo admin) ======================= */
 /* colori dei grafici: verde in scala (una sola tinta, chiaro → scuro), tre categorie verificate per il daltonismo (validate_palette, 6 ottobre 2026) */

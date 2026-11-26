@@ -2121,6 +2121,10 @@ function clickTemi(b){
    I pezzi comuni chiamano da qui, dentro i tratti riservati all'app della redazione: FOGLI_RED (i fogli), clickRed, azioneRed, inputRed,
    cambioRed (le interazioni), boxAdmin (il riquadro nella scheda). */
 const CHIAVI = MODULI.chiavi.crea({deposito:MEM.base});   /* chiavi, cassaforte e marcatore (sorgenti/moduli/chiavi.js) */
+/* Gli strumenti dei diritti delle persone (blocco 12: togli-nome.js, ricerca-nome.js, esporta-assistenza.js). Ogni file
+   ne aggiunge uno con DIRITTI.push({voce, azione, click, input, cambio}) e mette i suoi fogli in FOGLI_RED: togliere un
+   file dall'elenco del montaggio toglie lo strumento senza toccare altro. */
+const DIRITTI = [];
 /* il riquadro della Redazione nella scheda di un evento: dal blocco 9 gli eventi pubblicati si correggono e si ritirano da «Pubblicazione» */
 const boxAdmin = e => '';
 function fAdmin(){
@@ -2135,6 +2139,7 @@ function fAdmin(){
     <div class="menu-lista">
       <button class="menu-r" data-az="chiavi">${icoLucchetto(16)}<div><span class="t">${tr('Chiavi')}</span><span class="meta">${statoChiavi}</span></div>${freccia}</button>
       <button class="menu-r" data-az="verifica">${icoNote}<div><span class="t">${tr('Viene dal nostro archivio?')}</span><span class="meta">${tr('Controlla un identificativo o un file copiato')}</span></div>${freccia}</button></div>
+    ${DIRITTI.length ? `<p class="etich">${tr('Diritti delle persone')}</p><div class="menu-lista">${DIRITTI.map(d => d.voce()).join('')}</div>` : ''}
     <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo dispositivo') : tr('{n} operazioni registrate su questo dispositivo',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo dispositivo'))(storico().length)}</span></div>${freccia}</button>
     <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
     ${st.msgAdmin?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.msgAdmin)}</p>`:''}
@@ -2266,11 +2271,13 @@ const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, 'pb-import
 /* un tocco: true se era per gli strumenti della Redazione */
 function clickRed(t){
   if(t.dataset.mz!=null && clickMisure(t)) return true;
+  if(DIRITTI.some(d => d.click && d.click(t))) return true;
   if(clickPubblica(t)) return true;
   return false;
 }
 function azioneRed(az, t){
   if(azioneChiavi(az, t)) return;
+  if(DIRITTI.some(d => d.azione && d.azione(az, t))) return;
   if(azionePubblica(az, t)) return;
   switch(az){
     case 'scegli-mappa-a': iniziaPosa('aform'); break;
@@ -2296,10 +2303,11 @@ function azioneRed(az, t){
 /* un campo dei moduli della Redazione: true se era suo */
 function inputRed(el){
   if(inputChiavi(el)) return true;
+  if(DIRITTI.some(d => d.input && d.input(el))) return true;
   if(inputPubblica(el)) return true;
   return false;
 }
-function cambioRed(el){ return cambioPubblica(el); }
+function cambioRed(el){ return DIRITTI.some(d => d.cambio && d.cambio(el)) || cambioPubblica(el); }
 $('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });
 
 /* ======================= Chiavi della Redazione: le schermate (T-034, T-037) =======================
@@ -2817,16 +2825,21 @@ function confrontaCopie(a, b){
   return {a, b, tolti:solo(A, B), aggiunti:solo(B, A), cambiati:[...B].filter(([id, x]) => A.has(id) && (JSON.stringify(A.get(id).e)!==JSON.stringify(x.e) || A.get(id).sos!==x.sos)).map(([, x]) => x)};
 }
 const leggiCopiaPb = nome => SPORTELLO.chiedi({operazione:'copia', nome}).then(r => r.copia);
-/* le richieste di rimozione registrate nelle Misure (scheda «Rete») dopo la data della copia: solo date e ore, senza nomi */
-const rimozioniDopo = iso => (mz().rimozioni||[]).filter(r => r && r.ric && new Date(r.ric).getTime() > Date.parse(iso)).map(r => r.ric).sort();
+/* le richieste di rimozione registrate nelle Misure (scheda «Rete») dopo la data della copia: date, ore e codice R della
+   richiesta, senza nomi (§ 3.13, passo 4; decisione del 26/11/2026, n. 13: i nomi si riprendono dall'anagrafica) */
+const rimozioniDopo = iso => (mz().rimozioni||[]).filter(r => r && r.ric && new Date(r.ric).getTime() > Date.parse(iso)).map(r => ({ric:r.ric, r:r.r||''})).sort((a, b) => a.ric<b.ric?-1:1);
+/* le richieste dopo la copia non ancora segnate come ripetute: finché ce n'è una, la copia non si ripubblica */
+const riprMancano = R => R.rimozioni.some((x, k) => !R.fatte[k]);
 function fPbCopia(){
   const R = PB.ripr;
   const testa = `<div class="riga-titolo"><div><h2>${tr('Ripristina una copia')}</h2><p class="meta">${R ? tr('Copia del {q}',{q:esc(quandoPb(R.copia.quando))}) : ''}</p></div>${chiudiBtn('pb-storico')}</div>`;
   if(!R) return foglio('forte', testa, `<p class="caricamento">${tr('Leggo la copia…')}</p>${statoPb()}`);
   const rim = R.rimozioni;
-  const promemoria = rim.length ? `<div class="red-riquadro" role="note"><b>${rim.length===1 ? tr('Dopo questa copia è stata chiesta 1 rimozione di un nome.') : tr('Dopo questa copia sono state chieste {n} rimozioni di nomi.',{n:rim.length})}</b>
-      <span class="meta">${tr('Ricevute il: {l}.',{l:esc(rim.map(x => quandoPb(x)).join(' · '))})} ${tr('Prima di ripubblicare vanno ripetute: correggi qui sotto gli eventi che portano quei nomi, oppure toglili dalla copia.')}</span>
-      <button class="riga-int" data-az="pb-ripr-fatto" aria-pressed="${R.fatto}"><span class="casella" aria-hidden="true"></span><div><span class="t">${tr('Ho ripetuto le rimozioni chieste dopo questa data')}</span></div></button></div>`
+  const promemoria = rim.length ? `<div class="red-riquadro" role="note"><b>${rim.length===1 ? tr('Dopo questa copia è stata chiesta 1 rimozione.') : tr('Dopo questa copia sono state chieste {n} rimozioni.',{n:rim.length})}</b>
+      <span class="meta">${tr('Prima di ripubblicare vanno ripetute in questa copia, una per una. Per togliere un nome: «Togli il nome da questa copia», con il nome che trovi nell’anagrafica sotto il codice della richiesta. Per togliere un evento: «Togli» nell’elenco qui sotto. Poi segna la richiesta come ripetuta.')}</span>
+      ${rim.map((x, k) => `<div class="pb-ripr-rich"><span class="t">${x.r ? esc(x.r)+' · ' : ''}${tr('ricevuta il {q}',{q:esc(quandoPb(x.ric))})}</span>
+        <button class="link" data-az="tn-copia" data-k="${k}">${tr('Togli il nome da questa copia')}</button>
+        <button class="riga-int" data-az="pb-ripr-fatto" data-k="${k}" aria-pressed="${!!R.fatte[k]}"><span class="casella" aria-hidden="true"></span><div><span class="t">${tr('Ripetuta in questa copia')}</span></div></button></div>`).join('')}</div>`
     : `<p class="meta">${tr('Nel registro delle richieste di rimozione (Misure → Rete) non ce ne sono dopo la data di questa copia. Se ne hai ricevute e non le hai registrate, ripetile prima di ripubblicare.')}</p>`;
   const righe = (l, nota) => l.map(ev => `<div class="menu-r" style="cursor:default"><div><span class="t">${esc(ev.titolo)}</span><span class="meta">${esc(quandoEv(ev))} · ${esc(ev.luogo)}${nota?' · '+nota:''}</span></div><button class="link" data-az="pb-ripr-correggi" data-id="${esc(ev.id)}">${tr('Correggi')}</button><button class="link" data-az="pb-ripr-togli" data-id="${esc(ev.id)}">${tr('Togli')}</button></div>`).join('');
   const corpo = `<p>${tr('L’archivio torna com’era in questa copia: {n} eventi ancora da svolgere{s}. Quelli già finiti non tornano ({f}).',{n:R.eventi.length, s:R.sospesi.length ? ', '+tr('più {k} sospesi',{k:R.sospesi.length}) : '', f:R.finiti})}</p>
@@ -2837,7 +2850,7 @@ function fPbCopia(){
       <div class="menu-lista">${R.nascosti.map(x => [x, false]).concat(R.nascostiSospesi.map(x => [x, true])).map(([x, sos]) => { const c = NR.chiari.get(x.id);
         return `<div class="menu-r" style="cursor:default"><div><span class="t">${c ? esc(c.ev.titolo) : tr('Evento nascosto')}</span><span class="meta">${c ? esc(quandoEv(c.ev))+' · ' : ''}${tr('nascosto')}${sos?' · '+tr('sospeso'):''}</span></div><button class="link" data-az="pb-ripr-togli" data-id="${esc(x.id)}">${tr('Togli')}</button></div>`; }).join('')}</div>` : ''}
     ${statoPb()}
-    <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${rim.length && !R.fatto ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
+    <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${riprMancano(R) ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
   return foglio('forte alto', testa, corpo);
 }
 
@@ -2882,13 +2895,13 @@ function azionePubblica(az, t){
       leggiCopiaPb(PB.scelte[0]).then(k => { const vivo = e => FORMATO.uscitaMs(e) > Date.now(), ordine = (x, y) => x.inizio<y.inizio?-1:1, ev = k.eventi.filter(vivo).sort(ordine), sos = k.sospesi.filter(vivo).sort(ordine);
         /* gli eventi nascosti della copia tornano così come sono, cifrati (T-045): si possono soltanto togliere */
         const vivoN = x => MODULI.nascosti.vivo(x.giorno, Date.now()), nas = (k.nascosti||[]).filter(vivoN), nsos = (k.nascostiSospesi||[]).filter(vivoN);
-        PB.ripr = {copia:k, eventi:ev, sospesi:sos, nascosti:nas, nascostiSospesi:nsos, finiti:k.eventi.length+k.sospesi.length-ev.length-sos.length, rimozioni:rimozioniDopo(k.quando), fatto:false, corretti:0};
+        PB.ripr = {copia:k, eventi:ev, sospesi:sos, nascosti:nas, nascostiSospesi:nsos, finiti:k.eventi.length+k.sospesi.length-ev.length-sos.length, rimozioni:rimozioniDopo(k.quando), fatte:[], corretti:0};
         return nrDecifra(nas.concat(nsos)); }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
     case 'pb-copia': st.aform = null; apri('pb-copia'); break;
-    case 'pb-ripr-fatto': if(PB.ripr){ PB.ripr.fatto = !PB.ripr.fatto; disegnaFoglio(); } break;
+    case 'pb-ripr-fatto': { const R = PB.ripr, k = +t.dataset.k; if(R && R.rimozioni[k]){ R.fatte[k] = !R.fatte[k]; disegnaFoglio(); } break; }
     case 'pb-ripr-correggi': { const R = PB.ripr, ev = R && R.eventi.concat(R.sospesi).find(e => e.id===t.dataset.id); if(ev) apriEventoForm(ev, 'ripristino'); break; }
     case 'pb-ripr-togli': { const R = PB.ripr, via = x => x.id!==t.dataset.id; if(R){ R.eventi = R.eventi.filter(via); R.sospesi = R.sospesi.filter(via); R.nascosti = R.nascosti.filter(via); R.nascostiSospesi = R.nascostiSospesi.filter(via); disegnaFoglio(); } break; }
-    case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
+    case 'pb-ripr-ok': { const R = PB.ripr; if(!R || riprMancano(R)) break;
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi, nascosti:R.nascosti, nascostiSospesi:R.nascostiSospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}) + (r.nascosti ? ' '+tr('Più {k} eventi nascosti.',{k:r.nascosti}) : ''); }); break; }
     case 'ix-torna': st.aform = null; apri('pb-importa'); break;
     default: return azioneNascosti(az, t) || azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t) || azioneCalendari(az, t);
@@ -2938,7 +2951,7 @@ const TIPI_FONTE = [['organizzatore', 'Organizzatore che scrive alla Redazione',
   ['istituzionale', 'Sito istituzionale', '3'], ['calendario', 'Calendario in dati aperti', '3'], ['testata', 'Testata o comunicato', '4']];
 const GRADI_FONTE = {'1':'Grado 1', '2':'Grado 2', '3':'Grado 3', '4':'Grado 4', esclusa:'Esclusa'};
 const ESITI_FONTE = {ammessa:'Ammessa', attribuzione:'Ammessa con attribuzione', vietata:'Non ammessa: vieta il riuso, si cerca l’organizzatore', esclusa:'Esclusa'};
-const CODICE_P = /^P-\d{4,}$/, CODICE_C = /^C-\d{4,}$/, CODICE_K = /^K-\d{4,}$/;
+const CODICE_P = /^P-\d{4,}$/, CODICE_C = /^C-\d{4,}$/, CODICE_K = /^K-\d{4,}$/, CODICE_R = /^R-\d{4,}$/;   /* R: registro delle richieste (cap. 26) */
 /* Licenza del calendario (cap. 22, foglio «Fonti»; § 6.4, punti 2 e 3): solo per i calendari in dati aperti */
 const LICENZE_CAL = {aperta:'Licenza aperta che consente il riuso', nessuna:'Nessuna licenza (art. 52, c. 2, CAD)', condivisione:'Licenza a condivisione alle stesse condizioni (solo inserimento a mano)'};
 /* I sette punti da verificare prima della prima importazione da ciascun Comune (§ 6.4), con la data del controllo */
@@ -4933,10 +4946,10 @@ function vReteMz(){
     </div>
     ${on(16)?`<div class="mz-card"><h3>${tr('Una segnalazione arrivata')}</h3><p class="meta">${tr('Un evento non valido segnalato su {casella}. Si conta solo il numero, non chi scrive.',{casella:CASELLA})}</p>
       <div class="tasti"><button class="tasto sec" data-mz="segn-meno" ${m.segnalazioni[oggi()]?'':'disabled'}>${tr('Togli l’ultima')}</button><button class="tasto pri" data-mz="segn-piu">${tr('+1 oggi')}${m.segnalazioni[oggi()]?' · '+m.segnalazioni[oggi()]:''}</button></div></div>`:''}
-    ${mzBox('rimoz', tr('Registro delle richieste di rimozione'), `<form class="mz-form" data-mzform="rimozione"><div class="due"><label class="mz-etich">${tr('Ricevuta')}<span class="campo"><input type="datetime-local" name="ric" required></span></label><label class="mz-etich">${tr('Evasa')}<span class="campo"><input type="datetime-local" name="eva"></span></label></div><button class="tasto sec pieno" type="submit">${tr('Aggiungi al registro')}</button></form>
-      ${rim.length ? `<div class="mz-scorri"><table class="mz-tab"><tr><th>${tr('Ricevuta')}</th><th>${tr('Evasa')}</th><th class="n">${tr('Ore')}</th><th>${tr('Entro 48 h')}</th><th></th></tr>${rim.map(r => { const h = oreTra(r.ric, r.eva), i = m.rimozioni.indexOf(r);
-        return `<tr><td>${esc(fmtDt(r.ric))}</td><td>${r.eva?esc(fmtDt(r.eva)):`<button class="link" data-mz="rim-evasa" data-i="${i}">${tr('Evasa ora')}</button>`}</td><td class="n">${h==null?'–':h}</td><td>${h==null?(oreTra(r.ric,new Date().toISOString())>48?`<span class="mz-stato crit">${tr('Scaduta')}</span>`:`<span class="mz-stato neu">${tr('Aperta')}</span>`):h<=48?`<span class="mz-stato ok">${tr('Sì')}</span>`:`<span class="mz-stato crit">${tr('No')}</span>`}</td><td><button class="mz-icona piccola" data-mz="rim-togli" data-i="${i}" aria-label="${esc(tr('Togli dal registro'))}">${mzIco.x}</button></td></tr>`; }).join('')}</table></div>` : vuotoMz(tr('Nessuna richiesta registrata.'))}
-      <p class="meta">${tr('Solo date e ore, niente nomi. Serve a dimostrare che rispetti i diritti (artt. 5(2) e 12 GDPR).')}</p>`, null, 'reg', [15])}
+    ${mzBox('rimoz', tr('Registro delle richieste di rimozione'), `<form class="mz-form" data-mzform="rimozione"><div class="due"><label class="mz-etich">${tr('Ricevuta')}<span class="campo"><input type="datetime-local" name="ric" required></span></label><label class="mz-etich">${tr('Evasa')}<span class="campo"><input type="datetime-local" name="eva"></span></label></div><label class="mz-etich">${tr('Codice della richiesta')} <span class="fac">${tr('facoltativo')}</span><span class="campo"><input name="r" maxlength="12" placeholder="R-0001" autocomplete="off"></span></label><button class="tasto sec pieno" type="submit">${tr('Aggiungi al registro')}</button></form>
+      ${rim.length ? `<div class="mz-scorri"><table class="mz-tab"><tr><th>${tr('Codice')}</th><th>${tr('Ricevuta')}</th><th>${tr('Evasa')}</th><th class="n">${tr('Ore')}</th><th>${tr('Entro 48 h')}</th><th></th></tr>${rim.map(r => { const h = oreTra(r.ric, r.eva), i = m.rimozioni.indexOf(r);
+        return `<tr><td>${esc(r.r||'–')}</td><td>${esc(fmtDt(r.ric))}</td><td>${r.eva?esc(fmtDt(r.eva)):`<button class="link" data-mz="rim-evasa" data-i="${i}">${tr('Evasa ora')}</button>`}</td><td class="n">${h==null?'–':h}</td><td>${h==null?(oreTra(r.ric,new Date().toISOString())>48?`<span class="mz-stato crit">${tr('Scaduta')}</span>`:`<span class="mz-stato neu">${tr('Aperta')}</span>`):h<=48?`<span class="mz-stato ok">${tr('Sì')}</span>`:`<span class="mz-stato crit">${tr('No')}</span>`}</td><td><button class="mz-icona piccola" data-mz="rim-togli" data-i="${i}" aria-label="${esc(tr('Togli dal registro'))}">${mzIco.x}</button></td></tr>`; }).join('')}</table></div>` : vuotoMz(tr('Nessuna richiesta registrata.'))}
+      <p class="meta">${tr('Solo date, ore e il codice della richiesta (R-0001, cap. 26): niente nomi. Serve a dimostrare che rispetti i diritti (artt. 5(2) e 12 GDPR) e a ripetere le rimozioni dopo il ripristino di una copia. «Togli questo nome ovunque» scrive da sé l’ora in cui la richiesta è evasa.')}</p>`, null, 'reg', [15])}
     ${bloccataMz(14, tr('Organizzatori che tornano a pubblicare'), tr('Prima va aggiunta la finalità statistica all’informativa per gli organizzatori (art. 6(4) GDPR).'))}
     ${studioSezioneMz('rete')}`;
 }
@@ -5091,7 +5104,7 @@ function esportaMisure(){
   /* lo storico delle pubblicazioni: un giorno per riga, solo conteggi */
   const Pu = [[tr('Giorno'), tr('Eventi presenti'), tr('Pubblicati'), tr('Corretti'), tr('Sospesi'), tr('Riattivati'), tr('Ritirati'), ...MOTIVI_MZ.map(k => tr('Ritirati') + ': ' + tr(MOTIVI_RITIRO[k])), tr('Ripristini di una copia')]]
     .concat(Object.keys(m.pubbl||{}).sort().map(g => { const v = m.pubbl[g]; return [dIso(g), v.n, v.p, v.c, v.s, v.a, v.r, ...MOTIVI_MZ.map(k => (v.m||{})[k]||0), v.rip||0].map((x, i) => i ? fuoriMz(numMz(x)) : x); }));
-  const R = [[tr('Ricevuta'), tr('Evasa'), tr('Ore')]].concat(m.rimozioni.map(r => [r.ric, r.eva||'', oreTra(r.ric, r.eva)==null?'':oreTra(r.ric, r.eva)]));
+  const R = [[tr('Codice'), tr('Ricevuta'), tr('Evasa'), tr('Ore')]].concat(m.rimozioni.map(r => [r.r||'', r.ric, r.eva||'', oreTra(r.ric, r.eva)==null?'':oreTra(r.ric, r.eva)]));
   const V = [[tr('Versione'), tr('Data'), tr('Secondi')]].concat(m.versioni.map(v => [v.v, dIso(v.d), v.s]));
   const P = [[tr('Data'), tr('Rete e telefono'), tr('Esito'), tr('Nota')]].concat(m.prove.map(p => [dIso(p.d), p.rete, p.ok?tr('Caricata'):tr('Non caricata'), p.nota||'']));
   const I = [[tr('Data'), tr('Giro'), tr('Persone'), tr('Scoperto eventi nuovi'), tr('Andati a un evento'), tr('Guida senza aiuto'), tr('Off-Grid al primo tentativo'), tr('Mediana consiglio')]].concat(m.giri.map(x => { const p = Number(x.n), c = v => p<SOGLIA_ESTERNA ? '' : fuoriMz(Number(v)); return [dIso(x.d), x.titolo||'', fuoriMz(p), c(x.scoperto), c(x.andato), c(x.guida), c(x.og), p<SOGLIA_ESTERNA || x.cons==null ? '' : x.cons]; }));
@@ -5152,7 +5165,9 @@ function inviaFormMz(f){
   const m = mz(), D = Object.fromEntries(new FormData(f).entries()), k = f.dataset.mzform, num = v => { const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n) ? n : null; };
   if(k==='richieste'){ const n = num(D.n); if(n==null || n<0){ avviso(tr('Scrivi un numero'), null, true); return; } m.richieste[oggi()] = Math.round(n); avviso(tr('Salvato per oggi: {n} richieste',{n:nf(Math.round(n))}), null, true); }
   else if(k==='azione'){ const t = String(D.t||'').trim(); if(!t){ avviso(tr('Scrivi cosa hai fatto oggi'), null, true); return; } m.azioni.push({d:oggi(), t}); avviso(tr('Segnata sul grafico'), null, true); }
-  else if(k==='rimozione'){ if(!D.ric) return; m.rimozioni.push({ric:D.ric, eva:D.eva||''}); }
+  else if(k==='rimozione'){ if(!D.ric) return; const r = String(D.r||'').trim().toUpperCase();
+    if(r && !CODICE_R.test(r)){ avviso(tr('Il codice della richiesta si scrive come «R-0001».'), null, true); return; }
+    m.rimozioni.push(Object.assign({ric:D.ric, eva:D.eva||''}, r ? {r} : {})); }
   else if(k==='versione'){ const s = num(D.s); if(!D.v || s==null) return; m.versioni.push({v:String(D.v).trim(), s, d:oggi()}); }
   else if(k==='prova'){ if(!D.rete) return; m.prove.push({d:oggi(), rete:String(D.rete).trim(), ok:D.ok==='1', nota:String(D.nota||'').trim()}); }
   else if(k==='giro'){ const n = num(D.n); if(!n) return; const c = x => Math.max(0, Math.min(n, Math.round(num(x)||0)));
@@ -5210,6 +5225,8 @@ const OP_STORICO = {
   'registro-confronta':['eventi','Registro delle fonti confrontato con lo sportello'], 'registro-riprendi':['eventi','Voci del registro delle fonti riprese dallo sportello'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
+  'togli-nome':['eventi','Nome tolto su richiesta (Togli questo nome ovunque)'], 'accesso-esporta':['file','Resoconto per una richiesta di accesso esportato'],
+  'portabilita-esporta':['file','Dati per la portabilità esportati'],
   misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']
 };
 const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Chiavi e accessi']];
@@ -5277,6 +5294,597 @@ document.addEventListener('click', ev => {
   else if(a==='svuota-ok'){ const n = storico().length; MEM.scrivi('red_storico', []); SH.conferma = false; registra('svuota', {x:tr('{n} operazioni cancellate',{n})}); avviso(tr('Storico svuotato'), null, true); }
   foglioStorico();
 }, true);
+
+/* ======================= «Togli questo nome ovunque» (T-047) =======================
+   Libro mastro: § 3.5 «La rimozione» (entro 48 ore, con un testo neutro, negli eventi pubblicati e nei documenti
+   operativi); § 3.13, passi 3 e 4; § 2.4 «Lo storico e le copie di sicurezza» (lo storico conserva il nome per il solo
+   termine del § 3.14; dopo un ripristino le rimozioni si ripetono); cap. 22 e cap. 26 (né il registro delle fonti né
+   quello delle richieste si modificano). Decisioni del 26/11/2026, nn. 10-13. Il nome si trova con
+   sorgenti/moduli/nomi.js.
+
+   Si comincia dalla richiesta: una di quelle aperte nel registro delle richieste di rimozione delle Misure (Misure →
+   Rete), una nuova (ricevuta e codice R, che va nel registro) oppure nessuna, per esempio per correggere un errore. Poi
+   si scrivono le forme del nome e si sceglie il ruolo che prende il suo posto. L'app cerca:
+   - negli eventi pubblicati e sospesi (lettura firmata «stato»);
+   - negli eventi nascosti di cui questo dispositivo ha la password nella cassaforte, trattati come gli altri, in un
+     gruppo dopo i visibili (decisione n. 12); di quelli senza password dice soltanto quanti sono;
+   - nelle schede preparate del registro delle fonti (red_registro);
+   - nell'importazione da Excel e nel calendario di un Comune aperti in questo momento (pagina, non memoria).
+   Ogni punto ha la sua casella, già segnata. Alla conferma l'app sostituisce i punti segnati, ripubblica in un solo
+   pacchetto firmato gli eventi corretti (operazione «scrivi»: i sospesi restano sospesi, i nascosti si cifrano di nuovo
+   con la stessa password), corregge i documenti operativi e scrive nelle Misure l'ora in cui la richiesta è evasa,
+   con l'ora dello sportello. Se restano eventi nascosti che qui non si leggono, la richiesta resta aperta.
+
+   Dopo il ripristino di una copia (pubblicazione.js, «Ripristina una copia») lo stesso strumento lavora sugli eventi
+   della copia, prima che si ripubblichi: una richiesta alla volta, con il nome ripreso dall'anagrafica.
+
+   Testi come testo (T-024): titoli, brani e forme entrano nella pagina solo con esc(). */
+const TN = {modo:'archivio', k:null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false};
+const CODICE_RICHIESTA = 'R-0001';
+fogliPb.push('tn');
+/* i campi del modulo dell'evento (schede preparate, righe dell'importazione) con il nome del campo nel formato pubblico */
+const CAMPI_MODULO_TN = [['titolo','titolo'], ['desc','descrizione'], ['organizzatore','organizzatore'], ['luogo','luogo'], ['indirizzo','indirizzo'], ['comeArrivare','descrizione_luogo'],
+  ['prezzo','prezzo'], ['fonte','fonte.testo'], ['fonteLink','fonte.collegamento'], ['testoCal','']];
+const etichettaTn = c => c==='' ? tr('Testo del calendario del Comune') : CAMPI_PB[c] ? tr(CAMPI_PB[c]) : tr('Colonna «{c}» del file',{c});
+const scadenzaTn = iso => new Date(new Date(iso).getTime() + 48*36e5);
+const adessoIso = () => new Date().toISOString().slice(0,19)+'Z';
+
+function apriTn(modo, k){
+  Object.assign(TN, {modo, k:modo==='copia' ? k : null, rich:null, nuova:null, forme:'', ruolo:MODULI.nomi.RUOLI[0], ris:null, lavoro:false, conferma:false, errore:'', msg:'', fatto:false});
+  apri('tn');
+}
+
+/* ---------- La richiesta ---------- */
+function richiestaTnHtml(){
+  const m = mz(), aperte = m.rimozioni.map((r, i) => [r, i]).filter(([r]) => r && r.ric && !r.eva).sort((a, b) => a[0].ric<b[0].ric?-1:1);
+  const scelta = (v, t, meta) => `<button class="riga-int" data-az="tn-rich" data-v="${esc(v)}" aria-pressed="${String(TN.rich)===String(v)}"><span class="casella" aria-hidden="true"></span><div><span class="t">${t}</span>${meta ? `<span class="meta">${meta}</span>` : ''}</div></button>`;
+  const quando = iso => { const s = scadenzaTn(iso); return s.getTime() < Date.now() ? `<span class="err">${tr('Scaduta: le 48 ore sono finite il {q}',{q:esc(quandoPb(s.toISOString()))})}</span>` : tr('Da evadere entro il {q}',{q:esc(quandoPb(s.toISOString()))}); };
+  const N = TN.nuova || {};
+  return `<p class="etich">${tr('La richiesta')}</p>
+    ${aperte.map(([r, i]) => scelta(i, `${r.r ? esc(r.r)+' · ' : ''}${tr('ricevuta il {q}',{q:esc(quandoPb(r.ric))})}`, quando(r.ric))).join('')}
+    ${scelta('nuova', tr('Una richiesta nuova'), tr('La aggiungo al registro delle richieste di rimozione delle Misure'))}
+    ${TN.rich==='nuova' ? `<div class="red-riquadro"><div class="due"><div class="stack-s"><label class="etich" for="tn-ric">${tr('Ricevuta')}</label><div class="campo"><input id="tn-ric" type="datetime-local" data-tn="ric" value="${esc(N.ric||'')}"></div></div>
+      <div class="stack-s"><label class="etich" for="tn-r">${tr('Codice della richiesta')}</label><div class="campo"><input id="tn-r" data-tn="r" maxlength="12" value="${esc(N.r||'')}" placeholder="${CODICE_RICHIESTA}" autocomplete="off"></div></div></div>
+      <span class="meta">${tr('Il codice è quello della voce nel registro delle richieste (cap. 26): il nome della persona resta nell’anagrafica, mai qui.')}</span>${N.ric ? `<span class="meta">${quando(N.ric)}</span>` : ''}</div>` : ''}
+    ${scelta('nessuna', tr('Senza richiesta'), tr('Per esempio per correggere un errore: nel registro non si scrive nulla'))}`;
+}
+
+/* ---------- La ricerca ---------- */
+function puntiTesto(testo, forme, campo, link){
+  const N = MODULI.nomi; if(!testo || typeof testo!=='string') return [];
+  if(link){ let d = testo; try{ d = decodeURIComponent(testo); }catch(e){ d = testo; } return N.trova(d, forme).length ? [{campo, da:0, a:testo.length, testo, collegamento:true, on:true}] : []; }
+  return N.trova(testo, forme).map(p => Object.assign({campo, testo, on:true}, p));
+}
+function puntiModulo(f, forme){ return CAMPI_MODULO_TN.flatMap(([k, campo]) => puntiTesto(f[k], forme, campo, k==='fonteLink').map(p => Object.assign(p, {k}))); }
+function puntiRecord(r, forme){ return Object.keys(r||{}).flatMap(k => { const v = r[k], t = typeof v==='string' ? v : v && typeof v.v==='string' ? v.v : ''; return puntiTesto(t, forme, k, false).map(p => Object.assign(p, {k})); }); }
+/* un evento nascosto della copia da ripristinare: si apre con la password della cassaforte, se c'è */
+async function apriVoceNascosta(x){
+  let pw = null; try{ pw = await CHIAVI.cassaforte.leggi(x.id); }catch(e){ pw = null; }
+  if(!pw) return null;
+  try{ return {ev:await MODULI.nascosti.decifra(x.file, pw, null, x.impronta), pw}; }catch(e){ return null; }
+}
+
+async function cercaTn(){
+  const N = MODULI.nomi, forme = N.forme(TN.forme);
+  TN.errore = ''; TN.conferma = false;
+  if(TN.modo!=='copia'){
+    if(TN.rich==null){ TN.errore = tr('Scegli la richiesta, oppure «Senza richiesta».'); disegnaFoglio(); return; }
+    if(TN.rich==='nuova'){ const n = TN.nuova||{};
+      if(!n.ric){ TN.errore = tr('Scrivi giorno e ora in cui è arrivata la richiesta.'); disegnaFoglio(); return; }
+      if(!CODICE_R.test(String(n.r||'').trim().toUpperCase())){ TN.errore = tr('Scrivi il codice della richiesta come «{c}».',{c:CODICE_RICHIESTA}); disegnaFoglio(); return; } }
+  }
+  if(!forme.length){ TN.errore = tr('Scrivi almeno una forma del nome, una per riga.'); disegnaFoglio(); return; }
+  TN.lavoro = true; TN.ris = null; disegnaFoglio();
+  const voci = []; let illeggibili = 0;
+  const evento = (tipo, ev, extra) => { const punti = N.puntiEvento(ev, forme).map(p => Object.assign(p, {testo:N.leggiCampo(ev, p.campo), on:true})); if(punti.length) voci.push(Object.assign({tipo, id:ev.id, ev, punti}, extra)); };
+  try{
+    if(TN.modo==='copia'){
+      const R = PB.ripr; if(!R) throw new Error('copia');
+      R.eventi.forEach(ev => evento('evento', ev, {lista:'eventi'})); R.sospesi.forEach(ev => evento('evento', ev, {lista:'sospesi', sospeso:true}));
+      for(const [lista, l] of [['nascosti', R.nascosti], ['nascostiSospesi', R.nascostiSospesi]]) for(const x of l){
+        const c = await apriVoceNascosta(x); if(!c){ illeggibili++; continue; }
+        evento('nascosto', c.ev, {lista, voce:x, pw:c.pw, sospeso:lista==='nascostiSospesi'}); }
+    } else {
+      const s = await SPORTELLO.chiedi({operazione:'stato'}); PB.stato = s;
+      await nrDecifra(nrVoci(s));
+      s.eventi.forEach(ev => evento('evento', ev, {})); s.sospesi.forEach(ev => evento('evento', ev, {sospeso:true}));
+      nrVoci(s).forEach(x => { const c = NR.chiari.get(x.id); if(!c){ illeggibili++; return; } evento('nascosto', c.ev, {voce:x, pw:c.pw, sospeso:(s.nascostiSospesi||[]).includes(x)}); });
+      await regApri();
+      if(REG.stato==='aperto') REG.dati.preparati.forEach(p => { const punti = puntiModulo(p.dati||{}, forme); if(punti.length) voci.push({tipo:'preparato', codice:p.codice, f:p.dati, punti}); });
+      if(IX.stato) (IX.stato.righe||[]).forEach(R => { if(!R.f) return; const punti = puntiModulo(R.f, forme); if(punti.length) voci.push({tipo:'riga', riga:R, f:R.f, punti}); });
+      if(CAL.stato && Array.isArray(CAL.stato.record)) CAL.stato.record.forEach((r, i) => { const punti = puntiRecord(r, forme); if(punti.length) voci.push({tipo:'record', i, r, punti}); });
+    }
+    TN.ris = {voci, illeggibili, forme:forme.map(x => x.forma)};
+  }catch(e){ TN.errore = e && e.motivo ? errorePb(e) : tr('Non sono riuscito a leggere gli eventi: riprova.'); }
+  TN.lavoro = false; disegnaFoglio();
+}
+
+/* ---------- I risultati ---------- */
+const GRUPPI_TN = [['evento', 'Eventi pubblicati e sospesi'], ['nascosto', 'Eventi nascosti'], ['preparato', 'Schede preparate'], ['riga', 'Importazione da Excel in corso'], ['record', 'Calendario del Comune in lettura']];
+function titoloVoceTn(v){
+  if(v.tipo==='evento' || v.tipo==='nascosto') return [esc(v.ev.titolo), esc(quandoEv(v.ev))+(v.sospeso ? ' · '+tr('sospeso') : '')+(v.tipo==='nascosto' ? ' · '+tr('nascosto') : '')];
+  if(v.tipo==='preparato') return [esc((v.f||{}).titolo || tr('Senza titolo')), esc(v.codice)];
+  if(v.tipo==='riga') return [esc(v.f.titolo || tr('Senza titolo')), tr('Riga {r} del file',{r:v.riga.riga})];
+  return [tr('Evento {n} del calendario',{n:v.i+1}), ''];
+}
+function branoTn(p){
+  if(p.collegamento) return `<span class="tn-brano">${esc(p.testo)}</span><span class="meta">${tr('Il collegamento contiene il nome: si toglie, perché un indirizzo cambiato non porterebbe più alla pagina (il collegamento è facoltativo).')}</span>`;
+  const e = MODULI.nomi.estratto(p.testo, p.da, p.a);
+  return `<span class="tn-brano">${esc(e.prima)}<mark>${esc(e.nome)}</mark>${esc(e.dopo)}</span>`;
+}
+function risultatiTnHtml(){
+  const R = TN.ris, copia = TN.modo==='copia', segnati = R.voci.reduce((n, v) => n + v.punti.filter(p => p.on).length, 0), tutti = R.voci.reduce((n, v) => n + v.punti.length, 0);
+  const illeggibili = !R.illeggibili ? '' : `<div class="red-riquadro g-avviso" role="note"><b>${R.illeggibili===1 ? tr('1 evento nascosto non si legge su questo dispositivo.') : tr('{n} eventi nascosti non si leggono su questo dispositivo.',{n:R.illeggibili})}</b>
+      <span class="meta">${tr('La loro password non è nella cassaforte di questo dispositivo, quindi qui non si sa se contengono il nome. Riprendi la copia della cassaforte (Strumenti della redazione → Chiavi) oppure ripeti la ricerca dal dispositivo che ha le loro password.')}${copia ? '' : ' '+tr('Finché non li hai controllati, la richiesta resta aperta nelle Misure.')}</span></div>`;
+  if(!R.voci.length) return `${illeggibili}<p class="meta" role="status">${tr('Il nome non compare in nessun punto.')}</p>
+    ${!copia && TN.rich!=null && TN.rich!=='nessuna' && !R.illeggibili ? `<div class="tasti"><button class="tasto sec" data-az="tn-evasa">${tr('Segna la richiesta come evasa')}</button></div>` : ''}
+    ${copia ? `<div class="tasti"><button class="tasto sec" data-az="tn-copia-fatta">${tr('Segna la richiesta come ripetuta in questa copia')}</button></div>` : ''}`;
+  const gruppi = GRUPPI_TN.map(([tipo, tit]) => { const l = R.voci.map((v, i) => [v, i]).filter(([v]) => v.tipo===tipo); if(!l.length) return '';
+    return `<p class="etich">${tr(tit)} · ${l.length}</p>${l.map(([v, i]) => { const [t, meta] = titoloVoceTn(v);
+      return `<div class="red-riquadro tn-voce"><div><span class="t">${t}</span>${meta ? `<span class="meta"> · ${meta}</span>` : ''}</div>
+        ${v.punti.map((p, j) => `<button class="riga-int tn-punto" data-tnp="${i}.${j}" aria-pressed="${p.on}"><span class="casella" aria-hidden="true"></span><div><span class="meta">${esc(etichettaTn(p.campo))}</span>${branoTn(p)}</div></button>`).join('')}</div>`; }).join('')}`; }).join('');
+  return `<p class="meta" role="status">${tr('Trovato in {p} punti. Togli il segno ai punti che non riguardano la persona, per esempio una via o un teatro con lo stesso nome.',{p:tutti})}</p>
+    ${illeggibili}${gruppi}
+    <p class="meta">${copia ? tr('Si corregge soltanto la copia da ripristinare: si pubblica con la copia.') : tr('Lo storico delle pubblicazioni e il registro delle fonti non si toccano: lo storico conserva il nome, fuori dall’uso quotidiano, per il solo termine del § 3.14.')}</p>
+    <div class="tasti"><button class="tasto pericolo pieno" data-az="tn-togli" ${segnati && !TN.lavoro ? '' : 'disabled'}>${TN.conferma
+      ? (copia ? tr('Tocca ancora: sostituisco {p} punti con «{r}» nella copia',{p:segnati, r:esc(TN.ruolo)}) : tr('Tocca ancora: sostituisco {p} punti con «{r}» e ripubblico con la firma di questo dispositivo',{p:segnati, r:esc(TN.ruolo)}))
+      : tr('Togli il nome dai {p} punti segnati',{p:segnati})}</button></div>`;
+}
+
+function fTn(){
+  const copia = TN.modo==='copia', rc = copia && PB.ripr ? PB.ripr.rimozioni[TN.k] : null;
+  const testa = `<div class="riga-titolo"><div><h2>${copia ? tr('Togli il nome da questa copia') : tr('Togli questo nome ovunque')}</h2><p class="meta">${copia ? (rc ? (rc.r ? esc(rc.r)+' · ' : '')+tr('ricevuta il {q}',{q:esc(quandoPb(rc.ric))}) : '') : tr('Entro 48 ore dalla richiesta (§§ 3.5 e 3.13)')}</p></div>${chiudiBtn(copia ? 'pb-copia' : 'admin')}</div>`;
+  const avviso = `${TN.errore ? `<p class="err" role="alert">${esc(TN.errore)}</p>` : ''}${TN.lavoro ? `<p class="caricamento">${TN.ris ? tr('Correggo e consegno allo sportello…') : tr('Cerco il nome…')}</p>` : ''}`;
+  if(TN.fatto) return foglio('forte alto', testa, `<p role="status">${esc(TN.msg)}</p>
+    <div class="tasti"><button class="tasto sec" data-az="tn">${tr('Togli un altro nome')}</button><button class="tasto pri" data-az="pubblica">${tr('Vai a «Pubblicazione»')}</button></div>`);
+  const nome = `<label class="etich" for="tn-forme">${tr('Il nome, in tutte le forme in cui può comparire')}</label>
+    <div class="campo"><textarea id="tn-forme" data-tn="forme" maxlength="1200" placeholder="${esc(tr('Una forma per riga: nome e cognome, il solo cognome, il nome d’arte'))}">${esc(TN.forme)}</textarea></div>
+    <span class="meta">${tr('Maiuscole, accenti e apostrofi non contano; si cercano soltanto parole intere. Ogni punto trovato si guarda prima di toglierlo.')}</span>
+    <label class="etich" for="tn-ruolo">${tr('Al suo posto')}</label>
+    <div class="campo"><select id="tn-ruolo" data-tn="ruolo">${MODULI.nomi.RUOLI.map(x => `<option value="${esc(x)}" ${TN.ruolo===x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+    <span class="meta">${tr('Il ruolo che la persona ha negli eventi; vale per tutti i punti. Se ha ruoli diversi in eventi diversi, fai due passate.')}</span>
+    <div class="tasti"><button class="tasto pri" data-az="tn-cerca" ${TN.lavoro ? 'disabled' : ''}>${tr('Cerca')}</button></div>`;
+  const corpo = `${copia ? `<p class="meta">${tr('Il nome si riprende dall’anagrafica, con il codice della richiesta. Si corregge soltanto questa copia, prima di ripubblicarla.')}</p>` : richiestaTnHtml()}
+    ${nome}${avviso}${TN.ris ? risultatiTnHtml() : ''}`;
+  return foglio('forte alto', testa, corpo);
+}
+
+/* ---------- La correzione ---------- */
+/* un evento con i punti segnati sostituiti; il collegamento che contiene il nome si toglie */
+function eventoTn(v){
+  const N = MODULI.nomi, on = v.punti.filter(p => p.on); let ev = v.ev;
+  for(const campo of [...new Set(on.map(p => p.campo))]){
+    const qui = on.filter(p => p.campo===campo);
+    ev = qui.some(p => p.collegamento) ? N.conCampo(ev, campo, '') : N.conCampo(ev, campo, N.sostituisci(N.leggiCampo(v.ev, campo), qui, TN.ruolo));
+  }
+  ev.modificato = adessoIso();
+  return ev;
+}
+/* una scheda preparata, una riga dell'importazione o un evento del calendario: si correggono sul posto */
+function moduloTn(v){
+  const on = v.punti.filter(p => p.on), N = MODULI.nomi;
+  for(const k of [...new Set(on.map(p => p.k))]){
+    const qui = on.filter(p => p.k===k);
+    if(v.tipo==='record'){ const x = v.r[k]; if(typeof x==='string') v.r[k] = N.sostituisci(x, qui, TN.ruolo); else if(x && typeof x.v==='string') x.v = N.sostituisci(x.v, qui, TN.ruolo); continue; }
+    const f = v.f, prima = f[k];
+    f[k] = qui.some(p => p.collegamento) ? '' : N.sostituisci(prima, qui, TN.ruolo);
+    if(k==='indirizzo' && f.addrFull) f.addrFull = f.addrFull===prima ? f.indirizzo : N.sostituisci(f.addrFull, N.trova(f.addrFull, TN.ris.forme.join('\n')), TN.ruolo);
+  }
+}
+async function togliTn(){
+  const R = TN.ris; if(!R || TN.lavoro) return;
+  const scelte = R.voci.filter(v => v.punti.some(p => p.on)); if(!scelte.length) return;
+  if(!TN.conferma){ TN.conferma = true; disegnaFoglio(); return; }
+  TN.conferma = false; TN.lavoro = true; TN.errore = ''; disegnaFoglio();
+  const NS = MODULI.nascosti, voc = {vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC)};
+  try{
+    /* prima si preparano tutti gli eventi corretti: se uno non supera il controllo del formato non parte nulla */
+    const pubblici = [], nascosti = [], errori = [];
+    for(const v of scelte.filter(x => x.tipo==='evento' || x.tipo==='nascosto')){
+      const ev = eventoTn(v), e = FORMATO.controlla(ev, voc).map(erroreCampoPb);
+      if(e.length){ errori.push('«'+v.ev.titolo+'»: '+e.join('; ')); continue; }
+      if(v.tipo==='evento') pubblici.push([v, ev]);
+      else { const {file} = await NS.cifra(ev, v.pw, null, v.voce.impronta); nascosti.push([v, ev, {id:ev.id, impronta:v.voce.impronta, giorno:NS.giornoUscita(ev), file}]); }
+    }
+    if(errori.length){ TN.lavoro = false; TN.errore = tr('Con il testo neutro un evento non supera il controllo del formato, e non ho cambiato nulla: {e}',{e:errori.join(' · ')}); disegnaFoglio(); return; }
+    const locali = scelte.filter(x => x.tipo!=='evento' && x.tipo!=='nascosto');
+    if(TN.modo==='copia') return finisciCopiaTn(pubblici, nascosti);
+    let quando = null;
+    if(pubblici.length + nascosti.length){
+      const c = {operazione:'scrivi'}; if(pubblici.length) c.pubblica = pubblici.map(x => x[1]); if(nascosti.length) c.nascosti = nascosti.map(x => x[2]);
+      const r = await SPORTELLO.chiedi(c); quando = r.quando;
+      nascosti.forEach(([v, ev, voce]) => NR.chiari.set(ev.id, {ev, pw:v.pw, v:JSON.stringify(voce.file)}));
+      pubblici.concat(nascosti).forEach(() => misureConta('corretti'));
+    }
+    locali.forEach(moduloTn);
+    const prep = locali.filter(x => x.tipo==='preparato').length;
+    if(prep) await regSalva();
+    registra('togli-nome', {n:pubblici.length + nascosti.length});
+    TN.msg = finisciRichiestaTn(quando, pubblici.length + nascosti.length, prep, locali.filter(x => x.tipo==='riga').length, locali.filter(x => x.tipo==='record').length);
+    TN.lavoro = false; TN.fatto = true; disegnaFoglio();
+    aggiornaPb();
+  }catch(e){ TN.lavoro = false; TN.errore = e && e.motivo ? errorePb(e) : tr('Non è riuscito: non ho cambiato nulla. Riprova.'); disegnaFoglio(); }
+}
+/* nelle Misure: la richiesta è evasa all'ora dello sportello, se non restano eventi nascosti da controllare */
+function finisciRichiestaTn(quando, ev, prep, righe, cal){
+  const ora = dtLocal(quando ? new Date(quando) : new Date()), m = mz(), aperta = !!TN.ris.illeggibili;
+  const parti = [ev ? tr('Nome tolto alle {o} (ora dello sportello): {n} eventi corretti e ripubblicati con la firma di questo dispositivo.',{o:oraPb(quando), n:ev}) : tr('Nessun evento da ripubblicare.')];
+  if(prep) parti.push(tr('Schede preparate corrette: {n}.',{n:prep}));
+  if(righe) parti.push(tr('Righe dell’importazione in corso corrette: {n}.',{n:righe}));
+  if(cal) parti.push(tr('Eventi del calendario in lettura corretti: {n}.',{n:cal}));
+  if(TN.rich==='nessuna') return parti.join(' ');
+  let voce = null;
+  if(TN.rich==='nuova'){ voce = {ric:TN.nuova.ric, eva:'', r:String(TN.nuova.r).trim().toUpperCase()}; m.rimozioni.push(voce); }
+  else voce = m.rimozioni[+TN.rich] || null;
+  if(voce && !aperta) voce.eva = ora;
+  mzSalva();
+  const c = voce && voce.r ? voce.r : '';
+  parti.push(!voce ? '' : aperta ? (c ? tr('La richiesta {c} resta aperta nelle Misure: mancano gli eventi nascosti che questo dispositivo non legge.',{c}) : tr('La richiesta resta aperta nelle Misure: mancano gli eventi nascosti che questo dispositivo non legge.'))
+    : c ? tr('Richiesta {c} segnata come evasa nelle Misure ({o}).',{c, o:fmtDt(ora)}) : tr('Richiesta segnata come evasa nelle Misure ({o}).',{o:fmtDt(ora)}));
+  return parti.filter(Boolean).join(' ');
+}
+function finisciCopiaTn(pubblici, nascosti){
+  const R = PB.ripr;
+  for(const [v, ev] of pubblici){ const l = R[v.lista], i = l.findIndex(x => x.id===ev.id); if(i>=0) l[i] = ev; }
+  for(const [v, , voce] of nascosti){ const l = R[v.lista], i = l.findIndex(x => x.id===voce.id); if(i>=0) l[i] = voce; }
+  R.corretti += pubblici.length + nascosti.length; R.fatte[TN.k] = !TN.ris.illeggibili;
+  PB.msg = tr('Nome tolto da {n} eventi della copia.',{n:pubblici.length + nascosti.length}) + ' ' + (TN.ris.illeggibili ? tr('Restano eventi nascosti che questo dispositivo non legge: la richiesta non è segnata come ripetuta.') : tr('Richiesta segnata come ripetuta in questa copia.'));
+  PB.errore = ''; TN.lavoro = false; apri('pb-copia');
+}
+
+/* ---------- Tocchi e campi ---------- */
+DIRITTI.push({
+  voce:() => `<button class="menu-r" data-az="tn">${icoNote}<div><span class="t">${tr('Togli questo nome ovunque')}</span><span class="meta">${tr('Rimozione di un nome su richiesta: eventi pubblicati, nascosti, schede preparate e importazioni aperte')}</span></div>${freccia}</button>`,
+  click(t){ const d = t.dataset.tnp; if(d==null || !TN.ris) return false; const [i, j] = d.split('.').map(Number), p = (TN.ris.voci[i]||{punti:[]}).punti[j]; if(p){ p.on = !p.on; TN.conferma = false; disegnaFoglio(); } return true; },
+  azione(az, t){
+    switch(az){
+      case 'tn': apriTn('archivio'); return true;
+      case 'tn-copia': if(PB.ripr) apriTn('copia', +t.dataset.k); return true;
+      case 'tn-rich': TN.rich = t.dataset.v==='nuova' || t.dataset.v==='nessuna' ? t.dataset.v : +t.dataset.v; if(TN.rich==='nuova' && !TN.nuova) TN.nuova = {ric:dtLocal(new Date()), r:''}; TN.ris = null; TN.errore = ''; disegnaFoglio(); return true;
+      case 'tn-cerca': cercaTn(); return true;
+      case 'tn-togli': togliTn(); return true;
+      case 'tn-evasa': TN.ris = TN.ris || {voci:[], illeggibili:0, forme:[]}; TN.msg = finisciRichiestaTn(null, 0, 0, 0, 0); TN.fatto = true; disegnaFoglio(); return true;
+      case 'tn-copia-fatta': if(PB.ripr){ PB.ripr.fatte[TN.k] = true; PB.msg = tr('Richiesta segnata come ripetuta in questa copia.'); apri('pb-copia'); } return true;
+    }
+    return false;
+  },
+  input(el){ const k = el.dataset.tn; if(!k) return false;
+    if(k==='forme'){ TN.forme = el.value; TN.conferma = false; }
+    else if(k==='ric' || k==='r'){ TN.nuova = TN.nuova || {ric:'', r:''}; TN.nuova[k] = el.value; }
+    return true; },
+  cambio(el){ if(el.dataset.tn!=='ruolo') return false; TN.ruolo = MODULI.nomi.RUOLI.includes(el.value) ? el.value : MODULI.nomi.RUOLI[0]; TN.conferma = false; return true; }
+});
+Object.assign(FOGLI_RED, {tn:fTn});
+
+/* ======================= Ricerca per nome: accesso e portabilità (T-048) =======================
+   Libro mastro: § 3.13 (accesso, art. 15: ricerca negli eventi attuali, nello storico e nei registri; portabilità,
+   art. 20: i dati forniti, in un formato leggibile da una macchina, quando il trattamento si basa sul consenso); § 18.7
+   (si cerca il nome negli eventi e nello storico, il codice P nei registri; si consegnano le voci trovate senza i dati
+   di altre persone); cap. 26 (nel resoconto compare soltanto il codice della richiesta). Anagrafica, registro dei
+   consensi e codici P stanno nei registri tenuti a mano, fuori dall'app. Decisioni del 26/11/2026, nn. 14 e 15.
+
+   Accesso. La Redazione scrive il codice della richiesta (R-0001), le forme del nome (come in «Togli questo nome
+   ovunque», sorgenti/moduli/nomi.js) e, se c'è, il codice P della persona. L'app cerca il nome negli eventi pubblicati,
+   sospesi e nascosti di cui ha la password, nelle copie dello storico delle pubblicazioni (una alla volta, dalla più
+   vecchia, con la lettura firmata «copia»), nelle schede preparate e nelle righe del registro delle fonti di questo
+   dispositivo; cerca il codice P tra le fonti e i «Non pubblicati». Per ogni evento mostra quando è stato pubblicato
+   con il nome, in quali campi e il brano attorno al nome, e la fonte (art. 15, par. 1, lett. g). L'app non sa che
+   cosa sia un nome: i brani e le fonti si ripuliscono a mano dei dati di altre persone (art. 15, par. 4) prima di
+   esportare; i recapiti li toglie l'app. Il resoconto esce in Excel, intestato con il solo codice della richiesta.
+
+   Portabilità. La Redazione scrive i codici C del registro dei consensi: l'app trova le righe del registro delle fonti
+   con quei codici (eventi nascosti; eventi pubblicati con un consenso diretto o esplicito) e i loro eventi, attuali o
+   nello storico. Gli eventi nascosti già finiti non si leggono più, perché la password si cancella alla fine (§ 3.14).
+   Escono due file: l'Excel con le colonne del modello d'importazione e il JSON nel formato degli eventi.
+
+   Testi come testo (T-024): titoli, brani e fonti entrano nella pagina solo con esc(). */
+const RN = {r:'', forme:'', p:'', lavoro:false, ferma:false, passo:'', errore:'', msg:'', righe:null, registri:null, illeggibili:0};
+const RP = {r:'', c:'', lavoro:false, ferma:false, passo:'', errore:'', msg:'', eventi:null, illeggibili:0};
+fogliPb.push('rn', 'rp');
+const mascheraRecapiti = s => RECAPITI.reduce((t, re) => t.replace(re, '[recapito tolto]'), String(s||''));
+const giornoRn = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(dloc(), {day:'numeric', month:'numeric', year:'numeric'}); };
+/* un brano su una riga: il nome con il testo che ha intorno */
+const branoRn = (p) => { if(p.collegamento) return tr('Collegamento alla pagina dell’evento: {u}',{u:p.testo}); const e = MODULI.nomi.estratto(p.testo, p.da, p.a, 100); return e.prima + e.nome + e.dopo; };
+/* legge le copie dello storico dalla più vecchia; per ognuna chiama fai(copia). Si ferma con «Ferma». */
+async function giroStorico(S, fai){
+  const el = await SPORTELLO.chiedi({operazione:'storico'}), copie = (el.copie||[]).slice().reverse();
+  for(let i = 0; i < copie.length && !S.ferma; i++){
+    S.passo = tr('Leggo lo storico: copia {i} di {n}',{i:i+1, n:copie.length}); if(i % 5 === 0) ridisegnaPb();
+    await fai(await leggiCopiaPb(copie[i].nome));
+  }
+  return copie.length;
+}
+/* gli eventi nascosti di una copia si aprono solo con una password ancora nella cassaforte */
+async function nascostiDiCopia(k, cache){
+  const out = [];
+  for(const x of (k.nascosti||[]).concat(k.nascostiSospesi||[])){
+    const chiave = x.id+'|'+JSON.stringify(x.file).length+'|'+x.impronta;
+    if(!cache.has(chiave)){ const c = await apriVoceNascosta(x); cache.set(chiave, c ? c.ev : null); }
+    const ev = cache.get(chiave); if(ev) out.push(ev); else out.illeggibili = (out.illeggibili||0) + 1;
+  }
+  return out;
+}
+
+/* ---------- Accesso ---------- */
+async function cercaAccesso(){
+  const N = MODULI.nomi, forme = N.forme(RN.forme), P = RN.p.trim().toUpperCase();
+  RN.errore = ''; RN.msg = '';
+  if(!forme.length && !P){ RN.errore = tr('Scrivi il nome, in una o più forme, oppure il codice P della persona.'); disegnaFoglio(); return; }
+  if(P && !CODICE_P.test(P)){ RN.errore = tr('Il codice della persona si scrive come «P-0001».'); disegnaFoglio(); return; }
+  RN.lavoro = true; RN.ferma = false; RN.righe = null; RN.registri = null; RN.illeggibili = 0; RN.passo = tr('Cerco negli eventi attuali…'); disegnaFoglio();
+  const trovati = new Map(), visti = new Map(), cache = new Map();
+  /* ogni evento con il nome: dove sta oggi, in quante copie compare, prima e ultima copia, brani distinti */
+  const guarda = (ev, dove, quando) => {
+    if(!forme.length || !ev || !ev.id) return;
+    const firma = ev.id+'|'+(ev.modificato||'')+'|'+JSON.stringify(ev).length;
+    let punti = visti.get(firma); if(!punti){ punti = N.puntiEvento(ev, forme).map(p => Object.assign(p, {testo:N.leggiCampo(ev, p.campo)})); visti.set(firma, punti); }
+    if(!punti.length) return;
+    const x = trovati.get(ev.id) || {id:ev.id, inizio:ev.inizio, dove:'', copie:0, primo:'', ultimo:'', brani:new Map(), fonte:''};
+    if(dove) x.dove = dove; if(quando){ x.copie++; if(!x.primo) x.primo = quando; x.ultimo = quando; }
+    x.inizio = ev.inizio; x.fonte = (ev.fonte||{}).testo || '';
+    punti.forEach(p => { const b = branoRn(p), k = p.campo+'|'+b; if(!x.brani.has(k)) x.brani.set(k, {campo:p.campo, brano:b}); });
+    trovati.set(ev.id, x);
+  };
+  try{
+    const s = await SPORTELLO.chiedi({operazione:'stato'}); PB.stato = s; await nrDecifra(nrVoci(s));
+    s.eventi.forEach(ev => guarda(ev, tr('Pubblicato'))); s.sospesi.forEach(ev => guarda(ev, tr('Sospeso')));
+    nrVoci(s).forEach(x => { const c = NR.chiari.get(x.id); if(c) guarda(c.ev, tr('Nascosto')); else RN.illeggibili++; });
+    /* le copie dello storico: gli eventi in chiaro, e i nascosti di cui la cassaforte ha ancora la password */
+    if(forme.length) await giroStorico(RN, async k => { k.eventi.concat(k.sospesi).forEach(ev => guarda(ev, '', k.quando)); (await nascostiDiCopia(k, cache)).forEach(ev => guarda(ev, '', k.quando)); });
+    await regApri();
+    const righe = [...trovati.values()].map(x => ({dove:x.dove || tr('Solo nello storico'), inizio:x.inizio, copie:x.copie, primo:x.primo, ultimo:x.dove ? '' : x.ultimo, fonte:mascheraRecapiti(x.fonte),
+      brani:[...x.brani.values()].map(b => ({campo:b.campo, brano:mascheraRecapiti(b.brano)})), id:x.id, on:true}));
+    if(REG.stato==='aperto' && forme.length){
+      REG.dati.preparati.forEach(p => { const pt = puntiModulo(p.dati||{}, forme); if(pt.length) righe.push({dove:tr('Scheda preparata {c}',{c:p.codice}), meta:tr('Scheda non pubblicata, solo su questo dispositivo'), inizio:(p.dati||{}).inizio||'', copie:0, primo:'', ultimo:'', fonte:mascheraRecapiti((p.dati||{}).fonte),
+        brani:pt.map(q => ({campo:q.campo, brano:mascheraRecapiti(branoRn(q))})), on:true}); });
+      REG.dati.eventi.forEach(r => { const pt = [['titolo', r.titolo], ['fonte.testo', r.testoFonte]].flatMap(([c, t]) => (t ? N.trova(t, forme) : []).map(q => Object.assign(q, {campo:c, testo:t})));
+        if(pt.length) righe.push({dove:tr('Registro delle fonti, riga {c}',{c:r.codice||r.id}), meta:tr('Riga del registro delle fonti su questo dispositivo: il registro non si modifica (cap. 22)'), inizio:'', copie:0, primo:r.quando||'', ultimo:'', fonte:'', brani:pt.map(q => ({campo:q.campo, brano:mascheraRecapiti(branoRn(q))})), on:true}); });
+    }
+    RN.righe = righe;
+    RN.registri = !P || REG.stato!=='aperto' ? [] : registriDiP(P);
+  }catch(e){ RN.errore = e && e.motivo ? errorePb(e) : tr('Non sono riuscito a leggere gli eventi o lo storico: riprova.'); }
+  RN.lavoro = false; RN.passo = ''; disegnaFoglio();
+}
+/* il codice P nei registri del dispositivo: fonti che sono la persona, righe degli eventi da quelle fonti, «Non pubblicati» */
+function registriDiP(P){
+  const d = REG.dati, fonti = d.fonti.filter(f => f.nome===P), cod = new Set(fonti.map(f => f.codice)), out = [];
+  fonti.forEach(f => { const ev = d.eventi.filter(r => r.g && r.g.fonte===f.codice);
+    out.push([tr('Registro delle fonti'), f.codice, tr((tipoFonte(f.tipo)||[])[1]||''), tr('Righe degli eventi con questa fonte: {n}',{n:ev.length})+(ev.length ? ' ('+ev.map(r => r.codice||'').filter(Boolean).join(', ')+')' : '')]); });
+  d.nonPubblicati.filter(x => x.organizzatore===P).forEach(x => out.push([tr('Non pubblicati'), x.codice, x.registrata||'', x.motivo||'']));
+  return out;
+}
+function fRn(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Cerca un nome: diritto di accesso')}</h2><p class="meta">${tr('Art. 15 GDPR · §§ 3.13 e 18.7')}</p></div>${chiudiBtn('admin')}</div>`;
+  const campi = `<div class="due"><div class="stack-s"><label class="etich" for="rn-r">${tr('Codice della richiesta')}</label><div class="campo"><input id="rn-r" data-rn="r" maxlength="12" value="${esc(RN.r)}" placeholder="${CODICE_RICHIESTA}" autocomplete="off"></div></div>
+      <div class="stack-s"><label class="etich" for="rn-p">${tr('Codice della persona')} <span class="fac">${tr('facoltativo')}</span></label><div class="campo"><input id="rn-p" data-rn="p" maxlength="12" value="${esc(RN.p)}" placeholder="P-0001" autocomplete="off"></div></div></div>
+    <label class="etich" for="rn-forme">${tr('Il nome, in tutte le forme in cui può comparire')}</label>
+    <div class="campo"><textarea id="rn-forme" data-rn="forme" maxlength="1200" placeholder="${esc(tr('Una forma per riga: nome e cognome, il solo cognome, il nome d’arte'))}">${esc(RN.forme)}</textarea></div>
+    <span class="meta">${tr('Si cerca negli eventi attuali, nelle copie dello storico delle pubblicazioni, nelle schede preparate e nel registro delle fonti di questo dispositivo; il codice P tra le fonti e i «Non pubblicati». Anagrafica, registro dei consensi ed elenco dei contatti si cercano a mano (§ 18.7).')}</span>
+    <div class="tasti"><button class="tasto pri" data-az="rn-cerca" ${RN.lavoro ? 'disabled' : ''}>${tr('Cerca')}</button>${RN.lavoro ? `<button class="tasto sec" data-az="rn-ferma">${tr('Ferma')}</button>` : ''}</div>`;
+  const stato = `${RN.errore ? `<p class="err" role="alert">${esc(RN.errore)}</p>` : ''}${RN.msg ? `<p class="meta" role="status" style="color:var(--testo)">${esc(RN.msg)}</p>` : ''}${RN.lavoro ? `<p class="caricamento">${esc(RN.passo)}</p>` : ''}`;
+  return foglio('forte alto', testa, `${campi}${stato}${RN.righe ? risultatiRnHtml() : ''}`);
+}
+function risultatiRnHtml(){
+  const R = RN.righe, scelte = R.filter(x => x.on).length;
+  const ill = RN.illeggibili ? `<p class="meta">${tr('{n} eventi nascosti attuali non si leggono su questo dispositivo: la loro password non è nella sua cassaforte.',{n:RN.illeggibili})}</p>` : '';
+  const reg = (RN.registri||[]).length ? `<p class="etich">${tr('Nei registri, con il codice della persona')} · ${RN.registri.length}</p><div class="imp-righe">${RN.registri.map(r => `<div>${r.map(esc).join(' · ')}</div>`).join('')}</div>` : '';
+  if(!R.length) return `${ill}<p class="meta" role="status">${tr('Il nome non compare negli eventi né nello storico.')}</p>${reg}${(RN.registri||[]).length ? esportaRnHtml(0) : ''}`;
+  return `<div class="red-riquadro g-avviso" role="note"><b>${tr('Prima di esportare, togli i dati di altre persone')}</b><span class="meta">${tr('L’app non sa riconoscere i nomi: leggi ogni brano e ogni fonte e cancella i nomi e i dettagli di altre persone (art. 15, par. 4). I recapiti li ha già tolti l’app.')}</span></div>
+    ${ill}<p class="etich">${tr('Eventi in cui compare')} · ${R.length}</p>
+    ${R.map((x, i) => `<div class="red-riquadro tn-voce">
+      <button class="riga-int" data-rnp="${i}" aria-pressed="${x.on}"><span class="casella" aria-hidden="true"></span><div><span class="t">${esc(x.dove)}${x.inizio ? ' · '+tr('evento del {g}',{g:esc(giornoRn(x.inizio.slice(0,10)))}) : ''}</span>
+        <span class="meta">${x.copie ? tr('In {n} copie dello storico, dal {a} al {b}',{n:x.copie, a:esc(giornoRn(x.primo)), b:esc(giornoRn(x.ultimo || x.primo))}) : esc(x.meta || tr('Non è nello storico delle pubblicazioni'))}</span></div></button>
+      ${x.brani.map((b, j) => `<label class="etich" for="rn-b-${i}-${j}">${esc(etichettaTn(b.campo))}</label><div class="campo"><textarea id="rn-b-${i}-${j}" data-rnb="${i}.${j}">${esc(b.brano)}</textarea></div>`).join('')}
+      <label class="etich" for="rn-f-${i}">${tr('Fonte')}</label><div class="campo"><input id="rn-f-${i}" data-rnf="${i}" value="${esc(x.fonte)}" autocomplete="off"></div></div>`).join('')}
+    ${reg}${esportaRnHtml(scelte)}`;
+}
+const esportaRnHtml = n => `<div class="tasti"><button class="tasto pri" data-az="rn-esporta">${n ? tr('Esporta il resoconto in Excel ({n} eventi)',{n}) : tr('Esporta il resoconto in Excel')}</button></div>
+  <p class="meta">${tr('Il file è intestato con il solo codice della richiesta, senza nome. Non ha password: consegnalo sul canale della richiesta e cancella la copia dal dispositivo.')}</p>`;
+function esportaAccesso(){
+  const R = RN.r.trim().toUpperCase();
+  if(!CODICE_R.test(R)){ RN.errore = tr('Scrivi il codice della richiesta come «{c}».',{c:CODICE_RICHIESTA}); disegnaFoglio(); return; }
+  const righe = (RN.righe||[]).filter(x => x.on), oggiIt = giornoRn(new Date().toISOString());
+  const testa = [tr('Luogo'), tr('Evento del'), tr('Copie dello storico'), tr('Pubblicato dal'), tr('Pubblicato fino al'), tr('Campo'), tr('Brano'), tr('Fonte')];
+  const dati = righe.flatMap(x => x.brani.map((b, j) => [x.dove, x.inizio ? giornoRn(x.inizio.slice(0,10)) : '', x.copie||'', x.primo ? giornoRn(x.primo) : '', x.ultimo ? giornoRn(x.ultimo) : x.copie ? tr('ancora pubblicato') : '', etichettaTn(b.campo), mascheraRecapiti(b.brano), j ? '' : mascheraRecapiti(x.fonte)]));
+  const fogli = [['Resoconto', [[tr('Richiesta {r} · dati trovati per il diritto di accesso (art. 15 GDPR)',{r:R})], [tr('Preparato il {g}. Dai brani sono tolti i dati di altre persone e i recapiti.',{g:oggiIt})], [], testa].concat(dati.length ? dati : [[tr('Il nome non compare negli eventi né nello storico delle pubblicazioni.')]]), [26,12,10,13,15,22,70,30], {testa:3}]];
+  if((RN.registri||[]).length) fogli.push(['Registri', [[tr('Richiesta {r} · voci dei registri con il codice della persona',{r:R})], [], [], [tr('Registro'), tr('Codice'), tr('Tipo o data'), tr('Dettaglio')]].concat(RN.registri), [22,12,26,60], {testa:3}]);
+  const nome = 'accesso-'+R+'-'+oggi()+'.xlsx';
+  fileExcel(fogli, nome).then(() => { registra('accesso-esporta', {n:righe.length}); RN.errore = ''; RN.msg = tr('Resoconto esportato: {f}.',{f:nome}); disegnaFoglio(); },
+    () => { RN.errore = tr('Non sono riuscito a preparare il file Excel.'); disegnaFoglio(); });
+}
+
+/* ---------- Portabilità ---------- */
+async function cercaPortabilita(){
+  const codici = [...new Set(RP.c.toUpperCase().split(/[\s,;]+/).filter(Boolean))];
+  RP.errore = ''; RP.msg = '';
+  if(!codici.length || codici.some(c => !CODICE_C.test(c))){ RP.errore = tr('Scrivi uno o più codici del registro dei consensi, come «C-0001».'); disegnaFoglio(); return; }
+  RP.lavoro = true; RP.ferma = false; RP.eventi = null; RP.illeggibili = 0; RP.passo = tr('Cerco nel registro delle fonti…'); disegnaFoglio();
+  try{
+    await regApri(); if(REG.stato!=='aperto') throw Object.assign(new Error('registro'), {testo:statoRegistro()});
+    const righe = REG.dati.eventi.filter(r => r.g && codici.includes(String(r.g.consenso||'').trim().toUpperCase()));
+    const ids = new Set(righe.map(r => r.id)), presi = new Map(), cache = new Map();
+    const s = await SPORTELLO.chiedi({operazione:'stato'}); PB.stato = s; await nrDecifra(nrVoci(s));
+    s.eventi.concat(s.sospesi).forEach(ev => { if(ids.has(ev.id)) presi.set(ev.id, {ev, dove:tr('Attuale')}); });
+    nrVoci(s).forEach(x => { if(!ids.has(x.id)) return; const c = NR.chiari.get(x.id); if(c) presi.set(x.id, {ev:c.ev, dove:tr('Attuale, nascosto')}); });
+    const mancano = () => [...ids].filter(id => !presi.has(id) || presi.get(id).vecchio);
+    /* gli eventi che non ci sono più: l'ultima versione nello storico; i nascosti solo con la password ancora nella cassaforte */
+    const prendi = (ev, dove) => { if(ids.has(ev.id) && (!presi.has(ev.id) || presi.get(ev.id).vecchio)) presi.set(ev.id, {ev, dove, vecchio:true}); };
+    if(mancano().length) await giroStorico(RP, async k => { k.eventi.concat(k.sospesi).forEach(ev => prendi(ev, tr('Nello storico')));
+      if((k.nascosti||[]).concat(k.nascostiSospesi||[]).some(x => ids.has(x.id))) (await nascostiDiCopia(k, cache)).forEach(ev => prendi(ev, tr('Nello storico, nascosto'))); });
+    RP.illeggibili = [...ids].filter(id => !presi.has(id)).length;
+    RP.eventi = [...presi.values()].map(x => Object.assign(x, {on:true})).sort((a, b) => a.ev.inizio<b.ev.inizio?-1:1);
+  }catch(e){ RP.errore = e && e.testo ? e.testo : e && e.motivo ? errorePb(e) : tr('Non sono riuscito a leggere gli eventi o lo storico: riprova.'); }
+  RP.lavoro = false; RP.passo = ''; disegnaFoglio();
+}
+function fRp(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Portabilità dei dati forniti con il consenso')}</h2><p class="meta">${tr('Art. 20 GDPR · § 3.13')}</p></div>${chiudiBtn('admin')}</div>`;
+  const campi = `<p class="meta">${tr('Vale solo per i trattamenti basati sul consenso: gli eventi nascosti e gli eventi pubblicati con un consenso diretto o esplicito. Gli eventi pubblici mandati da un organizzatore si basano sul legittimo interesse (§ 3.3); un ente non ha questo diritto.')}</p>
+    <div class="due"><div class="stack-s"><label class="etich" for="rp-r">${tr('Codice della richiesta')}</label><div class="campo"><input id="rp-r" data-rp="r" maxlength="12" value="${esc(RP.r)}" placeholder="${CODICE_RICHIESTA}" autocomplete="off"></div></div>
+      <div class="stack-s"><label class="etich" for="rp-c">${tr('Codici del consenso')}</label><div class="campo"><input id="rp-c" data-rp="c" maxlength="200" value="${esc(RP.c)}" placeholder="C-0001" autocomplete="off"></div></div></div>
+    <div class="tasti"><button class="tasto pri" data-az="rp-cerca" ${RP.lavoro ? 'disabled' : ''}>${tr('Cerca')}</button>${RP.lavoro ? `<button class="tasto sec" data-az="rp-ferma">${tr('Ferma')}</button>` : ''}</div>`;
+  const stato = `${RP.errore ? `<p class="err" role="alert">${esc(RP.errore)}</p>` : ''}${RP.msg ? `<p class="meta" role="status" style="color:var(--testo)">${esc(RP.msg)}</p>` : ''}${RP.lavoro ? `<p class="caricamento">${esc(RP.passo)}</p>` : ''}`;
+  const E = RP.eventi, n = E ? E.filter(x => x.on).length : 0;
+  const lista = !E ? '' : `${RP.illeggibili ? `<p class="meta">${tr('{n} eventi di questi consensi non si leggono più: erano nascosti e la loro password si è cancellata alla fine dell’evento (§ 3.14). Il resoconto lo dice.',{n:RP.illeggibili})}</p>` : ''}
+    ${E.length ? `<p class="etich">${tr('Eventi trovati')} · ${E.length}</p>${E.map((x, i) => `<button class="riga-int" data-rpe="${i}" aria-pressed="${x.on}"><span class="casella" aria-hidden="true"></span><div><span class="t">${esc(x.ev.titolo)}</span><span class="meta">${esc(quandoEv(x.ev))} · ${esc(x.dove)}</span></div></button>`).join('')}` : `<p class="meta" role="status">${tr('Nessun evento con questi codici nel registro delle fonti di questo dispositivo.')}</p>`}
+    <div class="tasti"><button class="tasto sec" data-az="rp-excel" ${n || RP.illeggibili ? '' : 'disabled'}>${tr('Scarica l’Excel')}</button><button class="tasto sec" data-az="rp-json" ${n || RP.illeggibili ? '' : 'disabled'}>${tr('Scarica il JSON')}</button></div>
+    <p class="meta">${tr('Excel: le colonne del modello con cui gli organizzatori mandano gli eventi. JSON: il formato degli eventi del nostro archivio. I file non hanno password: consegnali sul canale della richiesta e cancella le copie dal dispositivo.')}</p>`;
+  return foglio('forte alto', testa, `${campi}${stato}${lista}`);
+}
+/* una riga del modello d'importazione (MODELLO, strumenti.js): le colonne dell'evento, senza quelle del registro */
+const COLONNE_PORTABILITA = MODELLO.slice(0, 17);
+function rigaModello(ev){
+  const l = LAYERS.find(x => x.id===ev.strato), sub = l && ev.sottostrato ? l.sub.find(x => x.id===ev.sottostrato) : null;
+  const [g, h] = String(ev.inizio||'').split('T'), fine = ev.fine ? String(ev.fine).split('T') : null;
+  return [ev.titolo, l ? l.label : ev.strato, sub ? sub.label : '', ev.descrizione||'', g ? dIso(g) : '', h||'', fine ? fine[1] : '', ev.durata||'', ev.prezzo||'',
+    ev.luogo||'', ev.indirizzo||'', ev.descrizione_luogo||'', ev.lat, ev.lng, (ev.fonte||{}).collegamento||'', (ev.fonte||{}).testo||'', ev.organizzatore||''];
+}
+function esportaPortabilita(tipo){
+  const R = RP.r.trim().toUpperCase();
+  if(!CODICE_R.test(R)){ RP.errore = tr('Scrivi il codice della richiesta come «{c}».',{c:CODICE_RICHIESTA}); disegnaFoglio(); return; }
+  const ev = (RP.eventi||[]).filter(x => x.on).map(x => x.ev), nota = RP.illeggibili ? tr('{n} eventi nascosti non si leggono più: la loro password si è cancellata alla fine dell’evento.',{n:RP.illeggibili}) : '';
+  const fatto = f => { registra('portabilita-esporta', {n:ev.length}); RP.errore = ''; RP.msg = tr('Scaricato: {f}.',{f}); disegnaFoglio(); };
+  if(tipo==='json'){
+    const nome = 'portabilita-'+R+'-'+oggi()+'.json';
+    const d = Object.assign({formato:'eventi', versione:1, richiesta:R, creato:oggi(), eventi:ev}, nota ? {nota} : {});
+    scaricaBlob(new Blob([JSON.stringify(d, null, 1)], {type:'application/json'}), nome); fatto(nome); return;
+  }
+  const nome = 'portabilita-'+R+'-'+oggi()+'.xlsx';
+  const fogli = [['Eventi', [COLONNE_PORTABILITA.map(x => x[0])].concat(ev.map(rigaModello)), COLONNE_PORTABILITA.map(x => x[1])],
+    ['Istruzioni', [[tr('Richiesta {r} · dati forniti con il consenso (art. 20 GDPR)',{r:R})], [tr('Una riga per evento, con le colonne del modello per mandare gli eventi.')]].concat(nota ? [[nota]] : []), [100]]];
+  fileExcel(fogli, nome).then(() => fatto(nome), () => { RP.errore = tr('Non sono riuscito a preparare il file Excel.'); disegnaFoglio(); });
+}
+
+/* ---------- Tocchi e campi ---------- */
+DIRITTI.push({
+  voce:() => `<button class="menu-r" data-az="rn">${icoNote}<div><span class="t">${tr('Cerca un nome: diritto di accesso')}</span><span class="meta">${tr('Eventi attuali, storico e registri del dispositivo; resoconto in Excel')}</span></div>${freccia}</button>
+    <button class="menu-r" data-az="rp">${icoEsporta}<div><span class="t">${tr('Portabilità dei dati forniti con il consenso')}</span><span class="meta">${tr('Gli eventi di un codice C, in Excel e in JSON')}</span></div>${freccia}</button>`,
+  click(t){ const d = t.dataset;
+    if(d.rnp!=null && RN.righe){ const x = RN.righe[+d.rnp]; if(x){ x.on = !x.on; disegnaFoglio(); } return true; }
+    if(d.rpe!=null && RP.eventi){ const x = RP.eventi[+d.rpe]; if(x){ x.on = !x.on; disegnaFoglio(); } return true; }
+    return false; },
+  azione(az){
+    switch(az){
+      case 'rn': Object.assign(RN, {r:'', forme:'', p:'', lavoro:false, ferma:false, errore:'', msg:'', righe:null, registri:null, illeggibili:0}); apri('rn'); return true;
+      case 'rn-cerca': if(!RN.lavoro) cercaAccesso(); return true;
+      case 'rn-ferma': RN.ferma = true; return true;
+      case 'rn-esporta': esportaAccesso(); return true;
+      case 'rp': Object.assign(RP, {r:'', c:'', lavoro:false, ferma:false, errore:'', msg:'', eventi:null, illeggibili:0}); apri('rp'); return true;
+      case 'rp-cerca': if(!RP.lavoro) cercaPortabilita(); return true;
+      case 'rp-ferma': RP.ferma = true; return true;
+      case 'rp-excel': esportaPortabilita('excel'); return true;
+      case 'rp-json': esportaPortabilita('json'); return true;
+    }
+    return false;
+  },
+  input(el){ const d = el.dataset;
+    if(d.rn){ RN[d.rn] = el.value; return true; }
+    if(d.rp){ RP[d.rp] = el.value; return true; }
+    if(d.rnb && RN.righe){ const [i, j] = d.rnb.split('.').map(Number), b = (RN.righe[i]||{brani:[]}).brani[j]; if(b) b.brano = el.value; return true; }
+    if(d.rnf && RN.righe){ const x = RN.righe[+d.rnf]; if(x) x.fonte = el.value; return true; }
+    return false; }
+});
+Object.assign(FOGLI_RED, {rn:fRn, rp:fRp});
+
+/* ======================= «Esporta per assistenza» (T-049) =======================
+   Libro mastro: § 2.6 «L'assistente di intelligenza artificiale» (copie con i nomi sostituiti, anteprima, tabella di
+   corrispondenza sul dispositivo; se una copia non si può rendere irriconoscibile, non si fa); § 3.5 «L'assistenza
+   tecnica»; § 12.5, regola 1. L'eccezione aspetta il sì nella revisione finale del libro mastro (sezione 6 del piano):
+   la voce si costruisce ma si usa soltanto dopo il sì. Decisione del 26/11/2026, n. 16.
+
+   Serve in un caso solo: dopo il lancio, un guasto che si vede soltanto con eventi veri. Sta solo nell'app della
+   redazione. La Redazione sceglie a mano da 1 a 10 eventi pubblicati (mai i nascosti, mai le password) e, se vuole,
+   scrive i nomi delle persone che vi compaiono, una persona per riga. Di ogni evento parte soltanto strato, città e
+   mese, e quali persone contiene come Persona_1, Persona_2…: nessun testo dell'evento, nessuna data precisa, nessun
+   luogo né recapito, nessun identificativo. Tutti gli eventi sono pubblici, quindi chi riceve la copia potrebbe
+   cercarli nell'app: un evento parte solo se nell'archivio ci sono almeno 5 eventi con la stessa città, lo stesso mese
+   e lo stesso strato (regola dei cinque); altrimenti non parte, e se non ne parte nessuno la copia non si fa.
+   L'anteprima mostra esattamente il file; la tabella di corrispondenza (Evento_1 = quale evento, Persona_1 = quale
+   nome) si vede soltanto nella pagina aperta e non si salva.
+
+   Con lo sportello di prova funziona, sugli eventi inventati. Con lo sportello vero «Esporta» resta spento finché
+   funzioni.esporta_assistenza di sorgenti/config.js non diventa true, con un commit dopo il sì. Il file è isolato:
+   con un no si toglie da JS_RED di sorgenti/build.js e dal disco, con prove/browser/assistenza.js e il valore della
+   configurazione, senza toccare altro.
+
+   Testi come testo (T-024): titoli e nomi entrano nella pagina solo con esc(). */
+const PA = {eventi:null, sel:[], nomi:'', anteprima:null, lavoro:false, errore:'', msg:''};
+const ASSISTENZA_MAX = 10, ASSISTENZA_SOGLIA = 5;
+fogliPb.push('pa');
+OP_STORICO['assistenza-esporta'] = ['file', 'Copia per l’assistenza esportata'];
+const assistenzaAccesa = () => SPORTELLO.diProva() || (CFG.funzioni||{}).esporta_assistenza === true;
+const cittaAssistenza = ev => { const c = cittaDi(ev); return c==='altro' ? tr('Fuori dalle città') : nomeCitta(c); };
+const meseAssistenza = ev => String(ev.inizio||'').slice(0, 7);
+const gruppoAssistenza = ev => ev.strato+'|'+cittaAssistenza(ev)+'|'+meseAssistenza(ev);
+
+function apriAssistenza(){
+  Object.assign(PA, {eventi:null, sel:[], nomi:'', anteprima:null, lavoro:true, errore:'', msg:''}); apri('pa');
+  SPORTELLO.chiedi({operazione:'stato'}).then(s => { PA.eventi = s.eventi.slice().sort((a, b) => a.inizio<b.inizio?-1:1); }, e => { PA.eventi = []; PA.errore = errorePb(e); })
+    .then(() => { PA.lavoro = false; ridisegnaPb(); });
+}
+/* le persone: una per riga; più forme della stessa persona sulla stessa riga, separate da «/» */
+const personeAssistenza = () => PA.nomi.split(/\r?\n/).map(r => MODULI.nomi.forme(r.split('/').join('\n'))).filter(f => f.length).slice(0, 20);
+function preparaAssistenza(){
+  const N = MODULI.nomi, persone = personeAssistenza(), tutti = PA.eventi||[], conta = new Map();
+  tutti.forEach(ev => { const g = gruppoAssistenza(ev); conta.set(g, (conta.get(g)||0) + 1); });
+  const testi = ev => N.CAMPI.map(c => { const v = N.leggiCampo(ev, c); try{ return c==='fonte.collegamento' ? decodeURIComponent(v) : v; }catch(e){ return v; } }).join('\n');
+  let n = 0;
+  const righe = PA.sel.map(id => tutti.find(ev => ev.id===id)).filter(Boolean).map(ev => {
+    const quanti = conta.get(gruppoAssistenza(ev))||0, parte = quanti >= ASSISTENZA_SOGLIA, t = testi(ev);
+    return {ev, parte, quanti, nome:parte ? 'Evento_'+(++n) : '', persone:persone.map((f, k) => N.contiene(t, f) ? 'Persona_'+(k+1) : '').filter(Boolean)};
+  });
+  const copia = {tipo:'copia-per-assistenza', versione:1, nota:'Strato, città e mese di eventi pubblici scelti dalla Redazione; nessun testo degli eventi, nessun nome, nessun recapito.',
+    eventi:righe.filter(r => r.parte).map(r => Object.assign({evento:r.nome, strato:r.ev.strato, citta:cittaAssistenza(r.ev), mese:meseAssistenza(r.ev)}, r.persone.length ? {persone:r.persone} : {}))};
+  PA.anteprima = {righe, persone, copia, testo:JSON.stringify(copia, null, 1)};
+}
+function fPa(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Esporta per assistenza')}</h2><p class="meta">${tr('Una copia senza nomi per l’assistente di intelligenza artificiale (§ 2.6)')}</p></div>${chiudiBtn('admin')}</div>`;
+  const acceso = assistenzaAccesa(), A = PA.anteprima;
+  const spiega = `<div class="red-riquadro" role="note"><b>${tr('Solo per un guasto che si vede con eventi veri')}</b>
+      <span class="meta">${tr('Di ogni evento scelto parte soltanto strato, città e mese, e quali persone contiene come Persona_1, Persona_2… Nessun titolo, descrizione, luogo, indirizzo, data precisa o recapito; mai eventi nascosti né password.')}</span>
+      <span class="meta">${tr('Un evento parte solo se nell’archivio ci sono almeno {n} eventi con la stessa città, lo stesso mese e lo stesso strato: così chi riceve la copia non può capire quale sia.',{n:ASSISTENZA_SOGLIA})}</span>
+      ${acceso ? (SPORTELLO.diProva() ? `<span class="meta">${tr('Sportello di prova: funziona sugli eventi inventati. Con lo sportello vero resta spento fino al sì nella revisione finale del libro mastro.')}</span>` : '')
+        : `<span class="err">${tr('In attesa del sì nella revisione finale del libro mastro: «Esporta» è spento (sezione 6 del piano).')}</span>`}</div>`;
+  const stato = `${PA.errore ? `<p class="err" role="alert">${esc(PA.errore)}</p>` : ''}${PA.msg ? `<p class="meta" role="status" style="color:var(--testo)">${esc(PA.msg)}</p>` : ''}${PA.lavoro ? `<p class="caricamento">${tr('Chiedo l’elenco allo sportello…')}</p>` : ''}`;
+  const E = PA.eventi;
+  const scelta = !E ? '' : !E.length ? `<p class="meta">${tr('Nessun evento pubblicato.')}</p>` : `<p class="etich">${tr('Gli eventi del guasto')} · ${PA.sel.length}/${ASSISTENZA_MAX}</p>
+    <div class="menu-lista pa-scelta">${E.map(ev => `<button class="riga-int" data-pae="${esc(ev.id)}" aria-pressed="${PA.sel.includes(ev.id)}"><span class="casella" aria-hidden="true"></span><div><span class="t">${esc(ev.titolo)}</span><span class="meta">${esc(quandoEv(ev))} · ${esc(ev.luogo)}</span></div></button>`).join('')}</div>
+    <label class="etich" for="pa-nomi">${tr('Le persone che compaiono in questi eventi')} <span class="fac">${tr('facoltativo')}</span></label>
+    <div class="campo"><textarea id="pa-nomi" data-pa="nomi" maxlength="1200" placeholder="${esc(tr('Una persona per riga; più forme della stessa persona separate da /'))}">${esc(PA.nomi)}</textarea></div>
+    <span class="meta">${tr('I nomi non partono: servono solo a dire «contiene Persona_1».')}</span>
+    <div class="tasti"><button class="tasto pri" data-az="pa-anteprima" ${PA.sel.length ? '' : 'disabled'}>${tr('Prepara l’anteprima')}</button></div>`;
+  const parte = A ? A.copia.eventi.length : 0;
+  const anteprima = !A ? '' : `${A.righe.filter(r => !r.parte).map(r => `<p class="meta">${tr('«{t}» non parte: nell’archivio ci sono {q} eventi con la stessa città, lo stesso mese e lo stesso strato, ne servono almeno {n}.',{t:esc(r.ev.titolo), q:r.quanti, n:ASSISTENZA_SOGLIA})}</p>`).join('')}
+    ${parte ? `<p class="etich">${tr('Ciò che parte, esattamente')}</p><pre class="pa-anteprima">${esc(A.testo)}</pre>`
+      : `<p class="err" role="status">${tr('Nessun evento si può rendere irriconoscibile: la copia non si fa (§ 2.6). Descrivi il guasto a parole.')}</p>`}
+    <p class="etich">${tr('Tabella di corrispondenza: resta qui, non parte e non si salva')}</p>
+    <div class="imp-righe">${A.righe.filter(r => r.parte).map(r => `<div>${esc(r.nome)} = ${esc(r.ev.titolo)} · ${esc(quandoEv(r.ev))}</div>`).join('')}${A.persone.map((f, k) => `<div>Persona_${k+1} = ${esc(f.map(x => x.forma).join(' / '))}</div>`).join('')}</div>
+    <div class="tasti"><button class="tasto pri" data-az="pa-esporta" ${parte && acceso ? '' : 'disabled'}>${tr('Esporta la copia')}</button></div>
+    <p class="meta">${tr('Il file resta su questo dispositivo: decidi tu se darlo all’assistente. Le schermate e i messaggi degli utenti non si girano: se ne descrive il problema.')}</p>`;
+  return foglio('forte alto', testa, `${spiega}${stato}${scelta}${anteprima}`);
+}
+function esportaAssistenza(){
+  const A = PA.anteprima; if(!A || !A.copia.eventi.length || !assistenzaAccesa()) return;
+  const nome = 'assistenza-'+oggi()+'.json';
+  scaricaBlob(new Blob([A.testo], {type:'application/json'}), nome);
+  registra('assistenza-esporta', {n:A.copia.eventi.length}); PA.msg = tr('Copia esportata: {f}.',{f:nome}); disegnaFoglio();
+}
+
+DIRITTI.push({
+  voce:() => `<button class="menu-r" data-az="pa">${icoEsporta}<div><span class="t">${tr('Esporta per assistenza')}</span><span class="meta">${assistenzaAccesa() ? tr('Una copia senza nomi per capire un guasto, da 1 a 10 eventi') : tr('In attesa del sì nella revisione finale del libro mastro')}</span></div>${freccia}</button>`,
+  click(t){ const id = t.dataset.pae; if(id==null) return false;
+    const i = PA.sel.indexOf(id); if(i>=0) PA.sel.splice(i, 1); else if(PA.sel.length < ASSISTENZA_MAX) PA.sel.push(id); else PA.msg = tr('Al massimo {n} eventi.',{n:ASSISTENZA_MAX});
+    PA.anteprima = null; disegnaFoglio(); return true; },
+  azione(az){
+    switch(az){
+      case 'pa': apriAssistenza(); return true;
+      case 'pa-anteprima': if(PA.sel.length){ PA.msg = ''; preparaAssistenza(); disegnaFoglio(); } return true;
+      case 'pa-esporta': esportaAssistenza(); return true;
+    }
+    return false;
+  },
+  input(el){ if(el.dataset.pa!=='nomi') return false; PA.nomi = el.value; return true; }   /* l'anteprima cambia solo con «Prepara l'anteprima»: è sempre il file che parte */
+});
+Object.assign(FOGLI_RED, {pa:fPa});
 
 
 /* ======================= Interazioni ======================= */

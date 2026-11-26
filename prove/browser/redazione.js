@@ -178,9 +178,10 @@ async function prova() {
           if (!fogli[n]) { err('esportazione: manca il foglio «' + n + '»'); continue; }
           for (const riga of fogli[n].slice(1)) riga.forEach((c, i) => { if (i > 0 && typeof c === 'number' && c > 0 && c < 10 && !(n === 'Interviste' && i === 7)) err(`esportazione, foglio «${n}»: un valore sotto i 10 casi è scritto per esteso (${c})`); });
         }
-        /* le richieste di rimozione: una per riga, con ricevuta, evasa e ore (decisione del 22/11/2026) */
+        /* le richieste di rimozione: una per riga, con il codice R (dal blocco 12; vuoto per le richieste registrate senza),
+           ricevuta, evasa e ore (decisione del 22/11/2026) */
         const rim = (fogli.Rimozioni || []).slice(1);
-        if (rim.length !== 3 || !rim.every(r => /T\d\d:\d\d/.test(String(r[0])) && /T\d\d:\d\d/.test(String(r[1])) && r[2] === 5)) err('esportazione: le tre richieste di rimozione devono uscire una per riga, con ricevuta, evasa e ore (' + JSON.stringify(rim).slice(0, 120) + ')');
+        if ((fogli.Rimozioni || [[]])[0][0] !== 'Codice' || rim.length !== 3 || !rim.every(r => r[0] === '' && /T\d\d:\d\d/.test(String(r[1])) && /T\d\d:\d\d/.test(String(r[2])) && r[3] === 5)) err('esportazione: le tre richieste di rimozione devono uscire una per riga, con codice, ricevuta, evasa e ore (' + JSON.stringify(fogli.Rimozioni).slice(0, 160) + ')');
         const giro = (fogli.Interviste || [])[1];
         if (!giro || giro[2] !== 'meno di 10') err('esportazione: un giro con 8 persone deve uscire come «meno di 10»');
       }

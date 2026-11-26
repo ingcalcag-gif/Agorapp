@@ -9,6 +9,10 @@
    I pezzi comuni chiamano da qui, dentro i tratti riservati all'app della redazione: FOGLI_RED (i fogli), clickRed, azioneRed, inputRed,
    cambioRed (le interazioni), boxAdmin (il riquadro nella scheda). */
 const CHIAVI = MODULI.chiavi.crea({deposito:MEM.base});   /* chiavi, cassaforte e marcatore (sorgenti/moduli/chiavi.js) */
+/* Gli strumenti dei diritti delle persone (blocco 12: togli-nome.js, ricerca-nome.js, esporta-assistenza.js). Ogni file
+   ne aggiunge uno con DIRITTI.push({voce, azione, click, input, cambio}) e mette i suoi fogli in FOGLI_RED: togliere un
+   file dall'elenco del montaggio toglie lo strumento senza toccare altro. */
+const DIRITTI = [];
 /* il riquadro della Redazione nella scheda di un evento: dal blocco 9 gli eventi pubblicati si correggono e si ritirano da «Pubblicazione» */
 const boxAdmin = e => '';
 function fAdmin(){
@@ -23,6 +27,7 @@ function fAdmin(){
     <div class="menu-lista">
       <button class="menu-r" data-az="chiavi">${icoLucchetto(16)}<div><span class="t">${tr('Chiavi')}</span><span class="meta">${statoChiavi}</span></div>${freccia}</button>
       <button class="menu-r" data-az="verifica">${icoNote}<div><span class="t">${tr('Viene dal nostro archivio?')}</span><span class="meta">${tr('Controlla un identificativo o un file copiato')}</span></div>${freccia}</button></div>
+    ${DIRITTI.length ? `<p class="etich">${tr('Diritti delle persone')}</p><div class="menu-lista">${DIRITTI.map(d => d.voce()).join('')}</div>` : ''}
     <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo dispositivo') : tr('{n} operazioni registrate su questo dispositivo',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo dispositivo'))(storico().length)}</span></div>${freccia}</button>
     <p class="meta">${tr('Per una copia completa, con i tuoi Off-Grid:')} <button class="link" style="min-height:32px" data-az="admin-esporta-json">${tr('esporta in JSON')}</button></p>
     ${st.msgAdmin?`<p class="meta" role="status" style="color:var(--testo)">${esc(st.msgAdmin)}</p>`:''}
@@ -154,11 +159,13 @@ const FOGLI_RED = {admin:fAdmin, importa:fImporta, aform:fEventoForm, 'pb-import
 /* un tocco: true se era per gli strumenti della Redazione */
 function clickRed(t){
   if(t.dataset.mz!=null && clickMisure(t)) return true;
+  if(DIRITTI.some(d => d.click && d.click(t))) return true;
   if(clickPubblica(t)) return true;
   return false;
 }
 function azioneRed(az, t){
   if(azioneChiavi(az, t)) return;
+  if(DIRITTI.some(d => d.azione && d.azione(az, t))) return;
   if(azionePubblica(az, t)) return;
   switch(az){
     case 'scegli-mappa-a': iniziaPosa('aform'); break;
@@ -184,8 +191,9 @@ function azioneRed(az, t){
 /* un campo dei moduli della Redazione: true se era suo */
 function inputRed(el){
   if(inputChiavi(el)) return true;
+  if(DIRITTI.some(d => d.input && d.input(el))) return true;
   if(inputPubblica(el)) return true;
   return false;
 }
-function cambioRed(el){ return cambioPubblica(el); }
+function cambioRed(el){ return DIRITTI.some(d => d.cambio && d.cambio(el)) || cambioPubblica(el); }
 $('fileImporta').addEventListener('change', function(){ const f = this.files && this.files[0]; if(f) leggiImport(f); this.value = ''; });

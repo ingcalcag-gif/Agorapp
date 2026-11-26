@@ -19,7 +19,7 @@ const TIPI_FONTE = [['organizzatore', 'Organizzatore che scrive alla Redazione',
   ['istituzionale', 'Sito istituzionale', '3'], ['calendario', 'Calendario in dati aperti', '3'], ['testata', 'Testata o comunicato', '4']];
 const GRADI_FONTE = {'1':'Grado 1', '2':'Grado 2', '3':'Grado 3', '4':'Grado 4', esclusa:'Esclusa'};
 const ESITI_FONTE = {ammessa:'Ammessa', attribuzione:'Ammessa con attribuzione', vietata:'Non ammessa: vieta il riuso, si cerca l’organizzatore', esclusa:'Esclusa'};
-const CODICE_P = /^P-\d{4,}$/, CODICE_C = /^C-\d{4,}$/, CODICE_K = /^K-\d{4,}$/;
+const CODICE_P = /^P-\d{4,}$/, CODICE_C = /^C-\d{4,}$/, CODICE_K = /^K-\d{4,}$/, CODICE_R = /^R-\d{4,}$/;   /* R: registro delle richieste (cap. 26) */
 /* Licenza del calendario (cap. 22, foglio «Fonti»; § 6.4, punti 2 e 3): solo per i calendari in dati aperti */
 const LICENZE_CAL = {aperta:'Licenza aperta che consente il riuso', nessuna:'Nessuna licenza (art. 52, c. 2, CAD)', condivisione:'Licenza a condivisione alle stesse condizioni (solo inserimento a mano)'};
 /* I sette punti da verificare prima della prima importazione da ciascun Comune (§ 6.4), con la data del controllo */

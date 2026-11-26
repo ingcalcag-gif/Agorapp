@@ -24,6 +24,9 @@ window.AGR_CONFIG = {
   "https://www.openstreetmap.org/copyright",
   "https://www.garanteprivacy.it"
  ],
+ "funzioni": {
+  "esporta_assistenza": false
+ },
  "testi": {
   "legali_in_app": {
    "versione": "1.2",

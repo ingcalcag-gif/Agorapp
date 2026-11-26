@@ -12,7 +12,9 @@
    - il registro delle fonti dell'app della redazione (T-041): nome e attribuzione di una fonte, titolo di una scheda
      preparata, e le parole che l'avviso dei recapiti riporta dalla descrizione;
    - le risposte della ricerca degli indirizzi (Photon), servite dalla prova con nomi, vie e numeri civici ostili;
-   - un file da importare nell'area riservata (CSV) con celle ostili, lo storico e gli appunti delle Misure.
+   - un file da importare nell'area riservata (CSV) con celle ostili, lo storico e gli appunti delle Misure;
+   - nell'app della redazione, gli stessi eventi ostili nei punti trovati da «Togli questo nome ovunque» e nei brani del
+     resoconto dell'accesso (T-047, T-048); la copia per l'assistenza (T-049) ha la sua prova ostile in assistenza.js.
    La prova apre tutte le viste dell'app, compresi l'anteprima del PDF, la pagina di stampa e il PDF scaricato, e
    controlla che nessun testo sia diventato un elemento o sia stato eseguito, che nessun collegamento javascript:,
    data: o http: arrivi nella pagina e che nessun elemento abbia un gestore scritto nella pagina (on…=). Un evento
@@ -401,6 +403,16 @@ async function prova() {
           if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione') && await tocca(F + '[data-az="pb-storico"]', 'storico delle pubblicazioni')) {
             await pausa(700); await controlla('storico delle pubblicazioni');
             if (await tocca(F + '[data-pbcopia]', 'storico, copia', true) && await tocca(F + '[data-az="pb-ripristina"]', 'storico, ripristina', true)) { await pausa(700); await controlla('copia da ripristinare'); }
+          }
+          /* diritti delle persone (T-047, T-048): i punti trovati e i brani del resoconto mostrano i testi ostili come testo */
+          if (await entra() && await tocca(F + '[data-az="tn"]', 'togli questo nome ovunque')) {
+            await tocca(F + '[data-az="tn-rich"][data-v="nessuna"]', 'togli, senza richiesta', true);
+            await p.fill('#tn-forme', 'Sala\nGruppo\nDescrizione\nConcerto\nDal cancello'); await tocca(F + '[data-az="tn-cerca"]', 'togli, cerca', true); await pausa(1200);
+            await controlla('togli questo nome ovunque, punti trovati');
+          }
+          if (await entra() && await tocca(F + '[data-az="rn"]', 'cerca un nome')) {
+            await p.fill('#rn-forme', 'Sala\nGruppo\nDescrizione\nConcerto'); await tocca(F + '[data-az="rn-cerca"]', 'accesso, cerca', true); await pausa(2500);
+            await controlla('accesso, eventi trovati');
           }
           /* poi lo sportello di prova si svuota: Misure e il resto leggono di nuovo l'archivio ostile della prova */
           if (await entra() && await tocca(F + '[data-az="pubblica"]', 'pubblicazione')) { await pausa(400); await tocca(F + '[data-az="pb-svuota"]', 'svuota', true); await tocca(F + '[data-az="pb-svuota"]', 'svuota, conferma', true); await pausa(600); }

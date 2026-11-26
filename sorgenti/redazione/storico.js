@@ -20,6 +20,8 @@ const OP_STORICO = {
   'registro-confronta':['eventi','Registro delle fonti confrontato con lo sportello'], 'registro-riprendi':['eventi','Voci del registro delle fonti riprese dallo sportello'],
   importa:['file','Eventi importati da Excel'], 'esporta-excel':['file','Eventi esportati in Excel'], 'esporta-json':['file','Copia completa esportata in JSON'],
   'esporta-misure':['file','Misure esportate in Excel'], 'esporta-storico':['file','Storico esportato in Excel'],
+  'togli-nome':['eventi','Nome tolto su richiesta (Togli questo nome ovunque)'], 'accesso-esporta':['file','Resoconto per una richiesta di accesso esportato'],
+  'portabilita-esporta':['file','Dati per la portabilità esportati'],
   misura:['misure','Libreria delle misure'], svuota:['accessi','Storico svuotato']
 };
 const GRUPPI_STORICO = [['tutte','Tutte'], ['eventi','Eventi'], ['file','Import ed export'], ['misure','Misure'], ['accessi','Chiavi e accessi']];

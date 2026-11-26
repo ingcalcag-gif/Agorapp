@@ -270,16 +270,21 @@ function confrontaCopie(a, b){
   return {a, b, tolti:solo(A, B), aggiunti:solo(B, A), cambiati:[...B].filter(([id, x]) => A.has(id) && (JSON.stringify(A.get(id).e)!==JSON.stringify(x.e) || A.get(id).sos!==x.sos)).map(([, x]) => x)};
 }
 const leggiCopiaPb = nome => SPORTELLO.chiedi({operazione:'copia', nome}).then(r => r.copia);
-/* le richieste di rimozione registrate nelle Misure (scheda «Rete») dopo la data della copia: solo date e ore, senza nomi */
-const rimozioniDopo = iso => (mz().rimozioni||[]).filter(r => r && r.ric && new Date(r.ric).getTime() > Date.parse(iso)).map(r => r.ric).sort();
+/* le richieste di rimozione registrate nelle Misure (scheda «Rete») dopo la data della copia: date, ore e codice R della
+   richiesta, senza nomi (§ 3.13, passo 4; decisione del 26/11/2026, n. 13: i nomi si riprendono dall'anagrafica) */
+const rimozioniDopo = iso => (mz().rimozioni||[]).filter(r => r && r.ric && new Date(r.ric).getTime() > Date.parse(iso)).map(r => ({ric:r.ric, r:r.r||''})).sort((a, b) => a.ric<b.ric?-1:1);
+/* le richieste dopo la copia non ancora segnate come ripetute: finché ce n'è una, la copia non si ripubblica */
+const riprMancano = R => R.rimozioni.some((x, k) => !R.fatte[k]);
 function fPbCopia(){
   const R = PB.ripr;
   const testa = `<div class="riga-titolo"><div><h2>${tr('Ripristina una copia')}</h2><p class="meta">${R ? tr('Copia del {q}',{q:esc(quandoPb(R.copia.quando))}) : ''}</p></div>${chiudiBtn('pb-storico')}</div>`;
   if(!R) return foglio('forte', testa, `<p class="caricamento">${tr('Leggo la copia…')}</p>${statoPb()}`);
   const rim = R.rimozioni;
-  const promemoria = rim.length ? `<div class="red-riquadro" role="note"><b>${rim.length===1 ? tr('Dopo questa copia è stata chiesta 1 rimozione di un nome.') : tr('Dopo questa copia sono state chieste {n} rimozioni di nomi.',{n:rim.length})}</b>
-      <span class="meta">${tr('Ricevute il: {l}.',{l:esc(rim.map(x => quandoPb(x)).join(' · '))})} ${tr('Prima di ripubblicare vanno ripetute: correggi qui sotto gli eventi che portano quei nomi, oppure toglili dalla copia.')}</span>
-      <button class="riga-int" data-az="pb-ripr-fatto" aria-pressed="${R.fatto}"><span class="casella" aria-hidden="true"></span><div><span class="t">${tr('Ho ripetuto le rimozioni chieste dopo questa data')}</span></div></button></div>`
+  const promemoria = rim.length ? `<div class="red-riquadro" role="note"><b>${rim.length===1 ? tr('Dopo questa copia è stata chiesta 1 rimozione.') : tr('Dopo questa copia sono state chieste {n} rimozioni.',{n:rim.length})}</b>
+      <span class="meta">${tr('Prima di ripubblicare vanno ripetute in questa copia, una per una. Per togliere un nome: «Togli il nome da questa copia», con il nome che trovi nell’anagrafica sotto il codice della richiesta. Per togliere un evento: «Togli» nell’elenco qui sotto. Poi segna la richiesta come ripetuta.')}</span>
+      ${rim.map((x, k) => `<div class="pb-ripr-rich"><span class="t">${x.r ? esc(x.r)+' · ' : ''}${tr('ricevuta il {q}',{q:esc(quandoPb(x.ric))})}</span>
+        <button class="link" data-az="tn-copia" data-k="${k}">${tr('Togli il nome da questa copia')}</button>
+        <button class="riga-int" data-az="pb-ripr-fatto" data-k="${k}" aria-pressed="${!!R.fatte[k]}"><span class="casella" aria-hidden="true"></span><div><span class="t">${tr('Ripetuta in questa copia')}</span></div></button></div>`).join('')}</div>`
     : `<p class="meta">${tr('Nel registro delle richieste di rimozione (Misure → Rete) non ce ne sono dopo la data di questa copia. Se ne hai ricevute e non le hai registrate, ripetile prima di ripubblicare.')}</p>`;
   const righe = (l, nota) => l.map(ev => `<div class="menu-r" style="cursor:default"><div><span class="t">${esc(ev.titolo)}</span><span class="meta">${esc(quandoEv(ev))} · ${esc(ev.luogo)}${nota?' · '+nota:''}</span></div><button class="link" data-az="pb-ripr-correggi" data-id="${esc(ev.id)}">${tr('Correggi')}</button><button class="link" data-az="pb-ripr-togli" data-id="${esc(ev.id)}">${tr('Togli')}</button></div>`).join('');
   const corpo = `<p>${tr('L’archivio torna com’era in questa copia: {n} eventi ancora da svolgere{s}. Quelli già finiti non tornano ({f}).',{n:R.eventi.length, s:R.sospesi.length ? ', '+tr('più {k} sospesi',{k:R.sospesi.length}) : '', f:R.finiti})}</p>
@@ -290,7 +295,7 @@ function fPbCopia(){
       <div class="menu-lista">${R.nascosti.map(x => [x, false]).concat(R.nascostiSospesi.map(x => [x, true])).map(([x, sos]) => { const c = NR.chiari.get(x.id);
         return `<div class="menu-r" style="cursor:default"><div><span class="t">${c ? esc(c.ev.titolo) : tr('Evento nascosto')}</span><span class="meta">${c ? esc(quandoEv(c.ev))+' · ' : ''}${tr('nascosto')}${sos?' · '+tr('sospeso'):''}</span></div><button class="link" data-az="pb-ripr-togli" data-id="${esc(x.id)}">${tr('Togli')}</button></div>`; }).join('')}</div>` : ''}
     ${statoPb()}
-    <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${rim.length && !R.fatto ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
+    <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${riprMancano(R) ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
   return foglio('forte alto', testa, corpo);
 }
 
@@ -335,13 +340,13 @@ function azionePubblica(az, t){
       leggiCopiaPb(PB.scelte[0]).then(k => { const vivo = e => FORMATO.uscitaMs(e) > Date.now(), ordine = (x, y) => x.inizio<y.inizio?-1:1, ev = k.eventi.filter(vivo).sort(ordine), sos = k.sospesi.filter(vivo).sort(ordine);
         /* gli eventi nascosti della copia tornano così come sono, cifrati (T-045): si possono soltanto togliere */
         const vivoN = x => MODULI.nascosti.vivo(x.giorno, Date.now()), nas = (k.nascosti||[]).filter(vivoN), nsos = (k.nascostiSospesi||[]).filter(vivoN);
-        PB.ripr = {copia:k, eventi:ev, sospesi:sos, nascosti:nas, nascostiSospesi:nsos, finiti:k.eventi.length+k.sospesi.length-ev.length-sos.length, rimozioni:rimozioniDopo(k.quando), fatto:false, corretti:0};
+        PB.ripr = {copia:k, eventi:ev, sospesi:sos, nascosti:nas, nascostiSospesi:nsos, finiti:k.eventi.length+k.sospesi.length-ev.length-sos.length, rimozioni:rimozioniDopo(k.quando), fatte:[], corretti:0};
         return nrDecifra(nas.concat(nsos)); }, e => { PB.errore = errorePb(e); }).then(ridisegnaPb); break; }
     case 'pb-copia': st.aform = null; apri('pb-copia'); break;
-    case 'pb-ripr-fatto': if(PB.ripr){ PB.ripr.fatto = !PB.ripr.fatto; disegnaFoglio(); } break;
+    case 'pb-ripr-fatto': { const R = PB.ripr, k = +t.dataset.k; if(R && R.rimozioni[k]){ R.fatte[k] = !R.fatte[k]; disegnaFoglio(); } break; }
     case 'pb-ripr-correggi': { const R = PB.ripr, ev = R && R.eventi.concat(R.sospesi).find(e => e.id===t.dataset.id); if(ev) apriEventoForm(ev, 'ripristino'); break; }
     case 'pb-ripr-togli': { const R = PB.ripr, via = x => x.id!==t.dataset.id; if(R){ R.eventi = R.eventi.filter(via); R.sospesi = R.sospesi.filter(via); R.nascosti = R.nascosti.filter(via); R.nascostiSospesi = R.nascostiSospesi.filter(via); disegnaFoglio(); } break; }
-    case 'pb-ripr-ok': { const R = PB.ripr; if(!R || (R.rimozioni.length && !R.fatto)) break;
+    case 'pb-ripr-ok': { const R = PB.ripr; if(!R || riprMancano(R)) break;
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi, nascosti:R.nascosti, nascostiSospesi:R.nascostiSospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}) + (r.nascosti ? ' '+tr('Più {k} eventi nascosti.',{k:r.nascosti}) : ''); }); break; }
     case 'ix-torna': st.aform = null; apri('pb-importa'); break;
     default: return azioneNascosti(az, t) || azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t) || azioneCalendari(az, t);

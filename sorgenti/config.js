@@ -48,6 +48,11 @@ module.exports = {
     'https://www.garanteprivacy.it',           // autorità di controllo, nei testi legali
   ],
 
+  // Strumenti che aspettano una decisione prima dell'uso. false = spento con lo sportello vero (con lo sportello di prova
+  // funziona sugli eventi inventati). esporta_assistenza: «Esporta per assistenza» (T-049; § 2.6), si accende soltanto
+  // dopo il sì nella revisione finale del libro mastro (sezione 6 del piano).
+  funzioni: { esporta_assistenza: false },
+
   // Versioni dei testi pubblicati. data = anno e mese (AAAA-MM).
   testi: {
     // Informativa, «Dati locali» e avvertenze oggi dentro l'app (modelli di parti/legali_it.html).

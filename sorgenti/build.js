@@ -175,15 +175,20 @@ function taglia(testo, quale, nome) {
 const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'nascosti.js', 'quadranti.js', 'archivio.js', 'mappa-locale.js', 'avvisi.js'];
 // Solo nell'app della redazione: chiavi, cassaforte e marcatore (T-034, T-037); pacchetto firmato (T-038); file Excel
 // letti e scritti con codice nostro (T-042, decisione del 24/11/2026: al posto di SheetJS); le parole delle password
-// degli eventi nascosti (T-045, decisione del 25/11/2026).
-const JS_MODULI_RED = ['chiavi.js', 'pacchetto.js', 'excel.js', 'parole-nascosti.js'];
+// degli eventi nascosti (T-045, decisione del 25/11/2026); i nomi di persona nei testi degli eventi, per gli strumenti dei
+// diritti delle persone (T-047-T-049).
+const JS_MODULI_RED = ['chiavi.js', 'pacchetto.js', 'excel.js', 'parole-nascosti.js', 'nomi.js'];
 // Solo nell'app della redazione, finché non c'è Bunny (T-065): la logica dello sportello di pubblicazione, che lo sportello
 // di prova fa girare nel browser (T-038), e i confini delle regioni che le servono per i numeri dell'indice.
 const SPORTELLI_RED = ['pubblicazione.js'];
 // Un solo modulo JavaScript, in quest'ordine (app1 apre, app6 chiude). Gli strumenti della Redazione (sorgenti/redazione/)
 // entrano prima di app6, soltanto nell'app della redazione.
 const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js'];
-const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'registro-fonti.js', 'scheda-pubblicazione.js', 'eventi-nascosti.js', 'importa-excel.js', 'registro-excel.js', 'importa-calendari.js', 'misure_kpi.js', 'misure.js', 'storico.js'];
+// Gli strumenti dei diritti delle persone (blocco 12) vengono dopo gli altri, perché si aggiungono a ciò che quelli
+// preparano (DIRITTI, FOGLI_RED, fogliPb, OP_STORICO). «Esporta per assistenza» (T-049) sta da solo nel suo file: con
+// un no nella revisione finale del libro mastro si toglie da qui e dal disco, insieme alla sua prova.
+const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'registro-fonti.js', 'scheda-pubblicazione.js', 'eventi-nascosti.js', 'importa-excel.js', 'registro-excel.js', 'importa-calendari.js', 'misure_kpi.js', 'misure.js', 'storico.js',
+  'togli-nome.js', 'ricerca-nome.js', 'esporta-assistenza.js'];
 const JS_FINE = ['app6.js'];
 const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css'];
 const CSS_RED = ['style_redazione.css', 'style_misure.css'];
@@ -229,7 +234,8 @@ function monta(cfg, quale = 'pubblica') {
     red ? ['(window.AGR_MODULI = window.AGR_MODULI || {}).regioni = ' + JSON.stringify(JSON.parse(leggi(DATI, 'regioni.json')).regioni) + ';'] : []).join('\n');
 
   const file = {
-    'config.js': '/* Configurazione montata da sorgenti/config.js: non modificare qui. */\nwindow.AGR_CONFIG = ' + JSON.stringify(cfg, null, 1) + ';\n',
+    // gli interruttori degli strumenti della Redazione (funzioni, T-049) restano fuori dall'app pubblica
+    'config.js': '/* Configurazione montata da sorgenti/config.js: non modificare qui. */\nwindow.AGR_CONFIG = ' + JSON.stringify(red ? cfg : Object.assign({}, cfg, { funzioni: undefined }), null, 1) + ';\n',
     'app.css': css + '\n',
     'traduzioni.js': traduzioni + '\n',
     'moduli.js': moduli + '\n',
