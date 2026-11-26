@@ -560,19 +560,26 @@ async function sorgenteArchivio(){
     return {dove, finto:true, fetch:async u => (await c.match(String(u))) || new Response('', {status:404})};
   }catch(e){ return vera; }
 }
-let ARCHIVIO_FINTO = false, SORG_ARCH = null;
+let ARCHIVIO_FINTO = false;
+const nuovoArchivio = s => { ARCHIVIO_FINTO = s.finto;
+  ARCHIVIO = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch, casse:MEM.file, nomeCassa:'dl_archivio'}); ARCHIVIO.dove = s.dove; return ARCHIVIO.apri(); };
 function avviaArchivio(){
   if(!ARCHIVIO_DOVE || !MODULI.archivio || !FORMATO || !QUAD || !window.fetch) return;
-  sorgenteArchivio().then(s => {
-    ARCHIVIO_FINTO = s.finto; SORG_ARCH = s;
-    ARCHIVIO = MODULI.archivio.crea({dove:s.dove, vocabolario:FORMATO.vocabolario(LAYERS, TEMI_VOC), fetch:s.fetch, casse:MEM.file, nomeCassa:'dl_archivio'});
-    return ARCHIVIO.apri();
-  }).then(dopoControllo).then(() => controllaNascosti());
+  sorgenteArchivio().then(nuovoArchivio).then(dopoControllo).then(() => controllaNascosti());
   document.addEventListener('visibilitychange', () => { if(document.visibilityState!=='visible' || !ARCHIVIO) return;
     ARCHIVIO.forseControlla().then(c => { if(c) dopoControllo(); });
     if(Date.now() - NASC.ultimo > MODULI.archivio.TRENTA_MINUTI) controllaNascosti(); });
 }
 function dopoControllo(){ pulisciCalendarioArchivio(); ricostruisci(); aggiornaZona(true); }
+/* Sul collegamento di prova, dopo una pubblicazione (o lo svuotamento) dello sportello di prova: la pagina rilegge da sé
+   l'archivio giusto, quello finto o quello del repository, senza ricaricarla. Serve all'app della redazione, che fino al
+   blocco 10 restava sull'archivio con cui si era aperta (riscontro di Lorenzo del 26/11/2026: un evento nascosto appena
+   pubblicato non si sbloccava nella stessa pagina). */
+function riapriArchivio(){
+  if(!ARCHIVIO_DOVE || !MODULI.archivio || !ARCHIVIO) return Promise.resolve(false);
+  return sorgenteArchivio().then(s => s.dove===ARCHIVIO.dove ? ARCHIVIO.controllaNovita() : nuovoArchivio(s).then(() => true))
+    .then(() => { dopoControllo(); return controllaNascosti(); }).catch(() => false);
+}
 /* Dal calendario escono gli eventi dell'archivio che non ci sono più (ritirati o usciti dalla mappa); solo se le zone
    consultate restano sul telefono e l'indice è appena arrivato, così un evento non sparisce perché non è caricato. */
 function pulisciCalendarioArchivio(){
@@ -593,8 +600,9 @@ function pulisciCalendarioArchivio(){
    25/11/2026). Un errore di rete non cambia nulla. */
 const RICH_NASCOSTO = {credentials:'omit', cache:'no-cache', redirect:'error', referrerPolicy:'no-referrer'};
 NASC.ultimo = 0;
+/* l'archivio si sceglie a ogni richiesta: sul collegamento di prova può essere nato da poco quello dello sportello di prova */
 async function fileNascosto(imp){
-  const s = SORG_ARCH || (ARCHIVIO_DOVE ? await sorgenteArchivio() : null); if(!s || !s.dove) return {stato:'manca'};
+  const s = ARCHIVIO_DOVE ? await sorgenteArchivio() : null; if(!s || !s.dove) return {stato:'manca'};
   let r; try{ r = await s.fetch(s.dove+'nascosti/'+imp+'.json', RICH_NASCOSTO); }catch(e){ return {stato:'rete'}; }
   if(r.status===404) return {stato:'manca'};
   if(!r.ok) return {stato:'rete'};

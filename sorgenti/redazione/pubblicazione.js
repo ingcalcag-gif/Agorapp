@@ -52,7 +52,7 @@ function aggiornaPb(){
      non si chiede: risponderebbe con un rifiuto in rosso, mentre il riquadro lo dice già, con «Consegna le chiavi» */
   const nonAmmesso = () => SPORTELLO.diProva() && PB.prova && PB.prova.chiavi && !PB.prova.ammesso && !PB.prova.revocato;
   return prova.then(() => nonAmmesso() ? (PB.stato = null) : SPORTELLO.chiedi({operazione:'stato'}).then(s => { PB.stato = s; PB.errore = ''; }, e => { PB.stato = null; PB.errore = errorePb(e); }))
-    .then(() => { PB.carico = false; ridisegnaPb(); return PB.stato ? nrDecifra(nrVoci(PB.stato)).then(ridisegnaPb) : null; });
+    .then(() => { PB.carico = false; ridisegnaPb(); if(SPORTELLO.diProva()) riapriArchivio(); return PB.stato ? nrDecifra(nrVoci(PB.stato)).then(ridisegnaPb) : null; });
 }
 /* manda un pacchetto che scrive; poi rilegge l'elenco e torna alla schermata «Pubblicazione» */
 function scriviPb(contenuto, fatto, torna){

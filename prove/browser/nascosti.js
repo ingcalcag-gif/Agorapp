@@ -192,9 +192,19 @@ async function redazione(pw, err, F, e) {
     if (dentro.file !== 1 || dentro.chiaro) err('sportello di prova: l\'evento nascosto deve esserci soltanto come file cifrato: ' + JSON.stringify(dentro));
     const copiato = await p.evaluate(() => { let t = ''; navigator.clipboard.writeText = x => { t = x; return Promise.resolve(); }; document.querySelector('#foglio-slot [data-az="nr-copia-msg"]').click(); return new Promise(r => setTimeout(() => r(t), 300)); });
     if (!copiato.includes('Concerto nascosto inventato') || !copiato.includes(pass) || !/condividila soltanto con chi vuoi invitare/.test(copiato)) err('«Copia il messaggio di conferma» deve copiare il testo C.2 con titolo e password: «' + copiato + '»');
+    /* la stessa pagina della redazione, aperta prima della prima pubblicazione nello sportello di prova, passa da sé al suo
+       archivio e sblocca l'evento nascosto (riscontro di Lorenzo del 26/11/2026: la pagina restava sull'archivio del repository) */
+    await pausa(800);
+    if (!(await p.evaluate(() => window.AGR.archivio().finto))) err('redazione: dopo la pubblicazione nello sportello di prova la pagina deve leggere il suo archivio, senza ricaricarla');
+    await p.click(F + '[data-az="nr-fatto-ok"]').catch(() => {}); await pausa(300);
+    await p.evaluate(() => window.AGR.chiudi()); await pausa(300);
+    await p.click('[data-az="cerca"]'); await pausa(300); await p.fill('#pw', pass); await p.click('[data-az="sblocca"]');
+    try { await p.waitForFunction(() => /Evento nascosto, sbloccato con la password/.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 20000 }); }
+    catch (x) { err('redazione: nella stessa pagina la password non sblocca l\'evento nascosto appena pubblicato («' + ((await p.locator('#pw-err').textContent().catch(() => '')) || '') + '»)'); }
+    await p.evaluate(() => window.AGR.chiudi()); await pausa(300);
+    await tocca('#badgeRed', 'strumenti'); await tocca(F + '[data-az="pubblica"]', 'pubblicazione'); await aspetta(/Nascosti · 1/, 'elenco con il nascosto');
 
     /* la password si ritrova nella scheda dell'evento, dalla cassaforte */
-    await tocca(F + '[data-az="nr-fatto-ok"]', 'fatto');
     if (await tocca(F + '[data-pbev="' + id + '"]', 'evento nascosto nell\'elenco')) {
       await aspetta(/Password dell’evento nascosto/, 'scheda dell\'evento nascosto');
       if (((await p.locator(F + '.nr-password code').first().textContent().catch(() => '')) || '').trim() !== pass) err('la password deve stare nella cassaforte e ritrovarsi nella scheda dell\'evento');
