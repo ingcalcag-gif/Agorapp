@@ -201,7 +201,7 @@ const st = {
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
   pieno:false, sezione:'mappa', form:null, /*@red*/aform:null, /*@fine*/conferma:null, legale:'privacy', semplice:false,
-  /*@red*/admin:true, eliminati:[], importa:null, msgAdmin:null, /*@fine*/guida:null, sblocco:null, togliNasc:null, lente:null, vuoti:false
+  /*@red*/admin:true, eliminati:[], msgAdmin:null, /*@fine*/guida:null, sblocco:null, togliNasc:null, lente:null, vuoti:false
 };
 (function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
 st.semplice = MEM.testo('dl_semplice','0')==='1';
