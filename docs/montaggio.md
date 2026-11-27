@@ -48,6 +48,6 @@ Finché è spento il lavoro si ferma prima del caricamento e lo scrive («Fattor
 
 ## Prove
 
-- `prove/montaggio.js`: uscite compattate con gli avvisi di licenza, controllo finale (sei casi fermati), modello delle intestazioni, pagina senza codice scritto dentro, fattorino spento con un solo segreto.
+- `prove/montaggio.js`: uscite compattate con gli avvisi di licenza, controllo finale (sei casi fermati), modello delle intestazioni, pagina senza codice scritto dentro, fattorino spento con un solo segreto, nomi e descrizioni dei lavori di GitHub Actions che GitHub sa leggere (senza apici niente «: » né « #»: il 27/11/2026 il nome di un passo di `prove.yml` con «compattare: T-060» ha fatto rifiutare il file intero, e il lavoro «Prove» non partiva).
 - `prove/browser/intestazioni.js`: le due app compattate funzionano con le intestazioni del modello.
 - Tutte le altre prove nel browser girano sulle uscite compattate.

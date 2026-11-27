@@ -88,7 +88,22 @@ function prova() {
     if (/netlify/i.test(y.replace(/^#.*$/gm, ''))) err('pubblica.yml: il fattorino non tocca Netlify');
     if (!/inputs\.versione/.test(y)) err('pubblica.yml: manca il ripristino di una versione precedente');
   }
-  e.note.push(`app.js: ${quote.join('; ')}; ${casi.length} casi fermati dal controllo finale; intestazioni delle due app controllate`);
+  /* 5. i lavori di GitHub Actions si leggono: un nome o una descrizione senza apici non contiene «: » né « #»
+     (con i due punti seguiti da uno spazio GitHub rifiuta il file intero e il lavoro non parte; dopo « #» il testo
+     sparisce come commento). */
+  const cartellaLavori = path.join(__dirname, '..', '.github', 'workflows');
+  let righeLavori = 0;
+  for (const f of fs.existsSync(cartellaLavori) ? fs.readdirSync(cartellaLavori).filter(x => /\.ya?ml$/.test(x)) : []) {
+    fs.readFileSync(path.join(cartellaLavori, f), 'utf8').split('\n').forEach((r, i) => {
+      const m = r.match(/^\s*(?:-\s+)?(?:name|description):\s+(.*)$/);
+      if (!m) return;
+      righeLavori++;
+      const v = m[1].trim();
+      if (/^['"|>]/.test(v)) return;
+      if (/:\s/.test(v) || /:$/.test(v) || /\s#/.test(v)) err(`.github/workflows/${f}, riga ${i + 1}: «${v}» va scritto tra apici (con «: » o « #» GitHub non legge il file)`);
+    });
+  }
+  e.note.push(`app.js: ${quote.join('; ')}; ${casi.length} casi fermati dal controllo finale; intestazioni delle due app controllate; ${righeLavori} nomi dei lavori di GitHub Actions leggibili`);
   return e;
 }
 
