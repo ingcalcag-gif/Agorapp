@@ -58,7 +58,8 @@ body{background:var(--fondo)}
 [dir="rtl"] .tratto-r{border-left:0;border-right:2px dashed var(--linea-forte);margin-left:0;margin-right:25px;padding:6px 24px 6px 12px}
 [dir="rtl"] [aria-pressed="true"] .interr::after{transform:translateX(-16px)}
 [dir="rtl"] .interr::after{left:auto;right:3px}
-[dir="rtl"] .legale ul{padding-left:0;padding-right:20px}
+[dir="rtl"] .legale ul,[dir="rtl"] .legale ol{padding-left:0;padding-right:20px}
+[dir="rtl"] .legale [dir="ltr"] ul,[dir="rtl"] .legale [dir="ltr"] ol{padding-left:20px;padding-right:0}
 [dir="rtl"] .freccia-dir{transform:scaleX(-1)}
 [dir="rtl"] .riga-ev .ora{text-align:right}
 a.tasto,a.link{text-decoration:none}

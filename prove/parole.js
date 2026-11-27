@@ -4,7 +4,7 @@
    o «ufficiale» riferito agli eventi); § 8.3; § 10.3; § 11.1 (nessuna dichiarazione di conformità non
    dimostrata); § 1.3 e § 2.4 (nessuna versione anticipata o abbreviata della frase sui dati).
 
-   Si cercano le parole nei testi dei sorgenti (commenti esclusi), nelle traduzioni e nei testi legali tradotti,
+   Si cercano le parole nei testi dei sorgenti (commenti esclusi), nelle traduzioni e nei testi pubblicati (sorgenti/testi/),
    lingua per lingua, arabo compreso. Molte di queste parole hanno anche usi innocui («schermo intero», «copia
    completa»): ogni caso è stato rivisto con T-013 e, se resta, è nell'elenco AMMESSI qui sotto con la frase esatta
    e il motivo. Un caso nuovo fa fallire la prova finché non si toglie o non si aggiunge, motivato, all'elenco. I casi
@@ -71,8 +71,6 @@ const AMMESSI = [
   ['it', 'va verificata la compatibilità', 'Misure (amministrazione): catalogo delle misure, non riferito agli eventi'],
   ['it', 'va verificato cosa registra Netlify', 'Misure (amministrazione): catalogo delle misure, non riferito agli eventi'],
   ['it', 'Copia completa esportata in JSON', 'storico delle operazioni: copia di sicurezza'],
-  ['en', 'Regulatory compliance of events', 'testi legali v1.2: titolo dell\'avvertenza che nega il controllo (T-080 li sostituisce)'],
-  ['en', 'does not verify the compliance of events', 'testi legali v1.2: avvertenza che nega il controllo (T-080 li sostituisce)'],
   ['es', 'pantalla completa', '«schermo intero»'],
   ['es', 'evento on-grid completo', 'amministrazione: «completo» è il modulo, non la mappa'],
   ['es', 'Formulario completo', 'amministrazione: «completo» è il modulo, non la mappa'],
@@ -130,13 +128,18 @@ function prova() {
   const AC = require('../sorgenti/contenuti_esempio.js'), ATR = AC.traduzioni(), ATESTI = AC.testi();
   cercaIn(ATESTI.join('\n'), 'it', 'sorgenti/anteprime', trovati);
   for (const l of AC.LINGUE) cercaIn(Object.values(ATR[l]).join('\n'), l, 'sorgenti/anteprime/lingue/' + l + '.json', trovati);
-  const LEG = JSON.parse(fs.readFileSync(path.join(RADICE, 'sorgenti', 'dati', 'legali_tradotti.json'), 'utf8'));
-  for (const l of Object.keys(LEG)) if (PAROLE[l]) cercaIn(Object.values(LEG[l]).join('\n'), l, 'legali_tradotti.json:' + l, trovati);
+  // i testi pubblicati (T-055), ciascuno nella sua lingua: sorgenti/testi/<lingua>/<testo>.html
+  const TESTI = path.join(RADICE, 'sorgenti', 'testi'), LEG = {};
+  for (const l of fs.readdirSync(TESTI).filter(d => PAROLE[d])) for (const f of fs.readdirSync(path.join(TESTI, l))) {
+    const t = senzaCommentiHtml(fs.readFileSync(path.join(TESTI, l, f), 'utf8'));
+    (LEG[l] = LEG[l] || []).push(t);
+    cercaIn(t, l, 'sorgenti/testi/' + l + '/' + f, trovati);
+  }
   confronta(e, 'parole', trovati);
   // Una frase ammessa che non si trova più va tolta dall'elenco, così l'elenco resta vero.
   for (const [l, frase] of AMMESSI) {
-    const dove = l === 'it' ? elencaFile(PARTI).filter(f => f !== 'traduzioni.js').map(f => fs.readFileSync(path.join(PARTI, f), 'utf8')).concat(elencaFile(REDAZIONE).map(f => fs.readFileSync(path.join(REDAZIONE, f), 'utf8'))).join('\n') + '\n' + ATESTI.join('\n')
-      : Object.values(TR[l] || {}).join('\n') + '\n' + Object.values(LEG[l] || {}).join('\n') + '\n' + Object.values(ATR[l] || {}).join('\n');
+    const dove = (l === 'it' ? elencaFile(PARTI).filter(f => f !== 'traduzioni.js').map(f => fs.readFileSync(path.join(PARTI, f), 'utf8')).concat(elencaFile(REDAZIONE).map(f => fs.readFileSync(path.join(REDAZIONE, f), 'utf8'))).join('\n') + '\n' + ATESTI.join('\n')
+      : Object.values(TR[l] || {}).join('\n') + '\n' + Object.values(ATR[l] || {}).join('\n')) + '\n' + (LEG[l] || []).join('\n');
     if (!dove.includes(frase)) e.errori.push(`frase ammessa che non c'è più (${l}): «${frase}»: toglila da AMMESSI in prove/parole.js`);
   }
   e.note.push('lingue: it, en, es, fr, ar; frasi ammesse dopo la revisione: ' + AMMESSI.length);

@@ -3,8 +3,8 @@
 
    Il montaggio (sorgenti/build.js) la legge e:
    - la scrive in ogni uscita come config.js (window.AGR_CONFIG), caricato prima del resto dell'app;
-   - ne inserisce i valori nella pagina e nei testi legali al posto dei segnaposto {nome}, {titolare},
-     {casella_contatto}, {versione_legali} e {data_legali}.
+   - ne inserisce i valori nella pagina e nei testi pubblicati al posto dei segnaposto {nome}, {titolare},
+     {casella_contatto}, {casella_autorita} e {licenze} (sorgenti/testi-pubblicati.js).
    Nel codice il nome si usa con la costante NOME; nelle traduzioni con la variabile {nome},
    che tr() riempie da sé. Per cambiare nome o recapiti basta cambiare questo file e rimontare.
    Una prova automatica fallisce se il nome compare scritto altrove nei sorgenti.
@@ -23,7 +23,9 @@ module.exports = {
   // Chi risponde del servizio: compare sempre accanto al nome nei testi pubblici (§ 2.1).
   titolare: 'Lorenzo Calcagno',
 
-  // Caselle presso Proton, sul dominio del servizio (§§ 2.6, 7.5): nascono con T-076.
+  // Caselle presso Proton, sul dominio del servizio (§§ 2.6, 7.5): nascono con T-076. contatto è la casella per gli
+  // utenti (note legali, informativa, condizioni d'uso, accanto al modulo «Segnala»); autorita compare soltanto nelle
+  // note legali, nella parte scritta anche in inglese (T-055).
   caselle: {
     contatto: '[casella di contatto]',
     autorita: '[casella per le autorità]',
@@ -45,7 +47,7 @@ module.exports = {
   // La prova degli indirizzi (prove/indirizzi.js) ammette nell'app solo questi e gli indirizzi qui sopra.
   collegamenti: [
     'https://www.openstreetmap.org/copyright', // avviso di provenienza della mappa (§ 6.6; § 31.1)
-    'https://www.garanteprivacy.it',           // autorità di controllo, nei testi legali
+    'https://www.garanteprivacy.it',           // autorità di controllo, nell'informativa (reclamo)
   ],
 
   // Il modulo «Segnala» (T-050, T-051; § 7.5, misura 3). sportello: false = la segnalazione parte con il messaggio di
@@ -59,11 +61,10 @@ module.exports = {
   // dopo il sì nella revisione finale del libro mastro (sezione 6 del piano).
   funzioni: { esporta_assistenza: false },
 
-  // Versioni dei testi pubblicati. data = anno e mese (AAAA-MM).
+  // Versioni dei quattro testi pubblicati (Parte VI del libro mastro; T-055, docs/testi-pubblicati.md). Ogni testo sta in
+  // sorgenti/testi/<lingua>/<testo>.html. null = in preparazione: il file è un segnaposto e la pagina lo dice. Quando
+  // arriva il testo (T-080): { versione: '1.0', data: 'AAAA-MM-GG' }, il giorno della pubblicazione.
   testi: {
-    // Informativa, «Dati locali» e avvertenze oggi dentro l'app (modelli di parti/legali_it.html).
-    legali_in_app: { versione: '1.2', data: '2026-03' },
-    // I quattro testi della Parte VI arrivano con T-055 e T-080.
     informativa: null,
     dati_locali: null,
     note_legali: null,

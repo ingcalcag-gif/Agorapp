@@ -17,6 +17,7 @@ const TESTI = path.join(RADICE, 'licenze');
 const SEZIONE = "Componenti nell'app";
 
 const escH = require('./moduli/testo.js').esc;   // la stessa funzione dell'app (T-024)
+const { metaRiserva } = require('./testi-pubblicati.js');   // riserva dell'estrazione nei metadati (T-056)
 // Il testo delle celle è Markdown semplice: tolgo gli apici inversi del codice.
 const piano = s => String(s).replace(/`([^`]*)`/g, '$1').trim();
 
@@ -96,6 +97,7 @@ ${c.testi.map(t => `<p class="tenue">Testo integrale (<a href="${escH(t)}">${esc
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="referrer" content="no-referrer">
+${metaRiserva(cfg)}
 <title>Licenze dei componenti · ${escH(cfg.nome)}</title>
 <link rel="stylesheet" href="licenze.css?v=${ver}">
 </head>

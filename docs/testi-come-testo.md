@@ -37,7 +37,7 @@ Il rischio è uno solo: un testo scritto apposta, dentro un evento, un file o un
 | File degli avvisi delle novità (`avvisi.json`, T-031) | Testo dell'avviso, tipo, testo da aprire | `errori()` (`avvisi.js`): solo campi conosciuti, testo fino a 600 caratteri, tipo e testo da aprire tra quelli previsti; nessun collegamento | Avviso in basso, all'apertura |
 | Mappa (dati di OpenStreetMap nel file della mappa) | Nomi di vie e luoghi | Nessuno | Solo nel disegno della mappa (MapLibre li disegna, non li scrive nella pagina) |
 
-Non sono testi esterni, perché viaggiano con l'app e si rivedono prima di pubblicarla: i testi dell'interfaccia e le loro traduzioni (`traduzioni.js`), i contenuti d'esempio di Agorà e Progetti (`anteprime/`), i testi legali, gli strati e le icone, la configurazione. Anche questi, dove passano da un attributo, passano da `esc()`.
+Non sono testi esterni, perché viaggiano con l'app e si rivedono prima di pubblicarla: i testi dell'interfaccia e le loro traduzioni (`traduzioni.js`), i contenuti d'esempio di Agorà e Progetti (`anteprime/`), i testi pubblicati (`sorgenti/testi/`, T-055: il montaggio li controlla con un insieme chiuso di elementi e di attributi, senza script, gestori né stili, e vi mette i valori della configurazione con `esc()`; `sorgenti/testi-pubblicati.js`), gli strati e le icone, la configurazione. Anche questi, dove passano da un attributo, passano da `esc()`.
 
 ## I punti in cui il codice scrive nella pagina
 
@@ -48,7 +48,7 @@ Sono 50, tutti in `sorgenti/parti/`. La prova `prove/testi.js` li conta: se il n
 | `app2.js` | 11 | Messaggi della mappa che non si carica; segnaposto (eventi, gruppi, regioni, tappe); barra del tempo e dei tipi; barra degli strati; invito ad accendere gli strati |
 | `app3.js` | 3 | Il foglio in basso: tutte le viste (strati, elenco, scheda, calendario, anteprima del PDF, moduli) passano da qui |
 | `app4.js` | 9 | Risultati e suggerimenti della ricerca degli indirizzi; riquadro del punto; mirino di «Scegli sulla mappa» |
-| `app5.js` | 8 | Testi legali (dell'app); nome della città; guida; avvisi in alto; avviso delle novità (testo del file degli avvisi, con `esc()`, e lingua) |
+| `app5.js` | 8 | Testi pubblicati (dai modelli della pagina, T-055); nome della città; guida; avvisi in alto; avviso delle novità (testo del file degli avvisi, con `esc()`, e lingua) |
 | `app6.js` | 7 | Aggiornamenti del modulo Off-Grid mentre si scrive (suggerimenti, riquadro del punto); pagina di stampa delle carte di Agorà e Progetti |
 | `app7.js` | 2 | Pagina dei Temi e foglio delle lenti |
 | `redazione/misure.js` | 2 | Solo nell'app della redazione: schede delle Misure e loro fumetto |

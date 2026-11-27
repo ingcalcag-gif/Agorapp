@@ -42,7 +42,7 @@ Nel formato non c'è posto per: immagini (§ 6.2), password, la provenienza inte
 
 ## La riserva dell'estrazione
 
-Ogni file dell'archivio porta in testa la riserva dell'estrazione di testo e di dati in forma leggibile dalle macchine (§ 6.5; direttiva (UE) 2019/790, art. 4, par. 3, e cons. 18): il campo `tdm-reservation` con il valore `1`. Il nome del campo viene dal protocollo pubblico per la riserva (TDM Reservation Protocol); gli standard tecnici da usare sono «da verificare» e si fissano con T-056, che può aggiungere il riferimento alle condizioni d'uso. La forma dei file è descritta qui sotto.
+Ogni file dell'archivio porta in testa la riserva dell'estrazione di testo e di dati in forma leggibile dalle macchine (§ 6.5; direttiva (UE) 2019/790, art. 4, par. 3, e cons. 18): il campo `tdm-reservation` con il valore `1`. Il nome del campo viene dal protocollo pubblico per la riserva (TDM Reservation Protocol); il protocollo non prevede metadati dentro i file JSON, e per questi file valgono il file `.well-known/tdmrep.json` e, su Bunny, l'intestazione `tdm-reservation` (T-056, blocco 15; `docs/testi-pubblicati.md`, «La riserva dell'estrazione»). Il campo resta nel file perché la riserva viaggi anche con le copie. La forma dei file è descritta qui sotto.
 
 ## L'archivio: quadranti e indice
 

@@ -45,7 +45,7 @@ $('app').addEventListener('click', ev => {
   if(d.salvaForm){ salvaForm(d.salvaForm); return; }
   if(d.fgiorno){ st.form.giorno = d.fgiorno; if(st.form.fino < d.fgiorno) st.form.fino = piuMesi(d.fgiorno,3); disegnaFoglio(); return; }
   if(d.togliLink!=null){ st.form.links.splice(+d.togliLink,1); if(!st.form.links.length) st.form.links = ['']; disegnaFoglio(); return; }
-  if(d.legale){ st.legale = d.legale; apri('legale'); return; }
+  if(d.legale){ apriLegale(d.legale); return; }
   if(d.temaSet){ applicaTema(d.temaSet); disegnaFoglio(); return; }
   if(d.lingua){ applicaLingua(d.lingua); return; }
   if(d.citta){ applicaCitta(d.citta, true); chiudi(); return; }
@@ -103,6 +103,7 @@ $('app').addEventListener('click', ev => {
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; /*@red*/st.msgAdmin = null; /*@fine*/apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
+    case 'indietro-legale': indietroLegale(); break;
     case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;

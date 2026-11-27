@@ -229,7 +229,7 @@ const st = {
   strati:new Set(), subOff:new Set(), aperto:null, preset:0,
   sel:null, foglio:null, gruppo:null, q:'', descAperta:false, posa:null, tuQui:null, cercaQui:null, punto:null, puntoCopiato:false, copiato:null,
   cal:{vista:'giornata', giorno:null, y:0, m:0, mezzo:'piedi'}, pdf:null,
-  pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'privacy', semplice:false,
+  pieno:false, sezione:'mappa', form:null, aform:null, conferma:null, legale:'note-legali', legaleDa:null, semplice:false,
   admin:true, eliminati:[], msgAdmin:null, guida:null, sblocco:null, togliNasc:null, lente:null, vuoti:false
 };
 (function(){ const m = MEM.testo('dl_mezzo','piedi'); if(['piedi','bici','mezzi'].includes(m)) st.cal.mezzo = m; })();
@@ -1259,7 +1259,7 @@ function fSegnala(){
       <span class="meta">${sportello ? tr('Servono solo per mandarti la conferma e l’esito.') : tr('La conferma e l’esito arriveranno all’indirizzo da cui invii il messaggio.')}</span></div>
     ${s.fase==='troppe' ? `<p class="err" role="alert">${tr('In questo momento arrivano troppe segnalazioni. Riprova più tardi, oppure mandala per posta.')}</p>` : ''}
     ${s.fase==='errore' ? `<p class="err" role="alert">${tr('Non riesco a inviare la segnalazione. Controlla la connessione e riprova, oppure mandala per posta.')}</p>` : ''}
-    <p class="meta">${esc(tr('Puoi scrivere anche a {casella}.',{casella:'\u0001'})).split('\u0001').join(casella)} <button class="link" data-legale="privacy">${tr('Informativa sulla privacy')}</button></p>
+    <p class="meta">${esc(tr('Puoi scrivere anche a {casella}.',{casella:'\u0001'})).split('\u0001').join(casella)} <button class="link" data-legale="informativa">${tr('Informativa sulla privacy')}</button></p>
     <p class="meta" role="status" aria-live="polite">${lavoro ? tr('Preparo l’invio…') : ''}</p>
     ${sportello ? `<button class="tasto pri pieno" data-az="segnala-invia"${lavoro?' disabled aria-busy="true"':''}>${lavoro ? tr('Preparo l’invio…') : tr('Invia la segnalazione')}</button>` : ''}
     ${s.modo && posta ? `<a class="tasto ${sportello ? 'sec' : 'pri'} pieno" id="s-posta" data-segn-posta href="${esc(mailtoSegn(s))}">${tr('Prepara il messaggio di posta')}</a>` : ''}`;
@@ -1809,7 +1809,6 @@ function finePosa(ok){
 
 
 /* ======================= Impostazioni, documenti, città ======================= */
-const LEGALI = {"en":{"privacy":"<span class=\"legal-badge\">Version 1.2 · March 2026</span><p style=\"font-size:.7rem;opacity:.6;margin:0 0 8px;\">Courtesy translation — the Italian version is the binding one.</p><h3>1. Data controller</h3><p><strong>Agorapp</strong>, a project by <strong>Lorenzo Calcagno</strong>, Turin<br>Contact: <span class=\"segnaposto\">[casella di contatto]</span></p><h3>2. What data we process and why</h3><p>Agorapp is an interactive map of urban events in Turin. <strong>It does not collect personal data from users browsing the map</strong>: no accounts, no profiling cookies, no tracking systems.</p><p>The only data processed concerns <strong>event organizers</strong> who request publication: title, location, time, description, and possibly a stage name or the organization's name.</p><p>We also process event information from <strong>publicly accessible sources</strong> (websites, public social pages), where the organizer knowingly chose to make it public.</p><h3>3. Legal basis for processing</h3><ul><li><strong>Explicit consent (art. 6(1)(a) GDPR)</strong> — for organizers who contact us directly. Consent is documented and stored.</li><li><strong>Legitimate interest (art. 6(1)(f) GDPR)</strong> — for events from public sources. The balancing test is documented internally. You may object at any time by writing to <span class=\"segnaposto\">[casella di contatto]</span>.</li></ul><h3>4. How long we keep data</h3><p>Each event's data is <strong>automatically deleted 3 hours after the event ends</strong>. There is no historical archive. Consent records are kept for a maximum of 3 years from the event date.</p><h3>5. Who can see the data</h3><p>Event information is visible to anyone visiting Agorapp. <strong>No data is transferred, sold or disclosed to third parties</strong> for commercial or marketing purposes.</p><h3>6. Data transfer outside the EU</h3><p>Agorapp does not transfer personal data to non-EU countries. The map display uses <strong>CartoDB/Carto</strong> for geographic imagery. That service may record the user's IP address under its privacy policy available at <a href=\"https://carto.com/privacy\" target=\"_blank\" rel=\"noopener noreferrer\" referrerpolicy=\"no-referrer\">carto.com/privacy</a>. Carto Inc. operates under Standard Contractual Clauses approved by the European Commission.</p><h3>7. Your rights (arts. 15–21 GDPR)</h3><p>You may exercise the rights of access, rectification, erasure, restriction, objection and portability at any time. Event removal requests are carried out within <strong>48 hours</strong>. Write to <span class=\"segnaposto\">[casella di contatto]</span> — we reply within 30 days.</p><h3>8. Complaint to the supervisory authority</h3><p>You may lodge a complaint with the Italian Data Protection Authority: <a href=\"https://www.garanteprivacy.it\" target=\"_blank\" rel=\"noopener noreferrer\" referrerpolicy=\"no-referrer\">garanteprivacy.it</a> · Piazza Venezia 11, 00187 Rome</p><h3>9. Automated decisions</h3><p>Agorapp performs no profiling or automated decision-making.</p>","storage":"<span class=\"legal-badge\">Only on your device · No server</span><p style=\"font-size:.7rem;opacity:.6;margin:0 0 8px;\">Courtesy translation — the Italian version is the binding one.</p><h3>What is saved on your device</h3><p>Agorapp uses only local technical storage. <strong>No data is ever transmitted to external servers</strong> by these tools.</p><h3>localStorage</h3><p>Stores on your device:</p><ul><li>The events shown on the map</li><li>The chosen theme (Light / Dark)</li><li>Your personal calendar of saved events</li><li>The per-layer filter state</li></ul><p>Data in localStorage remains until it is cleared manually or until events expire automatically.</p><h3>Legal basis</h3><p>These tools are equivalent to <strong>technical cookies</strong> under the Italian DPA measure of 10 June 2021 and are <strong>exempt from prior consent</strong>.</p><p>No profiling cookies, analytics cookies or third-party tracking tools are used.</p><h3>Third-party map services</h3><p>The map display uses two external services that receive the user's IP address each time geographic imagery loads:</p><ul><li><strong>CartoDB/Carto</strong> — provides the map imagery. Privacy policy: <a href=\"https://carto.com/privacy\" target=\"_blank\" rel=\"noopener noreferrer\" referrerpolicy=\"no-referrer\">carto.com/privacy</a>. Operates under EU Standard Contractual Clauses.</li><li><strong>OpenStreetMap</strong> — open-source base map. Privacy policy: <a href=\"https://osmfoundation.org/wiki/Privacy_Policy\" target=\"_blank\" rel=\"noopener noreferrer\" referrerpolicy=\"no-referrer\">osmfoundation.org/wiki/Privacy_Policy</a>.</li></ul><p>Agorapp has no access to and does not control this data.</p><h3>How to clear local data</h3><p>You can clear all of Agorapp local data at any time from your browser settings (Settings → Privacy → Clear browsing data → Site data).</p>","disclaimer":"<span class=\"legal-badge\">Important notices</span><p style=\"font-size:.7rem;opacity:.6;margin:0 0 8px;\">Courtesy translation — the Italian version is the binding one.</p><h3>Accuracy of information</h3><p>Event information from external public sources <strong>may not be up to date</strong>. <strong>We recommend always checking with the organizer</strong> before setting out.</p><p>To report an event that is no longer valid: <span class=\"segnaposto\">[casella di contatto]</span> — we remove it within 48 hours.</p><h3>Responsibility for content</h3><p>Agorapp aggregates already publicly available information without altering it. For events loaded from public sources, Agorapp is not liable for changes, deletions or inaccuracies relative to the original source at the time of acquisition.</p><h3>Political events, demonstrations and pickets</h3><p>For events of a political nature, demonstrations, marches and pickets, <strong>preliminary verification with the organizer is essential</strong> before setting out. Agorapp assumes no responsibility for consequences arising from presence at locations indicated on the map in relation to events of this kind.</p><h3>Regulatory compliance of events</h3><p>Agorapp <strong>does not verify the compliance of events</strong> with public-entertainment regulations, occupancy permits or licenses required by law. Responsibility for an event's lawfulness lies solely with the organizer.</p><h3>Intellectual property</h3><p>Event texts and descriptions belong to their respective organizers. Agorapp claims no rights over the content of published events.</p><h3>Contacts</h3><p>For any legal request: <span class=\"segnaposto\">[casella di contatto]</span><br>Data controller: Lorenzo Calcagno, Turin</p>"},"es":{"privacy":"","storage":"","disclaimer":""},"fr":{"privacy":"","storage":"","disclaimer":""},"ar":{"privacy":"","storage":"","disclaimer":""}};
 function fImpostazioni(){
   const scuro = temaAttuale()==='dark';
   const testa = `<div class="riga-titolo"><h2>${tr('Impostazioni')}</h2>${chiudiBtn()}</div>`;
@@ -1819,9 +1818,10 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
     <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button><button class="menu-r" data-az="senza-rete">${icoNote}<div><span class="t">${tr('Senza connessione')}</span><span class="meta">${tr('Cosa funziona senza rete e come aggiungere l’app alla schermata Home')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
-      <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Quali dati, perché, i tuoi diritti')}</span></div>${freccia}</button>
-      <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
-      <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="informativa"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Quali dati, perché, i tuoi diritti')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="dati-locali"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="note-legali"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Chi risponde del servizio, contatti, licenze')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="condizioni-uso"><div><span class="t">${tr('Condizioni d’uso')}</span><span class="meta">${tr('Che cosa puoi fare con gli eventi e che cosa no')}</span></div>${freccia}</button>
       <a class="menu-r" href="licenze/index.html" target="_blank" rel="noopener noreferrer"><div><span class="t">${tr('Licenze dei componenti')}</span><span class="meta">${tr('Mappa, librerie e caratteri: testi integrali')}</span></div>${freccia}</a></div>
       <p class="meta">${tr('Scrivici')}: ${casellaHtml('mail')}</p></section>
     <section class="sezione"><div class="tipo">${tr('Redazione')}</div><button class="riga-int" data-az="admin"><div><span class="t">${tr('Strumenti della redazione')}</span><span class="meta">${tr('Eventi, Excel, Misure, storico, chiavi')}</span></div>${freccia}</button></section>
@@ -1863,7 +1863,7 @@ function fSenzaRete(){
       <p>${tr('Su Android: apri il menu del browser e scegli «Installa app» oppure «Aggiungi a schermata Home».')}</p>
       ${invitoInstalla ? `<button class="tasto pri" data-az="installa">${tr('Installa')}</button>` : ''}
     </div>
-    <div class="menu-lista"><button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali: cosa resta su questo telefono')}</span></div>${freccia}</button></div>`;
+    <div class="menu-lista"><button class="menu-r" data-legale="dati-locali"><div><span class="t">${tr('Dati locali: cosa resta su questo telefono')}</span></div>${freccia}</button></div>`;
   return foglio('forte alto', testa, corpo);
 }
 /* ---------- Avvisi delle novità (T-031; sorgenti/moduli/avvisi.js) ----------
@@ -1887,14 +1887,31 @@ function novitaVista(apri_){
   const a = NOVITA.avviso; if(!a) return;
   MEM.scrivi('dl_avvisi', MODULI.avvisi.conVisto(NOVITA.file, MEM.leggi('dl_avvisi', []), a.id));
   mostraNovita();
-  if(apri_ && a.apre && $('leg-'+a.apre)){ st.legale = a.apre; apri('legale'); }
+  if(apri_ && a.apre && $('leg-'+a.apre)) apriLegale(a.apre);
 }
+/* ---------- I testi pubblicati (T-055; sorgenti/testi-pubblicati.js, docs/testi-pubblicati.md) ----------
+   Informativa, «Dati locali», note legali e condizioni d'uso, dai modelli che il montaggio mette nella pagina: nella
+   lingua dell'app se il testo c'è, altrimenti in italiano, con una riga che lo dice. Versione e data dalla configurazione
+   (null = in preparazione). Le note legali si aprono da ogni schermata (tasto in alto e angolo della mappa, body.html);
+   chiudendo si torna al foglio da cui si era partiti. Ogni testo si apre anche come pagina di solo testo (testi/). */
+const TESTI_PUB = [['informativa','informativa','Informativa privacy'], ['dati-locali','dati_locali','Dati locali'], ['note-legali','note_legali','Note legali'], ['condizioni-uso','condizioni_uso','Condizioni d’uso']];
+function apriLegale(t){
+  if(st.foglio!=='legale') st.legaleDa = st.foglio || null;
+  st.legale = TESTI_PUB.some(x => x[0]===t) ? t : 'note-legali';
+  apri('legale');
+}
+function indietroLegale(){ const da = st.legaleDa; st.legaleDa = null; if(da) apri(da); else chiudi(); }
 function fLegale(){
-  const T = {privacy:tr('Informativa privacy'), storage:tr('Dati locali'), disclaimer:tr('Note legali')};
-  const testo = (lang!=='it' && LEGALI[lang] && LEGALI[lang][st.legale]) || ($('leg-'+st.legale) ? $('leg-'+st.legale).innerHTML : '');
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Documenti legali')}</h2><p class="meta">${esc(NOME)} · Torino · ${esc(CFG.titolare || '')} · ${casellaHtml('mail')}</p></div>${chiudiBtn('indietro-impostazioni')}</div>
-    <div class="seg" role="tablist">${Object.entries(T).map(([k,l]) => `<button data-legale="${k}" aria-pressed="${st.legale===k}" role="tab">${l}</button>`).join('')}</div>`;
-  const corpo = `<div class="legale">${testo}</div>`;
+  const x = TESTI_PUB.find(y => y[0]===st.legale) || TESTI_PUB[2];
+  const proprio = lang!=='it' && $('leg-'+x[0]+'-'+lang), modello = proprio || $('leg-'+x[0]), lingua = proprio ? lang : 'it';
+  const voce = (CFG.testi || {})[x[1]];
+  const versione = voce ? tr('Versione {v} · aggiornata il {data}', {v:esc(voce.versione), data:esc(dIso(voce.data).toLocaleDateString(dloc(), {day:'numeric', month:'long', year:'numeric'}))}) : tr('In preparazione');
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Informazioni legali')}</h2><p class="meta">${esc(tr('{nome}, progetto di {titolare}', {titolare:CFG.titolare || ''}))}</p></div>${chiudiBtn('indietro-legale')}</div>
+    <div class="seg quattro" role="group" aria-label="${esc(tr('Informazioni legali'))}">${TESTI_PUB.map(([k,,l]) => `<button data-legale="${k}" aria-pressed="${st.legale===k}">${tr(l)}</button>`).join('')}</div>`;
+  const corpo = `<div class="legale"><span class="legal-badge">${versione}</span>
+      ${lang!=='it' && !proprio ? `<p class="meta">${tr('Questo testo per ora è disponibile soltanto in italiano.')}</p>` : ''}
+      <div class="legale-testo" lang="${lingua}" dir="${lingua==='ar' ? 'rtl' : 'ltr'}">${modello ? modello.innerHTML : ''}</div>
+      <p><a class="link" href="testi/${lingua}/${x[0]}.html" target="_blank" rel="noopener noreferrer">${tr('Apri come pagina di testo')}</a></p></div>`;
   return foglio('forte alto', testa, corpo);
 }
 function fCitta(){
@@ -6694,7 +6711,7 @@ $('app').addEventListener('click', ev => {
   if(d.salvaForm){ salvaForm(d.salvaForm); return; }
   if(d.fgiorno){ st.form.giorno = d.fgiorno; if(st.form.fino < d.fgiorno) st.form.fino = piuMesi(d.fgiorno,3); disegnaFoglio(); return; }
   if(d.togliLink!=null){ st.form.links.splice(+d.togliLink,1); if(!st.form.links.length) st.form.links = ['']; disegnaFoglio(); return; }
-  if(d.legale){ st.legale = d.legale; apri('legale'); return; }
+  if(d.legale){ apriLegale(d.legale); return; }
   if(d.temaSet){ applicaTema(d.temaSet); disegnaFoglio(); return; }
   if(d.lingua){ applicaLingua(d.lingua); return; }
   if(d.citta){ applicaCitta(d.citta, true); chiudi(); return; }
@@ -6752,6 +6769,7 @@ $('app').addEventListener('click', ev => {
     case 'citta': apri('citta'); break;
     case 'impostazioni': st.sel = null; st.msgAdmin = null; apri('impostazioni'); break;
     case 'indietro-impostazioni': apri('impostazioni'); break;
+    case 'indietro-legale': indietroLegale(); break;
     case 'semplice': st.semplice = !st.semplice; MEM.scrivi('dl_semplice', st.semplice ? '1' : '0'); $('app').classList.toggle('semplice', st.semplice); disegnaFoglio(); tutto(); break;
     case 'guida': chiudi(); vaiSezione('mappa'); st.guida = 0; disegnaGuida(); posizioni(); break;
     case 'guida-avanti': st.guida++; disegnaGuida(); break;

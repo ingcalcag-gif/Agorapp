@@ -25,7 +25,7 @@ const { RADICE, DIST, USCITE, elencaFile, esito, eseguiDaSola, config } = requir
 const SORGENTI = path.join(RADICE, 'sorgenti');
 const LOCALE = require(path.join(SORGENTI, 'moduli', 'mappa-locale.js'));
 const AVVISI = require(path.join(SORGENTI, 'moduli', 'avvisi.js'));
-const { SEMPRE_DALLA_RETE } = require(path.join(SORGENTI, 'build.js'));
+const { SEMPRE_DALLA_RETE, PER_I_PROGRAMMI } = require(path.join(SORGENTI, 'build.js'));
 const impronta = d => crypto.createHash('sha256').update(d).digest('hex').slice(0, 10);
 
 /* Una memoria per i file finta, come quella del browser: le voci stanno nell'ordine in cui arrivano. */
@@ -71,7 +71,7 @@ async function prova() {
 
     const sw = leggi('sw.js').toString('utf8');
     const copia = JSON.parse((sw.match(/const COPIA = (\{[^;]*\});/) || [])[1] || '{}'), versione = JSON.parse((sw.match(/const VERSIONE = ("[^"]*");/) || [])[1] || '""');
-    const attesi = tutti.filter(f => !SEMPRE_DALLA_RETE.includes(f)).sort();
+    const attesi = tutti.filter(f => !SEMPRE_DALLA_RETE.includes(f) && !PER_I_PROGRAMMI.includes(f)).sort();   // robots.txt e tdmrep.json: l'app non li legge (T-056)
     const inPiu = Object.keys(copia).filter(f => !attesi.includes(f)), inMeno = attesi.filter(f => !(f in copia));
     if (inPiu.length || inMeno.length) err(qui + 'sw.js: l\'elenco della copia non è quello dei file dell\'uscita (in più: ' + inPiu.slice(0, 3).join(', ') + '; in meno: ' + inMeno.slice(0, 3).join(', ') + ')');
     for (const f of attesi) if (f in copia && copia[f] !== impronta(leggi(f))) err(qui + 'sw.js: impronta sbagliata per ' + f);
@@ -136,14 +136,14 @@ async function prova() {
     const sorgente = JSON.parse(fs.readFileSync(path.join(SORGENTI, 'testi', 'avvisi.json'), 'utf8'));
     if (AVVISI.errori(sorgente).length) err('sorgenti/testi/avvisi.json: ' + AVVISI.errori(sorgente).join('; '));
     const a = (id, tipo, dal, fino, altro) => Object.assign({ id, tipo, dal, fino, testo: { it: 'Testo inventato per la prova.', en: 'Text made up for the test.' } }, altro || {});
-    const file = { formato: 'avvisi', versione: 1, avvisi: [a('modifica-passata', 'modifica', '2026-01-01', '2026-01-31'), a('modifica-di-oggi', 'modifica', '2026-11-01', '2026-12-31', { apre: 'privacy' }),
+    const file = { formato: 'avvisi', versione: 1, avvisi: [a('modifica-passata', 'modifica', '2026-01-01', '2026-01-31'), a('modifica-di-oggi', 'modifica', '2026-11-01', '2026-12-31', { apre: 'informativa' }),
       a('violazione-di-oggi', 'violazione', '2026-11-20', '2026-12-20'), a('modifica-futura', 'modifica', '2027-01-01', '2027-02-01')] };
     if (AVVISI.errori(file).length) err('avvisi: un file valido è rifiutato: ' + AVVISI.errori(file).join('; '));
     const oggi = '2026-11-21';
     let x = AVVISI.daMostrare(file, { oggi, visti: [], lingua: 'en' });
     if (!x || x.id !== 'violazione-di-oggi' || x.testo !== 'Text made up for the test.' || x.lingua !== 'en') err('avvisi: una violazione di questi giorni si mostra per prima, nella lingua della persona');
     x = AVVISI.daMostrare(file, { oggi, visti: ['violazione-di-oggi'], lingua: 'fr' });
-    if (!x || x.id !== 'modifica-di-oggi' || x.apre !== 'privacy' || x.lingua !== 'it') err('avvisi: dopo la violazione tocca alla modifica di questi giorni; senza traduzione vale l\'italiano');
+    if (!x || x.id !== 'modifica-di-oggi' || x.apre !== 'informativa' || x.lingua !== 'it') err('avvisi: dopo la violazione tocca alla modifica di questi giorni; senza traduzione vale l\'italiano');
     if (AVVISI.daMostrare(file, { oggi, visti: ['violazione-di-oggi', 'modifica-di-oggi'], lingua: 'it' }) !== null) err('avvisi: un avviso passato, futuro o già visto non si mostra');
     if (AVVISI.daMostrare(file, { oggi: '2026-12-31', visti: [], lingua: 'it' }).id !== 'modifica-di-oggi' || AVVISI.daMostrare(file, { oggi: '2027-01-01', visti: [], lingua: 'it' }).id !== 'modifica-futura') err('avvisi: il primo e l\'ultimo giorno sono compresi');
     const visti = AVVISI.conVisto(file, ['avviso-che-non-c-e-piu', 'violazione-di-oggi'], 'modifica-di-oggi');

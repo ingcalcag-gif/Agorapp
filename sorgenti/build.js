@@ -21,8 +21,11 @@
 
    Nome, titolare, caselle, indirizzi e versioni dei testi vengono da sorgenti/config.js:
    il montaggio la scrive in ogni uscita come config.js (window.AGR_CONFIG) e ne inserisce i valori
-   nella pagina e nei testi legali al posto dei segnaposto {nome}, {titolare}, {casella_contatto},
-   {versione_legali} e {data_legali}.
+   nella pagina al posto dei segnaposto {nome}, {titolare} e {casella_contatto}.
+   I quattro testi pubblicati (informativa, «Dati locali», note legali, condizioni d'uso; T-055) vengono da
+   sorgenti/testi/<lingua>/ attraverso sorgenti/testi-pubblicati.js: modelli nella pagina dell'app e pagine di solo testo
+   in testi/. L'app pubblica ha anche robots.txt e .well-known/tdmrep.json, la riserva dell'estrazione di testo e di dati
+   leggibile dalle macchine (T-056; sorgenti/robots.txt e sorgenti/.well-known/tdmrep.json).
 
    Opzioni:
      --uscita=<cartella>   cartella delle uscite, relativa alla radice del repository (predefinita: dist)
@@ -35,6 +38,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { fileLicenze } = require('./licenze.js');
+const { testiPubblicati, metaRiserva, politica } = require('./testi-pubblicati.js');
 const { fileAnteprime } = require('./contenuti_esempio.js');
 const VENDOR = require('./vendor/elenco.js');
 
@@ -58,30 +62,21 @@ function configurazione() {
   if (!cfg.nome || !String(cfg.nome).trim()) throw new Error('config.js: manca il nome del servizio');
   if (!cfg.titolare) throw new Error('config.js: manca il titolare');
   if (!cfg.caselle || !cfg.caselle.contatto) throw new Error('config.js: manca la casella di contatto');
-  const li = cfg.testi && cfg.testi.legali_in_app;
-  if (!li || !/^\d{4}-\d{2}$/.test(li.data || '')) throw new Error('config.js: testi.legali_in_app.data deve essere AAAA-MM');
+  if (!cfg.caselle.autorita) throw new Error('config.js: manca la casella per le autorità');
   return cfg;
 }
 
 const escH = require('./moduli/testo.js').esc;   // la stessa funzione dell'app (T-024)
 const segnaposto = s => /^\[.*\]$/.test(String(s));
-// «2026-03» → «Marzo 2026» (italiano), «March 2026» (inglese)…
-function meseAnno(aaaamm, lingua) {
-  const [a, m] = aaaamm.split('-').map(Number);
-  const t = new Intl.DateTimeFormat(lingua, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(a, m - 1, 1)));
-  return t.charAt(0).toLocaleUpperCase(lingua) + t.slice(1);
-}
-// Riempie i segnaposto di un testo HTML con i valori della configurazione (già protetti per l'HTML).
-function riempi(html, cfg, lingua) {
+// Riempie i segnaposto della pagina con i valori della configurazione (già protetti per l'HTML).
+function riempi(html, cfg) {
   const c = cfg.caselle.contatto;
   const v = {
     nome: escH(cfg.nome),
     titolare: escH(cfg.titolare),
     casella_contatto: segnaposto(c) ? `<span class="segnaposto">${escH(c)}</span>` : `<a href="mailto:${escH(c)}">${escH(c)}</a>`,
-    versione_legali: escH(cfg.testi.legali_in_app.versione),
-    data_legali: escH(meseAnno(cfg.testi.legali_in_app.data, lingua)),
   };
-  return html.replace(/\{(nome|titolare|casella_contatto|versione_legali|data_legali)\}/g, (_, k) => v[k]);
+  return html.replace(/\{(nome|titolare|casella_contatto)\}/g, (_, k) => v[k]);
 }
 
 /* ---------- Librerie e caratteri ospitati con l'app (T-007) ---------- */
@@ -221,21 +216,19 @@ function monta(cfg, quale = 'pubblica') {
   const pezzo = (cartella, f) => taglia(leggi(cartella, f), quale, path.relative(SORGENTI, path.join(cartella, f)));
   const caratteri = leggi(VENDOR_DIR, 'caratteri.css');
   const strati = leggi(DATI, 'strati.js').replace(/^\/\*[^\n]*\*\/\n/, '').replace(/\n$/, '');
-  const leg = JSON.parse(leggi(DATI, 'legali_tradotti.json'));
-  for (const l of Object.keys(leg)) for (const k of Object.keys(leg[l])) leg[l][k] = riempi(leg[l][k], cfg, l);
-  const legali = 'const LEGALI = ' + JSON.stringify(leg) + ';';
-  const legaliIt = riempi(leggi(PARTI, 'legali_it.html').replace(/\n$/, ''), cfg, 'it');
+  const { modelli } = testiPubblicati(cfg);
 
   let app = JS_APP.map(f => pezzo(PARTI, f)).concat(red ? JS_RED.map(f => pezzo(REDAZIONE, f)) : [], JS_FINE.map(f => pezzo(PARTI, f))).join('\n');
-  for (const k of ['LAYERS', 'LEGALI', 'MAPPA_LIB']) if (!app.includes('/*@@' + k + '@@*/')) throw new Error('Segnaposto ' + k + ' mancante nei pezzi JavaScript');
-  app = app.replace('/*@@LAYERS@@*/', () => strati).replace('/*@@LEGALI@@*/', () => legali).replace('/*@@MAPPA_LIB@@*/', () => mappaLib());
+  for (const k of ['LAYERS', 'MAPPA_LIB']) if (!app.includes('/*@@' + k + '@@*/')) throw new Error('Segnaposto ' + k + ' mancante nei pezzi JavaScript');
+  app = app.replace('/*@@LAYERS@@*/', () => strati).replace('/*@@MAPPA_LIB@@*/', () => mappaLib());
 
   const sezioni = pezzo(PARTI, 'sezioni.js');
   const corpo = pezzo(PARTI, 'body.html');
   let traduzioni = fs.existsSync(path.join(PARTI, 'traduzioni.js')) ? leggi(PARTI, 'traduzioni.js') : 'window.AGR_TR={};';
   if (!red) {
     const tutti = c => fs.readdirSync(c).filter(f => /\.(js|html|json)$/.test(f) && f !== 'traduzioni.js').map(f => leggi(c, f)).join('\n');
-    const pubblici = [app, sezioni, corpo, strati, leggi(SORGENTI, 'contenuti_esempio.js'), tutti(DATI), tutti(MODULI), fs.existsSync(path.join(SORGENTI, 'anteprime')) ? tutti(path.join(SORGENTI, 'anteprime')) : ''].join('\n');
+    // anche le pagine di solo testo dei testi pubblicati (testi-pubblicati.js), montate con le stesse traduzioni
+    const pubblici = [app, sezioni, corpo, strati, leggi(SORGENTI, 'contenuti_esempio.js'), leggi(SORGENTI, 'testi-pubblicati.js'), tutti(DATI), tutti(MODULI), fs.existsSync(path.join(SORGENTI, 'anteprime')) ? tutti(path.join(SORGENTI, 'anteprime')) : ''].join('\n');
     traduzioni = traduzioniPubbliche(traduzioni, pubblici, tutti(REDAZIONE));
   }
   const css = CSS.map(f => pezzo(PARTI, f)).concat(red ? CSS_RED.map(f => pezzo(REDAZIONE, f)) : []).join('\n');
@@ -263,6 +256,9 @@ function monta(cfg, quale = 'pubblica') {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="${escH((cfg.aspetto || {}).colore_tema || '#FFFDF8')}">
 <meta name="referrer" content="no-referrer">${red ? '\n<meta name="robots" content="noindex, nofollow">' : ''}
+${metaRiserva(cfg)}
+<link rel="privacy-policy" href="testi/it/informativa.html">
+<link rel="terms-of-service" href="testi/it/condizioni-uso.html">
 <title>${escH(cfg.nome)}${red ? ' · Redazione' : ''} — Torino</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icone/icona-180.png">
@@ -273,9 +269,9 @@ function monta(cfg, quale = 'pubblica') {
 <link rel="stylesheet" href="app.css?v=${v('app.css')}">
 </head>
 <body>
-${riempi(corpo, cfg, 'it')}
-<!-- Testi legali: quelli dell'app online OG 1.7 (v1.2), invariati -->
-${legaliIt}
+${riempi(corpo, cfg)}
+<!-- I quattro testi pubblicati (sorgenti/testi/, T-055): il foglio «Informazioni legali» li mostra da qui -->
+${modelli}
 <script src="${escH(lib('maplibre-gl.js'))}"></script>
 <script src="${escH(lib('pmtiles.js'))}"></script>
 <script src="config.js?v=${v('config.js')}"></script>
@@ -301,6 +297,28 @@ const ICONE = [180, 192, 512];
 const SEMPRE_DALLA_RETE = ['avvisi.json', 'emergenza.json', 'sw.js'];
 const impronta = dati => crypto.createHash('sha256').update(dati).digest('hex').slice(0, 10);
 const pigro = f => false;   // file da conservare solo al primo uso: dal blocco 10 nessuno (SheetJS è uscito con T-042)
+
+/* ---------- Riserva dell'estrazione di testo e di dati leggibile dalle macchine (T-056; libro mastro, § 6.5, § 12.3) ----------
+   Nell'app pubblica: robots.txt, che nega l'accesso ai programmi di raccolta dichiarati per l'addestramento di sistemi di
+   intelligenza artificiale o per l'estrazione di dati (elenco in sorgenti/robots.txt, da rivedere a ogni riesame prima di
+   un rilascio), e .well-known/tdmrep.json, la riserva secondo il protocollo TDMRep (W3C Community Group, 2024), con il
+   rinvio alle condizioni d'uso (tdm-policy) quando l'indirizzo pubblico c'è. Valgono soltanto alla radice di un indirizzo.
+   Le pagine portano gli stessi metadati (metaRiserva), i file degli eventi il campo «tdm-reservation» (T-020).
+   Nessuno dei due file entra nella copia dell'app sul telefono: l'app non li legge. */
+const PER_I_PROGRAMMI = ['robots.txt', '.well-known/tdmrep.json'];
+function fileRiserva(cfg) {
+  const robots = leggi(SORGENTI, 'robots.txt');
+  const righe = robots.split('\n').map(r => r.trim()).filter(r => r && !r.startsWith('#'));
+  for (const r of righe) if (!/^(User-agent|Disallow): ?[^\s]*$/.test(r)) throw new Error('sorgenti/robots.txt: riga non ammessa «' + r + '»');
+  if (righe.slice(-2).join('\n') !== 'User-agent: *\nDisallow:') throw new Error('sorgenti/robots.txt: deve chiudere con «User-agent: *» e «Disallow:» (gli altri programmi sono ammessi)');
+  const regole = JSON.parse(leggi(SORGENTI, '.well-known', 'tdmrep.json'));
+  if (!Array.isArray(regole) || !regole.length || !regole.every(x => x && typeof x.location === 'string' && x.location.startsWith('/') && x['tdm-reservation'] === 1))
+    throw new Error('sorgenti/.well-known/tdmrep.json: serve un elenco di regole {"location": "/…", "tdm-reservation": 1}');
+  const p = politica(cfg);
+  const tdm = regole.map(x => p && !x['tdm-policy'] ? Object.assign({}, x, { 'tdm-policy': p }) : x);
+  return { 'robots.txt': robots, '.well-known/tdmrep.json': JSON.stringify(tdm, null, 1) + '\n' };
+}
+
 function completa(file, cfg, quale = 'pubblica') {
   file = { ...file };
   const red = quale === 'redazione';
@@ -315,6 +333,7 @@ function completa(file, cfg, quale = 'pubblica') {
   // L'app della redazione chiede ai motori di ricerca di non essere indicizzata: nella pagina (monta) e con questo file,
   // che vale quando l'app sta alla radice del suo indirizzo (su Bunny, in Fase 2, si aggiunge l'intestazione).
   if (red) file['robots.txt'] = 'User-agent: *\nDisallow: /\n';
+  else Object.assign(file, fileRiserva(cfg));
 
   const AVVISI = require('./moduli/avvisi.js'), avvisi = leggi(SORGENTI, 'testi', 'avvisi.json');
   const sbagli = AVVISI.errori(JSON.parse(avvisi));
@@ -325,7 +344,7 @@ function completa(file, cfg, quale = 'pubblica') {
   file['emergenza.json'] = emergenza;
 
   if (!file['index.html'].includes('@@VERSIONE@@')) throw new Error('index.html: manca il posto del numero di versione');
-  const elenco = Object.keys(file).filter(f => !SEMPRE_DALLA_RETE.includes(f)).sort();
+  const elenco = Object.keys(file).filter(f => !SEMPRE_DALLA_RETE.includes(f) && !PER_I_PROGRAMMI.includes(f)).sort();
   const versione = impronta(elenco.map(f => f + ' ' + impronta(file[f])).join('\n')).slice(0, 7);
   file['index.html'] = file['index.html'].split('@@VERSIONE@@').join(versione);
   const copia = Object.fromEntries(elenco.map(f => [f, impronta(file[f])]));
@@ -340,7 +359,7 @@ function completa(file, cfg, quale = 'pubblica') {
 function uscita(cfg, quale = 'pubblica') {
   // la pagina delle licenze elenca i componenti che viaggiano con quell'app
   const fuori = VENDOR.filter(c => c.solo && c.solo !== quale).map(c => c.licenza);
-  return completa({ ...monta(cfg, quale), ...fileLicenze(cfg, fuori), ...fileVendor(quale) }, cfg, quale);
+  return completa({ ...monta(cfg, quale), ...fileLicenze(cfg, fuori), ...testiPubblicati(cfg).file, ...fileVendor(quale) }, cfg, quale);
 }
 
 /* ---------- Scrittura delle uscite ---------- */
@@ -379,4 +398,4 @@ function main() {
 if (require.main === module) {
   try { main(); } catch (e) { console.error(e.message); process.exit(1); }
 }
-module.exports = { monta, configurazione, riempi, fileVendor, completa, uscita, taglia, APP, SEMPRE_DALLA_RETE };
+module.exports = { monta, configurazione, riempi, fileVendor, completa, uscita, taglia, APP, SEMPRE_DALLA_RETE, PER_I_PROGRAMMI };

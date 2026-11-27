@@ -1,5 +1,8 @@
 /* Stili degli strumenti della Redazione (T-033): entrano soltanto nell'app della redazione. */
-.badge-red{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--su-verde);background:var(--testo);border-radius:999px;padding:2px 8px;border:0;cursor:pointer;min-height:24px}
+/* sui telefoni stretti il cartellino «Redazione» prende il posto del nome, che resta nell'etichetta del tasto (T-055: il tasto
+   «Note legali» in alto deve stare nella barra) */
+@media (max-width:420px){.top .marchio .nome{display:none}.top .badge-red{letter-spacing:.02em;padding:2px 6px}}
+.badge-red{flex-shrink:0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--su-verde);background:var(--testo);border-radius:999px;padding:2px 8px;border:0;cursor:pointer;min-height:24px}
 .admin-box{border-radius:12px;padding:10px 12px;border:1.5px dashed var(--linea-forte);display:flex;flex-direction:column;gap:8px}
 .file-nascosto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .red-riquadro{border-radius:12px;padding:12px;border:1.5px solid var(--linea-forte);display:flex;flex-direction:column;gap:6px}

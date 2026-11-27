@@ -44,12 +44,12 @@ function prova() {
   for (const f of fs.readdirSync(PARTI)) if (/\.(js|html)$/.test(f)) file.push(['parti/' + f, path.join(PARTI, f)]);
   for (const f of fs.readdirSync(path.join(SORGENTI, 'redazione'))) if (/\.(js|html)$/.test(f)) file.push(['redazione/' + f, path.join(SORGENTI, 'redazione', f)]);   // strumenti della Redazione (T-033)
   for (const f of fs.readdirSync(path.join(SORGENTI, 'moduli'))) if (/\.js$/.test(f)) file.push(['moduli/' + f, path.join(SORGENTI, 'moduli', f)]);
-  for (const f of ['build.js', 'licenze.js', 'contenuti_esempio.js', 'config.js']) if (fs.existsSync(path.join(SORGENTI, f))) file.push([f, path.join(SORGENTI, f)]);
+  for (const f of ['build.js', 'licenze.js', 'testi-pubblicati.js', 'contenuti_esempio.js', 'config.js']) if (fs.existsSync(path.join(SORGENTI, f))) file.push([f, path.join(SORGENTI, f)]);
   const testi = file.map(([nome, p]) => [nome, fs.readFileSync(p, 'utf8')]);
 
   for (const [nome, t] of testi) {
     /* 2. una sola funzione di protezione */
-    if (nome !== 'moduli/testo.js' && !/^parti\/(traduzioni\.js|legali_it\.html|body\.html)$/.test(nome)) {
+    if (nome !== 'moduli/testo.js' && !/^parti\/(traduzioni\.js|body\.html)$/.test(nome)) {
       for (const m of t.matchAll(/&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&apos;/g)) { e.errori.push(`${nome}, riga ${riga(t, m.index)}: «${m[0]}» scritto nel codice: la protezione dei caratteri speciali sta solo in sorgenti/moduli/testo.js`); break; }
     }
     /* 3. gestori e javascript: */

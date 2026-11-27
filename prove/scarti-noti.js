@@ -1,7 +1,7 @@
 /* Scarti noti: casi che le prove trovano oggi e che una voce successiva del piano di adeguamento chiude.
    Ogni riga dice quale prova, che cosa (chiave), dove, quante volte, quale voce lo chiude e perché.
    Una prova fallisce se trova un caso che qui non c'è, se il numero dei casi cambia, o se uno scarto non si
-   trova più: in quel caso la voce l'ha chiuso e la riga va tolta. Elenco del 18/11/2026 (blocchi 1 e 2), aggiornato il 19/11/2026 (blocco 3: CARTO uscito con T-017). */
+   trova più: in quel caso la voce l'ha chiuso e la riga va tolta. Elenco del 18/11/2026 (blocchi 1 e 2), aggiornato il 19/11/2026 (blocco 3: CARTO uscito con T-017) e il 27/11/2026 (blocco 15: i testi legali v1.2 sono usciti con T-055). */
 'use strict';
 
 const s = (prova, chiave, dove, volte, voce, motivo) => ({ prova, chiave, dove, volte, voce, motivo });
@@ -10,10 +10,6 @@ module.exports = [
   /* ---------- Nome fuori dalla configurazione (prove/nome.js) ---------- */
 
   /* ---------- Indirizzi esterni (prove/indirizzi.js); piano, sezione 11 ---------- */
-  s('indirizzi', 'carto.com/privacy', 'app.js', 2, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),
-  s('indirizzi', 'carto.com/privacy', 'index.html', 2, 'T-080', 'testi legali v1.2 in uso'),
-  s('indirizzi', 'osmfoundation.org/wiki', 'app.js', 1, 'T-080', 'testi legali v1.2 in uso (traduzione inglese)'),
-  s('indirizzi', 'osmfoundation.org/wiki', 'index.html', 1, 'T-080', 'testi legali v1.2 in uso'),
 
   /* ---------- Collegamenti esterni senza referrer (prove/collegamenti.js) ---------- */
 

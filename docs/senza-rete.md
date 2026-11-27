@@ -58,13 +58,13 @@ Impostazioni → Aiuto → «Senza connessione». Il testo è quello del documen
 ```json
 {"formato": "avvisi", "versione": 1, "avvisi": [
   {"id": "2027-01-informativa", "tipo": "modifica", "dal": "2027-01-10", "fino": "2027-03-10",
-   "apre": "privacy", "testo": {"it": "Testo dell'avviso."}}
+   "apre": "informativa", "testo": {"it": "Testo dell'avviso."}}
 ]}
 ```
 
 - `tipo`: `modifica` (dei testi che toccano i dati o i diritti) oppure `violazione` (comunicazione pubblica di una violazione dei dati, testo del modello C.13). Una violazione si mostra per prima.
 - `dal`, `fino`: primo e ultimo giorno in cui l'avviso si mostra. Per le condizioni d'uso `dal` viene prima della data di entrata in vigore, che si scrive nel testo.
-- `apre`: il testo che il tasto «Leggi» apre (`privacy`, `storage`, `disclaimer`, `condizioni`); senza, c'è solo «Ho capito».
+- `apre`: il testo che il tasto «Leggi» apre (`informativa`, `dati-locali`, `note-legali`, `condizioni-uso`: i testi pubblicati di T-055, `docs/testi-pubblicati.md`); senza, c'è solo «Ho capito».
 - `testo`: almeno in italiano, fino a 600 caratteri per lingua, senza codice e senza collegamenti: l'app lo mostra come testo.
 
 Il montaggio rifiuta un file sbagliato. All'apertura l'app legge il file dalla rete e mostra, in basso e senza coprire l'app, l'avviso di questi giorni che il telefono non ha ancora visto; alla prima apertura aspetta la fine della guida. Non è un banner di consenso: non chiede nulla. Il telefono ricorda i soli identificativi degli avvisi visti (`dl_avvisi`), e solo finché il file li nomina. Senza rete non si mostra nessun avviso.

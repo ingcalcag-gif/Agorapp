@@ -70,12 +70,13 @@ p{margin:0}
 /* ---------- Telaio ---------- */
 .app{height:100%;height:100dvh;display:flex;flex-direction:column;background:var(--fondo);position:relative;overflow:hidden}
 .top{flex-shrink:0;height:52px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px 0 12px;background:var(--superficie);border-bottom:1px solid var(--linea);z-index:10}
-.marchio{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;min-height:44px;cursor:pointer}
-.quad{width:30px;height:30px;border-radius:8px;background:var(--verde);color:var(--su-verde);display:flex;align-items:center;justify-content:center}
-.nome{font-family:var(--serif);font-size:20px;line-height:24px}
-.top-dx{display:flex;align-items:center;gap:2px}
+.marchio{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;min-height:44px;cursor:pointer;min-width:0}
+.quad{flex-shrink:0;width:30px;height:30px;border-radius:8px;background:var(--verde);color:var(--su-verde);display:flex;align-items:center;justify-content:center}
+.nome{font-family:var(--serif);font-size:20px;line-height:24px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-dx{display:flex;align-items:center;gap:2px;flex-shrink:0}
 .citta{min-height:44px;background:none;border:0;padding:0 4px;display:flex;align-items:center;cursor:pointer}
 .citta span{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:16px;color:var(--testo-2);border:1px solid var(--linea-forte);border-radius:999px;padding:4px 8px 4px 10px}
+.leg-top{min-height:44px;max-width:84px;background:none;border:0;padding:0 6px;font:inherit;font-size:12px;line-height:14px;color:var(--testo-2);text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:center}
 .ingr{width:44px;height:44px;border:0;background:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--testo-2)}
 nav.bassa{flex-shrink:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--superficie);border-top:1px solid var(--linea);z-index:10}
 nav.bassa button{height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;line-height:16px;color:var(--testo-2);background:none;border:0;cursor:pointer}
@@ -152,6 +153,7 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .tipo-p[aria-pressed="false"] .forma{filter:grayscale(1)}
 .btn-elenco .conta{font-size:12px;font-weight:600;color:var(--testo-2)}
 .attrib{position:absolute;right:12px;bottom:72px;z-index:4;font-size:12px;line-height:16px;color:var(--testo-2);padding:2px 8px;border-radius:8px}
+.attrib-leg{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 
 .peek{position:absolute;left:0;right:0;bottom:0;z-index:7;border-radius:18px 18px 0 0;border-bottom:0;padding:8px 16px 10px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;min-height:66px}
 .peek .maniglia{position:absolute;left:50%;top:6px;margin-left:-20px}
@@ -360,6 +362,17 @@ a.menu-r{color:inherit;text-decoration:none}
 .legale ul{padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .legale a{color:var(--verde);font-weight:600}
 .legale .legal-badge{align-self:flex-start;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--verde-tenue);color:var(--verde)}
+.legale-testo{display:flex;flex-direction:column;gap:8px}
+.legale .segnaposto{color:var(--testo-2);font-style:italic}
+.legale section.opposizione{display:flex;flex-direction:column;gap:8px;border:2px solid var(--testo);border-radius:12px;padding:10px 12px}
+.legale table{border-collapse:collapse;width:100%;font-size:13px;line-height:18px}
+.legale th,.legale td{border:1px solid var(--linea-forte);padding:4px 6px;text-align:start;vertical-align:top}
+.legale ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.legale h4{font-weight:700;font-size:14px;line-height:20px}
+.seg.quattro{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.seg.quattro button{border-right:0;border-inline-end:1px solid var(--linea);border-bottom:1px solid var(--linea)}
+.seg.quattro button:nth-child(2n){border-inline-end:0}
+.seg.quattro button:nth-last-child(-n+2){border-bottom:0}
 
 /* Posa e guida */
 .posa-croce{position:absolute;left:50%;top:50%;z-index:6;transform:translate(-50%,-100%);pointer-events:none;filter:drop-shadow(0 6px 8px rgba(0,0,0,.3))}
@@ -472,7 +485,8 @@ body{background:var(--fondo)}
 [dir="rtl"] .tratto-r{border-left:0;border-right:2px dashed var(--linea-forte);margin-left:0;margin-right:25px;padding:6px 24px 6px 12px}
 [dir="rtl"] [aria-pressed="true"] .interr::after{transform:translateX(-16px)}
 [dir="rtl"] .interr::after{left:auto;right:3px}
-[dir="rtl"] .legale ul{padding-left:0;padding-right:20px}
+[dir="rtl"] .legale ul,[dir="rtl"] .legale ol{padding-left:0;padding-right:20px}
+[dir="rtl"] .legale [dir="ltr"] ul,[dir="rtl"] .legale [dir="ltr"] ol{padding-left:20px;padding-right:0}
 [dir="rtl"] .freccia-dir{transform:scaleX(-1)}
 [dir="rtl"] .riga-ev .ora{text-align:right}
 a.tasto,a.link{text-decoration:none}
@@ -957,7 +971,10 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .t-sez-demo{font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--testo-2);border:1px dashed var(--linea-forte);border-radius:999px;padding:0 6px}
 
 /* Stili degli strumenti della Redazione (T-033): entrano soltanto nell'app della redazione. */
-.badge-red{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--su-verde);background:var(--testo);border-radius:999px;padding:2px 8px;border:0;cursor:pointer;min-height:24px}
+/* sui telefoni stretti il cartellino «Redazione» prende il posto del nome, che resta nell'etichetta del tasto (T-055: il tasto
+   «Note legali» in alto deve stare nella barra) */
+@media (max-width:420px){.top .marchio .nome{display:none}.top .badge-red{letter-spacing:.02em;padding:2px 6px}}
+.badge-red{flex-shrink:0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--su-verde);background:var(--testo);border-radius:999px;padding:2px 8px;border:0;cursor:pointer;min-height:24px}
 .admin-box{border-radius:12px;padding:10px 12px;border:1.5px dashed var(--linea-forte);display:flex;flex-direction:column;gap:8px}
 .file-nascosto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .red-riquadro{border-radius:12px;padding:12px;border:1.5px solid var(--linea-forte);display:flex;flex-direction:column;gap:6px}

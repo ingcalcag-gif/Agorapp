@@ -41,7 +41,7 @@ const SERVIZI = [
 const RISORSA_ESTERNA = /https?:\/\/[^\s"'`<>()\\]+?\.(?:m?js|css|woff2?|ttf|otf|pbf|pmtiles|json)(?=[?#"'`\s)\\]|$)|https?:\/\/fonts\.googleapis\.com\/css2?\?[^\s"'`<>]+/g;
 /* File che il montaggio produce da sé, e file di terzi annotati in sorgenti/vendor/elenco.js.
    Ogni altro file nell'uscita è un componente da elencare. */
-const FILE_PROPRI = /^(index\.html|config\.js|app\.css|app\.js|moduli\.js|traduzioni\.js|sezioni\.js|licenze\/[a-z0-9.-]+\.(txt|css|html)|lib\/caratteri\/caratteri\.css|anteprime\/(it|en|es|fr|ar)\.json|mappa\/correzioni\.geojson|sw\.js|manifest\.webmanifest|avvisi\.json|emergenza\.json|icone\/icona-(180|192|512)\.png)$/;
+const FILE_PROPRI = /^(index\.html|config\.js|app\.css|app\.js|moduli\.js|traduzioni\.js|sezioni\.js|licenze\/[a-z0-9.-]+\.(txt|css|html)|lib\/caratteri\/caratteri\.css|anteprime\/(it|en|es|fr|ar)\.json|mappa\/correzioni\.geojson|sw\.js|manifest\.webmanifest|avvisi\.json|emergenza\.json|icone\/icona-(180|192|512)\.png|testi\/testi\.css|testi\/(it|en|es|fr|ar)\/(informativa|dati-locali|note-legali|condizioni-uso)\.html|robots\.txt|\.well-known\/tdmrep\.json)$/;
 /* Un componente con «solo» viaggia con una sola app (T-033; dal blocco 10 nessuno: SheetJS è uscito con T-042). */
 const delVendor = u => VENDOR.filter(c => !c.solo || c.solo === u);
 const fileVendor = u => new Set(delVendor(u).flatMap(c => Object.keys(c.file).concat(c.nomeLicenza || 'LICENSE.txt').map(f => 'lib/' + c.cartella + '/' + f)));

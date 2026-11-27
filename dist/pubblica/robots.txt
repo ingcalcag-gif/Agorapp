@@ -1,0 +1,136 @@
+# Riserva dell'estrazione di testo e di dati (art. 4, par. 3, direttiva (UE) 2019/790; art. 70-quater L. 633/1941).
+# Text and data mining reserved (Art. 4(3), Directive (EU) 2019/790). See /.well-known/tdmrep.json.
+# Ai programmi di raccolta dichiarati per l'addestramento di sistemi di intelligenza artificiale o per l'estrazione
+# di dati l'accesso è negato. Gli altri, compresi i motori di ricerca, sono ammessi.
+
+# Addestramento di sistemi di intelligenza artificiale e raccolte di dati per l'addestramento
+
+# OpenAI
+User-agent: GPTBot
+Disallow: /
+
+# Anthropic
+User-agent: ClaudeBot
+Disallow: /
+
+# Anthropic, nome precedente
+User-agent: anthropic-ai
+Disallow: /
+
+# Anthropic, nome precedente
+User-agent: Claude-Web
+Disallow: /
+
+# Google: uso dei contenuti per Gemini e Vertex AI
+User-agent: Google-Extended
+Disallow: /
+
+# Apple: uso dei contenuti per i modelli di Apple
+User-agent: Applebot-Extended
+Disallow: /
+
+# Common Crawl: archivio usato per addestrare modelli
+User-agent: CCBot
+Disallow: /
+
+# Meta
+User-agent: meta-externalagent
+Disallow: /
+
+# Meta
+User-agent: FacebookBot
+Disallow: /
+
+# ByteDance
+User-agent: Bytespider
+Disallow: /
+
+# Amazon
+User-agent: Amazonbot
+Disallow: /
+
+# Cohere
+User-agent: cohere-ai
+Disallow: /
+
+# Cohere
+User-agent: cohere-training-data-crawler
+Disallow: /
+
+# Allen Institute for AI
+User-agent: AI2Bot
+Disallow: /
+
+# Allen Institute for AI
+User-agent: Ai2Bot-Dolma
+Disallow: /
+
+# Mistral AI
+User-agent: MistralAI-Training
+Disallow: /
+
+# Huawei
+User-agent: PanguBot
+Disallow: /
+
+# Timpi
+User-agent: Timpibot
+Disallow: /
+
+# Webz.io: uso dei dati per l'addestramento
+User-agent: Webzio-Extended
+Disallow: /
+
+# Estrazione di dati e indici per le risposte di sistemi di intelligenza artificiale
+
+# OpenAI
+User-agent: OAI-SearchBot
+Disallow: /
+
+# Anthropic
+User-agent: Claude-SearchBot
+Disallow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Disallow: /
+
+# DuckDuckGo
+User-agent: DuckAssistBot
+Disallow: /
+
+# Mistral AI
+User-agent: MistralAI-Index
+Disallow: /
+
+# Meta
+User-agent: meta-webindexer
+Disallow: /
+
+# Amazon
+User-agent: Amzn-SearchBot
+Disallow: /
+
+# You.com
+User-agent: YouBot
+Disallow: /
+
+# Google: agenti di Vertex AI
+User-agent: Google-CloudVertexBot
+Disallow: /
+
+# Diffbot: estrazione di dati
+User-agent: Diffbot
+Disallow: /
+
+# Webz.io: estrazione di dati
+User-agent: omgili
+Disallow: /
+
+# Webz.io: estrazione di dati
+User-agent: omgilibot
+Disallow: /
+
+# Tutti gli altri programmi
+User-agent: *
+Disallow:

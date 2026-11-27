@@ -30,7 +30,7 @@ function prova() {
     const doppi = Object.keys(conti).filter(k => conti[k] > 1);
     if (doppi.length) e.errori.push(`dist/${app}/app.js: funzioni con lo stesso nome in più file dei sorgenti (l'ultima prende il posto della prima): ${doppi.join(', ')}`);
   }
-  const json = ['sorgenti/dati/legali_tradotti.json', 'sorgenti/dati/regioni.json', 'strumenti/archivio-prova.json', 'strumenti/package.json', 'package.json', 'prove/package.json'].filter(f => fs.existsSync(path.join(RADICE, f)));
+  const json = ['sorgenti/.well-known/tdmrep.json', 'sorgenti/dati/regioni.json', 'strumenti/archivio-prova.json', 'strumenti/package.json', 'package.json', 'prove/package.json'].filter(f => fs.existsSync(path.join(RADICE, f)));
   for (const f of json) { try { JSON.parse(fs.readFileSync(path.join(RADICE, f), 'utf8')); } catch (err) { e.errori.push(f + ': ' + err.message); } }
   e.note.push(`${js.length} file JavaScript, ${json.length} file JSON`);
   return e;

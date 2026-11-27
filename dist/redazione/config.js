@@ -31,10 +31,6 @@ window.AGR_CONFIG = {
   "esporta_assistenza": false
  },
  "testi": {
-  "legali_in_app": {
-   "versione": "1.2",
-   "data": "2026-03"
-  },
   "informativa": null,
   "dati_locali": null,
   "note_legali": null,

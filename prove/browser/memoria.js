@@ -189,7 +189,7 @@ async function prova() {
         if (await tocca('[data-az="impostazioni"]', 'impostazioni')) {
           await tocca(F + '[data-tema-set="dark"]', 'impostazioni, tema'); await tocca(F + '[data-lingua="en"]', 'impostazioni, lingua'); await tocca(F + '[data-lingua="it"]', 'impostazioni, lingua');
           await tocca(F + '[data-az="semplice"]', 'impostazioni, Modalità semplice'); await tocca(F + '[data-az="semplice"]', 'impostazioni, Modalità semplice');
-          await tocca(F + '[data-legale="storage"]', 'impostazioni, Dati locali');
+          await tocca(F + '[data-legale="dati-locali"]', 'impostazioni, Dati locali');
         }
         /* Temi: una lente salvata */
         await avvia(0);

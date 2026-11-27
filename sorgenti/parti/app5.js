@@ -1,6 +1,5 @@
 
 /* ======================= Impostazioni, documenti, città ======================= */
-/*@@LEGALI@@*/
 function fImpostazioni(){
   const scuro = temaAttuale()==='dark';
   const testa = `<div class="riga-titolo"><h2>${tr('Impostazioni')}</h2>${chiudiBtn()}</div>`;
@@ -10,9 +9,10 @@ function fImpostazioni(){
     <section class="sezione"><div class="tipo">${tr('Lingua')}</div><div class="seg" role="group">${['it','en','es','fr','ar'].map(l => `<button data-lingua="${l}" aria-pressed="${lang===l}" lang="${l}">${l.toUpperCase()}</button>`).join('')}</div></section>
     <section class="sezione"><div class="tipo">${tr('Aiuto')}</div><div class="menu-lista"><button class="menu-r" data-az="guida">${icoNote}<div><span class="t">${tr('Rivedi la guida')}</span><span class="meta">${tr('I cartellini che compaiono alla prima apertura')}</span></div>${freccia}</button><button class="menu-r" data-az="aiuto-og">${GLIFO_OG}<div><span class="t">${tr('Che cos’è un evento Off-Grid?')}</span></div>${freccia}</button><button class="menu-r" data-az="senza-rete">${icoNote}<div><span class="t">${tr('Senza connessione')}</span><span class="meta">${tr('Cosa funziona senza rete e come aggiungere l’app alla schermata Home')}</span></div>${freccia}</button></div></section>
     <section class="sezione"><div class="tipo">${tr('Documenti')}</div><div class="menu-lista">
-      <button class="menu-r" data-legale="privacy"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Quali dati, perché, i tuoi diritti')}</span></div>${freccia}</button>
-      <button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
-      <button class="menu-r" data-legale="disclaimer"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Accuratezza, manifestazioni, responsabilità')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="informativa"><div><span class="t">${tr('Informativa sulla privacy')}</span><span class="meta">${tr('Quali dati, perché, i tuoi diritti')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="dati-locali"><div><span class="t">${tr('Dati locali')}</span><span class="meta">${tr('Cosa resta su questo telefono')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="note-legali"><div><span class="t">${tr('Note legali')}</span><span class="meta">${tr('Chi risponde del servizio, contatti, licenze')}</span></div>${freccia}</button>
+      <button class="menu-r" data-legale="condizioni-uso"><div><span class="t">${tr('Condizioni d’uso')}</span><span class="meta">${tr('Che cosa puoi fare con gli eventi e che cosa no')}</span></div>${freccia}</button>
       <a class="menu-r" href="licenze/index.html" target="_blank" rel="noopener noreferrer"><div><span class="t">${tr('Licenze dei componenti')}</span><span class="meta">${tr('Mappa, librerie e caratteri: testi integrali')}</span></div>${freccia}</a></div>
       <p class="meta">${tr('Scrivici')}: ${casellaHtml('mail')}</p></section>
     /*@red*/<section class="sezione"><div class="tipo">${tr('Redazione')}</div><button class="riga-int" data-az="admin"><div><span class="t">${tr('Strumenti della redazione')}</span><span class="meta">${tr('Eventi, Excel, Misure, storico, chiavi')}</span></div>${freccia}</button></section>/*@fine*/
@@ -54,7 +54,7 @@ function fSenzaRete(){
       <p>${tr('Su Android: apri il menu del browser e scegli «Installa app» oppure «Aggiungi a schermata Home».')}</p>
       ${invitoInstalla ? `<button class="tasto pri" data-az="installa">${tr('Installa')}</button>` : ''}
     </div>
-    <div class="menu-lista"><button class="menu-r" data-legale="storage"><div><span class="t">${tr('Dati locali: cosa resta su questo telefono')}</span></div>${freccia}</button></div>`;
+    <div class="menu-lista"><button class="menu-r" data-legale="dati-locali"><div><span class="t">${tr('Dati locali: cosa resta su questo telefono')}</span></div>${freccia}</button></div>`;
   return foglio('forte alto', testa, corpo);
 }
 /* ---------- Avvisi delle novità (T-031; sorgenti/moduli/avvisi.js) ----------
@@ -78,14 +78,31 @@ function novitaVista(apri_){
   const a = NOVITA.avviso; if(!a) return;
   MEM.scrivi('dl_avvisi', MODULI.avvisi.conVisto(NOVITA.file, MEM.leggi('dl_avvisi', []), a.id));
   mostraNovita();
-  if(apri_ && a.apre && $('leg-'+a.apre)){ st.legale = a.apre; apri('legale'); }
+  if(apri_ && a.apre && $('leg-'+a.apre)) apriLegale(a.apre);
 }
+/* ---------- I testi pubblicati (T-055; sorgenti/testi-pubblicati.js, docs/testi-pubblicati.md) ----------
+   Informativa, «Dati locali», note legali e condizioni d'uso, dai modelli che il montaggio mette nella pagina: nella
+   lingua dell'app se il testo c'è, altrimenti in italiano, con una riga che lo dice. Versione e data dalla configurazione
+   (null = in preparazione). Le note legali si aprono da ogni schermata (tasto in alto e angolo della mappa, body.html);
+   chiudendo si torna al foglio da cui si era partiti. Ogni testo si apre anche come pagina di solo testo (testi/). */
+const TESTI_PUB = [['informativa','informativa','Informativa privacy'], ['dati-locali','dati_locali','Dati locali'], ['note-legali','note_legali','Note legali'], ['condizioni-uso','condizioni_uso','Condizioni d’uso']];
+function apriLegale(t){
+  if(st.foglio!=='legale') st.legaleDa = st.foglio || null;
+  st.legale = TESTI_PUB.some(x => x[0]===t) ? t : 'note-legali';
+  apri('legale');
+}
+function indietroLegale(){ const da = st.legaleDa; st.legaleDa = null; if(da) apri(da); else chiudi(); }
 function fLegale(){
-  const T = {privacy:tr('Informativa privacy'), storage:tr('Dati locali'), disclaimer:tr('Note legali')};
-  const testo = (lang!=='it' && LEGALI[lang] && LEGALI[lang][st.legale]) || ($('leg-'+st.legale) ? $('leg-'+st.legale).innerHTML : '');
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Documenti legali')}</h2><p class="meta">${esc(NOME)} · Torino · ${esc(CFG.titolare || '')} · ${casellaHtml('mail')}</p></div>${chiudiBtn('indietro-impostazioni')}</div>
-    <div class="seg" role="tablist">${Object.entries(T).map(([k,l]) => `<button data-legale="${k}" aria-pressed="${st.legale===k}" role="tab">${l}</button>`).join('')}</div>`;
-  const corpo = `<div class="legale">${testo}</div>`;
+  const x = TESTI_PUB.find(y => y[0]===st.legale) || TESTI_PUB[2];
+  const proprio = lang!=='it' && $('leg-'+x[0]+'-'+lang), modello = proprio || $('leg-'+x[0]), lingua = proprio ? lang : 'it';
+  const voce = (CFG.testi || {})[x[1]];
+  const versione = voce ? tr('Versione {v} · aggiornata il {data}', {v:esc(voce.versione), data:esc(dIso(voce.data).toLocaleDateString(dloc(), {day:'numeric', month:'long', year:'numeric'}))}) : tr('In preparazione');
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Informazioni legali')}</h2><p class="meta">${esc(tr('{nome}, progetto di {titolare}', {titolare:CFG.titolare || ''}))}</p></div>${chiudiBtn('indietro-legale')}</div>
+    <div class="seg quattro" role="group" aria-label="${esc(tr('Informazioni legali'))}">${TESTI_PUB.map(([k,,l]) => `<button data-legale="${k}" aria-pressed="${st.legale===k}">${tr(l)}</button>`).join('')}</div>`;
+  const corpo = `<div class="legale"><span class="legal-badge">${versione}</span>
+      ${lang!=='it' && !proprio ? `<p class="meta">${tr('Questo testo per ora è disponibile soltanto in italiano.')}</p>` : ''}
+      <div class="legale-testo" lang="${lingua}" dir="${lingua==='ar' ? 'rtl' : 'ltr'}">${modello ? modello.innerHTML : ''}</div>
+      <p><a class="link" href="testi/${lingua}/${x[0]}.html" target="_blank" rel="noopener noreferrer">${tr('Apri come pagina di testo')}</a></p></div>`;
   return foglio('forte alto', testa, corpo);
 }
 function fCitta(){

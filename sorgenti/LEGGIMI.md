@@ -43,7 +43,7 @@ Alla fine il montaggio controlla la sintassi di ogni file JavaScript prodotto (`
 
 - Nel codice il nome si usa con la costante `NOME`, la casella di contatto con `CASELLA` o `casellaHtml()`, i nomi dei file scaricati con `nomeFile()`.
 - Nelle traduzioni e nei testi passati a `tr()` il nome è la variabile `{nome}`, che `tr()` riempie da sé.
-- Nella pagina e nei testi legali il montaggio sostituisce `{nome}`, `{titolare}`, `{casella_contatto}`, `{versione_legali}` e `{data_legali}`.
+- Nella pagina il montaggio sostituisce `{nome}`, `{titolare}` e `{casella_contatto}`; nei testi pubblicati anche `{casella_autorita}` e `{licenze}` (sezione «Testi pubblicati» qui sotto).
 - I valori tra parentesi quadre (per esempio `[casella di contatto]`) sono segnaposto: l'app li mostra come testo, senza collegamento.
 - Le chiavi della memoria del telefono non contengono il nome (`dl_…`, `red_…`): stanno nell'elenco chiuso di `moduli/memoria.js` (T-026; `docs/dati-locali.md`), che all'avvio trasloca i dati salvati con i nomi di prima (`agorapp_…`).
 
@@ -58,7 +58,8 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 - `licenze.js`: la pagina delle licenze, da `COMPONENTI_DI_TERZI.md` e `licenze/`.
 - `vendor/`: librerie e caratteri di terzi a versione fissa, con `elenco.js` (impronte) e `caratteri.css`.
 - `parti/body.html`: struttura della pagina.
-- `parti/legali_it.html`: testi legali italiani in uso (versione 1.2), come modelli `<template>`.
+- `testi-pubblicati.js` e `testi/<lingua>/`: i quattro testi pubblicati (sezione «Testi pubblicati» qui sotto).
+- `robots.txt` e `.well-known/tdmrep.json`: la riserva dell'estrazione di testo e di dati leggibile dalle macchine, nell'app pubblica (T-056; `docs/testi-pubblicati.md`).
 - `parti/style*.css`: stile, montato in `app.css` in questo ordine: `style`, `style2`, `style_temi`, `style_sezioni`; nell'app della redazione seguono `redazione/style_redazione.css` e `redazione/style_misure.css`. `parti/css_mock.css` non entra nel montaggio.
 - `parti/app1.js`…`app7.js` e gli altri pezzi JavaScript: un solo modulo, montato in `app.js` in questo ordine: `app1`, `app2`, `app3`, `app4`, `app5`, `app7`, poi (solo nell'app della redazione) i file di `redazione/`, infine `app6` (app1 apre, app6 chiude).
   - app1: dati (con `MEM`, la memoria del telefono), stato, filtri, lingue (`tr()`);
@@ -74,7 +75,10 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 - `moduli/`: le parti nuove, scritte come moduli separati con le loro prove (piano di adeguamento, QB-1). Ogni modulo funziona nel browser (in `window.AGR_MODULI`) e in Node (`require`), così lo usano allo stesso modo l'app, gli strumenti e, più avanti, lo sportello. `testo.js`: l'unica funzione che protegge i caratteri speciali, `esc()`, e il controllo dei collegamenti, solo https (T-024; `docs/testi-come-testo.md`); `memoria.js`: tutto ciò che l'app salva sul telefono, con l'elenco chiuso delle chiavi, il trasloco dei nomi di prima e la pulizia delle chiavi delle funzioni tolte (T-026; `docs/dati-locali.md`): nessun altro file usa la memoria del browser; `mappa-locale.js`: i tasselli della mappa conservati sul telefono, fino a 50 MB (T-029); `avvisi.js`: gli avvisi delle novità (T-031); `eventi.js`: formato pubblico degli eventi e unica funzione di controllo (T-020); `quadranti.js`: griglia dei quadranti, regioni, scrittura e lettura dell'archivio (T-021); `archivio.js`: lettura dell'archivio nell'app pubblica, con la copia sul telefono degli eventi delle zone consultate (T-022). Descritti in `docs/formato-eventi.md`; il montaggio li mette in `moduli.js`, caricato prima dell'app.
 - `dati/regioni.json`: confini semplificati delle venti regioni, da Natural Earth (pubblico dominio; `strumenti/genera-regioni.mjs`). Non vanno nell'app: servono a chi scrive l'indice dell'archivio.
 - `dati/strati.js`: strati della mappa e loro icone (`LAYER_ICONS`, `LAYERS`), inseriti al posto del segnaposto `/*@@LAYERS@@*/` di `app1.js`.
-- `dati/legali_tradotti.json`: testi legali tradotti (oggi solo l'inglese), inseriti al posto del segnaposto `/*@@LEGALI@@*/` di `app5.js`.
+
+## Testi pubblicati: `testi/`
+
+Dalla voce T-055 informativa, scheda «Dati locali», note legali e condizioni d'uso stanno in `testi/<lingua>/<testo>.html` (`informativa`, `dati-locali`, `note-legali`, `condizioni-uso`): pezzi di HTML di solo testo, con un insieme chiuso di elementi e di attributi. L'italiano c'è sempre; una lingua si aggiunge mettendo i file nella sua cartella, senza toccare il codice. Versione e data stanno in `config.js` (`testi`): `null` finché il testo è un segnaposto. Il montaggio (`testi-pubblicati.js`) controlla i file e le regole di posto (caselle, riquadro dell'opposizione, «Dove stanno i dati», nessun indirizzo postale), mette i testi come modelli nella pagina dell'app (foglio «Informazioni legali») e scrive le pagine di solo testo `testi/<lingua>/<testo>.html`. Descrizione completa: `docs/testi-pubblicati.md`; prove: `prove/testi-pubblicati.js` e `prove/browser/testi-pubblicati.js`.
 
 ## Contenuti d'esempio di Agorà e Progetti: `anteprime/`
 

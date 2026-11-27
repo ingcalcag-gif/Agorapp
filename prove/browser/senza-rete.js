@@ -120,7 +120,7 @@ async function prova() {
     await p.reload(); await p.waitForSelector('[data-az="elenco"]');
     if (await tocca('[data-az="impostazioni"]', 'senza rete, impostazioni')) {
       if (!((await p.locator('#versione-app').textContent().catch(() => '')) || '').includes(vA)) err('le Impostazioni non mostrano il numero di versione');
-      if (await tocca(F + '[data-az="senza-rete"]', 'senza rete, guida') && !(await p.locator(F + '[data-legale="storage"]').count())) err('la guida «Senza connessione» non porta alla scheda «Dati locali»');
+      if (await tocca(F + '[data-az="senza-rete"]', 'senza rete, guida') && !(await p.locator(F + '[data-legale="dati-locali"]').count())) err('la guida «Senza connessione» non porta alla scheda «Dati locali»');
     }
     if (errori.length) err('senza rete la pagina ha dato errori: ' + [...new Set(errori)].slice(0, 3).join(' · '));
     e.note.push('senza rete: l\'app si riapre con mappa, eventi della zona, Off-Grid, PDF del calendario, contenuti d\'esempio di Agorà e guida');

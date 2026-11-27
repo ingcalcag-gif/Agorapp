@@ -1058,11 +1058,11 @@
 
      {"formato": "avvisi", "versione": 1, "avvisi": [
        {"id": "2027-01-informativa", "tipo": "modifica", "dal": "2027-01-10", "fino": "2027-03-10",
-        "apre": "privacy", "testo": {"it": "…", "en": "…"}}]}
+        "apre": "informativa", "testo": {"it": "…", "en": "…"}}]}
 
    tipo: «modifica» (dei testi) o «violazione» (comunicazione pubblica di una violazione dei dati); dal, fino: il primo e
-   l'ultimo giorno in cui l'avviso si mostra; apre: il testo che il tasto «Leggi» apre (privacy, storage, disclaimer,
-   condizioni), oppure niente; testo: almeno in italiano, senza codice: l'app lo mostra come testo.
+   l'ultimo giorno in cui l'avviso si mostra; apre: il testo che il tasto «Leggi» apre (informativa, dati-locali, note-legali,
+   condizioni-uso: i testi pubblicati di T-055), oppure niente; testo: almeno in italiano, senza codice: l'app lo mostra come testo.
 
    L'avviso informa e basta: non chiede consensi e non blocca l'app. Chi l'ha visto non lo rivede: il telefono ricorda
    i soli identificativi degli avvisi visti (riga delle preferenze e scelte della scheda «Dati locali», QB-5).
@@ -1075,7 +1075,7 @@
   'use strict';
 
   const TIPI = ['violazione', 'modifica'];                         // in quest'ordine: una violazione si mostra per prima
-  const APRE = ['privacy', 'storage', 'disclaimer', 'condizioni'];
+  const APRE = ['informativa', 'dati-locali', 'note-legali', 'condizioni-uso'];
   const LINGUE = ['it', 'en', 'es', 'fr', 'ar'];
   const MASSIMO = 10, TESTO_MAX = 600;
   const giorno = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));

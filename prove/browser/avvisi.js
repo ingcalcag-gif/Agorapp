@@ -45,7 +45,7 @@ async function prova() {
 
   try {
     /* ---------- 1. una violazione e una modifica ---------- */
-    const DUE = file(avviso('modifica-inventata', 'modifica', -2, 20, { apre: 'privacy' }), avviso('violazione-inventata', 'violazione', -1, 10), avviso('modifica-scaduta', 'modifica', -40, -10), avviso('modifica-futura', 'modifica', 5, 30));
+    const DUE = file(avviso('modifica-inventata', 'modifica', -2, 20, { apre: 'informativa' }), avviso('violazione-inventata', 'violazione', -1, 10), avviso('modifica-scaduta', 'modifica', -40, -10), avviso('modifica-futura', 'modifica', 5, 30));
     await sessione({ dl_guida: '1' }, DUE, async ({ p, avvia, tocca, testo, visti }) => {
       await avvia();
       let t = await testo();
@@ -59,7 +59,7 @@ async function prova() {
       t = await testo();
       if (!t.includes('modifica-inventata') || !t.includes('Novità nei testi')) err('dopo la violazione non compare l\'avviso della modifica: «' + t.slice(0, 80) + '»');
       if (await tocca(N + '[data-az="novita-leggi"]', 'avviso, «Leggi»')) {
-        if (await p.evaluate(() => window.AGR.stato.foglio + '/' + window.AGR.stato.legale) !== 'legale/privacy') err('«Leggi» non apre il testo indicato dall\'avviso');
+        if (await p.evaluate(() => window.AGR.stato.foglio + '/' + window.AGR.stato.legale) !== 'legale/informativa') err('«Leggi» non apre il testo indicato dall\'avviso');
         if (await testo()) err('dopo «Leggi» l\'avviso resta aperto');
       }
       const v = (await visti()).slice().sort().join();
@@ -106,7 +106,7 @@ async function prova() {
       const prima = await p.evaluate(() => JSON.stringify(Object.keys(localStorage).sort()));
       await p.evaluate(() => window.dispatchEvent(new Event('appinstalled'))); await pausa(300);
       if (await p.evaluate(() => JSON.stringify(Object.keys(localStorage).sort())) !== prima) err('all\'installazione l\'app annota qualcosa sul telefono');
-      if (await tocca(F + '[data-legale="storage"]', 'guida, «Dati locali»') && await p.evaluate(() => window.AGR.stato.foglio + '/' + window.AGR.stato.legale) !== 'legale/storage') err('dalla guida «Senza connessione» non si arriva alla scheda «Dati locali»');
+      if (await tocca(F + '[data-legale="dati-locali"]', 'guida, «Dati locali»') && await p.evaluate(() => window.AGR.stato.foglio + '/' + window.AGR.stato.legale) !== 'legale/dati-locali') err('dalla guida «Senza connessione» non si arriva alla scheda «Dati locali»');
     });
     e.note.push('avvisi: violazione prima della modifica, «Leggi» e «Ho capito», visti ricordati, dopo la guida, in inglese; cinque casi senza nulla da mostrare');
     e.note.push('guida «Senza connessione»: testo, avvertenza per iPhone, «Installa» solo quando il browser lo consente, scheda «Dati locali»');

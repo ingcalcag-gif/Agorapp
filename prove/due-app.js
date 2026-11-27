@@ -52,7 +52,9 @@ function prova() {
     if (!SUOI.test(f) || typeof t !== 'string') continue;
     for (const [re, che] of VIETATI) { const m = t.match(re); if (m) err(`dist/pubblica/${f}: contiene «${m[0]}» (${che}): nell'app pubblica non entra nessuna riga degli strumenti della Redazione`); }
   }
-  for (const f of Object.keys(pub)) if (/^lib\/sheetjs|^robots\.txt$|^licenze\/sheetjs/.test(f)) err(`dist/pubblica/${f}: questo file è solo dell'app della redazione`);
+  for (const f of Object.keys(pub)) if (/^lib\/sheetjs|^licenze\/sheetjs/.test(f)) err(`dist/pubblica/${f}: questo file è solo dell'app della redazione`);
+  // il robots.txt dell'app pubblica (T-056) esclude soltanto i programmi di raccolta elencati, non tutti
+  if (/User-agent: \*\s*\nDisallow: \/\s*(\n|$)/.test(pub['robots.txt'] || '')) err('dist/pubblica/robots.txt: l\'app pubblica non chiede a tutti i programmi di non leggerla');
   if (/<meta name="robots"/.test(pub['index.html'])) err('dist/pubblica/index.html: l\'app pubblica non chiede di non essere indicizzata');
   /* le traduzioni: stesse voci in ogni lingua, e nessuna voce che compare solo negli strumenti della Redazione */
   const leggiTr = t => JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
