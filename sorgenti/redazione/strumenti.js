@@ -18,7 +18,7 @@ const boxAdmin = e => '';
 function fAdmin(){
   const testa = `<div class="riga-titolo"><div><h2>${tr('Strumenti della redazione')}</h2><p class="meta">${tr('Solo per chi pubblica gli eventi raccolti')}</p></div>${chiudiBtn()}</div>`;
   const ch = CH.stato, statoChiavi = !ch ? tr('Un attimo…') : ch.ci_sono ? tr('Dispositivo: {d}',{d:esc(ch.dispositivo)}) : ch.revocata ? tr('Revocate su questo dispositivo') : tr('Da creare: servono per salvare e pubblicare gli eventi');
-  const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
+  const corpo = `${promemoriaHtml()}<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
     <div class="menu-lista">
       <button class="menu-r" data-az="pubblica">${icoCal()}<div><span class="t">${tr('Pubblicazione')}</span><span class="meta">${tr('Eventi pubblicati, nuovo evento, correzione, sospensione, ritiro e storico')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="segnalazioni">${icoNote}<div><span class="t">${tr('Segnalazioni')}</span><span class="meta">${tr('Arrivate con il modulo «Segnala»: lettura e righe dei registri')}</span></div>${freccia}</button>
@@ -26,6 +26,8 @@ function fAdmin(){
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne del file degli eventi, i valori ammessi e l’elenco degli strati')}</span></div>${freccia}</button></div>
     <div class="menu-lista">
       <button class="menu-r" data-az="chiavi">${icoLucchetto(16)}<div><span class="t">${tr('Chiavi')}</span><span class="meta">${statoChiavi}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="archivio">${icoNote}<div><span class="t">${tr('Archivio')}</span><span class="meta">${tr('Registri e allegati cifrati: deposito, elenco, copia su memoria fisica')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="copia-sicurezza">${icoNote}<div><span class="t">${tr('Copia di sicurezza degli eventi')}</span><span class="meta">${tr('Fuori da Bunny, cifrata: scaricala e prova il ripristino')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="verifica">${icoNote}<div><span class="t">${tr('Viene dal nostro archivio?')}</span><span class="meta">${tr('Controlla un identificativo o un file copiato')}</span></div>${freccia}</button></div>
     ${DIRITTI.length ? `<p class="etich">${tr('Diritti delle persone')}</p><div class="menu-lista">${DIRITTI.map(d => d.voce()).join('')}</div>` : ''}
     <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo dispositivo') : tr('{n} operazioni registrate su questo dispositivo',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo dispositivo'))(storico().length)}</span></div>${freccia}</button>
@@ -118,6 +120,7 @@ function clickRed(t){
 function azioneRed(az, t){
   if(azioneChiavi(az, t)) return;
   if(azioneSg(az, t)) return;   /* le segnalazioni (segnalazioni.js, T-052) */
+  if(azioneAr(az, t) || azioneCs(az, t)) return;   /* l'archivio dei registri e la copia di sicurezza (archivio.js, copia-sicurezza.js; T-053, T-054) */
   if(DIRITTI.some(d => d.azione && d.azione(az, t))) return;
   if(azionePubblica(az, t)) return;
   switch(az){
@@ -135,6 +138,7 @@ function azioneRed(az, t){
 function inputRed(el){
   if(inputChiavi(el)) return true;
   if(inputSg(el)) return true;
+  if(inputCs(el)) return true;
   if(DIRITTI.some(d => d.input && d.input(el))) return true;
   if(inputPubblica(el)) return true;
   return false;

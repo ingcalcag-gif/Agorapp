@@ -2262,7 +2262,7 @@ const boxAdmin = e => '';
 function fAdmin(){
   const testa = `<div class="riga-titolo"><div><h2>${tr('Strumenti della redazione')}</h2><p class="meta">${tr('Solo per chi pubblica gli eventi raccolti')}</p></div>${chiudiBtn()}</div>`;
   const ch = CH.stato, statoChiavi = !ch ? tr('Un attimo…') : ch.ci_sono ? tr('Dispositivo: {d}',{d:esc(ch.dispositivo)}) : ch.revocata ? tr('Revocate su questo dispositivo') : tr('Da creare: servono per salvare e pubblicare gli eventi');
-  const corpo = `<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
+  const corpo = `${promemoriaHtml()}<button class="riga-int mz-voce" data-az="admin-misure"><span class="mz-tondo-v" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 15.5h13M4.5 13V9M8 13V4.5M11.5 13V7M15 13V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><div><span class="t">${tr('Misure')}</span><span class="meta">${tr('Il polso della città: offerta, rete, accessi, qualità. Senza guardare le persone.')}</span></div>${freccia}</button>
     <div class="menu-lista">
       <button class="menu-r" data-az="pubblica">${icoCal()}<div><span class="t">${tr('Pubblicazione')}</span><span class="meta">${tr('Eventi pubblicati, nuovo evento, correzione, sospensione, ritiro e storico')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="segnalazioni">${icoNote}<div><span class="t">${tr('Segnalazioni')}</span><span class="meta">${tr('Arrivate con il modulo «Segnala»: lettura e righe dei registri')}</span></div>${freccia}</button>
@@ -2270,6 +2270,8 @@ function fAdmin(){
       <button class="menu-r" data-az="admin-modello">${icoNote}<div><span class="t">${tr('Scarica il modello Excel')}</span><span class="meta">${tr('Le colonne del file degli eventi, i valori ammessi e l’elenco degli strati')}</span></div>${freccia}</button></div>
     <div class="menu-lista">
       <button class="menu-r" data-az="chiavi">${icoLucchetto(16)}<div><span class="t">${tr('Chiavi')}</span><span class="meta">${statoChiavi}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="archivio">${icoNote}<div><span class="t">${tr('Archivio')}</span><span class="meta">${tr('Registri e allegati cifrati: deposito, elenco, copia su memoria fisica')}</span></div>${freccia}</button>
+      <button class="menu-r" data-az="copia-sicurezza">${icoNote}<div><span class="t">${tr('Copia di sicurezza degli eventi')}</span><span class="meta">${tr('Fuori da Bunny, cifrata: scaricala e prova il ripristino')}</span></div>${freccia}</button>
       <button class="menu-r" data-az="verifica">${icoNote}<div><span class="t">${tr('Viene dal nostro archivio?')}</span><span class="meta">${tr('Controlla un identificativo o un file copiato')}</span></div>${freccia}</button></div>
     ${DIRITTI.length ? `<p class="etich">${tr('Diritti delle persone')}</p><div class="menu-lista">${DIRITTI.map(d => d.voce()).join('')}</div>` : ''}
     <button class="riga-int" data-az="admin-storico"><div><span class="t">${tr('Storico delle operazioni')}</span><span class="meta">${(n => n ? (n===1 ? tr('1 operazione registrata su questo dispositivo') : tr('{n} operazioni registrate su questo dispositivo',{n:nf(n)})) : tr('Cosa hai fatto e quando, su questo dispositivo'))(storico().length)}</span></div>${freccia}</button>
@@ -2362,6 +2364,7 @@ function clickRed(t){
 function azioneRed(az, t){
   if(azioneChiavi(az, t)) return;
   if(azioneSg(az, t)) return;   /* le segnalazioni (segnalazioni.js, T-052) */
+  if(azioneAr(az, t) || azioneCs(az, t)) return;   /* l'archivio dei registri e la copia di sicurezza (archivio.js, copia-sicurezza.js; T-053, T-054) */
   if(DIRITTI.some(d => d.azione && d.azione(az, t))) return;
   if(azionePubblica(az, t)) return;
   switch(az){
@@ -2379,6 +2382,7 @@ function azioneRed(az, t){
 function inputRed(el){
   if(inputChiavi(el)) return true;
   if(inputSg(el)) return true;
+  if(inputCs(el)) return true;
   if(DIRITTI.some(d => d.input && d.input(el))) return true;
   if(inputPubblica(el)) return true;
   return false;
@@ -2589,9 +2593,12 @@ const SPORTELLO = (() => {
     if(!s.ci_sono) throw errore('chiavi');
     return MODULI.pacchetto.forma(contenuto, {firma:CHIAVI.firma, dispositivo:{nome:s.dispositivo, impronta:s.firma.impronta}});
   }
-  /* chiedi(contenuto) → ciò che lo sportello risponde. Un rifiuto diventa un errore con il motivo dello sportello. */
-  async function chiedi(contenuto){
-    const r = await consegna(JSON.stringify(await firmato(contenuto)));
+  /* chiedi(contenuto) → ciò che lo sportello risponde. Un rifiuto diventa un errore con il motivo dello sportello.
+     chiediFile(contenuto, file) manda accanto al pacchetto i file di una parte della copia di sicurezza, di cui il
+     pacchetto porta le impronte («ricostruisci», T-054). */
+  async function chiedi(contenuto){ return risposta(await consegna(JSON.stringify(await firmato(contenuto)))); }
+  async function chiediFile(contenuto, file){ return risposta(await consegna(JSON.stringify({pacchetto:await firmato(contenuto), file}))); }
+  function risposta(r){
     if(r.stato!==200 || !r.corpo || r.corpo.esito!=='fatto') throw errore((r.corpo && r.corpo.motivo) || 'guasto', r.corpo);
     return r.corpo;
   }
@@ -2620,7 +2627,7 @@ const SPORTELLO = (() => {
     },
     async svuota(){ logica = null; await MEM.file.delete('prova_sportello'); }
   };
-  return {chiedi, diProva, vero:() => vero, prova};
+  return {chiedi, chiediFile, diProva, vero:() => vero, prova};
 })();
 
 /* ======================= Pubblicazione: le schermate (T-038, T-039, T-040) =======================
@@ -2865,6 +2872,7 @@ function pubblicaForm(){
 /* ---------- Storico delle pubblicazioni: elenco, confronto, ripristino (T-039) ---------- */
 function riepilogoPb(x){
   if(x.operazione==='ripristina') return tr('Ripristino di una copia');
+  if(x.operazione==='ricostruisci') return tr('Ripristino dalla copia di sicurezza');
   const r = x.riepilogo||{}, n = k => Array.isArray(r[k]) ? r[k].length : (r[k]||0);
   const p = [[n('pubblicati'), tr('pubblicati')], [n('corretti'), tr('corretti')], [n('sospesi'), tr('sospesi')], [n('riattivati'), tr('riattivati')], [n('ritirati'), tr('ritirati')]].filter(y => y[0]).map(y => y[0]+' '+y[1]);
   return p.join(', ') || tr('Nessuna modifica');
@@ -2901,8 +2909,8 @@ const rimozioniDopo = iso => (mz().rimozioni||[]).filter(r => r && r.ric && new 
 /* le richieste dopo la copia non ancora segnate come ripetute: finché ce n'è una, la copia non si ripubblica */
 const riprMancano = R => R.rimozioni.some((x, k) => !R.fatte[k]);
 function fPbCopia(){
-  const R = PB.ripr;
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Ripristina una copia')}</h2><p class="meta">${R ? tr('Copia del {q}',{q:esc(quandoPb(R.copia.quando))}) : ''}</p></div>${chiudiBtn('pb-storico')}</div>`;
+  const R = PB.ripr, sic = !!(R && R.sicurezza);   /* sic: la copia di sicurezza degli eventi (copia-sicurezza.js, T-054) */
+  const testa = `<div class="riga-titolo"><div><h2>${sic ? tr('Ripristina in uno sportello vuoto') : tr('Ripristina una copia')}</h2><p class="meta">${R ? (sic ? tr('Copia di sicurezza del {q}; ultima pubblicazione del {p}',{q:esc(quandoPb(R.sicurezza)), p:esc(quandoPb(R.copia.quando))}) : tr('Copia del {q}',{q:esc(quandoPb(R.copia.quando))})) : ''}</p></div>${chiudiBtn(sic ? 'rd-copia' : 'pb-storico')}</div>`;
   if(!R) return foglio('forte', testa, `<p class="caricamento">${tr('Leggo la copia…')}</p>${statoPb()}`);
   const rim = R.rimozioni;
   const promemoria = rim.length ? `<div class="red-riquadro" role="note"><b>${rim.length===1 ? tr('Dopo questa copia è stata chiesta 1 rimozione.') : tr('Dopo questa copia sono state chieste {n} rimozioni.',{n:rim.length})}</b>
@@ -2920,7 +2928,7 @@ function fPbCopia(){
       <div class="menu-lista">${R.nascosti.map(x => [x, false]).concat(R.nascostiSospesi.map(x => [x, true])).map(([x, sos]) => { const c = NR.chiari.get(x.id);
         return `<div class="menu-r" style="cursor:default"><div><span class="t">${c ? esc(c.ev.titolo) : tr('Evento nascosto')}</span><span class="meta">${c ? esc(quandoEv(c.ev))+' · ' : ''}${tr('nascosto')}${sos?' · '+tr('sospeso'):''}</span></div><button class="link" data-az="pb-ripr-togli" data-id="${esc(x.id)}">${tr('Togli')}</button></div>`; }).join('')}</div>` : ''}
     ${statoPb()}
-    <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${riprMancano(R) ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
+    <div class="tasti"><button class="tasto sec" data-az="${sic ? 'copia-sicurezza' : 'pb-storico'}">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${riprMancano(R) || PB.lavoro ? 'disabled' : ''}>${sic ? tr('Ripristina in questo sportello') : tr('Ripubblica questa copia')}</button></div>`;
   return foglio('forte alto', testa, corpo);
 }
 
@@ -2972,6 +2980,7 @@ function azionePubblica(az, t){
     case 'pb-ripr-correggi': { const R = PB.ripr, ev = R && R.eventi.concat(R.sospesi).find(e => e.id===t.dataset.id); if(ev) apriEventoForm(ev, 'ripristino'); break; }
     case 'pb-ripr-togli': { const R = PB.ripr, via = x => x.id!==t.dataset.id; if(R){ R.eventi = R.eventi.filter(via); R.sospesi = R.sospesi.filter(via); R.nascosti = R.nascosti.filter(via); R.nascostiSospesi = R.nascostiSospesi.filter(via); disegnaFoglio(); } break; }
     case 'pb-ripr-ok': { const R = PB.ripr; if(!R || riprMancano(R)) break;
+      if(R.sicurezza){ ripristinaCs(R); break; }
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi, nascosti:R.nascosti, nascostiSospesi:R.nascostiSospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}) + (r.nascosti ? ' '+tr('Più {k} eventi nascosti.',{k:r.nascosti}) : ''); }); break; }
     case 'ix-torna': st.aform = null; apri('pb-importa'); break;
     default: return azioneNascosti(az, t) || azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t) || azioneCalendari(az, t);
@@ -3006,7 +3015,8 @@ function cambioPubblica(el){
    colonne di giudizio compilate nella scheda di pubblicazione (scheda-pubblicazione.js).
 
    Qui sta ciò che il registro tiene sul dispositivo, in una sola voce cifrata (red_registro, nella base di dati del
-   browser): le fonti (foglio «Fonti», codici FS: decisione del 24/11/2026, l'elenco lo tiene l'app), le righe degli
+   browser): le fonti (foglio «Fonti», codici FS: l'elenco lo tiene l'app, il codice lo dà lo sportello dell'archivio dal
+   blocco 14, decisione del 27/11/2026, n. 4), le righe degli
    eventi (foglio «Eventi»; i codici F li dà lo sportello) e gli eventi preparati e non ancora pubblicati. La voce è una busta cifrata con
    la chiave del registro, diversa dalla firma (la legge e la scrive il modulo delle chiavi, sorgenti/moduli/chiavi.js): senza quella chiave non si legge nulla, e
    in chiaro il registro esiste soltanto nella memoria della pagina, finché l'app è aperta.
@@ -3151,18 +3161,21 @@ function salvaFonte(){
   if(cal) SETTE_PUNTI.forEach(([n]) => { if(f.punti[n]) punti[n] = f.punti[n]; });
   const v = {nome, tipo:f.tipo, grado:f.grado, indirizzo:ind, lette:f.lette, esito:f.esito, licenzaTipo:cal ? f.licenzaTipo : '', licenza:f.licenza.trim(), attribuzione:f.attribuzione.trim(),
     punti, stato:STATI_FONTE[f.stato] ? f.stato : 'uso', note:f.note.trim(), aggiornata:new Date().toISOString(), invio:true};
-  let x = f.codice ? regFonte(f.codice) : null, prima = x ? JSON.parse(JSON.stringify(x)) : null;
-  if(x){
-    const piatta = o => Object.assign({}, o, {punti:SETTE_PUNTI.map(([n]) => (o.punti||{})[n]||'').join(' ')});
-    rettifica(x, piatta(x), piatta(v), {nome:'Nome', tipo:'Tipo', grado:'Grado', indirizzo:'Indirizzo', lette:'Condizioni lette il', esito:'Esito', licenzaTipo:'Licenza del calendario', licenza:'Nome della licenza', attribuzione:'Attribuzione', punti:'Sette punti', stato:'Stato', note:'Note'});
-    Object.assign(x, v);
-  } else { x = Object.assign({codice:regCodice('FS', d.prossimi.fs++, 4), registrata:oggi(), rettifiche:[]}, v); d.fonti.push(x); }
-  PB.lavoro = true; disegnaFoglio();
-  regSalva().then(() => { PB.lavoro = false; registra(f.codice ? 'fonte-corretta' : 'fonte-nuova', {c:x.codice}); PB.fonte = null;
-      /* dalla scheda di un evento: la fonte appena aggiunta è già scelta */
-      if(st.aform && st.aform.g && !f.codice){ st.aform.g.fonte = x.codice; fonteScelta(st.aform); }
-      PB.msg = tr('Fonte {c} salvata.',{c:x.codice}); apri('pb-fonti'); },
-    () => { PB.lavoro = false; if(!f.codice){ d.fonti.pop(); d.prossimi.fs--; } else if(prima){ Object.keys(x).forEach(k => { delete x[k]; }); Object.assign(x, prima); } PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  let x = f.codice ? regFonte(f.codice) : null, prima = x ? JSON.parse(JSON.stringify(x)) : null, prossimo = d.prossimi.fs;
+  PB.lavoro = true; PB.errore = ''; disegnaFoglio();
+  /* una fonte nuova prende il codice FS dallo sportello dell'archivio (T-053, decisione del 27/11/2026, n. 4) */
+  (x ? Promise.resolve('') : codiceRegistro('FS', d.prossimi.fs)).then(codice => {
+    if(x){
+      const piatta = o => Object.assign({}, o, {punti:SETTE_PUNTI.map(([n]) => (o.punti||{})[n]||'').join(' ')});
+      rettifica(x, piatta(x), piatta(v), {nome:'Nome', tipo:'Tipo', grado:'Grado', indirizzo:'Indirizzo', lette:'Condizioni lette il', esito:'Esito', licenzaTipo:'Licenza del calendario', licenza:'Nome della licenza', attribuzione:'Attribuzione', punti:'Sette punti', stato:'Stato', note:'Note'});
+      Object.assign(x, v);
+    } else { x = Object.assign({codice, registrata:oggi(), rettifiche:[]}, v); d.fonti.push(x); d.prossimi.fs = Math.max(d.prossimi.fs, numeroCodice(codice)+1); }
+    return regSalva().then(() => { PB.lavoro = false; registra(f.codice ? 'fonte-corretta' : 'fonte-nuova', {c:x.codice}); PB.fonte = null;
+        /* dalla scheda di un evento: la fonte appena aggiunta è già scelta */
+        if(st.aform && st.aform.g && !f.codice){ st.aform.g.fonte = x.codice; fonteScelta(st.aform); }
+        PB.msg = tr('Fonte {c} salvata.',{c:x.codice}); apri('pb-fonti'); },
+      () => { PB.lavoro = false; if(!f.codice){ d.fonti.pop(); d.prossimi.fs = prossimo; } else if(prima){ Object.keys(x).forEach(k => { delete x[k]; }); Object.assign(x, prima); } PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  }, e => { PB.lavoro = false; PB.errore = erroreCodice(e, tr('della fonte')); disegnaFoglio(); });
 }
 
 /* ---------- Le righe degli eventi (foglio «Eventi», codici F) ----------
@@ -4077,13 +4090,16 @@ function salvaNp(){
   if(x.motivazioneData && !x.motivazioneCanale) e.push(tr('Canale: scegli come hai inviato la motivazione.'));
   x.errori = e; if(e.length){ disegnaFoglio(); return; }
   const d = REG.dati, v = {richiesta:x.richiesta, organizzatore:x.organizzatore.trim(), evento:x.evento.trim(), motivo:x.motivo, motivazioneData:x.motivazioneData, motivazioneCanale:x.motivazioneCanale, chiusa:x.chiusa, note:x.note.trim(), aggiornata:new Date().toISOString(), invio:true};
-  let y = x.codice ? d.nonPubblicati.find(z => z.codice===x.codice) : null; const prima = y ? JSON.parse(JSON.stringify(y)) : null;
-  if(y){ rettifica(y, prima, v, {richiesta:'Data della richiesta', organizzatore:'Organizzatore', evento:'Evento richiesto', motivo:'Motivo', motivazioneData:'Motivazione inviata', motivazioneCanale:'Canale', chiusa:'Chiusura', note:'Note'}); Object.assign(y, v); }
-  else { y = Object.assign({codice:regCodice('NP', d.prossimi.np++, 4), registrata:oggi(), rettifiche:[]}, v); d.nonPubblicati.push(y); }
-  PB.lavoro = true; disegnaFoglio();
-  regSalva().then(() => { PB.lavoro = false; registra(x.codice ? 'np-corretto' : 'np-nuovo', {c:y.codice}); RX.np = null; PB.msg = tr('Riga {c} salvata.',{c:y.codice}); apri('pb-np'); },
-    () => { PB.lavoro = false; if(!x.codice){ d.nonPubblicati.pop(); d.prossimi.np--; } else if(prima){ Object.keys(y).forEach(k => { delete y[k]; }); Object.assign(y, prima); }
-      PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  let y = x.codice ? d.nonPubblicati.find(z => z.codice===x.codice) : null; const prima = y ? JSON.parse(JSON.stringify(y)) : null, prossimo = d.prossimi.np;
+  PB.lavoro = true; PB.errore = ''; disegnaFoglio();
+  /* una riga nuova prende il codice NP dallo sportello dell'archivio (T-053, decisione del 27/11/2026, n. 4) */
+  (y ? Promise.resolve('') : codiceRegistro('NP', d.prossimi.np)).then(codice => {
+    if(y){ rettifica(y, prima, v, {richiesta:'Data della richiesta', organizzatore:'Organizzatore', evento:'Evento richiesto', motivo:'Motivo', motivazioneData:'Motivazione inviata', motivazioneCanale:'Canale', chiusa:'Chiusura', note:'Note'}); Object.assign(y, v); }
+    else { y = Object.assign({codice, registrata:oggi(), rettifiche:[]}, v); d.nonPubblicati.push(y); d.prossimi.np = Math.max(d.prossimi.np, numeroCodice(codice)+1); }
+    return regSalva().then(() => { PB.lavoro = false; registra(x.codice ? 'np-corretto' : 'np-nuovo', {c:y.codice}); RX.np = null; PB.msg = tr('Riga {c} salvata.',{c:y.codice}); apri('pb-np'); },
+      () => { PB.lavoro = false; if(!x.codice){ d.nonPubblicati.pop(); d.prossimi.np = prossimo; } else if(prima){ Object.keys(y).forEach(k => { delete y[k]; }); Object.assign(y, prima); }
+        PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  }, e => { PB.lavoro = false; PB.errore = erroreCodice(e, tr('della riga')); disegnaFoglio(); });
 }
 
 /* ---------- L'importazione del registro tenuto a mano (cap. 22, regola 5) ---------- */
@@ -6138,6 +6154,496 @@ function inputSg(el){
   const k = el.dataset.sg; if(!k) return false;
   const x = sgUna(); if(!x) return true;
   campiSg(x)[k] = el.value; SG.copiata = '';
+  return true;
+}
+
+/* ======================= Archivio dei registri (T-053) =======================
+   Libro mastro, § 1.1 (le tre condizioni dell'archivio), § 18.3 (QB-7, strada 2, decisione del 17/11/2026: i registri
+   si cifrano con la password di apertura del programma dei fogli di calcolo e si depositano da qui, con la firma; l'app
+   rifiuta i file in chiaro e non apre mai i registri; fino al lancio la sola copia corrente, strada a), § 18.4 (i nomi),
+   § 18.2 (gli allegati), cap. 22 (il registro delle fonti scritto dall'app), allegato A, A.1, punto 8. Documento:
+   docs/archivio.md.
+
+   La sezione «Archivio» parla con lo sportello dell'archivio (sportelli/archivio.js) con il pacchetto firmato del
+   dispositivo, come la pubblicazione. Decisioni del 27/11/2026 (nn. 1-5):
+   - «Deposita un file»: si sceglie un file; l'app ne guarda soltanto il contenitore (sorgenti/moduli/file-cifrati.js)
+     e il nome (§ 18.4), dice che cifratura ha trovato, o perché lo rifiuta, e lo manda soltanto se è cifrato: Excel e PDF
+     con AES. Un file con lo stesso nome di uno già depositato lo sostituisce dopo la conferma in due tocchi;
+   - l'elenco dei file, con dimensione, cifratura, ora e dispositivo; ogni file si riscarica così com'è, cifrato, e si
+     toglie con due tocchi (un allegato scaduto con la sua voce, § 18.6);
+   - le buste del registro delle fonti scritte dall'app (decisione n. 3: restano dove le mette la pubblicazione): si
+     contano e si riscaricano;
+   - «Scarica tutti i file»: un solo archivio ZIP con tutti i file e le buste, così come sono (già cifrati), per la copia
+     su memoria fisica che il § 18.3 chiede almeno una volta al mese.
+   Qui stanno anche i codici FS e NP del registro delle fonti (decisione n. 4): li dà lo sportello dell'archivio, così due
+   dispositivi non danno mai lo stesso codice; dove lo sportello non c'è (né vero né di prova) li dà il dispositivo, come
+   prima.
+
+   Nulla resta in chiaro sul dispositivo: il file scelto sta nella pagina, già cifrato, finché non parte; i file
+   scaricati vanno dove li mette il browser, così come sono. Testi come testo (T-024): nomi dei file e dei dispositivi
+   entrano nella pagina solo con esc(). */
+const AR = {elenco:null, lavoro:'', errore:'', msg:'', scelto:null, conferma:'', avanz:''};
+OP_STORICO['archivio-deposita'] = ['file', 'File depositato nell’archivio dei registri'];
+OP_STORICO['archivio-togli'] = ['file', 'File tolto dall’archivio dei registri'];
+OP_STORICO['archivio-tutti'] = ['file', 'Archivio dei registri scaricato per la copia su memoria fisica'];
+const ETICHETTE_AR = {registro:'Registri', collegato:'File collegati ai registri', gestione:'File di gestione delle attività', allegato:'Allegati'};
+
+/* ---------- Lo sportello dell'archivio: vero (indirizzi.archivio, T-065) o di prova (nel browser) ---------- */
+const ARCH = (() => {
+  const vero = (CFG.indirizzi||{}).archivio || '';
+  const diProva = () => !vero && !!SPORTELLO_PROVA_DOVE && !!MEM.file && !!MODULI.archivioSportello;
+  let logica = null;
+  const sportello = () => logica || (logica = MODULI.archivioSportello.crea({deposito:depositoProva(), pacchetto:MODULI.pacchetto, file:MODULI.fileCifrati, nome:NOME}));
+  function errore(motivo, corpo){ const e = new Error('archivio: '+motivo); e.motivo = motivo; e.corpo = corpo||null; return e; }
+  async function consegna(testo){
+    if(vero){
+      let r; try{ r = await fetch(vero, {method:'POST', body:testo, headers:{'content-type':'application/json'}, credentials:'omit', cache:'no-store', redirect:'error', referrerPolicy:'no-referrer'}); }catch(e){ throw errore('rete'); }
+      let corpo = null; try{ corpo = await r.json(); }catch(e){ corpo = null; }
+      return {stato:r.status, corpo:corpo||{}};
+    }
+    if(!diProva()) throw errore('assente');
+    return sportello().ricevi(testo);
+  }
+  /* chiedi(contenuto, dati) → ciò che lo sportello risponde; dati: il file in base64, accanto al pacchetto */
+  async function chiedi(contenuto, dati){
+    let s; try{ s = await CHIAVI.stato(); }catch(e){ throw errore('chiavi'); }
+    if(!s.ci_sono) throw errore('chiavi');
+    const p = await MODULI.pacchetto.forma(contenuto, {firma:CHIAVI.firma, dispositivo:{nome:s.dispositivo, impronta:s.firma.impronta}});
+    const r = await consegna(JSON.stringify(dati===undefined ? p : {pacchetto:p, dati}));
+    if(r.stato!==200 || !r.corpo || r.corpo.esito!=='fatto') throw errore((r.corpo && r.corpo.motivo) || 'guasto', r.corpo);
+    return r.corpo;
+  }
+  return {chiedi, disponibile:() => !!vero || diProva(), diProva};
+})();
+
+/* Il prossimo codice FS o NP del registro delle fonti (decisione del 27/11/2026, n. 4): lo dà lo sportello, che riceve il
+   primo numero che questo dispositivo conosce come libero e non torna mai indietro. */
+function codiceRegistro(serie, locale){
+  if(!ARCH.disponibile()) return Promise.resolve(regCodice(serie, locale, 4));
+  return ARCH.chiedi({operazione:'codice', serie, almeno:Math.min(Math.max(1, locale|0), 9999)}).then(r => r.codice);
+}
+const numeroCodice = c => parseInt(String(c||'').replace(/^[A-Z]+-/, ''), 10) || 0;
+function erroreCodice(e, cosa){
+  const m = e && e.motivo;
+  return m==='sconosciuto' ? tr('Lo sportello dell’archivio non conosce ancora questo dispositivo, e senza il codice {c} non si salva: consegna le chiavi (Pubblicazione → «Consegna le chiavi allo sportello di prova»).',{c:cosa})
+    : m==='chiavi' ? tr('Per avere il codice {c} servono le chiavi della Redazione: Strumenti della redazione → Chiavi.',{c:cosa})
+    : m==='rete' ? tr('Lo sportello dell’archivio non risponde, e senza il codice {c} non si salva: controlla la connessione e riprova.',{c:cosa})
+    : tr('Lo sportello dell’archivio non ha dato il codice {c} ({m}): non è salvato.',{c:cosa, m:m||'guasto'});
+}
+
+/* ---------- Pezzi ---------- */
+const pesoAr = n => n >= 1048576 ? tr('{n} MB',{n:(n/1048576).toLocaleString(dloc(), {maximumFractionDigits:1})}) : tr('{n} KB',{n:Math.max(1, Math.round(n/1024)).toLocaleString(dloc())});
+function b64Ar(b){ let s = ''; for(let i = 0; i < b.length; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, i+8192)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function daB64Ar(s){ const t = atob(String(s).replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(t.length); for(let i = 0; i < t.length; i++) b[i] = t.charCodeAt(i); return b; }
+const hexAr = b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join('');
+const LIMITE_AR = () => (MODULI.archivioSportello||{LIMITI:{dimensione:10485760}}).LIMITI.dimensione;
+function erroreAr(e){
+  const m = e && e.motivo, c = (e && e.corpo) || {};
+  const T = {
+    chiavi:() => tr('Per l’archivio servono le chiavi della Redazione: Strumenti della redazione → Chiavi.'),
+    sconosciuto:() => ARCH.diProva() ? tr('Lo sportello di prova non conosce ancora questo dispositivo: Pubblicazione → «Consegna le chiavi allo sportello di prova».') : tr('Lo sportello dell’archivio non conosce questo dispositivo: vanno consegnate le sue chiavi pubbliche.'),
+    revocata:() => tr('La firma di questo dispositivo è revocata: lo sportello non la accetta più.'),
+    firma:() => tr('Lo sportello ha rifiutato la firma.'),
+    fermo:() => tr('Troppe firme sbagliate: lo sportello non risponde a questo dispositivo fino alle {o}.',{o:oraPb(c.fino)}),
+    tempo:() => tr('Lo sportello ha rifiutato il pacchetto perché l’ora non corrisponde: controlla data e ora di questo dispositivo.'),
+    ripetuto:() => tr('Lo sportello aveva già ricevuto questo pacchetto: riprova.'),
+    rete:() => tr('Lo sportello dell’archivio non risponde: controlla la connessione e riprova.'),
+    assente:() => tr('Lo sportello dell’archivio non è ancora allacciato.'),
+    nome:() => tr('Lo sportello non accetta questo nome di file.'),
+    grande:() => tr('Il file è più grande di {p}: lo sportello non lo accetta.',{p:pesoAr(c.massimo||LIMITE_AR())}),
+    troppi:() => tr('Nell’archivio ci sono già {n} file, il massimo.',{n:nf(c.massimo||1000)}),
+    cifratura:() => tr('Lo sportello ha rifiutato il file: {d}.',{d:c.dettaglio || c.file || ''}),
+    impronta:() => tr('Il file è arrivato diverso da com’è partito: riprova.'),
+    esiste:() => tr('Nell’archivio c’è già un file con questo nome: aggiorna l’elenco e riprova.'),
+    manca:() => tr('Il file non c’è più nell’archivio: aggiorna l’elenco.')
+  };
+  return (T[m] || (() => tr('Lo sportello dell’archivio ha rifiutato la richiesta (motivo: {m}).',{m:m||'guasto'})))();
+}
+const ridisegnaAr = () => { if(st.foglio==='rd-archivio') disegnaFoglio(); };
+/* perché un file scelto non si può depositare: '' se si può */
+function rifiutoAr(s){
+  if(!s) return '';
+  if(s.dimensione > LIMITE_AR()) return tr('Il file pesa {p}: l’archivio accetta file fino a {m}.',{p:pesoAr(s.dimensione), m:pesoAr(LIMITE_AR())});
+  if(!s.tipo) return tr('Il nome non è tra quelli dei registri (§ 18.4): per esempio «{r}», oppure, per un allegato, il codice della voce davanti, come «C-0007_risposta.pdf».',{r:NOME+'_Reg26_Richieste.xlsx'});
+  const es = s.esame; if(!es) return '';
+  const ext = s.nome.split('.').pop().toLowerCase();
+  if(es.motivo==='chiaro') return tr('Questo file non è cifrato: {d}. Salvalo con la password di apertura (non basta proteggere il foglio) e riprova.',{d:es.dettaglio});
+  if(es.motivo==='debole') return tr('La password di questo file usa una cifratura che si aggira ({d}). Salvalo di nuovo con la password di apertura, in formato .xlsx o con AES.',{d:es.dettaglio});
+  if(es.motivo==='formato') return tr('L’archivio accetta soltanto file Excel (.xlsx) e PDF cifrati con la password di apertura: questo è {d}.',{d:es.dettaglio});
+  if(es.motivo==='vuoto') return tr('Il file è vuoto.');
+  if(es.motivo==='rovinato') return tr('Il file sembra rovinato: non riesco a leggerne il contenitore.');
+  if(!s.tipo.estensioni.includes(ext) || es.formato!==ext) return tr('Il contenuto non è un file .{e}.',{e:ext});
+  return '';
+}
+
+/* ---------- La schermata ---------- */
+function fAr(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Archivio')}</h2><p class="meta">${ARCH.diProva() ? tr('Sportello di prova: archivio finto su questo dispositivo') : tr('Registri cifrati nello spazio riservato su Bunny')}</p></div>${chiudiBtn('admin')}</div>`;
+  if(!ARCH.disponibile()) return foglio('forte alto', testa, `<p class="meta">${tr('Lo sportello dell’archivio non è ancora allacciato.')}</p>`);
+  const E = AR.elenco, s = AR.scelto, no = rifiutoAr(s);
+  const stato = `${AR.errore ? `<p class="err" role="alert">${esc(AR.errore)}</p>` : ''}${AR.msg ? `<p class="meta" role="status" style="color:var(--testo)">${esc(AR.msg)}</p>` : ''}${AR.lavoro ? `<p class="caricamento">${esc(AR.avanz || tr('Firmo e consegno allo sportello…'))}</p>` : ''}`;
+  const scelto = !s ? '' : `<div class="red-riquadro"${no ? ' role="alert"' : ''}><b>${esc(s.nomeFile)}</b>
+      <span class="meta">${esc(pesoAr(s.dimensione))}${s.tipo ? ' · '+esc(tr(s.tipo.etichetta)) : ''}${s.tipo && s.nome!==s.nomeFile ? ' · '+esc(tr('si deposita come «{n}»',{n:s.nome})) : ''}</span>
+      ${no ? `<span class="err">${esc(no)}</span>` : !s.esame ? `<span class="caricamento">${tr('Guardo il file…')}</span>` : `<span class="meta" style="color:var(--testo)">${esc(tr('Cifrato: {c}.',{c:MODULI.fileCifrati.descrivi(s.esame.cifratura)}))}</span>
+        ${s.esiste ? `<span class="meta">${esc(tr('Nell’archivio c’è già questo file, depositato il {q} da {d}. Il nuovo lo sostituisce: quello di prima non resta.',{q:quandoPb(s.esiste.quando), d:(s.esiste.dispositivo||{}).nome||''}))}</span>` : ''}`}
+      <div class="tasti"><button class="tasto sec" data-az="ar-annulla">${tr('Annulla')}</button>${no || !s.esame ? '' : `<button class="tasto pri" data-az="ar-deposita" ${AR.lavoro ? 'disabled' : ''}>${s.esiste ? (AR.conferma==='sostituisci' ? tr('Tocca ancora per sostituirlo') : tr('Sostituisci il file')) : tr('Deposita')}</button>`}</div></div>`;
+  const riga = x => `<div class="menu-r" style="cursor:default"><div><span class="t">${esc(x.nome)}</span>
+      <span class="meta">${esc(pesoAr(x.dimensione))} · ${esc(quandoPb(x.quando))} · ${esc((x.dispositivo||{}).nome||'')}${x.cifratura ? ' · AES '+esc(String(x.cifratura.bit)) : ''}</span></div>
+      <button class="link" data-az="ar-scarica" data-n="${esc(x.nome)}">${tr('Scarica')}</button>
+      <button class="link" data-az="ar-togli" data-n="${esc(x.nome)}">${AR.conferma==='togli:'+x.nome ? tr('Tocca ancora per toglierlo') : tr('Togli')}</button></div>`;
+  const gruppi = !E ? '' : Object.keys(ETICHETTE_AR).map(k => { const l = E.file.filter(x => x.categoria===k); return l.length ? `<p class="etich">${tr(ETICHETTE_AR[k])} · ${l.length}</p><div class="menu-lista">${l.map(riga).join('')}</div>` : ''; }).join('');
+  const mancano = !E ? [] : MODULI.archivioSportello.nomiFissi(NOME).filter(x => /_Reg\d/.test(x.nome) && !E.file.some(y => y.nome===x.nome));
+  const corpo = `${stato}
+    <p class="meta">${tr('Qui stanno i registri, i file collegati e gli allegati, già cifrati con la password di apertura del programma dei fogli di calcolo (§ 18.3). L’app non li apre mai: controlla soltanto che siano cifrati, e rifiuta quelli in chiaro.')}</p>
+    <div class="tasti"><button class="tasto pri" data-az="ar-scegli" ${AR.lavoro ? 'disabled' : ''}>${tr('Deposita un file')}</button></div>
+    ${scelto}
+    ${!E ? '' : (E.file.length ? gruppi : `<p class="meta">${tr('L’archivio è ancora vuoto.')}</p>`)}
+    ${E ? `<p class="etich">${tr('Registro delle fonti scritto dall’app')}</p><div class="menu-lista"><div class="menu-r" style="cursor:default"><div><span class="t">${E.buste.numero===1 ? tr('1 busta cifrata') : tr('{n} buste cifrate',{n:nf(E.buste.numero)})}</span>
+        <span class="meta">${tr('Le scrive l’app a ogni pubblicazione, con la chiave del registro; non si depositano da qui.')}${E.buste.ultima ? ' '+esc(tr('L’ultima: {q}.',{q:quandoPb(E.buste.ultima.replace(/T(\d\d)-(\d\d)-(\d\d)-(\d{3})Z-.*$/, 'T$1:$2:$3.$4Z'))})) : ''}</span></div>
+        ${E.buste.numero ? `<button class="link" data-az="ar-buste">${tr('Scarica')}</button>` : ''}</div></div>` : ''}
+    ${E && mancano.length ? `<details class="meta"><summary>${mancano.length===1 ? tr('1 registro non ancora depositato') : tr('{n} registri non ancora depositati',{n:mancano.length})}</summary><p>${esc(mancano.map(x => x.nome).join(' · '))}</p></details>` : ''}
+    ${E ? `<div class="tasti"><button class="tasto sec" data-az="ar-tutti" ${AR.lavoro || !(E.file.length+E.buste.numero) ? 'disabled' : ''}>${tr('Scarica tutti i file')}</button><button class="tasto sec" data-az="ar-aggiorna" ${AR.lavoro ? 'disabled' : ''}>${tr('Aggiorna l’elenco')}</button></div>
+      <p class="meta">${tr('«Scarica tutti i file» prepara un solo archivio ZIP con i file così come sono, cifrati: è la copia da tenere su una memoria fisica, aggiornata almeno una volta al mese (§ 18.3). La password dei registri non va sulla stessa memoria.')}</p>` : ''}
+    <p class="meta">${tr('Fino a {p} per file, al più {n} file. Nell’archivio c’è soltanto la copia corrente: un file con lo stesso nome sostituisce quello di prima (§ 18.3, strada a).',{p:pesoAr(LIMITE_AR()), n:nf((MODULI.archivioSportello||{LIMITI:{numero:1000}}).LIMITI.numero)})}</p>`;
+  return foglio('forte alto', testa, corpo);
+}
+Object.assign(FOGLI_RED, {'rd-archivio':fAr});
+
+/* ---------- Che cosa fa ---------- */
+async function caricaAr(){
+  AR.lavoro = 'elenco'; AR.avanz = tr('Chiedo l’elenco allo sportello…'); ridisegnaAr();
+  try{ AR.elenco = await ARCH.chiedi({operazione:'elenca'}); }catch(e){ AR.errore = erroreAr(e); }
+  AR.lavoro = ''; AR.avanz = ''; ridisegnaAr();
+}
+$('fileArchivio').addEventListener('change', function(){
+  const f = this.files && this.files[0]; this.value = ''; if(!f) return;
+  AR.errore = ''; AR.msg = ''; AR.conferma = '';
+  const tipo = MODULI.archivioSportello.tipoNome(f.name, NOME);
+  const s = {nomeFile:f.name, nome:tipo ? tipo.nome : '', tipo, dimensione:f.size, esame:null, byte:null, esiste:null};
+  AR.scelto = s;
+  if(f.size > LIMITE_AR() || !tipo){ ridisegnaAr(); return; }
+  f.arrayBuffer().then(b => {
+    if(AR.scelto!==s) return;
+    s.byte = new Uint8Array(b); s.esame = MODULI.fileCifrati.esamina(s.byte, s.nome);
+    s.esiste = AR.elenco ? AR.elenco.file.find(x => x.nome===s.nome) || null : null;
+    ridisegnaAr();
+  }, () => { AR.scelto = null; AR.errore = tr('Il file non si legge.'); ridisegnaAr(); });
+  ridisegnaAr();
+});
+async function depositaAr(){
+  const s = AR.scelto; if(!s || !s.byte || rifiutoAr(s) || AR.lavoro) return;
+  if(s.esiste && AR.conferma!=='sostituisci'){ AR.conferma = 'sostituisci'; ridisegnaAr(); return; }
+  AR.lavoro = 'deposita'; AR.avanz = tr('Firmo e consegno il file allo sportello…'); AR.errore = ''; AR.msg = ''; ridisegnaAr();
+  try{
+    const impronta = hexAr(await crypto.subtle.digest('SHA-256', s.byte));
+    const r = await ARCH.chiedi({operazione:'archivia', nome:s.nome, dimensione:s.dimensione, impronta, sostituisci:!!s.esiste}, b64Ar(s.byte));
+    registra('archivio-deposita', {x:s.nome});
+    AR.msg = (r.sostituito ? tr('Sostituito: «{n}».',{n:s.nome}) : tr('Depositato: «{n}».',{n:s.nome}))+' '+tr('Cifrato: {c}.',{c:MODULI.fileCifrati.descrivi(r.file.cifratura)});
+    AR.scelto = null; AR.conferma = '';
+  }catch(e){ AR.errore = erroreAr(e); AR.conferma = ''; }
+  AR.lavoro = ''; AR.avanz = '';
+  return caricaAr();
+}
+async function scaricaAr(nome){
+  if(AR.lavoro) return;
+  AR.lavoro = 'scarica'; AR.avanz = tr('Chiedo il file allo sportello…'); AR.errore = ''; AR.msg = ''; ridisegnaAr();
+  try{
+    const r = await ARCH.chiedi({operazione:'scarica', nome});
+    const b = daB64Ar(r.dati);
+    if(hexAr(await crypto.subtle.digest('SHA-256', b))!==r.file.impronta) throw Object.assign(new Error('impronta'), {motivo:'impronta'});
+    scaricaBlob(new Blob([b], {type:'application/octet-stream'}), r.file.nome);
+    AR.msg = tr('Scaricato: «{n}», così com’è, cifrato.',{n:r.file.nome});
+  }catch(e){ AR.errore = erroreAr(e); }
+  AR.lavoro = ''; AR.avanz = ''; ridisegnaAr();
+}
+/* le buste del registro delle fonti: a pagine, ciascuna come file a sé */
+async function busteAr(){
+  const tutte = []; let dopo;
+  for(let giri = 0; giri < 1000; giri++){
+    const r = await ARCH.chiedi(Object.assign({operazione:'scarica', buste:true}, dopo ? {dopo} : {}));
+    tutte.push(...r.buste); if(!r.altre || !r.buste.length) break; dopo = r.buste[r.buste.length-1].nome;
+  }
+  return tutte;
+}
+const cartellaBuste = 'registro-fonti-scritto-dall-app/';
+async function scaricaBusteAr(){
+  if(AR.lavoro) return;
+  AR.lavoro = 'buste'; AR.avanz = tr('Chiedo le buste allo sportello…'); AR.errore = ''; AR.msg = ''; ridisegnaAr();
+  try{
+    const b = await busteAr(), nome = nomeFile()+'-registro-fonti-buste-'+oggi()+'.zip';
+    scaricaBlob(new Blob([MODULI.excel.zip(b.map(x => [cartellaBuste+x.nome+'.json', x.testo]))], {type:'application/zip'}), nome);
+    AR.msg = tr('Scaricate {n} buste, chiuse: «{f}».',{n:b.length, f:nome});
+  }catch(e){ AR.errore = erroreAr(e); }
+  AR.lavoro = ''; AR.avanz = ''; ridisegnaAr();
+}
+async function scaricaTuttiAr(){
+  const E = AR.elenco; if(AR.lavoro || !E) return;
+  AR.lavoro = 'tutti'; AR.errore = ''; AR.msg = '';
+  try{
+    const voci = [];
+    for(let i = 0; i < E.file.length; i++){
+      AR.avanz = tr('Scarico i file: {i} di {n}…',{i:i+1, n:E.file.length}); ridisegnaAr();
+      const r = await ARCH.chiedi({operazione:'scarica', nome:E.file[i].nome}), b = daB64Ar(r.dati);
+      if(hexAr(await crypto.subtle.digest('SHA-256', b))!==r.file.impronta) throw Object.assign(new Error('impronta'), {motivo:'impronta'});
+      voci.push([r.file.nome, b]);
+    }
+    AR.avanz = tr('Scarico le buste del registro delle fonti…'); ridisegnaAr();
+    for(const x of await busteAr()) voci.push([cartellaBuste+x.nome+'.json', x.testo]);
+    const nome = nomeFile()+'-archivio-registri-'+oggi()+'.zip';
+    scaricaBlob(new Blob([MODULI.excel.zip(voci)], {type:'application/zip'}), nome);
+    segnaPromemoria('copiaRegistri'); registra('archivio-tutti', {n:voci.length});
+    AR.msg = tr('Scaricato «{f}»: {n} file, così come sono, cifrati. Copialo sulla memoria fisica della Redazione.',{f:nome, n:voci.length});
+  }catch(e){ AR.errore = erroreAr(e); }
+  AR.lavoro = ''; AR.avanz = ''; ridisegnaAr();
+}
+async function togliAr(nome){
+  if(AR.lavoro) return;
+  if(AR.conferma!=='togli:'+nome){ AR.conferma = 'togli:'+nome; ridisegnaAr(); return; }
+  AR.lavoro = 'togli'; AR.avanz = tr('Firmo e consegno allo sportello…'); AR.conferma = ''; AR.errore = ''; AR.msg = ''; ridisegnaAr();
+  try{ await ARCH.chiedi({operazione:'togli', nome}); registra('archivio-togli', {x:nome}); AR.msg = tr('Tolto dall’archivio: «{n}».',{n:nome}); }
+  catch(e){ AR.errore = erroreAr(e); }
+  AR.lavoro = ''; AR.avanz = '';
+  return caricaAr();
+}
+
+/* ---------- Le interazioni ---------- */
+function azioneAr(az, t){
+  switch(az){
+    case 'archivio': Object.assign(AR, {errore:'', msg:'', scelto:null, conferma:''}); apri('rd-archivio'); if(ARCH.disponibile()) caricaAr(); return true;
+    case 'ar-scegli': $('fileArchivio').click(); return true;
+    case 'ar-annulla': AR.scelto = null; AR.conferma = ''; ridisegnaAr(); return true;
+    case 'ar-deposita': depositaAr(); return true;
+    case 'ar-aggiorna': AR.msg = ''; AR.errore = ''; caricaAr(); return true;
+    case 'ar-scarica': scaricaAr(t.dataset.n); return true;
+    case 'ar-togli': togliAr(t.dataset.n); return true;
+    case 'ar-buste': scaricaBusteAr(); return true;
+    case 'ar-tutti': scaricaTuttiAr(); return true;
+  }
+  return false;
+}
+
+/* ======================= Copia di sicurezza degli eventi fuori da Bunny (T-054) =======================
+   Libro mastro, § 2.4 («Lo storico e le copie di sicurezza»: contro la perdita dell'intero account, una copia periodica
+   fuori da Bunny, cifrata e custodita dalla Redazione, mai sulla piattaforma del codice né presso strumenti di
+   intelligenza artificiale; le sei condizioni comuni), § 3.11 (prova periodica del ripristino), § 3.13, passo 4 (le
+   rimozioni chieste dopo la data della copia si ripetono prima di ripubblicare), § 3.14. Copre le alternative 1, 2 e 4
+   del § 2.4: il file si salva sul supporto che sceglie la Direzione (decisione aperta, sezione 6 del piano). Documento:
+   docs/archivio.md.
+
+   Decisioni del 27/11/2026 (nn. 6-10):
+   - «Scarica la copia di sicurezza» legge dallo sportello di pubblicazione, con la firma, tutto ciò che la copia deve
+     contenere (operazione «immagine»: l'elenco degli eventi con sospesi e nascosti, che restano cifrati, tutto lo storico
+     e il registro delle fonti come lo tiene lo sportello, con i contatori dei codici F), lo compone, lo comprime e lo
+     cifra su questo dispositivo con una frase di almeno 20 caratteri, diversa da quella delle chiavi: se la frase apre la
+     copia di riserva delle chiavi, l'app la rifiuta (sorgenti/moduli/copia-eventi.js). Un solo file.
+   - «Prova il ripristino» apre il file con la frase, controlla che la copia sia completa, la riversa in un archivio di
+     prova che vive soltanto in questa pagina (la stessa logica dello sportello, con un deposito in memoria: non scrive
+     nulla da nessuna parte) e lo rilegge; controlla anche che ogni evento nascosto ancora in corso si apra con le password
+     della cassaforte di questo dispositivo. La cassaforte non entra nella copia: ha la sua (§ 2.4, n. 10).
+   - «Ripristina in uno sportello vuoto»: dopo una prova riuscita, mostra le richieste di rimozione arrivate dopo l'ultima
+     pubblicazione della copia, da ripetere come nel ripristino dallo storico, e poi riversa la copia, a parti firmate,
+     nello sportello, che la accetta soltanto se è vuoto (operazione «ricostruisci»): oggi lo sportello di prova svuotato;
+     con T-072 la cartella di prova su Bunny o lo spazio nuovo dopo la perdita dell'account.
+   - I promemoria (n. 9): dopo 30 giorni dall'ultima copia degli eventi o dall'ultima copia dei registri su memoria fisica
+     («Scarica tutti i file» dell'Archivio) e dopo 90 dall'ultima prova del ripristino riuscita, gli Strumenti della
+     redazione lo ricordano. Le date (soltanto il giorno) stanno su questo dispositivo, nella voce red_promemoria.
+
+   La copia non va mai su GitHub, nella posta o all'assistente: lo dice la schermata. La frase non si salva da nessuna
+   parte; la copia aperta per la prova resta soltanto in questa pagina. */
+const CS = {lavoro:'', avanz:'', errore:'', msg:'', frase:'', ripeti:'', file:null, fraseProva:'', esito:null, copia:null};
+OP_STORICO['copia-scarica'] = ['accessi', 'Copia di sicurezza degli eventi scaricata'];
+OP_STORICO['copia-prova'] = ['accessi', 'Prova del ripristino della copia di sicurezza'];
+OP_STORICO['copia-ripristina'] = ['eventi', 'Copia di sicurezza ripristinata in uno sportello vuoto'];
+
+/* ---------- I promemoria (decisione del 27/11/2026, n. 9) ---------- */
+const PROMEMORIA = [['copiaEventi', 30, 'Copia di sicurezza degli eventi', 'copia-sicurezza'], ['copiaRegistri', 30, 'Copia dei registri su memoria fisica', 'archivio'], ['provaRipristino', 90, 'Prova del ripristino', 'copia-sicurezza']];
+function datePromemoria(){ const d = MEM.leggi('red_promemoria', {}); return d && typeof d==='object' && !Array.isArray(d) ? d : {}; }
+function segnaPromemoria(k){ const d = datePromemoria(); d[k] = oggi(); MEM.scrivi('red_promemoria', d); }
+const giornoIt = g => /^\d{4}-\d{2}-\d{2}$/.test(g||'') ? g.slice(8)+'/'+g.slice(5, 7)+'/'+g.slice(0, 4) : '';
+function promemoriaHtml(){
+  const d = datePromemoria(), adesso = Date.parse(oggi());
+  const scaduti = PROMEMORIA.filter(([k, g]) => !/^\d{4}-\d{2}-\d{2}$/.test(d[k]||'') || (adesso - Date.parse(d[k]))/864e5 > g);
+  if(!scaduti.length) return '';
+  return `<div class="red-riquadro" role="note"><b>${tr('Da rifare')}</b>${scaduti.map(([k, g, t, az]) => `<span class="meta">${esc(tr(t))}: ${d[k] ? esc(tr('l’ultima è del {d}, più di {g} giorni fa.',{d:giornoIt(d[k]), g})) : esc(tr('non ancora fatta su questo dispositivo.'))}
+    <button class="link" style="min-height:32px" data-az="${az}">${tr('Apri')}</button></span>`).join('')}</div>`;
+}
+
+/* ---------- Pezzi ---------- */
+const csDisponibile = () => !!SPORTELLO.vero() || SPORTELLO.diProva();
+const ridisegnaCs = () => { if(st.foglio==='rd-copia') disegnaFoglio(); };
+const vocabolarioCs = () => FORMATO.vocabolario(LAYERS, TEMI_VOC);
+function erroreCs(e){
+  const m = e && e.motivo;
+  if(m==='frase-corta') return tr('La frase deve avere almeno {n} caratteri.',{n:MODULI.copiaEventi.FRASE_MIN});
+  if(m==='frase-diversa') return tr('Le due frasi non sono uguali.');
+  if(m==='frase-chiavi') return tr('Questa frase apre anche la copia di riserva delle chiavi: scegline un’altra (§ 2.4: la chiave della copia non sta con le altre).');
+  if(m==='copia') return tr('Il file non si apre con questa frase, oppure è rovinato.');
+  if(m==='pieno') return tr('Lo sportello non è vuoto: una copia di sicurezza si ripristina soltanto in uno sportello che non ha ancora nulla. Sul collegamento di prova: Pubblicazione → «Svuota lo sportello di prova», poi «Consegna le chiavi allo sportello di prova».');
+  if(m==='ricostruzione') return tr('Lo sportello sta ancora ricevendo una ricostruzione interrotta: ripeti il ripristino dall’inizio.');
+  return errorePb(e);
+}
+const casualeCs = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), x => x.toString(16).padStart(2, '0')).join('');
+
+/* ---------- La schermata ---------- */
+function fCs(){
+  const testa = `<div class="riga-titolo"><div><h2>${tr('Copia di sicurezza degli eventi')}</h2><p class="meta">${tr('Fuori da Bunny, cifrata su questo dispositivo (§ 2.4)')}</p></div>${chiudiBtn('admin')}</div>`;
+  if(!csDisponibile()) return foglio('forte alto', testa, `<p class="meta">${tr('Lo sportello di pubblicazione non è ancora allacciato.')}</p>`);
+  const d = datePromemoria(), E = CS.esito, occupato = !!CS.lavoro;
+  const campo = (id, k, lab, nota) => `<div class="stack-s"><label class="etich" for="${id}">${lab}</label><div class="campo"><input id="${id}" data-cs="${k}" type="password" value="${esc(CS[k])}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>${nota ? `<span class="meta">${nota}</span>` : ''}</div>`;
+  const esito = !E ? '' : `<div class="red-riquadro"${E.integra ? '' : ' role="alert"'}><b>${E.integra ? tr('Copia integra: il ripristino funziona.') : tr('La copia non è integra.')}</b>
+      <span class="meta">${esc(tr('Copia del {q}, fatta da «{d}».',{q:quandoPb(E.creata), d:E.dispositivo||'—'}))}</span>
+      <span class="meta">${esc(tr('{c} copie dello storico · {e} eventi ({v} ancora da svolgere) · {s} sospesi · {n} nascosti · {b} buste del registro delle fonti · codici F fino a F-{f}',
+        {c:E.conti.copie, e:E.conti.eventi, v:E.vivi, s:E.conti.sospesi, n:E.conti.nascosti, b:E.conti.buste, f:String(E.conti.codici).padStart(5, '0')}))}</span>
+      ${E.nascosti.tot ? `<span class="meta">${esc(E.nascosti.aperti===E.nascosti.tot ? tr('Nascosti in corso: {n}, tutti si aprono con la cassaforte di questo dispositivo.',{n:E.nascosti.tot}) : tr('Nascosti in corso: {n}; con la cassaforte di questo dispositivo se ne aprono {a}. Per gli altri serve la cassaforte del dispositivo che li ha pubblicati (Chiavi → copia della cassaforte).',{n:E.nascosti.tot, a:E.nascosti.aperti}))}</span>` : ''}
+      ${E.problemi.map(x => `<span class="err">${esc(x)}</span>`).join('')}</div>`;
+  const corpo = `${CS.errore ? `<p class="err" role="alert">${esc(CS.errore)}</p>` : ''}${CS.msg ? `<p class="meta" role="status" style="color:var(--testo)">${esc(CS.msg)}</p>` : ''}${CS.lavoro ? `<p class="caricamento">${esc(CS.avanz)}</p>` : ''}
+    <p class="meta">${esc(tr('Ultima copia scaricata da questo dispositivo: {a}. Ultima prova del ripristino riuscita: {b}.',{a:giornoIt(d.copiaEventi) || tr('mai'), b:giornoIt(d.provaRipristino) || tr('mai')}))}</p>
+    <p class="etich">${tr('Scarica la copia di sicurezza')}</p>
+    <p class="meta">${tr('Un solo file con gli eventi pubblicati, sospesi e nascosti (questi restano cifrati), tutto lo storico delle pubblicazioni e il registro delle fonti come lo tiene lo sportello, con i suoi codici. Si cifra su questo dispositivo con una frase diversa da quella delle chiavi.')}</p>
+    ${campo('cs-frase', 'frase', tr('Frase della copia'), tr('Almeno {n} caratteri. Non si salva da nessuna parte: se la dimentichi, la copia non si apre più. Tienila lontano dal supporto della copia.',{n:MODULI.copiaEventi.FRASE_MIN}))}
+    ${campo('cs-ripeti', 'ripeti', tr('Ripeti la frase'))}
+    <div class="tasti"><button class="tasto pri" data-az="cs-scarica" ${occupato ? 'disabled' : ''}>${tr('Scarica la copia di sicurezza')}</button></div>
+    <p class="meta">${tr('Salva il file sul supporto scelto dalla Direzione, fuori da questo dispositivo. Mai su GitHub, nella posta o in una conversazione con l’assistente. Durante la copia non pubblicare.')}</p>
+    <p class="etich">${tr('Prova il ripristino')}</p>
+    <p class="meta">${tr('Apre la copia, controlla che sia integra e la ripristina in un archivio di prova che vive soltanto in questa pagina: non cambia nulla, né qui né nello sportello.')}</p>
+    <div class="tasti"><button class="tasto sec" data-az="cs-file" ${occupato ? 'disabled' : ''}>${CS.file ? tr('Un altro file') : tr('Scegli il file della copia')}</button></div>
+    ${CS.file ? `<p class="meta" style="color:var(--testo)">${esc(CS.file.nome)}</p>${campo('cs-frase-prova', 'fraseProva', tr('Frase della copia'))}
+      <div class="tasti"><button class="tasto pri" data-az="cs-prova" ${occupato ? 'disabled' : ''}>${tr('Prova il ripristino')}</button></div>` : ''}
+    ${esito}
+    ${E && E.integra && CS.copia ? `<p class="etich">${tr('Ripristina in uno sportello vuoto')}</p>
+      <p class="meta">${tr('Dopo la perdita dell’archivio, in uno sportello che non ha ancora nulla: oggi lo sportello di prova svuotato (Pubblicazione → «Svuota lo sportello di prova», poi «Consegna le chiavi allo sportello di prova»). Prima di ripristinare, l’app mostra le richieste di rimozione arrivate dopo l’ultima pubblicazione della copia, da ripetere.')}</p>
+      <div class="tasti"><button class="tasto sec" data-az="cs-ripristina" ${occupato ? 'disabled' : ''}>${tr('Ripristina in uno sportello vuoto…')}</button></div>` : ''}`;
+  return foglio('forte alto', testa, corpo);
+}
+Object.assign(FOGLI_RED, {'rd-copia':fCs});
+
+/* ---------- Scaricare ---------- */
+async function immagineCs(){
+  const file = []; let dopo;
+  for(let giri = 0; giri < 100000; giri++){
+    const r = await SPORTELLO.chiedi(Object.assign({operazione:'immagine'}, dopo ? {dopo} : {}));
+    file.push(...r.file); CS.avanz = tr('Leggo dallo sportello: {i} di {n} file…',{i:file.length, n:r.totale}); ridisegnaCs();
+    if(!r.seguito) return file; dopo = r.seguito;
+  }
+  return file;
+}
+async function scaricaCs(){
+  if(CS.lavoro) return;
+  const frase = CS.frase, ripeti = CS.ripeti;
+  CS.errore = ''; CS.msg = '';
+  try{
+    if(Array.from(frase.trim()).length < MODULI.copiaEventi.FRASE_MIN) throw {motivo:'frase-corta'};
+    if(frase!==ripeti) throw {motivo:'frase-diversa'};
+    CS.lavoro = 'scarica'; CS.avanz = tr('Controllo la frase…'); ridisegnaCs();
+    if(await CHIAVI.fraseDelleChiavi(frase)) throw {motivo:'frase-chiavi'};
+    const s = await CHIAVI.stato(), file = await immagineCs();
+    CS.avanz = tr('Compongo e cifro la copia…'); ridisegnaCs();
+    const c = await MODULI.copiaEventi.componi(file, {ora:Date.now(), dispositivo:s.dispositivo});
+    const b = await MODULI.copiaEventi.cifra(c, frase), nome = 'copia-eventi-'+oggi()+'.bin';
+    scaricaBlob(new Blob([b], {type:'application/octet-stream'}), nome);
+    segnaPromemoria('copiaEventi'); registra('copia-scarica', {n:file.length});
+    CS.frase = ''; CS.ripeti = '';
+    CS.msg = tr('Scaricata «{f}» ({p}): {n} file dello sportello. Copiala sul supporto della Direzione e prova il ripristino.',{f:nome, p:pesoAr(b.length), n:file.length});
+  }catch(e){ CS.errore = erroreCs(e); }
+  CS.lavoro = ''; CS.avanz = ''; ridisegnaCs();
+}
+
+/* ---------- Provare il ripristino: un archivio di prova nella pagina ---------- */
+$('fileCopia').addEventListener('change', function(){
+  const f = this.files && this.files[0]; this.value = ''; if(!f) return;
+  CS.esito = null; CS.copia = null; CS.errore = ''; CS.msg = '';
+  if(f.size > 1.5e9){ CS.errore = tr('Il file è troppo grande.'); ridisegnaCs(); return; }
+  f.arrayBuffer().then(b => { CS.file = {nome:f.name, byte:new Uint8Array(b)}; ridisegnaCs(); }, () => { CS.errore = tr('Il file non si legge.'); ridisegnaCs(); });
+});
+/* manda le parti di «ricostruisci» a uno sportello: quello vero (chiedi) o quello di prova nella pagina */
+async function riversaCs(file, elenco, creata, manda){
+  const CE = MODULI.copiaEventi, gruppi = CE.parti(file, elenco), id = casualeCs(); let r = null;
+  for(let i = 0; i < gruppi.length; i++){
+    CS.avanz = tr('Riverso la copia: parte {i} di {n}…',{i:i+1, n:gruppi.length}); ridisegnaCs();
+    r = await manda({operazione:'ricostruisci', id, parte:i+1, di:gruppi.length, file:await CE.impronte(gruppi[i]), da:creata}, gruppi[i]);
+  }
+  return r;
+}
+async function provaCs(){
+  if(CS.lavoro || !CS.file) return;
+  CS.lavoro = 'prova'; CS.avanz = tr('Apro la copia…'); CS.errore = ''; CS.msg = ''; CS.esito = null; CS.copia = null; ridisegnaCs();
+  try{
+    const CE = MODULI.copiaEventi, voc = vocabolarioCs();
+    const c = await CE.decifra(CS.file.byte, CS.fraseProva);
+    CS.avanz = tr('Controllo che la copia sia integra…'); ridisegnaCs();
+    const v = await CE.verifica(c, {controlla:ev => FORMATO.controlla(ev, {vocabolario:voc})});
+    const problemi = v.problemi.slice(), stato = v.file ? JSON.parse((v.file.find(x => x.percorso===CE.STATO)||{testo:'{}'}).testo) : {};
+    let vivi = 0;
+    if(v.file){
+      /* l'archivio di prova nella pagina: la stessa logica dello sportello, con un deposito in memoria */
+      const mem = new Map(), dep = {leggi:async p => mem.has(p) ? mem.get(p) : null, scrivi:async (p, t) => { mem.set(p, String(t)); }, togli:async p => { mem.delete(p); }, elenca:async pre => [...mem.keys()].filter(k => k.startsWith(pre))};
+      const sp = MODULI.sportello.crea({deposito:dep, regioni:MODULI.regioni, vocabolario:voc}), s = await CHIAVI.stato();
+      await sp.ammetti(await CHIAVI.pubbliche());
+      const firmato = async x => MODULI.pacchetto.forma(x, {firma:CHIAVI.firma, dispositivo:{nome:s.dispositivo, impronta:s.firma.impronta}});
+      const manda = async (x, g) => { const q = await sp.ricevi(JSON.stringify(g ? {pacchetto:await firmato(x), file:g} : await firmato(x))); if(q.stato!==200) throw Object.assign(new Error('prova'), {motivo:q.corpo.motivo||'guasto'}); return q.corpo; };
+      try{
+        const r = await riversaCs(v.file, stato, c.creata, manda); vivi = r.eventi;
+        CS.avanz = tr('Rileggo l’archivio di prova…'); ridisegnaCs();
+        const letti = new Map(); let dopo;
+        for(let g = 0; g < 100000; g++){ const q = await manda(Object.assign({operazione:'immagine'}, dopo ? {dopo} : {})); q.file.forEach(x => letti.set(x.percorso, x.testo)); if(!q.seguito) break; dopo = q.seguito; }
+        for(const f of v.file) if(f.percorso!==CE.STATO && f.percorso!==CE.ELENCO && letti.get(f.percorso)!==f.testo) problemi.push(tr('nell’archivio di prova il file {p} non è tornato identico',{p:f.percorso}));
+        if((await manda({operazione:'stato'})).eventi.length!==vivi) problemi.push(tr('nell’archivio di prova gli eventi non sono quelli della copia'));
+      }catch(e){ problemi.push(tr('il ripristino nell’archivio di prova si è fermato ({m})',{m:e.motivo||'guasto'})); }
+    }
+    /* i nascosti ancora in corso si aprono con la cassaforte di questo dispositivo? */
+    const nascosti = {tot:0, aperti:0};
+    for(const x of (stato.nascosti||[]).concat(stato.nascostiSospesi||[])){
+      if(!MODULI.nascosti.vivo(x.giorno, Date.now())) continue;
+      nascosti.tot++;
+      try{ const pw = await CHIAVI.cassaforte.leggi(x.id); if(pw){ await MODULI.nascosti.decifra(x.file, pw, null, x.impronta); nascosti.aperti++; } }catch(e){ /* non si apre: si conta come non aperto */ }
+    }
+    CS.esito = {integra:!problemi.length, problemi, conti:v.conti, vivi, nascosti, creata:c.creata, dispositivo:c.dispositivo};
+    if(CS.esito.integra){ CS.copia = {creata:c.creata, file:v.file, stato}; segnaPromemoria('provaRipristino'); }
+    registra('copia-prova', {n:v.conti.eventi, x:CS.esito.integra ? 'integra' : 'non integra'});
+    CS.fraseProva = '';
+  }catch(e){ CS.errore = erroreCs(e); }
+  CS.lavoro = ''; CS.avanz = ''; ridisegnaCs();
+}
+
+/* ---------- Ripristinare in uno sportello vuoto ---------- */
+function preparaRipristinoCs(){
+  const K = CS.copia; if(!K) return;
+  const s = K.stato, elenco = JSON.parse((K.file.find(x => x.percorso===MODULI.copiaEventi.ELENCO)||{testo:'[]'}).testo);
+  const ultima = Array.isArray(elenco) && elenco.length ? elenco[elenco.length-1].quando : K.creata;
+  const vivo = e => FORMATO.uscitaMs(e) > Date.now(), ordine = (x, y) => x.inizio<y.inizio?-1:1, vivoN = x => MODULI.nascosti.vivo(x.giorno, Date.now());
+  const ev = (s.eventi||[]).filter(vivo).sort(ordine), sos = (s.sospesi||[]).filter(vivo).sort(ordine), nas = (s.nascosti||[]).filter(vivoN), nsos = (s.nascostiSospesi||[]).filter(vivoN);
+  /* le richieste di rimozione da ripetere: quelle arrivate dopo l'ultima pubblicazione della copia (§ 3.13, passo 4) */
+  PB.ripr = {copia:{nome:'', quando:ultima}, sicurezza:K.creata, eventi:ev, sospesi:sos, nascosti:nas, nascostiSospesi:nsos,
+    finiti:(s.eventi||[]).length+(s.sospesi||[]).length-ev.length-sos.length, rimozioni:rimozioniDopo(ultima), fatte:[], corretti:0};
+  PB.errore = ''; PB.msg = ''; apri('pb-copia');
+  nrDecifra(nas.concat(nsos)).then(ridisegnaPb);
+}
+async function ripristinaCs(R){
+  const K = CS.copia; if(!K || PB.lavoro) return;
+  PB.lavoro = true; PB.errore = ''; PB.msg = ''; ridisegnaPb();
+  try{
+    const r = await riversaCs(K.file, {eventi:R.eventi, sospesi:R.sospesi, nascosti:R.nascosti, nascostiSospesi:R.nascostiSospesi}, K.creata, (x, g) => SPORTELLO.chiediFile(x, g));
+    registra('copia-ripristina', {n:r.eventi});
+    PB.ripr = null; CS.copia = null; CS.esito = null;
+    PB.msg = tr('Copia di sicurezza ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}) + (r.nascosti ? ' '+tr('Più {k} eventi nascosti.',{k:r.nascosti}) : '');
+    PB.lavoro = false; st.foglio = 'pubblica'; return aggiornaPb();
+  }catch(e){ PB.lavoro = false; PB.errore = erroreCs(e); ridisegnaPb(); }
+}
+
+/* ---------- Le interazioni ---------- */
+function azioneCs(az, t){
+  switch(az){
+    case 'copia-sicurezza': Object.assign(CS, {errore:'', msg:''}); apri('rd-copia'); return true;
+    case 'cs-scarica': scaricaCs(); return true;
+    case 'cs-file': $('fileCopia').click(); return true;
+    case 'cs-prova': provaCs(); return true;
+    case 'cs-ripristina': preparaRipristinoCs(); return true;
+  }
+  return false;
+}
+function inputCs(el){
+  const k = el.dataset.cs; if(!k) return false;
+  if(k in CS && typeof CS[k]==='string') CS[k] = el.value;
   return true;
 }
 

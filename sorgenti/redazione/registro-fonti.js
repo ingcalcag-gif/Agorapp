@@ -4,7 +4,8 @@
    colonne di giudizio compilate nella scheda di pubblicazione (scheda-pubblicazione.js).
 
    Qui sta ciò che il registro tiene sul dispositivo, in una sola voce cifrata (red_registro, nella base di dati del
-   browser): le fonti (foglio «Fonti», codici FS: decisione del 24/11/2026, l'elenco lo tiene l'app), le righe degli
+   browser): le fonti (foglio «Fonti», codici FS: l'elenco lo tiene l'app, il codice lo dà lo sportello dell'archivio dal
+   blocco 14, decisione del 27/11/2026, n. 4), le righe degli
    eventi (foglio «Eventi»; i codici F li dà lo sportello) e gli eventi preparati e non ancora pubblicati. La voce è una busta cifrata con
    la chiave del registro, diversa dalla firma (la legge e la scrive il modulo delle chiavi, sorgenti/moduli/chiavi.js): senza quella chiave non si legge nulla, e
    in chiaro il registro esiste soltanto nella memoria della pagina, finché l'app è aperta.
@@ -149,18 +150,21 @@ function salvaFonte(){
   if(cal) SETTE_PUNTI.forEach(([n]) => { if(f.punti[n]) punti[n] = f.punti[n]; });
   const v = {nome, tipo:f.tipo, grado:f.grado, indirizzo:ind, lette:f.lette, esito:f.esito, licenzaTipo:cal ? f.licenzaTipo : '', licenza:f.licenza.trim(), attribuzione:f.attribuzione.trim(),
     punti, stato:STATI_FONTE[f.stato] ? f.stato : 'uso', note:f.note.trim(), aggiornata:new Date().toISOString(), invio:true};
-  let x = f.codice ? regFonte(f.codice) : null, prima = x ? JSON.parse(JSON.stringify(x)) : null;
-  if(x){
-    const piatta = o => Object.assign({}, o, {punti:SETTE_PUNTI.map(([n]) => (o.punti||{})[n]||'').join(' ')});
-    rettifica(x, piatta(x), piatta(v), {nome:'Nome', tipo:'Tipo', grado:'Grado', indirizzo:'Indirizzo', lette:'Condizioni lette il', esito:'Esito', licenzaTipo:'Licenza del calendario', licenza:'Nome della licenza', attribuzione:'Attribuzione', punti:'Sette punti', stato:'Stato', note:'Note'});
-    Object.assign(x, v);
-  } else { x = Object.assign({codice:regCodice('FS', d.prossimi.fs++, 4), registrata:oggi(), rettifiche:[]}, v); d.fonti.push(x); }
-  PB.lavoro = true; disegnaFoglio();
-  regSalva().then(() => { PB.lavoro = false; registra(f.codice ? 'fonte-corretta' : 'fonte-nuova', {c:x.codice}); PB.fonte = null;
-      /* dalla scheda di un evento: la fonte appena aggiunta è già scelta */
-      if(st.aform && st.aform.g && !f.codice){ st.aform.g.fonte = x.codice; fonteScelta(st.aform); }
-      PB.msg = tr('Fonte {c} salvata.',{c:x.codice}); apri('pb-fonti'); },
-    () => { PB.lavoro = false; if(!f.codice){ d.fonti.pop(); d.prossimi.fs--; } else if(prima){ Object.keys(x).forEach(k => { delete x[k]; }); Object.assign(x, prima); } PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  let x = f.codice ? regFonte(f.codice) : null, prima = x ? JSON.parse(JSON.stringify(x)) : null, prossimo = d.prossimi.fs;
+  PB.lavoro = true; PB.errore = ''; disegnaFoglio();
+  /* una fonte nuova prende il codice FS dallo sportello dell'archivio (T-053, decisione del 27/11/2026, n. 4) */
+  (x ? Promise.resolve('') : codiceRegistro('FS', d.prossimi.fs)).then(codice => {
+    if(x){
+      const piatta = o => Object.assign({}, o, {punti:SETTE_PUNTI.map(([n]) => (o.punti||{})[n]||'').join(' ')});
+      rettifica(x, piatta(x), piatta(v), {nome:'Nome', tipo:'Tipo', grado:'Grado', indirizzo:'Indirizzo', lette:'Condizioni lette il', esito:'Esito', licenzaTipo:'Licenza del calendario', licenza:'Nome della licenza', attribuzione:'Attribuzione', punti:'Sette punti', stato:'Stato', note:'Note'});
+      Object.assign(x, v);
+    } else { x = Object.assign({codice, registrata:oggi(), rettifiche:[]}, v); d.fonti.push(x); d.prossimi.fs = Math.max(d.prossimi.fs, numeroCodice(codice)+1); }
+    return regSalva().then(() => { PB.lavoro = false; registra(f.codice ? 'fonte-corretta' : 'fonte-nuova', {c:x.codice}); PB.fonte = null;
+        /* dalla scheda di un evento: la fonte appena aggiunta è già scelta */
+        if(st.aform && st.aform.g && !f.codice){ st.aform.g.fonte = x.codice; fonteScelta(st.aform); }
+        PB.msg = tr('Fonte {c} salvata.',{c:x.codice}); apri('pb-fonti'); },
+      () => { PB.lavoro = false; if(!f.codice){ d.fonti.pop(); d.prossimi.fs = prossimo; } else if(prima){ Object.keys(x).forEach(k => { delete x[k]; }); Object.assign(x, prima); } PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  }, e => { PB.lavoro = false; PB.errore = erroreCodice(e, tr('della fonte')); disegnaFoglio(); });
 }
 
 /* ---------- Le righe degli eventi (foglio «Eventi», codici F) ----------

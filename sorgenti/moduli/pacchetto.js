@@ -32,8 +32,12 @@
      copia dello storico), e quattro letture riservate alla Redazione: «stato», «storico», «copia» e, dal blocco 10,
      «registro» (le buste del registro delle fonti, che lo sportello non sa aprire: T-043). Dal blocco 13 lo stesso pacchetto
      serve allo sportello delle segnalazioni (sportelli/segnalazioni.js, T-052): «segnalazioni» (le buste depositate,
-     chiuse) e «presa» (togliere quelle prese in carico). Ogni sportello rifiuta le operazioni dell'altro. */
-  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia', 'registro', 'segnalazioni', 'presa'];
+     chiuse) e «presa» (togliere quelle prese in carico). Dal blocco 14 lo usa anche lo sportello dell'archivio dei
+     registri (sportelli/archivio.js, T-053): «archivia», «elenca», «scarica», «togli» e «codice»; e quello di
+     pubblicazione ha due operazioni per la copia di sicurezza degli eventi (T-054): «immagine» (legge, a pagine, i file
+     riservati da copiare) e «ricostruisci» (riversa una copia di sicurezza in uno sportello vuoto). Ogni sportello
+     rifiuta le operazioni degli altri. */
+  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia', 'registro', 'segnalazioni', 'presa', 'archivia', 'elenca', 'scarica', 'togli', 'codice', 'immagine', 'ricostruisci'];
   const IMPRONTA = /^[0-9a-f]{4}( [0-9a-f]{4}){3}$/, NUMERO = /^[0-9a-f]{32}$/, B64 = /^[A-Za-z0-9_-]+$/;
   const QUANDO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 

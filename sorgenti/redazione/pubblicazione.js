@@ -240,6 +240,7 @@ function pubblicaForm(){
 /* ---------- Storico delle pubblicazioni: elenco, confronto, ripristino (T-039) ---------- */
 function riepilogoPb(x){
   if(x.operazione==='ripristina') return tr('Ripristino di una copia');
+  if(x.operazione==='ricostruisci') return tr('Ripristino dalla copia di sicurezza');
   const r = x.riepilogo||{}, n = k => Array.isArray(r[k]) ? r[k].length : (r[k]||0);
   const p = [[n('pubblicati'), tr('pubblicati')], [n('corretti'), tr('corretti')], [n('sospesi'), tr('sospesi')], [n('riattivati'), tr('riattivati')], [n('ritirati'), tr('ritirati')]].filter(y => y[0]).map(y => y[0]+' '+y[1]);
   return p.join(', ') || tr('Nessuna modifica');
@@ -276,8 +277,8 @@ const rimozioniDopo = iso => (mz().rimozioni||[]).filter(r => r && r.ric && new 
 /* le richieste dopo la copia non ancora segnate come ripetute: finché ce n'è una, la copia non si ripubblica */
 const riprMancano = R => R.rimozioni.some((x, k) => !R.fatte[k]);
 function fPbCopia(){
-  const R = PB.ripr;
-  const testa = `<div class="riga-titolo"><div><h2>${tr('Ripristina una copia')}</h2><p class="meta">${R ? tr('Copia del {q}',{q:esc(quandoPb(R.copia.quando))}) : ''}</p></div>${chiudiBtn('pb-storico')}</div>`;
+  const R = PB.ripr, sic = !!(R && R.sicurezza);   /* sic: la copia di sicurezza degli eventi (copia-sicurezza.js, T-054) */
+  const testa = `<div class="riga-titolo"><div><h2>${sic ? tr('Ripristina in uno sportello vuoto') : tr('Ripristina una copia')}</h2><p class="meta">${R ? (sic ? tr('Copia di sicurezza del {q}; ultima pubblicazione del {p}',{q:esc(quandoPb(R.sicurezza)), p:esc(quandoPb(R.copia.quando))}) : tr('Copia del {q}',{q:esc(quandoPb(R.copia.quando))})) : ''}</p></div>${chiudiBtn(sic ? 'rd-copia' : 'pb-storico')}</div>`;
   if(!R) return foglio('forte', testa, `<p class="caricamento">${tr('Leggo la copia…')}</p>${statoPb()}`);
   const rim = R.rimozioni;
   const promemoria = rim.length ? `<div class="red-riquadro" role="note"><b>${rim.length===1 ? tr('Dopo questa copia è stata chiesta 1 rimozione.') : tr('Dopo questa copia sono state chieste {n} rimozioni.',{n:rim.length})}</b>
@@ -295,7 +296,7 @@ function fPbCopia(){
       <div class="menu-lista">${R.nascosti.map(x => [x, false]).concat(R.nascostiSospesi.map(x => [x, true])).map(([x, sos]) => { const c = NR.chiari.get(x.id);
         return `<div class="menu-r" style="cursor:default"><div><span class="t">${c ? esc(c.ev.titolo) : tr('Evento nascosto')}</span><span class="meta">${c ? esc(quandoEv(c.ev))+' · ' : ''}${tr('nascosto')}${sos?' · '+tr('sospeso'):''}</span></div><button class="link" data-az="pb-ripr-togli" data-id="${esc(x.id)}">${tr('Togli')}</button></div>`; }).join('')}</div>` : ''}
     ${statoPb()}
-    <div class="tasti"><button class="tasto sec" data-az="pb-storico">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${riprMancano(R) ? 'disabled' : ''}>${tr('Ripubblica questa copia')}</button></div>`;
+    <div class="tasti"><button class="tasto sec" data-az="${sic ? 'copia-sicurezza' : 'pb-storico'}">${tr('Annulla')}</button><button class="tasto pri" data-az="pb-ripr-ok" ${riprMancano(R) || PB.lavoro ? 'disabled' : ''}>${sic ? tr('Ripristina in questo sportello') : tr('Ripubblica questa copia')}</button></div>`;
   return foglio('forte alto', testa, corpo);
 }
 
@@ -347,6 +348,7 @@ function azionePubblica(az, t){
     case 'pb-ripr-correggi': { const R = PB.ripr, ev = R && R.eventi.concat(R.sospesi).find(e => e.id===t.dataset.id); if(ev) apriEventoForm(ev, 'ripristino'); break; }
     case 'pb-ripr-togli': { const R = PB.ripr, via = x => x.id!==t.dataset.id; if(R){ R.eventi = R.eventi.filter(via); R.sospesi = R.sospesi.filter(via); R.nascosti = R.nascosti.filter(via); R.nascostiSospesi = R.nascostiSospesi.filter(via); disegnaFoglio(); } break; }
     case 'pb-ripr-ok': { const R = PB.ripr; if(!R || riprMancano(R)) break;
+      if(R.sicurezza){ ripristinaCs(R); break; }
       scriviPb({operazione:'ripristina', da:R.copia.nome, eventi:R.eventi, sospesi:R.sospesi, nascosti:R.nascosti, nascostiSospesi:R.nascostiSospesi}, r => { registra('ripristina-copia', {n:r.eventi}); PB.ripr = null; return tr('Copia ripristinata e pubblicata alle {o}: {n} eventi.',{o:oraPb(r.quando), n:r.eventi}) + (r.nascosti ? ' '+tr('Più {k} eventi nascosti.',{k:r.nascosti}) : ''); }); break; }
     case 'ix-torna': st.aform = null; apri('pb-importa'); break;
     default: return azioneNascosti(az, t) || azioneScheda(az, t) || azioneImporta(az, t) || azioneRegistro(az, t) || azioneCalendari(az, t);

@@ -34,9 +34,12 @@ const SPORTELLO = (() => {
     if(!s.ci_sono) throw errore('chiavi');
     return MODULI.pacchetto.forma(contenuto, {firma:CHIAVI.firma, dispositivo:{nome:s.dispositivo, impronta:s.firma.impronta}});
   }
-  /* chiedi(contenuto) → ciò che lo sportello risponde. Un rifiuto diventa un errore con il motivo dello sportello. */
-  async function chiedi(contenuto){
-    const r = await consegna(JSON.stringify(await firmato(contenuto)));
+  /* chiedi(contenuto) → ciò che lo sportello risponde. Un rifiuto diventa un errore con il motivo dello sportello.
+     chiediFile(contenuto, file) manda accanto al pacchetto i file di una parte della copia di sicurezza, di cui il
+     pacchetto porta le impronte («ricostruisci», T-054). */
+  async function chiedi(contenuto){ return risposta(await consegna(JSON.stringify(await firmato(contenuto)))); }
+  async function chiediFile(contenuto, file){ return risposta(await consegna(JSON.stringify({pacchetto:await firmato(contenuto), file}))); }
+  function risposta(r){
     if(r.stato!==200 || !r.corpo || r.corpo.esito!=='fatto') throw errore((r.corpo && r.corpo.motivo) || 'guasto', r.corpo);
     return r.corpo;
   }
@@ -65,5 +68,5 @@ const SPORTELLO = (() => {
     },
     async svuota(){ logica = null; await MEM.file.delete('prova_sportello'); }
   };
-  return {chiedi, diProva, vero:() => vero, prova};
+  return {chiedi, chiediFile, diProva, vero:() => vero, prova};
 })();

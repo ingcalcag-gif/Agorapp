@@ -76,6 +76,8 @@
       cosa: 'Storico delle operazioni della Redazione' },
     { nome: 'red_misure', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_misure',
       cosa: 'Misure della Redazione: totali, numeri inseriti a mano, soglie' },
+    { nome: 'red_promemoria', dove: 'memoria', forma: 'json', redazione: true,
+      cosa: 'I giorni dell\'ultima copia di sicurezza degli eventi, dell\'ultima copia dei registri su memoria fisica e dell\'ultima prova del ripristino riuscita, per i promemoria (T-053, T-054)' },
     { nome: 'red_qui', dove: 'memoria', forma: 'testo', redazione: true,
       cosa: 'Segno che su questo indirizzo c\'è l\'app della redazione: serve solo dove le due app condividono l\'indirizzo (collegamento di prova)' },
     { nome: 'red_chiavi', dove: 'base', redazione: true,

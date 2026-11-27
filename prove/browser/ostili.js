@@ -16,13 +16,18 @@
    - nell'app della redazione, gli stessi eventi ostili nei punti trovati da «Togli questo nome ovunque» e nei brani del
      resoconto dell'accesso (T-047, T-048); la copia per l'assistenza (T-049) ha la sua prova ostile in assistenza.js;
    - il modulo «Segnala» (T-050) con il titolo ostile dell'evento, e una segnalazione con descrizione e nome ostili che
-     passa dallo sportello di prova e si legge nell'app della redazione, nell'elenco e nella scheda (T-051, T-052).
+     passa dallo sportello di prova e si legge nell'app della redazione, nell'elenco e nella scheda (T-051, T-052);
+   - l'archivio dei registri (T-053) con il nome ostile di un file scelto e, nell'elenco, il nome ostile del dispositivo;
+     la copia di sicurezza degli eventi (T-054) con il nome ostile del file e il dispositivo ostile scritto nella copia.
    La prova apre tutte le viste dell'app, compresi l'anteprima del PDF, la pagina di stampa e il PDF scaricato, e
    controlla che nessun testo sia diventato un elemento o sia stato eseguito, che nessun collegamento javascript:,
    data: o http: arrivi nella pagina e che nessun elemento abbia un gestore scritto nella pagina (on…=). Un evento
    dell'archivio con un collegamento javascript: non deve comparire affatto (il formato accetta solo https). */
 'use strict';
-const { esito, eseguiDaSola, confronta } = require('../comune.js');
+const fs = require('fs');
+const path = require('path');
+const { esito, eseguiDaSola, confronta, RADICE } = require('../comune.js');
+const NOME = require(path.join(RADICE, 'sorgenti', 'config.js')).nome;
 const { playwright, server, apri, giorno, pausa, archivio, fileArchivio, eventoProva, eventiCaricati, ZONA_ARCHIVIO, nascostoProva } = require('./comune.js');
 
 const O_ = n => `<img src=x data-ostile="${n}" onerror="window.__ostile='${n}'"><b data-ostile="${n}">prova</b>`;
@@ -132,7 +137,7 @@ const ATTESI = ['titolo', 'luogo', 'indirizzo', 'org', 'descrizione', 'descrizio
   'og-titolo', 'og-indirizzo', 'og-indfull', 'og-note', 'og2-titolo', 'og-durata', 'serie-titolo',
   'ph-nome', 'ph-via', 'ph-civico', 'ph-civico2', 'ph-strada', 'ph-luogo', 'ph-citta', 'ph-cap', 'ph-contea',
   'cerca-testo', 'avviso-testo', 'imp-strato', 'imp-sub', 'storico-x', 'storico-r', 'mz-appunti', 'mz-giro', 'mz-giro-prima', 'chiavi-nome', 'ver-testo',
-  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev', 'cal-titolo', 'cal-luogo', 'cal-testo', 'nasc-titolo', 'nasc-luogo', 'nasc-desc', 'nasc-org', 'segn-desc', 'segn-nome'];
+  'reg-avviso', 'reg-fonte', 'reg-attr', 'reg-prep', 'rx-contrasto', 'rx-fonte', 'rx-np-org', 'rx-np-ev', 'cal-titolo', 'cal-luogo', 'cal-testo', 'nasc-titolo', 'nasc-luogo', 'nasc-desc', 'nasc-org', 'segn-desc', 'segn-nome', 'ar-nome', 'cs-nome'];
 
 async function prova() {
   const e = esito('Testi ostili mostrati come testo (browser)');
@@ -431,6 +436,30 @@ async function prova() {
               try { await p.waitForSelector(F + '[data-az="sg-apri"]', { timeout: 20000 }); } catch (err) { e.errori.push('segnalazioni: la segnalazione ostile non arriva nell\'elenco'); }
               await controlla('segnalazioni, elenco');
               if (await tocca(F + '[data-az="sg-apri"]', 'segnalazioni, una', true)) { await pausa(300); await controlla('segnalazioni, scheda'); }
+            }
+          }
+          /* l'archivio dei registri (T-053): il nome ostile di un file scelto e, nell'elenco, il nome ostile del dispositivo;
+             la copia di sicurezza (T-054): il nome ostile del file della copia e il dispositivo scritto dentro la copia */
+          if (await entra() && await tocca(F + '[data-az="archivio"]', 'archivio')) {
+            await pausa(800);
+            await p.setInputFiles('#fileArchivio', { name: '<b data-ostile="ar-nome">x</b>.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('prova') }); await pausa(500); await controlla('archivio, file scelto');
+            await p.setInputFiles('#fileArchivio', { name: NOME + '_Reg19_Decisioni.xlsx', mimeType: 'application/octet-stream', buffer: fs.readFileSync(path.join(RADICE, 'prove', 'dati', 'archivio', 'registro-excel.xlsx')) }); await pausa(700);
+            if (await tocca(F + '[data-az="ar-deposita"]', 'archivio, deposita', true)) {
+              try { await p.waitForFunction(() => /Depositato/.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 20000 }); } catch (err) { e.errori.push('archivio: il registro non si deposita'); }
+              await controlla('archivio, elenco');
+            }
+          }
+          if (await entra() && await tocca(F + '[data-az="copia-sicurezza"]', 'copia di sicurezza')) {
+            const FC = 'una frase inventata per la copia degli eventi';
+            await p.fill('#cs-frase', FC); await p.fill('#cs-ripeti', FC);
+            const d = await Promise.all([p.waitForEvent('download', { timeout: 60000 }), p.click(F + '[data-az="cs-scarica"]')]).then(x => x[0], () => null);
+            if (!d) e.errori.push('copia di sicurezza: il file non si scarica');
+            else {
+              await tocca(F + '[data-az="cs-file"]', 'copia di sicurezza, scegli', true);
+              await p.setInputFiles('#fileCopia', { name: '<b data-ostile="cs-nome">x</b>.bin', mimeType: 'application/octet-stream', buffer: fs.readFileSync(await d.path()) }); await pausa(500);
+              await p.fill('#cs-frase-prova', FC); await tocca(F + '[data-az="cs-prova"]', 'copia di sicurezza, prova', true);
+              try { await p.waitForFunction(() => /Copia integra|non è integra/.test((document.querySelector('#foglio-slot') || {}).innerText || ''), null, { timeout: 60000 }); } catch (err) { e.errori.push('copia di sicurezza: la prova del ripristino non risponde'); }
+              await controlla('copia di sicurezza, prova del ripristino');
             }
           }
           /* poi lo sportello di prova si svuota: Misure e il resto leggono di nuovo l'archivio ostile della prova */

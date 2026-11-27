@@ -34,6 +34,8 @@ Una frase sbagliata e un file alterato danno lo stesso rifiuto: non si può capi
 
 Dove tenerla: fuori dal dispositivo della redazione, su un supporto cifrato; mai in una chat, nella posta o nel repository.
 
+Dal blocco 14 la frase serve anche a un controllo: la copia di sicurezza degli eventi (T-054) va cifrata con una frase diversa, e `CHIAVI.fraseDelleChiavi(frase)` prova ad aprire con la frase proposta la copia di riserva che il dispositivo tiene: se si apre, la frase è quella delle chiavi e la copia degli eventi la rifiuta (`docs/archivio.md`).
+
 ## Più dispositivi
 
 La firma è di ogni dispositivo. Da una copia di riserva si può:
@@ -53,7 +55,7 @@ La revoca vale davvero quando lo sportello toglie la parte pubblica dal suo elen
 
 ## Il registro delle fonti
 
-Dal blocco 10 (T-041, T-043) la chiave del registro cifra il registro delle fonti e non fa altro. `CHIAVI.registro.cifra(testo)` dà una busta `{tipo: "registro-fonti-redazione", v, iv, dati}` (AES-GCM, con il tipo come dato aggiuntivo); `decifra(busta)` dà il testo, oppure l'errore `registro` se la busta è rovinata o è stata scritta con un'altra chiave. Sul dispositivo il registro sta in una sola voce, `red_registro`, nella base di dati: `leggi()`, `scrivi(testo)` e `busta()`. In chiaro esiste soltanto nella pagina aperta. Un secondo dispositivo riceve la stessa chiave del registro con la copia di riserva, quindi legge le buste scritte dal primo. La stessa busta, con le sole righe di una pubblicazione, viaggia nel pacchetto firmato e resta nel riservato dello sportello (`docs/sportello-pubblicazione.md`).
+Dal blocco 10 (T-041, T-043) la chiave del registro cifra il registro delle fonti e non fa altro. `CHIAVI.registro.cifra(testo)` dà una busta `{tipo: "registro-fonti-redazione", v, iv, dati}` (AES-GCM, con il tipo come dato aggiuntivo); `decifra(busta)` dà il testo, oppure l'errore `registro` se la busta è rovinata o è stata scritta con un'altra chiave. Sul dispositivo il registro sta in una sola voce, `red_registro`, nella base di dati: `leggi()`, `scrivi(testo)` e `busta()`. In chiaro esiste soltanto nella pagina aperta. Un secondo dispositivo riceve la stessa chiave del registro con la copia di riserva, quindi legge le buste scritte dal primo. La stessa busta, con le sole righe di una pubblicazione, viaggia nel pacchetto firmato e resta nel riservato dello sportello (`docs/sportello-pubblicazione.md`); dal blocco 14 la sezione «Archivio» la conta e la fa riscaricare, chiusa, e i codici FS e NP li dà lo sportello dell'archivio (`docs/archivio.md`).
 
 ## La cassaforte
 

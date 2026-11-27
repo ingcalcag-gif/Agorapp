@@ -199,7 +199,7 @@
     const enc = new TextEncoder(), locali = [], centrali = []; let off = 0;
     const d = new Date(), tempo = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), giorno = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
     for (const [nome, testo] of voci) {
-      const n = enc.encode(nome), dati = enc.encode(testo), c = crc32(dati);
+      const n = enc.encode(nome), dati = testo instanceof Uint8Array ? testo : enc.encode(testo), c = crc32(dati);
       const h = new Uint8Array(30 + n.length), v = new DataView(h.buffer);
       v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true); v.setUint16(8, 0, true); v.setUint16(10, tempo, true); v.setUint16(12, giorno, true);
       v.setUint32(14, c, true); v.setUint32(18, dati.length, true); v.setUint32(22, dati.length, true); v.setUint16(26, n.length, true); v.setUint16(28, 0, true); h.set(n, 30);
@@ -240,5 +240,7 @@
     return zipScrivi(voci);
   }
 
-  return { MAX_FILE, MAX_RIGHE, MAX_COLONNE, MIME, leggi, leggiCsv, scrivi, numeroData, numeroDataOra, crc32 };
+  /* zip([[nome, testo o byte]]) → i byte di un archivio ZIP senza compressione: lo usa anche l'archivio dei registri per
+     la copia su memoria fisica, con i file già cifrati, che non si comprimono (T-053) */
+  return { MAX_FILE, MAX_RIGHE, MAX_COLONNE, MIME, leggi, leggiCsv, scrivi, zip: zipScrivi, numeroData, numeroDataOra, crc32 };
 });

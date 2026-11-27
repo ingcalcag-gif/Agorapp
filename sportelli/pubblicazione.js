@@ -69,6 +69,23 @@
   const TIPO_COPIA = 'copia-pubblicazione', TIPO_PUBBLICHE = 'chiavi-pubbliche-redazione', TIPO_REVOCA = 'revoca-chiave-redazione';
   const NOME_COPIA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}$/;
   const MAX_BUSTE = 500, MAX_COPIE_LETTE = 2000, MAX_F = 99999;
+  /* La copia di sicurezza degli eventi fuori da Bunny (T-054; § 2.4, «Lo storico e le copie di sicurezza»; decisioni del
+     27/11/2026, nn. 6 e 8). «immagine» legge, a pagine, i file riservati che la copia deve contenere: l'elenco degli
+     eventi (stato.json), lo storico (elenco e copie datate) e il registro delle fonti (codici F e buste); non le chiavi
+     ammesse, i numeri ricevuti, i tentativi errati né i file degli altri sportelli. «ricostruisci» li riversa in uno
+     sportello vuoto (oggi lo sportello di prova svuotato; con T-072 la cartella di prova su Bunny, o lo spazio nuovo dopo
+     la perdita dell'account), a parti, ciascuna con il suo pacchetto firmato: i file viaggiano accanto al pacchetto
+     ({pacchetto, file}) e il pacchetto ne porta le impronte SHA-256, così la firma li copre tutti. Lo sportello accetta la
+     prima parte soltanto se è vuoto, così non si può cancellare per errore l'archivio vero; finché la ricostruzione non è
+     finita (il segno riservato/ricostruzione.json) non pubblica nient'altro. L'ultima parte porta l'elenco degli eventi
+     come la Redazione lo rimanda dopo aver ripetuto le rimozioni chieste dopo la data della copia (§ 3.13, passo 4): lo
+     sportello lo pubblica come ogni pubblicazione, con la sua copia datata. */
+  const MARCA = RIS + 'ricostruzione.json', MAX_PAGINA = 3e6, MAX_INVOLUCRO = 12e6, MAX_PARTI = 100000;
+  const IMMAGINE = [/^riservato\/stato\.json$/, /^riservato\/storico\/elenco\.json$/, /^riservato\/storico\/copie\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}\.json$/,
+    /^riservato\/registro\/codici\.json$/, /^riservato\/registro\/righe\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}\.json$/];
+  const nellImmagine = x => IMMAGINE.some(re => re.test(x));
+  /* le cartelle da elencare una per una: su Bunny l'elenco di una cartella non comprende le sottocartelle */
+  const CARTELLE_IMMAGINE = [RIS + 'storico/', RIS + 'storico/copie/', RIS + 'registro/', RIS + 'registro/righe/'];
   const RIGA = /^[^\u0000-\u001F\u007F-\u009F]*$/;
 
   const iso = ms => new Date(ms).toISOString();
@@ -78,6 +95,7 @@
   function crea(o) {
     const dep = o.deposito, ora = o.ora || (() => Date.now()), cripto = o.cripto || radice.crypto || (typeof globalThis === 'object' ? globalThis.crypto : null);
     const regioni = o.regioni || [], opzEv = o.vocabolario ? { vocabolario: o.vocabolario } : undefined;
+    const pagina = o.pagina || MAX_PAGINA;   // i caratteri di una pagina di «immagine» (nelle prove, più piccola)
     if (!dep) throw new Error('sportello: manca il deposito');
 
     async function leggiJson(p, d) { const t = await dep.leggi(p); if (t == null) return d; try { return JSON.parse(t); } catch (e) { return d; } }
@@ -178,6 +196,13 @@
       return { tutti, codici };
     }
 
+    /* i file riservati della copia di sicurezza che lo sportello ha, in ordine di percorso (T-054) */
+    async function fileImmagine() {
+      const tutti = new Set();
+      for (const pre of CARTELLE_IMMAGINE) for (const x of await dep.elenca(pre)) if (nellImmagine(x)) tutti.add(x);
+      if ((await dep.leggi(F.stato)) != null) tutti.add(F.stato);
+      return [...tutti].sort();
+    }
     const OPERA = {
       /* Pubblicare o correggere (un evento con un identificativo già pubblicato lo sostituisce), sospendere (l'evento
          esce dall'archivio pubblico e resta nell'elenco riservato: § 3.13, limitazione), riattivare, ritirare prima
@@ -265,6 +290,52 @@
         }
         return { buste, altre: nomi.length > MAX_BUSTE, pubblicati, troppe: lette > MAX_COPIE_LETTE, prossimo: tutti.prossimo };
       },
+      /* La copia di sicurezza: i file riservati, a pagine di al più tre milioni di caratteri, in ordine di percorso */
+      async immagine(c) {
+        if (c.dopo !== undefined && (typeof c.dopo !== 'string' || !nellImmagine(c.dopo))) throw rifiuto('immagine');
+        const tutti = await fileImmagine();
+        const via = tutti.filter(x => !c.dopo || x > c.dopo), file = []; let n = 0;
+        for (const percorso of via) {
+          const testo = await dep.leggi(percorso); if (testo == null) continue;
+          if (file.length && n + testo.length > pagina) break;
+          file.push({ percorso, testo }); n += testo.length;
+        }
+        return { file, totale: tutti.length, seguito: file.length < via.length ? file[file.length - 1].percorso : null };
+      },
+      async ricostruisci(c, p, t, file) {
+        if (typeof c.id !== 'string' || !/^[0-9a-f]{16}$/.test(c.id) || !Number.isInteger(c.parte) || !Number.isInteger(c.di) || c.parte < 1 || c.parte > c.di || c.di > MAX_PARTI ||
+          !Array.isArray(c.file) || !Array.isArray(file) || c.file.length !== file.length) throw rifiuto('ricostruzione');
+        /* i file: percorsi della copia, testi JSON, impronte uguali a quelle firmate; l'elenco degli eventi solo nell'ultima parte */
+        for (let i = 0; i < file.length; i++) {
+          const x = file[i], f = c.file[i];
+          if (!x || typeof x.testo !== 'string' || !f || f.percorso !== x.percorso || !nellImmagine(x.percorso) || typeof f.impronta !== 'string' ||
+            (x.percorso === F.stato && c.parte !== c.di)) throw rifiuto('ricostruzione', { percorso: corto(x && x.percorso) });
+          const h = Array.from(new Uint8Array(await cripto.subtle.digest('SHA-256', new TextEncoder().encode(x.testo))), y => y.toString(16).padStart(2, '0')).join('');
+          if (h !== f.impronta) throw rifiuto('impronta', { percorso: corto(x.percorso) });
+          try { JSON.parse(x.testo); } catch (e) { throw rifiuto('ricostruzione', { percorso: corto(x.percorso) }); }
+        }
+        const marca = await leggiJson(MARCA, null);
+        if (c.parte === 1) {
+          /* la prima parte: lo sportello è vuoto, oppure c'è una ricostruzione interrotta, che si ricomincia da capo */
+          const presenti = await fileImmagine();
+          if (presenti.length && !marca) throw rifiuto('pieno');
+          for (const x of presenti) await dep.togli(x);
+        } else if (!marca || marca.id !== c.id || marca.parte !== c.parte - 1 || marca.di !== c.di) throw rifiuto('parte', { attesa: marca && marca.id === c.id ? marca.parte + 1 : 1 });
+        await scriviJson(MARCA, { id: c.id, di: c.di, parte: c.parte, dispositivo: p.dispositivo, inizio: marca && c.parte > 1 ? marca.inizio : iso(t) });
+        let stato = null;
+        for (const x of file) { if (x.percorso === F.stato) stato = JSON.parse(x.testo); else await dep.scrivi(x.percorso, x.testo); }
+        if (c.parte < c.di) return { parte: c.parte, di: c.di };
+        /* l'ultima parte: si pubblica l'elenco degli eventi, come un ripristino, con la sua copia datata */
+        if (!stato || typeof stato !== 'object') throw rifiuto('ricostruzione', { percorso: F.stato });
+        const ev = lista(stato, 'eventi'), sos = lista(stato, 'sospesi'), nas = lista(stato, 'nascosti'), nsos = lista(stato, 'nascostiSospesi');
+        controllaEventi(ev.concat(sos)); controllaNascosti(nas.concat(nsos));
+        const ids = new Set(ev.concat(sos).map(e => e.id)), doppio = nas.concat(nsos).find(x => ids.has(x.id));
+        if (doppio) throw rifiuto('nascosto', { id: corto(doppio.id) });
+        const vivo = e => E.uscitaMs(e) > t, vivoN = x => N.vivo(x.giorno, t);
+        const r = await pubblica(p, t, 'ricostruisci', { da: typeof c.da === 'string' ? c.da.slice(0, 40) : '' }, ev.filter(vivo), sos.filter(vivo), null, nas.filter(vivoN), nsos.filter(vivoN));
+        await dep.togli(MARCA);
+        return Object.assign(r, { parte: c.parte, di: c.di });
+      },
       async copia(c) {
         if (typeof c.nome !== 'string' || !NOME_COPIA.test(c.nome)) throw rifiuto('copia');
         const k = await leggiJson(F.copie + c.nome + '.json', null);
@@ -276,10 +347,18 @@
 
     /* ---------- La porta: un pacchetto alla volta ---------- */
     async function tratta(testo) {
-      let letto; try { letto = P.leggi(testo); } catch (e) { return risposta(400, { esito: 'rifiutato', motivo: 'forma' }); }
-      const p = letto.pacchetto, c = letto.contenuto, t = ora(), imp = p.dispositivo.impronta;
       const no = (stato, motivo, extra) => risposta(stato, Object.assign({ esito: 'rifiutato', motivo }, extra || {}));
-      if (!Object.prototype.hasOwnProperty.call(OPERA, c.operazione)) return no(400, 'operazione');   // un'operazione dello sportello delle segnalazioni (T-052)
+      /* la richiesta è il pacchetto, oppure, per «ricostruisci», {pacchetto, file}: i file accanto al pacchetto (T-054) */
+      let pacchetto = testo, file;
+      if (typeof testo === 'string' && testo.length <= MAX_INVOLUCRO && /^\s*\{\s*"pacchetto"/.test(testo)) {
+        let r; try { r = JSON.parse(testo); } catch (e) { return no(400, 'forma'); }
+        if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).some(k => k !== 'pacchetto' && k !== 'file') || !Array.isArray(r.file)) return no(400, 'forma');
+        pacchetto = r.pacchetto; file = r.file;
+      }
+      let letto; try { letto = P.leggi(pacchetto); } catch (e) { return no(400, 'forma'); }
+      const p = letto.pacchetto, c = letto.contenuto, t = ora(), imp = p.dispositivo.impronta;
+      if (!Object.prototype.hasOwnProperty.call(OPERA, c.operazione)) return no(400, 'operazione');   // un'operazione di un altro sportello (T-052, T-053)
+      if ((file !== undefined) !== (c.operazione === 'ricostruisci')) return no(400, 'forma');
       const chiavi = await leggiJson(F.chiavi, {});
       if ((chiavi.revocate || []).some(k => k.impronta === imp)) return no(403, 'revocata');
       const nota = (chiavi.ammesse || []).find(k => k.impronta === imp);
@@ -298,7 +377,9 @@
       for (const k of Object.keys(visti)) if (!(visti[k] > t - 2 * P.FINESTRA_MS)) delete visti[k];
       if (visti[p.numero]) return no(409, 'ripetuto');
       visti[p.numero] = t; await scriviJson(F.visti, visti);
-      try { return risposta(200, Object.assign({ esito: 'fatto', operazione: c.operazione }, await OPERA[c.operazione](c, p, t))); }
+      /* durante una ricostruzione non si pubblica e non si ripristina (T-054) */
+      if ((c.operazione === 'scrivi' || c.operazione === 'ripristina') && (await dep.leggi(MARCA)) != null) return no(409, 'ricostruzione');
+      try { return risposta(200, Object.assign({ esito: 'fatto', operazione: c.operazione }, await OPERA[c.operazione](c, p, t, file))); }
       catch (e) { if (e && e.rifiuto) return risposta(422, Object.assign({ esito: 'rifiutato' }, e.rifiuto)); throw e; }
     }
     let coda = Promise.resolve();
@@ -342,5 +423,5 @@
     return { ricevi, ammetti, revoca, chiavi };
   }
 
-  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, NASC, TIPO_COPIA, NOME_COPIA, MAX_BUSTE, crea };
+  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, NASC, TIPO_COPIA, NOME_COPIA, MAX_BUSTE, MARCA, MAX_PAGINA, MAX_INVOLUCRO, nellImmagine, crea };
 });

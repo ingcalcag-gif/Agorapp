@@ -108,6 +108,8 @@
       cosa: 'Storico delle operazioni della Redazione' },
     { nome: 'red_misure', dove: 'memoria', forma: 'json', redazione: true, prima: 'agorapp_misure',
       cosa: 'Misure della Redazione: totali, numeri inseriti a mano, soglie' },
+    { nome: 'red_promemoria', dove: 'memoria', forma: 'json', redazione: true,
+      cosa: 'I giorni dell\'ultima copia di sicurezza degli eventi, dell\'ultima copia dei registri su memoria fisica e dell\'ultima prova del ripristino riuscita, per i promemoria (T-053, T-054)' },
     { nome: 'red_qui', dove: 'memoria', forma: 'testo', redazione: true,
       cosa: 'Segno che su questo indirizzo c\'è l\'app della redazione: serve solo dove le due app condividono l\'indirizzo (collegamento di prova)' },
     { nome: 'red_chiavi', dove: 'base', redazione: true,
@@ -1496,6 +1498,13 @@
       const v = await attive();
       return { nome: 'copia-chiavi-' + v.creato.slice(0, 10) + '.json', testo: JSON.stringify(v.copia, null, 1) + '\n' };
     }
+    /* La copia di sicurezza degli eventi (T-054) va cifrata con una frase diversa da questa (decisione del 27/11/2026,
+       n. 7): la frase non si salva da nessuna parte, ma la copia di riserva sì, chiusa con lei. true se questa frase la
+       apre, cioè se è la frase delle chiavi. */
+    async function fraseDelleChiavi(frase) {
+      const v = await attive();
+      try { await apri(v.copia, frase); return true; } catch (e) { if (e && e.motivo === 'frase') return false; throw e; }
+    }
     /* Le parti pubbliche da consegnare agli sportelli: non contengono nulla di segreto. */
     async function pubbliche() {
       const s = await stato(); if (!s.ci_sono) throw errore('mancano');
@@ -1629,7 +1638,7 @@
     async function scriviRegistro(testo) { const b = await cifraRegistro(testo); await dep.scrivi('red_registro', b); return b; }
     async function bustaRegistro() { return (await dep.leggi('red_registro')) || null; }
 
-    return { stato, genera, daCopia, copia, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, segretoSegnalazione, nuovoId, viene, controllaTesto,
+    return { stato, genera, daCopia, copia, fraseDelleChiavi, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, segretoSegnalazione, nuovoId, viene, controllaTesto,
       registro: { cifra: cifraRegistro, decifra: decifraRegistro, leggi: leggiRegistro, scrivi: scriviRegistro, busta: bustaRegistro },
       cassaforte: { metti: mettiPassword, leggi: leggiPassword, togli: togliPassword, pulisci: pulisciCassaforte, copia: copiaCassaforte, ripristina: ripristinaCassaforte } };
   }
@@ -1671,8 +1680,12 @@
      copia dello storico), e quattro letture riservate alla Redazione: «stato», «storico», «copia» e, dal blocco 10,
      «registro» (le buste del registro delle fonti, che lo sportello non sa aprire: T-043). Dal blocco 13 lo stesso pacchetto
      serve allo sportello delle segnalazioni (sportelli/segnalazioni.js, T-052): «segnalazioni» (le buste depositate,
-     chiuse) e «presa» (togliere quelle prese in carico). Ogni sportello rifiuta le operazioni dell'altro. */
-  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia', 'registro', 'segnalazioni', 'presa'];
+     chiuse) e «presa» (togliere quelle prese in carico). Dal blocco 14 lo usa anche lo sportello dell'archivio dei
+     registri (sportelli/archivio.js, T-053): «archivia», «elenca», «scarica», «togli» e «codice»; e quello di
+     pubblicazione ha due operazioni per la copia di sicurezza degli eventi (T-054): «immagine» (legge, a pagine, i file
+     riservati da copiare) e «ricostruisci» (riversa una copia di sicurezza in uno sportello vuoto). Ogni sportello
+     rifiuta le operazioni degli altri. */
+  const OPERAZIONI = ['scrivi', 'ripristina', 'stato', 'storico', 'copia', 'registro', 'segnalazioni', 'presa', 'archivia', 'elenca', 'scarica', 'togli', 'codice', 'immagine', 'ricostruisci'];
   const IMPRONTA = /^[0-9a-f]{4}( [0-9a-f]{4}){3}$/, NUMERO = /^[0-9a-f]{32}$/, B64 = /^[A-Za-z0-9_-]+$/;
   const QUANDO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
@@ -1940,7 +1953,7 @@
     const enc = new TextEncoder(), locali = [], centrali = []; let off = 0;
     const d = new Date(), tempo = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), giorno = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
     for (const [nome, testo] of voci) {
-      const n = enc.encode(nome), dati = enc.encode(testo), c = crc32(dati);
+      const n = enc.encode(nome), dati = testo instanceof Uint8Array ? testo : enc.encode(testo), c = crc32(dati);
       const h = new Uint8Array(30 + n.length), v = new DataView(h.buffer);
       v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true); v.setUint16(8, 0, true); v.setUint16(10, tempo, true); v.setUint16(12, giorno, true);
       v.setUint32(14, c, true); v.setUint32(18, dati.length, true); v.setUint32(22, dati.length, true); v.setUint16(26, n.length, true); v.setUint16(28, 0, true); h.set(n, 30);
@@ -1981,7 +1994,9 @@
     return zipScrivi(voci);
   }
 
-  return { MAX_FILE, MAX_RIGHE, MAX_COLONNE, MIME, leggi, leggiCsv, scrivi, numeroData, numeroDataOra, crc32 };
+  /* zip([[nome, testo o byte]]) → i byte di un archivio ZIP senza compressione: lo usa anche l'archivio dei registri per
+     la copia su memoria fisica, con i file già cifrati, che non si comprimono (T-053) */
+  return { MAX_FILE, MAX_RIGHE, MAX_COLONNE, MIME, leggi, leggiCsv, scrivi, zip: zipScrivi, numeroData, numeroDataOra, crc32 };
 });
 
 /* Le parole delle password degli eventi nascosti (voce T-045 del piano di adeguamento; decisione del 25/11/2026;
@@ -2328,6 +2343,436 @@
   return { RUOLI, CAMPI, normale, forme, trova, contiene, sostituisci, estratto, leggiCampo, conCampo, puntiEvento };
 });
 
+/* Il controllo dei file che entrano nell'archivio dei registri (voce T-053 del piano di adeguamento; documento:
+   docs/archivio.md).
+
+   Libro mastro, § 1.1 (condizione 2: file cifrati sul dispositivo della redazione prima del caricamento, così che Bunny
+   conservi soltanto contenuti illeggibili) e § 18.3 (strumento di cifratura: decisione del 17/11/2026, QB-7, strada 2,
+   la password di apertura del programma dei fogli di calcolo). Decisione del 27/11/2026 (n. 1): l'archivio accetta i file
+   Excel (.xlsx) e PDF chiusi con una vera password di apertura, con la cifratura AES a 128, 192 o 256 bit, e rifiuta
+   tutto il resto, dicendo perché.
+
+   Il modulo guarda soltanto il contenitore del file, senza aprirlo e senza la password: non vede nessuna riga.
+   - Excel. Un file .xlsx normale è un archivio ZIP di testi leggibili. Salvato con la password di apertura, il programma
+     lo chiude in un altro contenitore (il formato «Compound File» di Microsoft, MS-CFB) che ha due parti con nomi fissi:
+     «EncryptionInfo», la scheda della cifratura, ed «EncryptedPackage», il file vero, illeggibile (MS-OFFCRYPTO). Il
+     modulo legge la scheda: la cifratura «agile» (Excel dal 2010, versione 4.4: un testo XML con l'algoritmo, la
+     lunghezza della chiave, l'impronta e i giri) o quella «standard» (versioni 2.2-4.2: AES a 128-256 bit, SHA-1,
+     50.000 giri fissi; la usa per esempio LibreOffice). Un vecchio file .xls sta nello stesso contenitore ma senza
+     quelle due parti: la sua password usa RC4, che si aggira, e si rifiuta.
+   - PDF. Un PDF con la password di apertura ha, nel «trailer» (la coda del file), il riferimento al dizionario di
+     cifratura: il modulo lo legge (filtro «Standard», versione e revisione, filtro dei contenuti) e accetta soltanto AES
+     (AESV2 a 128 bit, AESV3 a 256 bit); RC4 e i contenuti lasciati in chiaro si rifiutano.
+
+   esamina(dati, nome) → {formato, cifrato, cifratura, motivo, dettaglio}
+     formato: 'xlsx', 'pdf', 'xls', 'ods', 'csv', 'zip', 'office' (un altro documento Office cifrato) o 'altro';
+     cifratura: {metodo: 'AES', bit, schema: 'agile' | 'standard' | 'pdf', impronta, giri, revisione} oppure null;
+     motivo: '' se il file è cifrato come si deve; altrimenti 'chiaro' (non cifrato), 'debole' (cifratura che si
+     aggira, come RC4), 'formato' (un formato che l'archivio non accetta), 'rovinato' (il contenitore non torna),
+     'vuoto' (nessun byte).
+   Il controllo lo fanno tutti e due i lati: l'app della redazione prima di mandare il file e lo sportello dell'archivio
+   (sportelli/archivio.js) prima di scriverlo.
+
+   Nel browser si trova in window.AGR_MODULI.fileCifrati; in Node (prove, sportello) con require(). */
+(function (radice, fabbrica) {
+  const m = fabbrica();
+  if (typeof module === 'object' && module.exports) module.exports = m;
+  else (radice.AGR_MODULI = radice.AGR_MODULI || {}).fileCifrati = m;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  const CFB = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+  const FINE = 0xFFFFFFFA;                 // i numeri di settore da qui in su chiudono una catena (MS-CFB, § 2.1)
+  const MAX_VOCI = 4096, MAX_SETTORI = 1 << 22;
+  const AES = { 0x660E: 128, 0x660F: 192, 0x6610: 256 }, RC4 = 0x6801;
+
+  const byte = d => d instanceof Uint8Array ? d : d instanceof ArrayBuffer ? new Uint8Array(d) : ArrayBuffer.isView(d) ? new Uint8Array(d.buffer, d.byteOffset, d.byteLength) : null;
+  const u16 = (b, i) => b[i] | (b[i + 1] << 8), u32 = (b, i) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
+  function guasto(dettaglio) { const e = new Error('file rovinato: ' + dettaglio); e.rovinato = true; return e; }
+  const esito = (formato, motivo, dettaglio, cifratura) => ({ formato, cifrato: !!cifratura, cifratura: cifratura || null, motivo, dettaglio: dettaglio || '' });
+  const estensione = nome => (String(nome || '').match(/\.([A-Za-z0-9]{1,8})$/) || ['', ''])[1].toLowerCase();
+
+  /* ---------- Il contenitore di Office (MS-CFB) ---------- */
+  function contenitore(b) {
+    if (b.length < 512) throw guasto('intestazione corta');
+    const sh = u16(b, 0x1E);
+    if (u16(b, 0x1C) !== 0xFFFE || (sh !== 9 && sh !== 12)) throw guasto('intestazione');
+    const ss = 1 << sh, ms = 1 << u16(b, 0x20), nFat = u32(b, 0x2C), dir0 = u32(b, 0x30), taglio = u32(b, 0x38), mf0 = u32(b, 0x3C), difat0 = u32(b, 0x44);
+    if (ms !== 64 || nFat > MAX_SETTORI / (ss / 4) || taglio !== 4096) throw guasto('intestazione');
+    const settore = n => { const o = (n + 1) * ss; if (n >= FINE || o >= b.length) throw guasto('settore fuori dal file'); return o; };
+    const quattro = (o, n) => { const v = []; for (let i = 0; i < n; i++) v.push(o + i * 4 + 4 <= b.length ? u32(b, o + i * 4) : FINE + 4); return v; };
+    /* la tabella dei settori (FAT): i primi 109 settori nell'intestazione, gli altri nella catena DIFAT */
+    const fs = quattro(0x4C, 109).slice(0, nFat);
+    for (let d = difat0, giri = 0; fs.length < nFat && d < FINE; giri++) {
+      if (giri > MAX_SETTORI) throw guasto('catena DIFAT');
+      const o = settore(d), v = quattro(o, ss / 4); fs.push(...v.slice(0, ss / 4 - 1).slice(0, nFat - fs.length)); d = v[ss / 4 - 1];
+    }
+    if (fs.length < nFat) throw guasto('tabella dei settori incompleta');
+    const fat = []; for (const s of fs) fat.push(...quattro(settore(s), ss / 4));
+    function catena(inizio, tab) {
+      const l = [], visti = new Set();
+      for (let s = inizio; s < FINE; s = tab[s]) {
+        if (s >= tab.length || visti.has(s) || l.length > MAX_SETTORI) throw guasto('catena di settori');
+        visti.add(s); l.push(s);
+      }
+      return l;
+    }
+    /* la cartella: voci di 128 byte con nome, tipo, figli e primo settore */
+    const voci = [];
+    for (const s of catena(dir0, fat)) {
+      const o = settore(s);
+      for (let k = 0; k + 128 <= ss && voci.length < MAX_VOCI; k += 128) {
+        const q = o + k, ln = u16(b, q + 64), n = [];
+        for (let i = 0; i + 1 < Math.min(ln, 64) - 1; i += 2) n.push(u16(b, q + i));
+        voci.push({ nome: String.fromCharCode(...n), tipo: b[q + 66], sx: u32(b, q + 68), dx: u32(b, q + 72), figlio: u32(b, q + 76), inizio: u32(b, q + 116), dim: u32(b, q + 120), alto: u32(b, q + 124) });
+      }
+    }
+    if (!voci.length || voci[0].tipo !== 5) throw guasto('manca la radice');
+    /* i figli della radice: un albero di voci (sinistra, destra) */
+    const figli = new Map(), pila = [voci[0].figlio], visti = new Set();
+    while (pila.length) {
+      const i = pila.pop();
+      if (i >= FINE || i === 0xFFFFFFFF) continue;
+      if (i >= voci.length || visti.has(i)) throw guasto('albero della cartella');
+      visti.add(i); const v = voci[i]; figli.set(v.nome, v); pila.push(v.sx, v.dx);
+    }
+    function leggi(v, max) {
+      if (v.alto || v.dim > max) throw guasto('parte troppo grande');
+      const out = new Uint8Array(v.dim);
+      if (v.dim < taglio) {
+        /* le parti piccole stanno nel «mini stream», a pezzi di 64 byte */
+        const mini = catena(voci[0].inizio, fat), mfat = [];
+        for (const s of catena(mf0, fat)) mfat.push(...quattro(settore(s), ss / 4));
+        let p = 0;
+        for (const m of catena(v.inizio, mfat)) {
+          if (p >= v.dim) break;
+          const pos = m * ms, s = mini[Math.floor(pos / ss)];
+          if (s === undefined) throw guasto('mini stream');
+          const o = settore(s) + (pos % ss), n = Math.min(ms, v.dim - p);
+          if (o + n > b.length) throw guasto('mini stream');
+          out.set(b.subarray(o, o + n), p); p += n;
+        }
+        if (p < v.dim) throw guasto('parte tagliata');
+      } else {
+        let p = 0;
+        for (const s of catena(v.inizio, fat)) {
+          if (p >= v.dim) break;
+          const o = settore(s), n = Math.min(ss, v.dim - p, b.length - o);
+          out.set(b.subarray(o, o + n), p); p += n;
+        }
+        if (p < v.dim) throw guasto('parte tagliata');
+      }
+      return out;
+    }
+    return { figli, leggi };
+  }
+  /* la scheda della cifratura di Office (MS-OFFCRYPTO, § 2.3.4.10 «agile» e § 2.3.4.5 «standard») */
+  function schedaOffice(info) {
+    if (info.length < 8) throw guasto('scheda della cifratura');
+    const mag = u16(info, 0), min = u16(info, 2);
+    if (mag === 4 && min === 4) {
+      const xml = new TextDecoder().decode(info.subarray(8));
+      const attr = t => { const o = {}; for (const m of String(t || '').matchAll(/([A-Za-z]+)="([^"]*)"/g)) o[m[1]] = m[2]; return o; };
+      const dati = attr((xml.match(/<keyData\b([^>]*)>/) || [])[1]);
+      const chiave = attr((xml.match(/<(?:\w+:)?encryptedKey\b([^>]*)>/) || [])[1]);
+      if (!/<keyEncryptor\b[^>]*\buri="[^"]*keyEncryptor\/password"/.test(xml) || !chiave.cipherAlgorithm) return { motivo: 'formato', dettaglio: 'cifratura senza password (con un certificato)' };
+      if (dati.cipherAlgorithm !== 'AES' || chiave.cipherAlgorithm !== 'AES') return { motivo: 'debole', dettaglio: 'algoritmo ' + (dati.cipherAlgorithm || chiave.cipherAlgorithm || '?') };
+      const bit = +chiave.keyBits, giri = +chiave.spinCount;
+      if (![128, 192, 256].includes(bit) || +dati.keyBits !== bit) throw guasto('lunghezza della chiave');
+      return { cifratura: { metodo: 'AES', bit, schema: 'agile', impronta: (chiave.hashAlgorithm || '').replace(/^SHA(\d)/, 'SHA-$1'), giri: Number.isFinite(giri) ? giri : 0 } };
+    }
+    if ([2, 3, 4].includes(mag) && min === 2) {
+      if (info.length < 32) throw guasto('scheda della cifratura');
+      const flag = u32(info, 4), alg = u32(info, 20), aes = !!(flag & 0x20);
+      if (alg === RC4 || (!aes && alg === 0)) return { motivo: 'debole', dettaglio: 'RC4' };
+      const bit = alg === 0 ? 128 : AES[alg];
+      if (!aes || !bit) throw guasto('algoritmo');
+      return { cifratura: { metodo: 'AES', bit, schema: 'standard', impronta: 'SHA-1', giri: 50000 } };
+    }
+    if ((mag === 3 || mag === 4) && min === 3) return { motivo: 'formato', dettaglio: 'cifratura «estensibile», non usata dai programmi di oggi' };
+    throw guasto('versione della scheda ' + mag + '.' + min);
+  }
+  function office(b, ext) {
+    const c = contenitore(b);
+    const info = c.figli.get('EncryptionInfo'), pacco = c.figli.get('EncryptedPackage');
+    if (!info || !pacco) {
+      if (c.figli.has('Workbook') || c.figli.has('Book')) return esito('xls', 'formato', 'formato Excel 97-2003 (.xls)');
+      return esito('altro', 'formato', 'documento Office di un altro tipo');
+    }
+    if (info.tipo !== 2 || pacco.tipo !== 2 || pacco.dim < 8 + 16) throw guasto('parti della cifratura');
+    const s = schedaOffice(c.leggi(info, 65536)), formato = ext === 'xlsx' ? 'xlsx' : 'office';
+    return s.cifratura ? esito(formato, '', '', s.cifratura) : esito(formato, s.motivo, s.dettaglio);
+  }
+
+  /* ---------- PDF ---------- */
+  /* toglie dal testo le stringhe letterali (con le parentesi annidate e i caratteri preceduti da «\») e quelle
+     esadecimali, lasciando i dizionari «<< >>»: così un byte qualunque dentro le stringhe della cifratura non si
+     scambia per una chiave del dizionario */
+  function senzaStringhe(t) {
+    let o = '', i = 0;
+    while (i < t.length) {
+      const c = t[i];
+      if (c === '(') {
+        let liv = 1; i++;
+        while (i < t.length && liv) { const d = t[i]; if (d === '\\') i += 2; else { if (d === '(') liv++; else if (d === ')') liv--; i++; } }
+        o += '()';
+      } else if (c === '<' && t[i + 1] !== '<') { const j = t.indexOf('>', i); i = j < 0 ? t.length : j + 1; o += '<>'; }
+      else if (c === '<') { o += '<<'; i += 2; } else { o += c; i++; }
+    }
+    return o;
+  }
+  /* il dizionario che comincia in t alla posizione i («<<…>>», con quelli annidati) */
+  function dizionario(t, i) {
+    const a = t.indexOf('<<', i); if (a < 0) return null;
+    let liv = 0;
+    for (let k = a; k < t.length - 1; k++) {
+      if (t[k] === '<' && t[k + 1] === '<') { liv++; k++; } else if (t[k] === '>' && t[k + 1] === '>') { liv--; k++; if (!liv) return t.slice(a, k + 1); }
+    }
+    return null;
+  }
+  function pdf(b) {
+    let t = ''; for (let i = 0; i < b.length; i += 8192) t += String.fromCharCode.apply(null, b.subarray(i, i + 8192));
+    const coda = t.slice(-2048), m = coda.match(/startxref\s+(\d+)\s+%%EOF\s*$/) || [...coda.matchAll(/startxref\s+(\d+)/g)].pop();
+    if (!m) throw guasto('manca startxref');
+    const off = +m[1]; if (off >= t.length) throw guasto('startxref fuori dal file');
+    /* la coda: dopo la tabella «xref» c'è il «trailer»; nei PDF più nuovi la tabella è un oggetto XRef con il suo dizionario */
+    let trailer = null;
+    if (/^\s*xref\b/.test(t.slice(off, off + 20))) { const k = t.indexOf('trailer', off); trailer = k < 0 ? null : dizionario(t, k); }
+    else if (/^\s*\d+\s+\d+\s+obj\b/.test(t.slice(off, off + 40))) trailer = dizionario(t, off);
+    if (!trailer) throw guasto('manca il trailer');
+    const tr = senzaStringhe(trailer), rif = tr.match(/\/Encrypt\s+(\d+)\s+(\d+)\s+R\b/);
+    let diz = null;
+    if (rif) {
+      const re = new RegExp('(^|[^0-9])' + rif[1] + '\\s+' + rif[2] + '\\s+obj\\b', 'g'); let ultimo = -1;
+      for (const x of t.matchAll(re)) ultimo = x.index;
+      if (ultimo < 0) throw guasto('manca il dizionario di cifratura');
+      diz = dizionario(t, ultimo);
+    } else if (/\/Encrypt\s*<</.test(tr)) diz = dizionario(tr, tr.indexOf('/Encrypt'));
+    if (!diz) return esito('pdf', 'chiaro', 'il PDF non ha una password di apertura');
+    const d = senzaStringhe(diz), nome = re => (d.match(re) || [])[1];
+    if (nome(/\/Filter\s*\/(\w+)/) !== 'Standard') return esito('pdf', 'formato', 'cifratura senza password (con un certificato)');
+    const v = +nome(/\/V\s+(\d+)/), r = +nome(/\/R\s+(\d+)/);
+    if (v === 1 || v === 2 || v === 3) return esito('pdf', 'debole', 'RC4');
+    if (v !== 4 && v !== 5) throw guasto('versione della cifratura');
+    const filtro = nome(/\/StmF\s*\/(\w+)/) || 'Identity';
+    if (filtro === 'Identity') return esito('pdf', 'chiaro', 'i contenuti del PDF non sono cifrati');
+    const cf = d.match(new RegExp('/' + filtro + '\\s*<<([^>]*)>>')), metodo = cf && (cf[1].match(/\/CFM\s*\/(\w+)/) || [])[1];
+    if (metodo === 'V2') return esito('pdf', 'debole', 'RC4');
+    if (metodo === 'None') return esito('pdf', 'chiaro', 'i contenuti del PDF non sono cifrati');
+    if (metodo === 'AESV2' && v === 4) return esito('pdf', '', '', { metodo: 'AES', bit: 128, schema: 'pdf', revisione: r });
+    if (metodo === 'AESV3' && v === 5) return esito('pdf', '', '', { metodo: 'AES', bit: 256, schema: 'pdf', revisione: r });
+    throw guasto('filtro di cifratura');
+  }
+
+  function esamina(dati, nome) {
+    const b = byte(dati), ext = estensione(nome);
+    if (!b) throw new Error('file cifrati: servono i byte del file');
+    if (!b.length) return esito('altro', 'vuoto', 'il file è vuoto');
+    try {
+      if (CFB.every((x, i) => b[i] === x)) return office(b, ext);
+      if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46 && b[4] === 0x2D) return pdf(b);
+      if (b[0] === 0x50 && b[1] === 0x4B && b[2] === 0x03 && b[3] === 0x04) {
+        if (ext === 'xlsx') return esito('xlsx', 'chiaro', 'il file Excel non ha una password di apertura');
+        if (ext === 'ods') return esito('ods', 'formato', 'formato di LibreOffice (.ods)');
+        return esito('zip', 'formato', 'archivio compresso');
+      }
+      if (ext === 'csv') return esito('csv', 'formato', 'un CSV è testo semplice e non si può cifrare');
+      return esito('altro', 'formato', 'formato non riconosciuto');
+    } catch (e) {
+      if (e && e.rovinato) return esito(ext === 'pdf' ? 'pdf' : ext === 'xlsx' ? 'xlsx' : 'altro', 'rovinato', e.message);
+      throw e;
+    }
+  }
+  /* come si dice a una persona: «AES a 256 bit · SHA-512 · 100.000 giri» */
+  function descrivi(c) {
+    if (!c) return '';
+    const p = ['AES a ' + c.bit + ' bit'];
+    if (c.schema === 'pdf') p.push('PDF' + (c.revisione ? ', revisione ' + c.revisione : ''));
+    else { if (c.impronta) p.push(c.impronta); if (c.giri) p.push(String(c.giri).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' giri'); p.push(c.schema === 'agile' ? 'cifratura «agile» di Office' : 'cifratura «standard» di Office'); }
+    return p.join(' · ');
+  }
+
+  return { esamina, descrivi };
+});
+
+/* La copia di sicurezza degli eventi fuori da Bunny (voce T-054 del piano di adeguamento; documento: docs/archivio.md).
+
+   Libro mastro, § 2.4 («Lo storico e le copie di sicurezza» e le sei condizioni comuni della copia), § 3.11 (prova
+   periodica del ripristino), § 3.13, passo 4 (le rimozioni chieste dopo la data della copia si ripetono prima di
+   ripubblicare), § 3.14 (la copia non va oltre lo storico). Decisioni del 27/11/2026: la copia contiene tutto (n. 6:
+   l'elenco degli eventi con sospesi e nascosti, che restano cifrati, tutto lo storico e il registro delle fonti come lo
+   tiene lo sportello, con i contatori dei codici F); la frase è di almeno 20 caratteri e non apre la copia di riserva
+   delle chiavi (n. 7); la cassaforte non entra (n. 10).
+
+   Il modulo non parla con lo sportello e non conosce chiavi: lavora su ciò che gli si passa.
+   - componi(file, info) → la copia, in chiaro: i file riservati letti dallo sportello con «immagine» (sportelli/
+     pubblicazione.js), con l'impronta SHA-256 di ciascuno. Gli eventi si ripetono da una copia dello storico all'altra:
+     ogni versione di un evento (o di un evento nascosto, cifrato) si scrive una volta sola, nella tabella «eventi», e
+     le copie la richiamano con la sua impronta. Un file che, riletto e riscritto, non torna identico resta com'è.
+   - ricomponi(copia) → gli stessi file, lettera per lettera: ognuno si controlla con l'impronta presa al momento della
+     copia; un file diverso fa fallire tutto.
+   - cifra(copia, frase) → i byte del file da salvare: una riga di intestazione (tipo, data, parametri) e il contenuto
+     compresso (gzip) e cifrato con AES-GCM a 256 bit, con la chiave ricavata dalla frase con PBKDF2-SHA-256 (600.000
+     giri, sale casuale di 16 byte), come la copia di riserva delle chiavi. L'intestazione è legata al contenuto: chi la
+     cambia rompe il file. decifra(byte, frase) fa il contrario; una frase sbagliata e un file alterato danno lo stesso
+     rifiuto («copia»), come per le chiavi.
+   - verifica(copia, {controlla}) → {integra, problemi, conti}: che cosa vuol dire «completa» (nel codice «integra», perché «completo» è tra le parole vietate dell'interfaccia) (decisione n. 8): ogni
+     file ricomposto ha la sua impronta; ogni copia nominata dall'elenco dello storico c'è, ha la forma di una copia e il
+     suo nome; nessuna copia fuori elenco; l'elenco degli eventi è quello dell'ultima copia; se ci sono buste del
+     registro ci sono anche i codici F; ogni evento dell'elenco passa il controllo del formato.
+   - parti(file, elenco, massimo) → le parti da mandare con «ricostruisci»: i file dello storico e del registro, e in
+     fondo l'elenco degli eventi da pubblicare (riservato/stato.json), come la Redazione lo rimanda.
+
+   Nel browser si trova in window.AGR_MODULI.copiaEventi; in Node (prove) con require(). Usa CompressionStream e
+   DecompressionStream, che hanno i browser recenti e Node dalla versione 18. */
+(function (radice, fabbrica) {
+  const m = fabbrica(radice);
+  if (typeof module === 'object' && module.exports) module.exports = m;
+  else (radice.AGR_MODULI = radice.AGR_MODULI || {}).copiaEventi = m;
+})(typeof self !== 'undefined' ? self : this, function (radice) {
+  'use strict';
+  const TIPO = 'copia-sicurezza-eventi', VERSIONE = 1, GIRI = 600000, FRASE_MIN = 20;
+  const MAX_TESTA = 4096, PARTE = 2.5e6;
+  const STATO = 'riservato/stato.json', ELENCO = 'riservato/storico/elenco.json', CODICI = 'riservato/registro/codici.json';
+  const COPIA = /^riservato\/storico\/copie\/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8})\.json$/, RIGHE = /^riservato\/registro\/righe\/(.+)\.json$/;
+  const LISTE = ['eventi', 'sospesi', 'nascosti', 'nascostiSospesi'];
+
+  function errore(motivo, dettaglio) { const e = new Error('Copia di sicurezza, ' + motivo + (dettaglio ? ' (' + dettaglio + ')' : '')); e.motivo = motivo; e.dettaglio = dettaglio || ''; return e; }
+  const cripto = () => radice.crypto || (typeof globalThis === 'object' ? globalThis.crypto : null);
+  const hex = b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join('');
+  const sha = async t => hex(await cripto().subtle.digest('SHA-256', typeof t === 'string' ? new TextEncoder().encode(t) : t));
+  function b64(b) { b = new Uint8Array(b); let s = ''; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, i + 8192)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function daB64(s) { const t = atob(String(s).replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) b[i] = t.charCodeAt(i); return b; }
+  async function flusso(dati, tipo) {
+    const s = new Blob([dati]).stream().pipeThrough(tipo);
+    return new Uint8Array(await new Response(s).arrayBuffer());
+  }
+  const comprimi = d => flusso(d, new CompressionStream('gzip'));
+  const espandi = d => flusso(d, new DecompressionStream('gzip'));
+
+  /* ---------- Comporre e ricomporre ---------- */
+  async function componi(file, info) {
+    if (!Array.isArray(file)) throw errore('file');
+    const eventi = {}, voci = [];
+    async function riferimento(x) { const t = JSON.stringify(x), k = (await sha(t)).slice(0, 32); if (!(k in eventi)) eventi[k] = x; return k; }
+    for (const f of file) {
+      if (!f || typeof f.percorso !== 'string' || typeof f.testo !== 'string') throw errore('file');
+      const v = { percorso: f.percorso, impronta: await sha(f.testo), lunghezza: f.testo.length };
+      let o = null;
+      if (f.percorso === STATO || COPIA.test(f.percorso)) { try { o = JSON.parse(f.testo); } catch (e) { o = null; } }
+      if (o && typeof o === 'object' && !Array.isArray(o) && JSON.stringify(o) === f.testo) {
+        for (const k of LISTE) if (Array.isArray(o[k])) { const l = []; for (const x of o[k]) l.push(await riferimento(x)); o[k] = l; }
+        v.compatta = o;
+      } else v.testo = f.testo;
+      voci.push(v);
+    }
+    return { tipo: TIPO, v: VERSIONE, creata: new Date((info && info.ora) || Date.now()).toISOString(), sportello: (info && info.sportello) || '', dispositivo: (info && info.dispositivo) || '', eventi, file: voci };
+  }
+  async function ricomponi(c) {
+    if (!c || c.tipo !== TIPO || c.v !== VERSIONE || !Array.isArray(c.file) || !c.eventi || typeof c.eventi !== 'object') throw errore('forma');
+    const out = [];
+    for (const v of c.file) {
+      let testo;
+      if (typeof v.testo === 'string') testo = v.testo;
+      else if (v.compatta && typeof v.compatta === 'object') {
+        const o = Object.assign({}, v.compatta);
+        for (const k of LISTE) if (Array.isArray(o[k])) o[k] = o[k].map(h => { if (!(h in c.eventi)) throw errore('impronta', v.percorso); return c.eventi[h]; });
+        testo = JSON.stringify(o);
+      } else throw errore('forma', v && v.percorso);
+      if ((await sha(testo)) !== v.impronta) throw errore('impronta', v.percorso);
+      out.push({ percorso: v.percorso, testo });
+    }
+    return out;
+  }
+
+  /* ---------- Cifrare il file ---------- */
+  async function chiave(frase, sale, giri) {
+    const base = await cripto().subtle.importKey('raw', new TextEncoder().encode(String(frase).normalize('NFKC')), 'PBKDF2', false, ['deriveKey']);
+    return cripto().subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: sale, iterations: giri }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  const fraseCorta = frase => Array.from(String(frase || '').trim()).length < FRASE_MIN;
+  async function cifra(c, frase) {
+    if (fraseCorta(frase)) throw errore('frase-corta');
+    const sale = cripto().getRandomValues(new Uint8Array(16)), iv = cripto().getRandomValues(new Uint8Array(12));
+    const testa = JSON.stringify({ tipo: TIPO, v: VERSIONE, creata: c.creata, kdf: { nome: 'PBKDF2-SHA-256', giri: GIRI, sale: b64(sale) }, cifra: { nome: 'AES-GCM', bit: 256, iv: b64(iv) }, compresso: 'gzip' }) + '\n';
+    const tb = new TextEncoder().encode(testa);
+    const dentro = await comprimi(new TextEncoder().encode(JSON.stringify(c)));
+    const fuori = new Uint8Array(await cripto().subtle.encrypt({ name: 'AES-GCM', iv, additionalData: tb }, await chiave(frase, sale, GIRI), dentro));
+    const r = new Uint8Array(tb.length + fuori.length); r.set(tb); r.set(fuori, tb.length);
+    return r;
+  }
+  function intestazione(byte) {
+    const b = byte instanceof Uint8Array ? byte : new Uint8Array(byte);
+    const fine = b.subarray(0, MAX_TESTA).indexOf(10);
+    if (fine < 0) throw errore('copia');
+    let t; try { t = JSON.parse(new TextDecoder().decode(b.subarray(0, fine))); } catch (e) { throw errore('copia'); }
+    if (!t || t.tipo !== TIPO || t.v !== VERSIONE || !t.kdf || !t.cifra || t.cifra.nome !== 'AES-GCM' || t.kdf.nome !== 'PBKDF2-SHA-256' || !(t.kdf.giri >= 100000 && t.kdf.giri <= 5e6)) throw errore('copia');
+    return { testa: t, tb: b.subarray(0, fine + 1), corpo: b.subarray(fine + 1) };
+  }
+  async function decifra(byte, frase) {
+    const h = intestazione(byte);
+    let dentro;
+    try { dentro = await cripto().subtle.decrypt({ name: 'AES-GCM', iv: daB64(h.testa.cifra.iv), additionalData: h.tb }, await chiave(frase, daB64(h.testa.kdf.sale), h.testa.kdf.giri), h.corpo); }
+    catch (e) { throw errore('copia'); }
+    let c; try { c = JSON.parse(new TextDecoder().decode(await espandi(new Uint8Array(dentro)))); } catch (e) { throw errore('copia'); }
+    if (!c || c.tipo !== TIPO || c.v !== VERSIONE) throw errore('copia');
+    return c;
+  }
+
+  /* ---------- Che cosa vuol dire «completa» ---------- */
+  async function verifica(c, o) {
+    const problemi = [], conti = { copie: 0, eventi: 0, sospesi: 0, nascosti: 0, buste: 0, codici: 0 };
+    let file;
+    try { file = await ricomponi(c); } catch (e) { return { integra: false, problemi: [e.motivo === 'impronta' ? 'il file ' + e.dettaglio + ' non è più uguale a quello copiato' : 'la copia non ha la forma giusta'], conti, file: null }; }
+    const per = new Map(file.map(f => [f.percorso, f.testo])), json = p => { try { return JSON.parse(per.get(p)); } catch (e) { return null; } };
+    const elenco = per.has(ELENCO) ? json(ELENCO) : [];
+    if (!Array.isArray(elenco)) problemi.push('l’elenco dello storico non si legge');
+    const nomi = new Set((Array.isArray(elenco) ? elenco : []).map(x => x && x.nome));
+    const copie = file.filter(f => COPIA.test(f.percorso));
+    for (const n of nomi) if (!per.has('riservato/storico/copie/' + n + '.json')) problemi.push('manca la copia dello storico del ' + n);
+    for (const f of copie) {
+      const n = f.percorso.match(COPIA)[1], k = json(f.percorso);
+      if (!nomi.has(n)) problemi.push('la copia ' + n + ' non è nell’elenco dello storico');
+      if (!k || k.tipo !== 'copia-pubblicazione' || k.nome !== n) problemi.push('la copia ' + n + ' non ha la forma di una copia dello storico');
+    }
+    conti.copie = copie.length;
+    const stato = per.has(STATO) ? json(STATO) : null;
+    if (nomi.size && !stato) problemi.push('manca l’elenco degli eventi');
+    if (stato) {
+      for (const k of LISTE) if (stato[k] !== undefined && !Array.isArray(stato[k])) problemi.push('l’elenco degli eventi non si legge');
+      conti.eventi = (stato.eventi || []).length; conti.sospesi = (stato.sospesi || []).length; conti.nascosti = (stato.nascosti || []).length + (stato.nascostiSospesi || []).length;
+      const ultima = Array.isArray(elenco) && elenco.length ? json('riservato/storico/copie/' + elenco[elenco.length - 1].nome + '.json') : null;
+      if (ultima && LISTE.some(k => JSON.stringify(stato[k] || []) !== JSON.stringify(ultima[k] || []))) problemi.push('l’elenco degli eventi non è quello dell’ultima copia dello storico: forse c’è stata una pubblicazione mentre si faceva la copia');
+      if (o && typeof o.controlla === 'function') for (const ev of (stato.eventi || []).concat(stato.sospesi || [])) { const e = o.controlla(ev); if (e && e.length) problemi.push('l’evento ' + String(ev && ev.id).slice(0, 40) + ' non passa il controllo del formato'); }
+    }
+    const buste = file.filter(f => RIGHE.test(f.percorso));
+    conti.buste = buste.length;
+    for (const f of buste) { const k = json(f.percorso); if (!k || k.tipo !== 'registro-righe') problemi.push('la busta ' + f.percorso.match(RIGHE)[1] + ' del registro non ha la forma giusta'); }
+    const cod = per.has(CODICI) ? json(CODICI) : null;
+    if (buste.length && !cod) problemi.push('mancano i codici F del registro delle fonti');
+    if (cod) conti.codici = Math.max(0, (cod.prossimo || 1) - 1);
+    return { integra: !problemi.length, problemi, conti, file };
+  }
+
+  /* ---------- Le parti di «ricostruisci» ---------- */
+  function parti(file, elenco, massimo) {
+    const max = massimo || PARTE, gruppi = [[]];
+    let n = 0;
+    for (const f of file) {
+      if (f.percorso === STATO) continue;
+      if (gruppi[gruppi.length - 1].length && n + f.testo.length > max) { gruppi.push([]); n = 0; }
+      gruppi[gruppi.length - 1].push(f); n += f.testo.length;
+    }
+    const ultimo = { percorso: STATO, testo: JSON.stringify({ eventi: elenco.eventi || [], sospesi: elenco.sospesi || [], nascosti: elenco.nascosti || [], nascostiSospesi: elenco.nascostiSospesi || [] }) };
+    if (gruppi[gruppi.length - 1].length && n + ultimo.testo.length > max) gruppi.push([]);
+    gruppi[gruppi.length - 1].push(ultimo);
+    return gruppi;
+  }
+  /* l'elenco dei file di una parte con le impronte, per il pacchetto firmato */
+  async function impronte(gruppo) { const l = []; for (const f of gruppo) l.push({ percorso: f.percorso, impronta: await sha(f.testo) }); return l; }
+
+  return { TIPO, VERSIONE, GIRI, FRASE_MIN, STATO, ELENCO, CODICI, componi, ricomponi, cifra, decifra, intestazione, verifica, parti, impronte, sha };
+});
+
 /* Lo sportello di pubblicazione (voci T-038, T-039 e T-040 del piano di adeguamento; documento:
    docs/sportello-pubblicazione.md).
 
@@ -2399,6 +2844,23 @@
   const TIPO_COPIA = 'copia-pubblicazione', TIPO_PUBBLICHE = 'chiavi-pubbliche-redazione', TIPO_REVOCA = 'revoca-chiave-redazione';
   const NOME_COPIA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}$/;
   const MAX_BUSTE = 500, MAX_COPIE_LETTE = 2000, MAX_F = 99999;
+  /* La copia di sicurezza degli eventi fuori da Bunny (T-054; § 2.4, «Lo storico e le copie di sicurezza»; decisioni del
+     27/11/2026, nn. 6 e 8). «immagine» legge, a pagine, i file riservati che la copia deve contenere: l'elenco degli
+     eventi (stato.json), lo storico (elenco e copie datate) e il registro delle fonti (codici F e buste); non le chiavi
+     ammesse, i numeri ricevuti, i tentativi errati né i file degli altri sportelli. «ricostruisci» li riversa in uno
+     sportello vuoto (oggi lo sportello di prova svuotato; con T-072 la cartella di prova su Bunny, o lo spazio nuovo dopo
+     la perdita dell'account), a parti, ciascuna con il suo pacchetto firmato: i file viaggiano accanto al pacchetto
+     ({pacchetto, file}) e il pacchetto ne porta le impronte SHA-256, così la firma li copre tutti. Lo sportello accetta la
+     prima parte soltanto se è vuoto, così non si può cancellare per errore l'archivio vero; finché la ricostruzione non è
+     finita (il segno riservato/ricostruzione.json) non pubblica nient'altro. L'ultima parte porta l'elenco degli eventi
+     come la Redazione lo rimanda dopo aver ripetuto le rimozioni chieste dopo la data della copia (§ 3.13, passo 4): lo
+     sportello lo pubblica come ogni pubblicazione, con la sua copia datata. */
+  const MARCA = RIS + 'ricostruzione.json', MAX_PAGINA = 3e6, MAX_INVOLUCRO = 12e6, MAX_PARTI = 100000;
+  const IMMAGINE = [/^riservato\/stato\.json$/, /^riservato\/storico\/elenco\.json$/, /^riservato\/storico\/copie\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}\.json$/,
+    /^riservato\/registro\/codici\.json$/, /^riservato\/registro\/righe\/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}\.json$/];
+  const nellImmagine = x => IMMAGINE.some(re => re.test(x));
+  /* le cartelle da elencare una per una: su Bunny l'elenco di una cartella non comprende le sottocartelle */
+  const CARTELLE_IMMAGINE = [RIS + 'storico/', RIS + 'storico/copie/', RIS + 'registro/', RIS + 'registro/righe/'];
   const RIGA = /^[^\u0000-\u001F\u007F-\u009F]*$/;
 
   const iso = ms => new Date(ms).toISOString();
@@ -2408,6 +2870,7 @@
   function crea(o) {
     const dep = o.deposito, ora = o.ora || (() => Date.now()), cripto = o.cripto || radice.crypto || (typeof globalThis === 'object' ? globalThis.crypto : null);
     const regioni = o.regioni || [], opzEv = o.vocabolario ? { vocabolario: o.vocabolario } : undefined;
+    const pagina = o.pagina || MAX_PAGINA;   // i caratteri di una pagina di «immagine» (nelle prove, più piccola)
     if (!dep) throw new Error('sportello: manca il deposito');
 
     async function leggiJson(p, d) { const t = await dep.leggi(p); if (t == null) return d; try { return JSON.parse(t); } catch (e) { return d; } }
@@ -2508,6 +2971,13 @@
       return { tutti, codici };
     }
 
+    /* i file riservati della copia di sicurezza che lo sportello ha, in ordine di percorso (T-054) */
+    async function fileImmagine() {
+      const tutti = new Set();
+      for (const pre of CARTELLE_IMMAGINE) for (const x of await dep.elenca(pre)) if (nellImmagine(x)) tutti.add(x);
+      if ((await dep.leggi(F.stato)) != null) tutti.add(F.stato);
+      return [...tutti].sort();
+    }
     const OPERA = {
       /* Pubblicare o correggere (un evento con un identificativo già pubblicato lo sostituisce), sospendere (l'evento
          esce dall'archivio pubblico e resta nell'elenco riservato: § 3.13, limitazione), riattivare, ritirare prima
@@ -2595,6 +3065,52 @@
         }
         return { buste, altre: nomi.length > MAX_BUSTE, pubblicati, troppe: lette > MAX_COPIE_LETTE, prossimo: tutti.prossimo };
       },
+      /* La copia di sicurezza: i file riservati, a pagine di al più tre milioni di caratteri, in ordine di percorso */
+      async immagine(c) {
+        if (c.dopo !== undefined && (typeof c.dopo !== 'string' || !nellImmagine(c.dopo))) throw rifiuto('immagine');
+        const tutti = await fileImmagine();
+        const via = tutti.filter(x => !c.dopo || x > c.dopo), file = []; let n = 0;
+        for (const percorso of via) {
+          const testo = await dep.leggi(percorso); if (testo == null) continue;
+          if (file.length && n + testo.length > pagina) break;
+          file.push({ percorso, testo }); n += testo.length;
+        }
+        return { file, totale: tutti.length, seguito: file.length < via.length ? file[file.length - 1].percorso : null };
+      },
+      async ricostruisci(c, p, t, file) {
+        if (typeof c.id !== 'string' || !/^[0-9a-f]{16}$/.test(c.id) || !Number.isInteger(c.parte) || !Number.isInteger(c.di) || c.parte < 1 || c.parte > c.di || c.di > MAX_PARTI ||
+          !Array.isArray(c.file) || !Array.isArray(file) || c.file.length !== file.length) throw rifiuto('ricostruzione');
+        /* i file: percorsi della copia, testi JSON, impronte uguali a quelle firmate; l'elenco degli eventi solo nell'ultima parte */
+        for (let i = 0; i < file.length; i++) {
+          const x = file[i], f = c.file[i];
+          if (!x || typeof x.testo !== 'string' || !f || f.percorso !== x.percorso || !nellImmagine(x.percorso) || typeof f.impronta !== 'string' ||
+            (x.percorso === F.stato && c.parte !== c.di)) throw rifiuto('ricostruzione', { percorso: corto(x && x.percorso) });
+          const h = Array.from(new Uint8Array(await cripto.subtle.digest('SHA-256', new TextEncoder().encode(x.testo))), y => y.toString(16).padStart(2, '0')).join('');
+          if (h !== f.impronta) throw rifiuto('impronta', { percorso: corto(x.percorso) });
+          try { JSON.parse(x.testo); } catch (e) { throw rifiuto('ricostruzione', { percorso: corto(x.percorso) }); }
+        }
+        const marca = await leggiJson(MARCA, null);
+        if (c.parte === 1) {
+          /* la prima parte: lo sportello è vuoto, oppure c'è una ricostruzione interrotta, che si ricomincia da capo */
+          const presenti = await fileImmagine();
+          if (presenti.length && !marca) throw rifiuto('pieno');
+          for (const x of presenti) await dep.togli(x);
+        } else if (!marca || marca.id !== c.id || marca.parte !== c.parte - 1 || marca.di !== c.di) throw rifiuto('parte', { attesa: marca && marca.id === c.id ? marca.parte + 1 : 1 });
+        await scriviJson(MARCA, { id: c.id, di: c.di, parte: c.parte, dispositivo: p.dispositivo, inizio: marca && c.parte > 1 ? marca.inizio : iso(t) });
+        let stato = null;
+        for (const x of file) { if (x.percorso === F.stato) stato = JSON.parse(x.testo); else await dep.scrivi(x.percorso, x.testo); }
+        if (c.parte < c.di) return { parte: c.parte, di: c.di };
+        /* l'ultima parte: si pubblica l'elenco degli eventi, come un ripristino, con la sua copia datata */
+        if (!stato || typeof stato !== 'object') throw rifiuto('ricostruzione', { percorso: F.stato });
+        const ev = lista(stato, 'eventi'), sos = lista(stato, 'sospesi'), nas = lista(stato, 'nascosti'), nsos = lista(stato, 'nascostiSospesi');
+        controllaEventi(ev.concat(sos)); controllaNascosti(nas.concat(nsos));
+        const ids = new Set(ev.concat(sos).map(e => e.id)), doppio = nas.concat(nsos).find(x => ids.has(x.id));
+        if (doppio) throw rifiuto('nascosto', { id: corto(doppio.id) });
+        const vivo = e => E.uscitaMs(e) > t, vivoN = x => N.vivo(x.giorno, t);
+        const r = await pubblica(p, t, 'ricostruisci', { da: typeof c.da === 'string' ? c.da.slice(0, 40) : '' }, ev.filter(vivo), sos.filter(vivo), null, nas.filter(vivoN), nsos.filter(vivoN));
+        await dep.togli(MARCA);
+        return Object.assign(r, { parte: c.parte, di: c.di });
+      },
       async copia(c) {
         if (typeof c.nome !== 'string' || !NOME_COPIA.test(c.nome)) throw rifiuto('copia');
         const k = await leggiJson(F.copie + c.nome + '.json', null);
@@ -2606,10 +3122,18 @@
 
     /* ---------- La porta: un pacchetto alla volta ---------- */
     async function tratta(testo) {
-      let letto; try { letto = P.leggi(testo); } catch (e) { return risposta(400, { esito: 'rifiutato', motivo: 'forma' }); }
-      const p = letto.pacchetto, c = letto.contenuto, t = ora(), imp = p.dispositivo.impronta;
       const no = (stato, motivo, extra) => risposta(stato, Object.assign({ esito: 'rifiutato', motivo }, extra || {}));
-      if (!Object.prototype.hasOwnProperty.call(OPERA, c.operazione)) return no(400, 'operazione');   // un'operazione dello sportello delle segnalazioni (T-052)
+      /* la richiesta è il pacchetto, oppure, per «ricostruisci», {pacchetto, file}: i file accanto al pacchetto (T-054) */
+      let pacchetto = testo, file;
+      if (typeof testo === 'string' && testo.length <= MAX_INVOLUCRO && /^\s*\{\s*"pacchetto"/.test(testo)) {
+        let r; try { r = JSON.parse(testo); } catch (e) { return no(400, 'forma'); }
+        if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).some(k => k !== 'pacchetto' && k !== 'file') || !Array.isArray(r.file)) return no(400, 'forma');
+        pacchetto = r.pacchetto; file = r.file;
+      }
+      let letto; try { letto = P.leggi(pacchetto); } catch (e) { return no(400, 'forma'); }
+      const p = letto.pacchetto, c = letto.contenuto, t = ora(), imp = p.dispositivo.impronta;
+      if (!Object.prototype.hasOwnProperty.call(OPERA, c.operazione)) return no(400, 'operazione');   // un'operazione di un altro sportello (T-052, T-053)
+      if ((file !== undefined) !== (c.operazione === 'ricostruisci')) return no(400, 'forma');
       const chiavi = await leggiJson(F.chiavi, {});
       if ((chiavi.revocate || []).some(k => k.impronta === imp)) return no(403, 'revocata');
       const nota = (chiavi.ammesse || []).find(k => k.impronta === imp);
@@ -2628,7 +3152,9 @@
       for (const k of Object.keys(visti)) if (!(visti[k] > t - 2 * P.FINESTRA_MS)) delete visti[k];
       if (visti[p.numero]) return no(409, 'ripetuto');
       visti[p.numero] = t; await scriviJson(F.visti, visti);
-      try { return risposta(200, Object.assign({ esito: 'fatto', operazione: c.operazione }, await OPERA[c.operazione](c, p, t))); }
+      /* durante una ricostruzione non si pubblica e non si ripristina (T-054) */
+      if ((c.operazione === 'scrivi' || c.operazione === 'ripristina') && (await dep.leggi(MARCA)) != null) return no(409, 'ricostruzione');
+      try { return risposta(200, Object.assign({ esito: 'fatto', operazione: c.operazione }, await OPERA[c.operazione](c, p, t, file))); }
       catch (e) { if (e && e.rifiuto) return risposta(422, Object.assign({ esito: 'rifiutato' }, e.rifiuto)); throw e; }
     }
     let coda = Promise.resolve();
@@ -2672,7 +3198,225 @@
     return { ricevi, ammetti, revoca, chiavi };
   }
 
-  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, NASC, TIPO_COPIA, NOME_COPIA, MAX_BUSTE, crea };
+  return { VERSIONE, TENTATIVI, QUARTO_MS, FERMO_MS, MAX_EVENTI, CINQUE_ANNI_MS, MOTIVI, PUB, RIS, NASC, TIPO_COPIA, NOME_COPIA, MAX_BUSTE, MARCA, MAX_PAGINA, MAX_INVOLUCRO, nellImmagine, crea };
+});
+
+/* Lo sportello dell'archivio dei registri (voce T-053 del piano di adeguamento; documento: docs/archivio.md).
+
+   Libro mastro, § 1.1 (le tre condizioni dell'archivio: uno spazio riservato, separato e non raggiungibile dal pubblico;
+   file cifrati sul dispositivo della redazione prima del caricamento; una copia fuori da Bunny), § 18.3 (QB-7, strada 2,
+   decisione del 17/11/2026: i registri si cifrano con la password di apertura del programma dei fogli di calcolo e si
+   depositano dalla sezione «Archivio» dell'app della redazione, con la firma, che rifiuta i file in chiaro e non apre
+   mai i registri; fino al lancio la sola copia corrente, strada a), § 18.4 (i nomi dei file), § 18.2 (gli allegati),
+   cap. 22 (il registro delle fonti scritto dall'app usa lo stesso deposito), § 2.4 («Le chiavi»: la password
+   dell'account Bunny non serve a depositare).
+
+   Una sola porta, firmata: risponde soltanto ai pacchetti firmati da un dispositivo della Redazione, con il pacchetto e
+   le regole dello sportello di pubblicazione (sorgenti/moduli/pacchetto.js; decisione del 23/11/2026: cinque minuti;
+   cinque firme sbagliate in un quarto d'ora fermano quel dispositivo per quindici minuti; gli estranei sono rifiutati
+   subito, senza contare nulla). Le operazioni (decisioni del 27/11/2026, nn. 2-5):
+   - «archivia»: deposita un file già cifrato. Il file viaggia accanto al pacchetto, nella stessa richiesta
+     ({pacchetto, dati}): il pacchetto firmato porta nome, dimensione e impronta SHA-256 del file, così la firma copre
+     anche il file senza che il file debba stare dentro il pacchetto (che ha un limite di 2 milioni di caratteri). Lo
+     sportello controlla il nome (§ 18.4), la dimensione (al più 10 MB) e il numero dei file (al più 1.000), l'impronta e
+     la cifratura (sorgenti/moduli/file-cifrati.js: Excel e PDF con AES, decisione n. 1); un file con lo stesso nome di
+     uno già depositato lo sostituisce soltanto se il pacchetto lo chiede («sostituisci»), perché fino al lancio
+     nell'archivio c'è la sola copia corrente (§ 18.3, strada a);
+   - «elenca»: l'elenco dei file con dimensione, impronta, cifratura, ora e dispositivo, e il numero delle buste del
+     registro delle fonti scritte dall'app (decisione n. 3: le buste viaggiano con la pubblicazione e restano nel
+     riservato dello sportello di pubblicazione, nella stessa zona; qui si mostrano e si riscaricano);
+   - «scarica»: un file, così com'è (cifrato), oppure le buste del registro delle fonti, a pagine;
+   - «togli»: toglie un file (un allegato scaduto con la sua voce, § 18.6; un file depositato per errore);
+   - «codice»: il prossimo codice FS (fonti) o NP (richieste non pubblicate) del registro delle fonti (decisione n. 4):
+     due dispositivi non danno mai lo stesso codice (§ 18.4: i codici non si riusano). Il dispositivo manda il primo
+     numero che conosce come libero («almeno»): il contatore va avanti, mai indietro, così un codice scritto a mano o
+     dato prima non torna.
+   Lo sportello non apre mai i file: li conserva così come arrivano, in base64 dentro un piccolo file JSON con le sue
+   informazioni, nella zona riservata, sotto riservato/archivio/.
+
+   Qui c'è soltanto la logica, uguale dovunque giri: su Bunny la avvolge sportelli/bunny-archivio.js (Fase 2, T-065); in
+   Fase 1 gira dentro il browser dell'app della redazione, nello sportello di prova, con lo stesso archivio finto degli
+   altri sportelli. Chi la avvolge le dà deposito {leggi, scrivi, togli, elenca}, ora, cripto, pacchetto, file (il
+   modulo dei file cifrati) e nome (il nome del servizio, con cui cominciano i nomi dei registri).
+
+   Nel browser si trova in window.AGR_MODULI.archivioSportello (dopo pacchetto.js e file-cifrati.js); in Node con
+   require(). */
+(function (radice, fabbrica) {
+  const nodo = typeof module === 'object' && module.exports && typeof require === 'function';
+  const M = nodo ? { pacchetto: require('../sorgenti/moduli/pacchetto.js'), file: require('../sorgenti/moduli/file-cifrati.js') } : (radice.AGR_MODULI || {});
+  const m = fabbrica(M.pacchetto, M.file || M.fileCifrati, radice);
+  if (nodo) module.exports = m;
+  else (radice.AGR_MODULI = radice.AGR_MODULI || {}).archivioSportello = m;
+})(typeof self !== 'undefined' ? self : this, function (P0, F0, radice) {
+  'use strict';
+
+  const VERSIONE = 1;
+  const LIMITI = { dimensione: 10 * 1024 * 1024, numero: 1000 };   // decisione del 27/11/2026, n. 5
+  const TENTATIVI = 5, QUARTO_MS = 15 * 6e4, FERMO_MS = 15 * 6e4;    // come lo sportello di pubblicazione
+  const MAX_PAGINA = 3e6;                  // caratteri di buste in una risposta di «scarica»
+  const PRE = 'riservato/archivio/', RIGHE = 'riservato/registro/righe/';
+  const F = { chiavi: 'riservato/chiavi.json', elenco: PRE + 'elenco.json', file: PRE + 'file/', codici: PRE + 'codici.json', visti: PRE + 'visti.json', tentativi: PRE + 'tentativi.json' };
+  const TIPO_FILE = 'file-archivio';
+  const NOME_COPIA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}$/;
+  const IMPRONTA = /^[0-9a-f]{64}$/, B64 = /^[A-Za-z0-9_-]*$/;
+
+  /* I nomi dei file (§ 18.4: «Agorapp_RegNN_Nome.xlsx», con il nome del servizio davanti; §§ 18.5 e 18.9: anagrafica ed
+     elenchi; cap. 25: la sezione riservata delle segnalazioni ha un file suo). Gli allegati (§ 18.2) portano davanti il
+     codice della voce a cui appartengono, per esempio «C-0007_risposta.pdf». I file di gestione delle attività (§ 2.6;
+     piano, sezione 8: «depositabili, se cifrati, con lo strumento di T-053»), che il libro mastro non nomina, si chiamano
+     «<nome>_Gestione_<descrizione>.xlsx» (scelta del 27/11/2026, da annotare nel libro mastro). */
+  const REGISTRI = [
+    ['Reg19_Decisioni', 'Registro delle decisioni (cap. 19)'], ['Reg20_Questioni_aperte', 'Registro delle questioni aperte (cap. 20)'], ['Reg21_Trattamenti', 'Registro dei trattamenti (cap. 21)'],
+    ['Reg22_Fonti', 'Registro delle fonti (cap. 22)'], ['Reg23_Consensi', 'Registro dei consensi (cap. 23)'], ['Reg24_Esclusioni', 'Registro delle esclusioni editoriali (cap. 24)'],
+    ['Reg25_Segnalazioni', 'Registro delle segnalazioni (cap. 25)'], ['Reg25_Sezione_riservata', 'Sezione riservata delle segnalazioni (cap. 25)'], ['Reg26_Richieste', 'Registro delle richieste (cap. 26)'],
+    ['Reg27_Violazioni', 'Registro delle violazioni (cap. 27)'], ['Reg28_Servizi_esterni', 'Registro dei servizi esterni (cap. 28)'], ['Reg28bis_Accessibilita', 'Registro dell’accessibilità (cap. 28-bis)']];
+  const COLLEGATI = [['Anagrafica_registri', 'Anagrafica dei registri (§ 18.5)'], ['Elenco_contatti', 'Elenco dei contatti della Direzione (§ 18.9)'], ['Elenco_beta_tester', 'Elenco dei beta-tester (§ 18.9)']];
+  const PREFISSI = ['D', 'RI', 'CI', 'E', 'Q', 'VD', 'T', 'DES', 'FS', 'F', 'NP', 'C', 'X', 'CR', 'PR', 'S', 'A', 'AV', 'R', 'V', 'SE', 'ACC-S', 'ACC-G', 'ACC-V', 'ACC-O', 'P', 'K', 'BT'];
+  const ALLEGATO = new RegExp('^(?:' + PREFISSI.join('|') + ')-\\d{4,5}_[A-Za-z0-9][A-Za-z0-9_-]{0,80}\\.(pdf|xlsx)$');
+  const DESCRIZIONE = '[A-Za-z0-9][A-Za-z0-9_-]{0,60}';
+  const escRe = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /* tipoNome(nome, servizio) → {tipo: 'registro' | 'collegato' | 'gestione' | 'allegato', nome, etichetta, estensioni} o
+     null. Un registro scritto con maiuscole diverse si riconosce e torna con il nome giusto. */
+  function tipoNome(nome, servizio) {
+    nome = String(nome || ''); const s = String(servizio || '');
+    if (!s || nome.length > 120 || /[\/\\\u0000-\u001F\u007F]/.test(nome)) return null;
+    for (const [tipo, l] of [['registro', REGISTRI], ['collegato', COLLEGATI]])
+      for (const [n, etichetta] of l) { const giusto = s + '_' + n + '.xlsx'; if (nome.toLowerCase() === giusto.toLowerCase()) return { tipo, nome: giusto, etichetta, estensioni: ['xlsx'] }; }
+    if (new RegExp('^' + escRe(s) + '_Gestione_' + DESCRIZIONE + '\\.xlsx$').test(nome)) return { tipo: 'gestione', nome, etichetta: 'File di gestione delle attività (§ 2.6)', estensioni: ['xlsx'] };
+    const a = nome.match(ALLEGATO);
+    if (a) return { tipo: 'allegato', nome, etichetta: 'Allegato della voce ' + nome.split('_')[0] + ' (§ 18.2)', estensioni: [a[1]] };
+    return null;
+  }
+  const nomiFissi = servizio => REGISTRI.concat(COLLEGATI).map(([n, etichetta]) => ({ nome: servizio + '_' + n + '.xlsx', etichetta }));
+
+  const iso = ms => new Date(ms).toISOString();
+  function rifiuto(motivo, extra) { const e = new Error('archivio: ' + motivo); e.rifiuto = Object.assign({ motivo }, extra || {}); return e; }
+  function daB64(s) {
+    const t = atob(s.replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(t.length);
+    for (let i = 0; i < t.length; i++) b[i] = t.charCodeAt(i);
+    return b;
+  }
+  const esadecimale = b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join('');
+
+  function crea(o) {
+    const dep = o.deposito, ora = o.ora || (() => Date.now()), P = o.pacchetto || P0, FC = o.file || F0, servizio = String(o.nome || '');
+    const cripto = o.cripto || radice.crypto || (typeof globalThis === 'object' ? globalThis.crypto : null);
+    const L = Object.assign({}, LIMITI, o.limiti || {});
+    if (!dep || !P || !FC || !servizio) throw new Error('sportello dell\'archivio: mancano deposito, pacchetto, modulo dei file o nome');
+    const MAX_RICHIESTA = P.MAX_CARATTERI + Math.ceil(L.dimensione * 4 / 3) + 1000;
+    async function leggiJson(p, d) { const t = await dep.leggi(p); if (t == null) return d; try { return JSON.parse(t); } catch (e) { return d; } }
+    const scriviJson = (p, v) => dep.scrivi(p, JSON.stringify(v));
+    const risposta = (stato, corpo) => ({ stato, corpo: Object.assign({ sportello: 'archivio', v: VERSIONE, ora: iso(ora()) }, corpo) });
+    const no = (stato, motivo, extra) => risposta(stato, Object.assign({ esito: 'rifiutato', motivo }, extra || {}));
+    const elenco = async () => { const e = await leggiJson(F.elenco, null); return e && e.file && typeof e.file === 'object' ? e : { v: VERSIONE, file: {} }; };
+    const buste = async () => (await dep.elenca(RIGHE)).map(x => x.slice(RIGHE.length).replace(/\.json$/, '')).filter(n => NOME_COPIA.test(n)).sort();
+
+    const OPERA = {
+      async archivia(c, p, t, dati) {
+        const tn = tipoNome(c.nome, servizio);
+        if (!tn || tn.nome !== c.nome) throw rifiuto('nome');
+        if (!Number.isInteger(c.dimensione) || c.dimensione < 1) throw rifiuto('forma');
+        if (c.dimensione > L.dimensione) throw rifiuto('grande', { massimo: L.dimensione });
+        if (typeof c.impronta !== 'string' || !IMPRONTA.test(c.impronta) || (c.sostituisci !== undefined && typeof c.sostituisci !== 'boolean')) throw rifiuto('forma');
+        if (typeof dati !== 'string' || !B64.test(dati)) throw rifiuto('forma');
+        const b = daB64(dati);
+        if (b.length !== c.dimensione) throw rifiuto('forma');
+        if (esadecimale(await cripto.subtle.digest('SHA-256', b)) !== c.impronta) throw rifiuto('impronta');
+        const es = FC.esamina(b, c.nome), ext = c.nome.split('.').pop().toLowerCase();
+        if (es.motivo) throw rifiuto('cifratura', { file: es.motivo, dettaglio: es.dettaglio });
+        if (!tn.estensioni.includes(ext) || es.formato !== ext) throw rifiuto('cifratura', { file: 'formato', dettaglio: 'il contenuto non è un file .' + ext });
+        const e = await elenco(), prima = e.file[c.nome];
+        if (prima && !c.sostituisci) throw rifiuto('esiste', { quando: prima.quando, dispositivo: prima.dispositivo });
+        if (!prima && Object.keys(e.file).length >= L.numero) throw rifiuto('troppi', { massimo: L.numero });
+        const quando = iso(t), meta = { nome: c.nome, categoria: tn.tipo, dimensione: c.dimensione, impronta: c.impronta, cifratura: es.cifratura, quando, dispositivo: p.dispositivo };
+        await scriviJson(F.file + c.nome + '.json', Object.assign({ tipo: TIPO_FILE, v: VERSIONE }, meta, { dati }));
+        e.file[c.nome] = meta; await scriviJson(F.elenco, e);
+        return { file: meta, sostituito: !!prima };
+      },
+      async elenca(c) {
+        const e = await elenco(), n = await buste(), cod = await leggiJson(F.codici, {});
+        return { file: Object.values(e.file).sort((a, b) => a.nome < b.nome ? -1 : 1), buste: { numero: n.length, ultima: n.length ? n[n.length - 1] : null },
+          limiti: { dimensione: L.dimensione, numero: L.numero }, codici: { FS: cod.FS || 1, NP: cod.NP || 1 } };
+      },
+      async scarica(c) {
+        if (c.buste === true) {
+          if (c.dopo !== undefined && (typeof c.dopo !== 'string' || !NOME_COPIA.test(c.dopo))) throw rifiuto('forma');
+          const tutte = await buste(), via = tutte.filter(n => !c.dopo || n > c.dopo), fuori = [];
+          let n = 0;
+          for (const nome of via) {
+            const testo = await dep.leggi(RIGHE + nome + '.json'); if (testo == null) continue;
+            if (fuori.length && n + testo.length > MAX_PAGINA) break;
+            fuori.push({ nome, testo }); n += testo.length;
+          }
+          return { buste: fuori, altre: fuori.length < via.length };
+        }
+        if (!tipoNome(c.nome, servizio) || !(await elenco()).file[c.nome]) throw rifiuto('manca');
+        const x = await leggiJson(F.file + c.nome + '.json', null);
+        if (!x || x.tipo !== TIPO_FILE || x.nome !== c.nome) throw rifiuto('manca');
+        return { file: { nome: x.nome, categoria: x.categoria, dimensione: x.dimensione, impronta: x.impronta, cifratura: x.cifratura, quando: x.quando, dispositivo: x.dispositivo }, dati: x.dati };
+      },
+      async togli(c) {
+        const e = await elenco();
+        if (!tipoNome(c.nome, servizio) || !e.file[c.nome]) throw rifiuto('manca');
+        await dep.togli(F.file + c.nome + '.json'); delete e.file[c.nome]; await scriviJson(F.elenco, e);
+        return { tolto: c.nome };
+      },
+      async codice(c) {
+        if (!['FS', 'NP'].includes(c.serie) || (c.almeno !== undefined && (!Number.isInteger(c.almeno) || c.almeno < 1 || c.almeno > 9999))) throw rifiuto('forma');
+        const cod = await leggiJson(F.codici, {}), n = Math.max(cod[c.serie] || 1, c.almeno || 1);
+        if (n > 9999) throw rifiuto('codici');
+        cod[c.serie] = n + 1; await scriviJson(F.codici, cod);
+        return { codice: c.serie + '-' + String(n).padStart(4, '0') };
+      }
+    };
+
+    /* ---------- La porta: una richiesta alla volta ---------- */
+    async function tratta(testo) {
+      const t = ora();
+      if (typeof testo !== 'string' || testo.length > MAX_RICHIESTA) return no(400, 'forma');
+      let r; try { r = JSON.parse(testo); } catch (e) { return no(400, 'forma'); }
+      /* la richiesta è il pacchetto, oppure {pacchetto, dati} quando porta un file */
+      let pacchetto = r, dati;
+      if (r && typeof r === 'object' && !Array.isArray(r) && 'pacchetto' in r) {
+        if (Object.keys(r).some(k => k !== 'pacchetto' && k !== 'dati')) return no(400, 'forma');
+        pacchetto = r.pacchetto; dati = r.dati;
+      }
+      let letto; try { letto = P.leggi(pacchetto); } catch (e) { return no(400, 'forma'); }
+      const p = letto.pacchetto, c = letto.contenuto, imp = p.dispositivo.impronta;
+      if (!Object.prototype.hasOwnProperty.call(OPERA, c.operazione)) return no(400, 'operazione');   // le operazioni degli altri sportelli
+      if ((dati !== undefined) !== (c.operazione === 'archivia')) return no(400, 'forma');
+      const chiavi = await leggiJson(F.chiavi, {});
+      if ((chiavi.revocate || []).some(k => k.impronta === imp)) return no(403, 'revocata');
+      const nota = (chiavi.ammesse || []).find(k => k.impronta === imp);
+      if (!nota) return no(403, 'sconosciuto');
+      const tentativi = await leggiJson(F.tentativi, {}), mio = tentativi[imp] || { errori: [] };
+      if (mio.fermo_fino > t) return no(429, 'fermo', { fino: iso(mio.fermo_fino) });
+      if (!(await P.verifica(p, nota.pubblica, cripto))) {
+        mio.errori = (mio.errori || []).filter(x => x > t - QUARTO_MS).concat([t]);
+        const fermo = mio.errori.length >= TENTATIVI;
+        if (fermo) { mio.fermo_fino = t + FERMO_MS; mio.errori = []; }
+        tentativi[imp] = mio; await scriviJson(F.tentativi, tentativi);
+        return fermo ? no(429, 'fermo', { fino: iso(mio.fermo_fino) }) : no(401, 'firma');
+      }
+      if (Math.abs(t - Date.parse(p.quando)) > P.FINESTRA_MS) return no(400, 'tempo');
+      const visti = await leggiJson(F.visti, {});
+      for (const k of Object.keys(visti)) if (!(visti[k] > t - 2 * P.FINESTRA_MS)) delete visti[k];
+      if (visti[p.numero]) return no(409, 'ripetuto');
+      visti[p.numero] = t; await scriviJson(F.visti, visti);
+      try { return risposta(200, Object.assign({ esito: 'fatto', operazione: c.operazione }, await OPERA[c.operazione](c, p, t, dati))); }
+      catch (e) { if (e && e.rifiuto) return risposta(422, Object.assign({ esito: 'rifiutato' }, e.rifiuto)); throw e; }
+    }
+    let coda = Promise.resolve();
+    /* ricevi(testo della richiesta) → {stato, corpo}, come gli altri sportelli */
+    function ricevi(testo) {
+      const r = coda.then(() => tratta(testo));
+      coda = r.catch(() => {});
+      return r.catch(() => risposta(500, { esito: 'rifiutato', motivo: 'guasto' }));
+    }
+    return { ricevi };
+  }
+
+  return { VERSIONE, LIMITI, PRE, REGISTRI, COLLEGATI, PREFISSI, tipoNome, nomiFissi, crea };
 });
 
 /* Lo sportello delle segnalazioni (voce T-051 del piano di adeguamento; documento: docs/segnalazioni.md).

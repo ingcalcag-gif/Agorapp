@@ -237,13 +237,16 @@ function salvaNp(){
   if(x.motivazioneData && !x.motivazioneCanale) e.push(tr('Canale: scegli come hai inviato la motivazione.'));
   x.errori = e; if(e.length){ disegnaFoglio(); return; }
   const d = REG.dati, v = {richiesta:x.richiesta, organizzatore:x.organizzatore.trim(), evento:x.evento.trim(), motivo:x.motivo, motivazioneData:x.motivazioneData, motivazioneCanale:x.motivazioneCanale, chiusa:x.chiusa, note:x.note.trim(), aggiornata:new Date().toISOString(), invio:true};
-  let y = x.codice ? d.nonPubblicati.find(z => z.codice===x.codice) : null; const prima = y ? JSON.parse(JSON.stringify(y)) : null;
-  if(y){ rettifica(y, prima, v, {richiesta:'Data della richiesta', organizzatore:'Organizzatore', evento:'Evento richiesto', motivo:'Motivo', motivazioneData:'Motivazione inviata', motivazioneCanale:'Canale', chiusa:'Chiusura', note:'Note'}); Object.assign(y, v); }
-  else { y = Object.assign({codice:regCodice('NP', d.prossimi.np++, 4), registrata:oggi(), rettifiche:[]}, v); d.nonPubblicati.push(y); }
-  PB.lavoro = true; disegnaFoglio();
-  regSalva().then(() => { PB.lavoro = false; registra(x.codice ? 'np-corretto' : 'np-nuovo', {c:y.codice}); RX.np = null; PB.msg = tr('Riga {c} salvata.',{c:y.codice}); apri('pb-np'); },
-    () => { PB.lavoro = false; if(!x.codice){ d.nonPubblicati.pop(); d.prossimi.np--; } else if(prima){ Object.keys(y).forEach(k => { delete y[k]; }); Object.assign(y, prima); }
-      PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  let y = x.codice ? d.nonPubblicati.find(z => z.codice===x.codice) : null; const prima = y ? JSON.parse(JSON.stringify(y)) : null, prossimo = d.prossimi.np;
+  PB.lavoro = true; PB.errore = ''; disegnaFoglio();
+  /* una riga nuova prende il codice NP dallo sportello dell'archivio (T-053, decisione del 27/11/2026, n. 4) */
+  (y ? Promise.resolve('') : codiceRegistro('NP', d.prossimi.np)).then(codice => {
+    if(y){ rettifica(y, prima, v, {richiesta:'Data della richiesta', organizzatore:'Organizzatore', evento:'Evento richiesto', motivo:'Motivo', motivazioneData:'Motivazione inviata', motivazioneCanale:'Canale', chiusa:'Chiusura', note:'Note'}); Object.assign(y, v); }
+    else { y = Object.assign({codice, registrata:oggi(), rettifiche:[]}, v); d.nonPubblicati.push(y); d.prossimi.np = Math.max(d.prossimi.np, numeroCodice(codice)+1); }
+    return regSalva().then(() => { PB.lavoro = false; registra(x.codice ? 'np-corretto' : 'np-nuovo', {c:y.codice}); RX.np = null; PB.msg = tr('Riga {c} salvata.',{c:y.codice}); apri('pb-np'); },
+      () => { PB.lavoro = false; if(!x.codice){ d.nonPubblicati.pop(); d.prossimi.np = prossimo; } else if(prima){ Object.keys(y).forEach(k => { delete y[k]; }); Object.assign(y, prima); }
+        PB.errore = tr('Non sono riuscito a salvare il registro delle fonti su questo dispositivo.'); disegnaFoglio(); });
+  }, e => { PB.lavoro = false; PB.errore = erroreCodice(e, tr('della riga')); disegnaFoglio(); });
 }
 
 /* ---------- L'importazione del registro tenuto a mano (cap. 22, regola 5) ---------- */

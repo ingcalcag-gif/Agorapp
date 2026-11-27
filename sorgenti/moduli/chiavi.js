@@ -185,6 +185,13 @@
       const v = await attive();
       return { nome: 'copia-chiavi-' + v.creato.slice(0, 10) + '.json', testo: JSON.stringify(v.copia, null, 1) + '\n' };
     }
+    /* La copia di sicurezza degli eventi (T-054) va cifrata con una frase diversa da questa (decisione del 27/11/2026,
+       n. 7): la frase non si salva da nessuna parte, ma la copia di riserva sì, chiusa con lei. true se questa frase la
+       apre, cioè se è la frase delle chiavi. */
+    async function fraseDelleChiavi(frase) {
+      const v = await attive();
+      try { await apri(v.copia, frase); return true; } catch (e) { if (e && e.motivo === 'frase') return false; throw e; }
+    }
     /* Le parti pubbliche da consegnare agli sportelli: non contengono nulla di segreto. */
     async function pubbliche() {
       const s = await stato(); if (!s.ci_sono) throw errore('mancano');
@@ -318,7 +325,7 @@
     async function scriviRegistro(testo) { const b = await cifraRegistro(testo); await dep.scrivi('red_registro', b); return b; }
     async function bustaRegistro() { return (await dep.leggi('red_registro')) || null; }
 
-    return { stato, genera, daCopia, copia, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, segretoSegnalazione, nuovoId, viene, controllaTesto,
+    return { stato, genera, daCopia, copia, fraseDelleChiavi, pubbliche, revoca, dimentica, avvisoRevoca, firma, verifica, segretoSegnalazione, nuovoId, viene, controllaTesto,
       registro: { cifra: cifraRegistro, decifra: decifraRegistro, leggi: leggiRegistro, scrivi: scriviRegistro, busta: bustaRegistro },
       cassaforte: { metti: mettiPassword, leggi: leggiPassword, togli: togliPassword, pulisci: pulisciCassaforte, copia: copiaCassaforte, ripristina: ripristinaCassaforte } };
   }

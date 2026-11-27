@@ -178,10 +178,12 @@ const JS_MODULI = ['testo.js', 'memoria.js', 'eventi.js', 'nascosti.js', 'quadra
 // letti e scritti con codice nostro (T-042, decisione del 24/11/2026: al posto di SheetJS); le parole delle password
 // degli eventi nascosti (T-045, decisione del 25/11/2026); i nomi di persona nei testi degli eventi, per gli strumenti dei
 // diritti delle persone (T-047-T-049).
-const JS_MODULI_RED = ['chiavi.js', 'pacchetto.js', 'excel.js', 'parole-nascosti.js', 'nomi.js'];
+// Dal blocco 14: il controllo dei file cifrati dell'archivio dei registri (T-053) e la copia di sicurezza degli eventi (T-054).
+const JS_MODULI_RED = ['chiavi.js', 'pacchetto.js', 'excel.js', 'parole-nascosti.js', 'nomi.js', 'file-cifrati.js', 'copia-eventi.js'];
 // Solo nell'app della redazione, finché non c'è Bunny (T-065): la logica dello sportello di pubblicazione, che lo sportello
 // di prova fa girare nel browser (T-038), e i confini delle regioni che le servono per i numeri dell'indice.
-const SPORTELLI_RED = ['pubblicazione.js'];
+// Dal blocco 14 anche la logica dello sportello dell'archivio dei registri (T-053).
+const SPORTELLI_RED = ['pubblicazione.js', 'archivio.js'];
 // In tutte e due le app: la logica dello sportello delle segnalazioni (T-051). Sul collegamento di prova l'app pubblica
 // la fa girare nel browser per depositare (porta aperta) e l'app della redazione per leggere (porta firmata), sullo
 // stesso archivio finto dello sportello di prova; altrove non si usa (decisione del 26/11/2026).
@@ -192,9 +194,10 @@ const JS_APP = ['app1.js', 'app2.js', 'app3.js', 'app4.js', 'app5.js', 'app7.js'
 // Gli strumenti dei diritti delle persone (blocco 12) vengono dopo gli altri, perché si aggiungono a ciò che quelli
 // preparano (DIRITTI, FOGLI_RED, fogliPb, OP_STORICO). «Esporta per assistenza» (T-049) sta da solo nel suo file: con
 // un no nella revisione finale del libro mastro si toglie da qui e dal disco, insieme alla sua prova. Le segnalazioni
-// (blocco 13, T-052) stanno dopo «Togli questo nome ovunque», a cui passano la richiesta sul proprio nome.
+// (blocco 13, T-052) stanno dopo «Togli questo nome ovunque», a cui passano la richiesta sul proprio nome. L'archivio dei
+// registri e la copia di sicurezza degli eventi (blocco 14, T-053 e T-054) chiudono l'elenco: usano la pubblicazione.
 const JS_RED = ['strumenti.js', 'chiavi-viste.js', 'sportello-prova.js', 'pubblicazione.js', 'registro-fonti.js', 'scheda-pubblicazione.js', 'eventi-nascosti.js', 'importa-excel.js', 'registro-excel.js', 'importa-calendari.js', 'misure_kpi.js', 'misure.js', 'storico.js',
-  'togli-nome.js', 'ricerca-nome.js', 'esporta-assistenza.js', 'segnalazioni.js'];
+  'togli-nome.js', 'ricerca-nome.js', 'esporta-assistenza.js', 'segnalazioni.js', 'archivio.js', 'copia-sicurezza.js'];
 const JS_FINE = ['app6.js'];
 const CSS = ['style.css', 'style2.css', 'style_temi.css', 'style_sezioni.css'];
 const CSS_RED = ['style_redazione.css', 'style_misure.css'];
