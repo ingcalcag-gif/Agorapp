@@ -403,7 +403,7 @@ function foglioCalTavolo(t){
 }
 function foglioAnteprima(){
   return `${S_.foglioDemo()}
-    <p>${T("Istanze, tavoli, soggetti, rendiconti e luoghi di questa sezione sono esempi inventati: ogni istanza è messa a un punto diverso del cammino, per vedere come appare dall’inizio alla fine.")}</p>`;
+    <p>${T("In questa sezione istanze, tavoli, soggetti, rendiconti e luoghi sono esempi inventati. Ogni istanza è a un punto diverso del cammino: così vedi come appare dall’inizio alla fine.")}</p>`;
 }
 
 function disegna(){
@@ -564,7 +564,7 @@ function tastoCal(){
 function mappaLuoghi(){
   /* quartiere stilizzato: i punti indicano la via, non il portone */
   const punti = B.luoghi.punti;
-  return `<div class="mappa"><svg viewBox="0 0 360 200" role="img" aria-label="${T("Mappa stilizzata con i luoghi già toccati dal progetto e quello del prossimo appuntamento")}">
+  return `<div class="mappa"><svg viewBox="0 0 360 200" role="img" aria-label="${T("Mappa disegnata. Mostra i luoghi dove il progetto è già stato e quello del prossimo appuntamento.")}">
     <rect width="360" height="200" fill="var(--mappa-terra)"/>
     <rect x="12" y="12" width="88" height="30" rx="4" fill="var(--mappa-edificio)"/><rect x="118" y="12" width="104" height="30" rx="4" fill="var(--mappa-edificio)"/><rect x="240" y="12" width="108" height="30" rx="4" fill="var(--mappa-edificio)"/>
     <rect x="12" y="76" width="88" height="38" rx="4" fill="var(--mappa-edificio)"/><rect x="118" y="76" width="104" height="38" rx="4" fill="var(--mappa-parco)"/><rect x="240" y="88" width="108" height="34" rx="4" fill="var(--mappa-edificio)"/>
@@ -677,7 +677,7 @@ function foglioMappa(){
       <path d="M0 81h360M112 0v170M228 0v170" stroke="var(--mappa-strada)" stroke-width="12"/>
       ${pinPratica(186,120,15)}
     </svg></div>
-    <p class="meta">${T("Il segnaposto dell’evento Pratica ha il doppio cerchio, e il popup porta alla bacheca del progetto.")}${CORTILE.id==="cortile"?" "+T("Il civico compare dal giorno prima, con il consenso del condominio. A ogni appuntamento il segnaposto si sposta sul cortile che ospita."):""}</p>`;
+    <p class="meta">${T("Sulla mappa l’evento Pratica ha un doppio cerchio. Toccandolo arrivi alla bacheca del progetto.")}${CORTILE.id==="cortile"?" "+T("Il civico compare dal giorno prima, con il consenso del condominio. A ogni appuntamento il segnaposto si sposta sul cortile che ospita."):""}</p>`;
 }
 function foglioCal(){
   const s = id => calModo()===id;
@@ -845,7 +845,7 @@ function fatto(dati){
   const prog = tipo==="progetto";
   return `<div class="stack p-fatto"><span class="p-sigillo">${spunta}</span><div class="tipo">${T("Demo")}</div><h3>${T("Il modulo funziona così")}</h3>
     <p>${T("«{t}» è scritta, ma non parte: questo modulo è una demo e non invia né salva niente.",{t:esc(dati.titolo)})}</p>
-    <p class="meta">${prog?T("Se il progetto entra, avrà la sua bacheca e i suoi appuntamenti sulla mappa come eventi Pratica."):T("Se l’istanza si apre, il primo tavolo avrà la sua pagina nell’Agorà e i suoi incontri sulla mappa come eventi Istanza.")}</p>
+    <p class="meta">${prog?T("Se il progetto entra, avrà la sua bacheca e i suoi appuntamenti sulla mappa come eventi Pratica."):T("Se l’istanza si apre, il primo tavolo avrà una pagina nell’Agorà. I suoi incontri saranno sulla mappa come eventi Istanza.")}</p>
     <button class="tasto sec pieno" data-pz="chiudi">${T("Chiudi")}</button></div>`;
 }
 function errore(id, msg){ const c = document.querySelector(`.sez-proposta [data-campo="${id}"]`); if(!c) return; const e = c.querySelector(".p-err"); e.textContent = msg; e.hidden = !msg; const box = c.querySelector(".campo"); if(box) box.classList.toggle("errore", !!msg); }

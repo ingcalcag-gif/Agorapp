@@ -96,7 +96,7 @@ function vEsplora(){
       <span class="t-lente-p">${l.k.map(k => { const u = byK(k); return `<span class="pallino" style="background:${u.dot}" title="${esc(u.label)}"></span>`; }).join('')}<span class="meta">${n===1?tr('1 cosa ora'):tr('{n} cose ora',{n})}</span></span></button>`; };
   return `${testataTemi()}
   <section class="stack"><h1>${tr('Esplora per tema')}</h1><p>${tr('Tutti gli strati e tutti i temi, nessuna classifica. Parti da una lente, o scegli tu uno o più strati e temi: poi vedi insieme gli eventi, le pratiche e le istanze che li portano.')}</p></section>
-  <section class="stack-s"><div class="t-gruppo">${tr('Le lenti di {nome}')}</div><div class="t-lenti" role="list">${LENTI_AG.map(carta).join('')}</div>
+  <section class="stack-s"><div class="t-gruppo">${tr('Le lenti di {nome}')}</div><div class="t-lenti">${LENTI_AG.map(carta).join('')}</div>
     <p class="meta">${tr('Le propone la redazione. Non scelgono per te: mostrano tutto ciò che porta quei temi, in ordine di tempo.')}</p></section>
   <section class="stack-s"><div class="t-gruppo">${tr('Le tue lenti')}</div>
     ${mie.length?`<div class="ovali">${mie.map(l => `<button class="ovale lente" data-tz-lente="${l.i}">${ICT.segno}${esc(l.nome)} <span class="meta">${l.k.length}</span></button>`).join('')}${mie.length<3?`<span class="meta t-ancora">${3-mie.length===1?tr('1 libera'):tr('{n} libere',{n:3-mie.length})}</span>`:''}</div>`
@@ -186,7 +186,7 @@ function disegnaTemi(){
   const p = $('pagina-temi'); if(!p || p.hidden) return;
   if(!TM.scelti.length) TM.vista = 'esplora';
   const sc = p.scrollTop;
-  p.innerHTML = `<main class="pag-temi">${TM.vista==='risultati' ? vRisultati() : vEsplora()}</main>`;
+  p.innerHTML = `<div class="pag-temi">${TM.vista==='risultati' ? vRisultati() : vEsplora()}</div>`;
   p.scrollTop = sc;
 }
 function cambiaTemi(){ disegnaTemi(); if(TM.foglio){ if(TM.foglio==='lente' && $('tz-lente')) $('tz-lente').innerHTML = lenteDentro(); else disegnaFoglio(); } }

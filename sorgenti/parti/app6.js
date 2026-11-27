@@ -184,9 +184,27 @@ $('foglio-slot').addEventListener('keydown', ev => {
   else if(ev.target.id==='q'){ ev.preventDefault(); clearTimeout(sugg.t); cercaInvio(); }
   else if(ev.target.id==='f-indirizzo'/*@red*/ || ev.target.id==='a-indirizzo'/*@fine*/){ ev.preventDefault(); const b = document.querySelector('#'+ev.target.id.charAt(0)+'-sugg [data-si]'); if(b) b.click(); }
 });
-document.addEventListener('keydown', ev => { if(ev.key==='Escape'){
+/* Esc chiude ciò che sta davanti come la sua croce (T-057): la guida, la scelta del punto, il foglio (con il suo ritorno,
+   per esempio dalle note legali al foglio di partenza). Tab resta dentro la guida o il foglio aperto (trattieniFuoco). */
+const FOCALIZZABILI = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+function trattieniFuoco(ev){
+  const box = st.guida!=null ? document.querySelector('#guida-slot .guida') : (st.foglio && !st.posa ? document.querySelector('#foglio-slot .foglio') : null);
+  if(!box) return;
+  const el = [...box.querySelectorAll(FOCALIZZABILI)].filter(x => x.offsetParent || x.getClientRects().length);
+  if(!el.length){ ev.preventDefault(); box.setAttribute('tabindex','-1'); box.focus(); return; }
+  const primo = el[0], ultimo = el[el.length-1], att = document.activeElement;
+  if(!box.contains(att)){ ev.preventDefault(); (ev.shiftKey ? ultimo : primo).focus(); return; }
+  if(ev.shiftKey && (att===primo || att===box || !el.includes(att) && att.compareDocumentPosition(primo) & Node.DOCUMENT_POSITION_FOLLOWING)){ ev.preventDefault(); ultimo.focus(); }
+  else if(!ev.shiftKey && att===ultimo){ ev.preventDefault(); primo.focus(); }
+}
+document.addEventListener('keydown', ev => {
+  if(ev.key==='Tab'){ trattieniFuoco(ev); return; }
+  if(ev.key!=='Escape') return;
   if(st.pieno && !st.foglio){ $('btnPieno').click(); return; }
-  if(st.guida!=null){ st.guida = null; disegnaGuida(); } else if(st.posa){ finePosa(false); } else if(st.foglio) chiudi(); } });
+  if(st.guida!=null){ st.guida = null; disegnaGuida(); return; }
+  if(st.posa){ finePosa(false); return; }
+  if(st.foglio){ const x = document.querySelector('#foglio-slot .foglio .testa-f .chiudi'); if(x) x.click(); else chiudi(); }
+});
 window.addEventListener('resize', () => { if(map) map.resize(); });
 
 /* ======================= La copia dell'app per l'uso senza rete (T-029) =======================
@@ -266,9 +284,18 @@ function avviaCopia(){
 
 /* ======================= Avvio ======================= */
 (function avvio(){
-  const tema = MEM.testo('dl_tema', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
-  document.documentElement.setAttribute('data-theme', tema);
-  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', tema==='dark' ? '#211D18' : '#FFFDF8');
+  /* Tema: quello scelto in Impostazioni; finché la persona non sceglie, quello del telefono, anche se cambia mentre l'app è
+     aperta (T-058; libro mastro, § 11.1, «L'app rispetta le preferenze impostate sul telefono»). Prima del blocco 16 il
+     primo accesso era sempre chiaro (decisione del 4 ottobre, superata dal piano di adeguamento). */
+  const scelto = MEM.testo('dl_tema', null), scuroTel = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  const temaTel = () => scuroTel && scuroTel.matches ? 'dark' : 'light';
+  const tema = scelto==='dark' || scelto==='light' ? scelto : temaTel();
+  const metti = t => { document.documentElement.setAttribute('data-theme', t); const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', t==='dark' ? '#211D18' : '#FFFDF8'); };
+  metti(tema);
+  if(scuroTel && scuroTel.addEventListener) scuroTel.addEventListener('change', () => {
+    if(MEM.testo('dl_tema', null)) return;
+    metti(temaTel()); tingiMappa(); if(st.foglio) disegnaFoglio(); if(modoGiornata()) disegnaPins();
+  });
   if(st.semplice) $('app').classList.add('semplice');
   testiFissi(); purgeExpired(); ricostruisci();
   st.cal.giorno = oggi();

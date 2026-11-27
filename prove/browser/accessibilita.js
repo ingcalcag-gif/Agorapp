@@ -3,9 +3,9 @@
 
    Lo strumento è axe-core, libero (licenza MPL 2.0), usato solo nelle prove e mai consegnato con l'app.
    Si controllano le regole WCAG 2.1 di livello A e AA: contrasti, etichette, struttura della pagina.
-   Ogni violazione di oggi è uno scarto noto, contato per schermata e per regola, che i blocchi 2-16
-   (soprattutto T-057, T-058, T-059) chiudono; una violazione nuova fa fallire la prova. Il controllo
-   automatico non basta da solo: le prove con tastiera, testo ingrandito e lettore di schermo restano (T-059). */
+   Dal blocco 16 (T-057) nessuna violazione è ammessa: una violazione nuova fa fallire la prova. Il controllo
+   automatico non basta da solo: tastiera, preferenze del telefono, misure e testo ingrandito li prova
+   prove/browser/accessibilita-uso.js (T-057-T-059); il lettore di schermo del telefono resta una prova a mano. */
 'use strict';
 const fs = require('fs');
 const { esito, eseguiDaSola, confronta } = require('../comune.js');
@@ -23,8 +23,8 @@ async function prova() {
   const s = await server('pubblica');
   const { browser, ctx } = await apri(pw, { dl_guida: '1', dl_strati: { musica: { on: true } }, dl_eventi: offgrid(false),
     dl_calendario: { [ID_EV]: true, [ID_OG]: true } });
-  // Evento senza collegamento della fonte: così la scheda resta senza elementi focalizzabili, come capita a molti eventi,
-  // e lo scarto noto della regione scorrevole (T-057) resta visibile finché T-057 non lo chiude.
+  // Evento senza collegamento della fonte: così la scheda resta senza collegamenti, come capita a molti eventi (la regione
+  // scorrevole deve restare raggiungibile con la tastiera anche così).
   await archivio(ctx, pubblici(false).map(x => ({ ...x, fonte: { testo: x.fonte.testo } })));
   const trovati = [];
   try {
@@ -59,11 +59,13 @@ async function prova() {
     await avvia(); if (await tocca('[data-az="calendario"]', 'calendario')) await analizza('calendario');
     await avvia(); if (await tocca('[data-az="cerca"]', 'cerca')) await analizza('cerca');
     await avvia(); if (await tocca('[data-az="impostazioni"]', 'impostazioni')) await analizza('impostazioni');
+    /* le sezioni, con i contenuti d'esempio (T-057: struttura con un solo contenuto principale) */
+    for (const sez of ['agora', 'progetti', 'temi']) { await avvia(); if (await tocca(`#navBassa [data-sez="${sez}"]`, sez)) { await pausa(500); await analizza(sez); } }
   } finally {
     await browser.close(); await s.chiudi();
   }
   confronta(e, 'accessibilita', trovati);
-  e.note.push('schermate: mappa, elenco, scheda evento, modulo «Segnala» (anche con gli errori), calendario, cerca, impostazioni; regole ' + REGOLE.join(', '));
+  e.note.push('schermate: mappa, elenco, scheda evento, modulo «Segnala» (anche con gli errori), calendario, cerca, impostazioni, Agorà, Progetti, Temi; regole ' + REGOLE.join(', '));
   return e;
 }
 

@@ -491,7 +491,11 @@ let segnaposti = [];
 function pulisciSegnaposti(){ segnaposti.forEach(m => m.remove()); segnaposti = []; }
 function mettiSegnaposto(html, lng, lat, cls){
   const el = document.createElement('div'); el.className = 'mk'+(cls?' '+cls:''); el.innerHTML = html;
+  /* il contenitore non è un comando: lo è il tasto che ha dentro, con la sua etichetta (T-057; MapLibre altrimenti gli dà
+     role="button" e un'etichetta inglese) */
+  el.setAttribute('role','none');
   const m = new maplibregl.Marker({element:el, anchor:'center'}).setLngLat([lng,lat]).addTo(map);
+  el.removeAttribute('aria-label');
   segnaposti.push(m); return m;
 }
 function raggruppa(lista){
@@ -582,6 +586,13 @@ function intervallo(){
   return f(a)+' – '+f(b);
 }
 function contaMiei(){ return miei().filter(e => !finito(e) && serieOk(e)).length; }
+/* Quante cose ci sono sulla mappa, detto dal lettore di schermo quando il numero cambia, non all'apertura (T-057; WCAG 4.1.3) */
+let contaDetta = null;
+function annunciaConta(n){
+  const el = $('statoMappa'); if(!el || n===contaDetta) return;
+  const prima = contaDetta; contaDetta = n; if(prima===null) return;
+  el.textContent = (n===1 ? tr('1 cosa') : tr('{n} cose',{n})) + ' ' + tr('sulla mappa');
+}
 function disegnaChips(){
   const c = (id, lab) => `<button class="chipt vetro" data-tempo="${id}" aria-pressed="${st.tempo===id}">${lab}</button>`;
   const n = contaMiei();
@@ -590,10 +601,11 @@ function disegnaChips(){
   $('chips').innerHTML = (st.lente ? `<button class="chipt vetro" data-az="togli-lente" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>${esc(st.lente.nome)} ${croce}</button>` : '')
     + c('tutto', tr('Tutto')) + c('adesso', tr('Adesso')) + c('oggi', tr('Oggi')) + c('domani', tr('Domani')) + c('weekend', tr('Weekend'))
     + `<button class="chipt vetro" data-az="date" aria-pressed="${st.tempo==='date'}">${icoGiorni()}${st.tempo==='date'&&st.da ? esc(intervallo()) : tr('Scegli i giorni')}</button>`;
-  $('btnElenco').innerHTML = `${icoElenco}${tr('Elenco')}<span class="conta">${visibili().length}</span>`;
+  const quante = visibili().length;
+  $('btnElenco').innerHTML = `${icoElenco}${tr('Elenco')}<span class="conta">${quante}</span>`; annunciaConta(quante);
   $('btnCal').innerHTML = `<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
   requestAnimationFrame(() => { if(typeof bordiChips==='function') bordiChips(); });
-  $('btnCal').setAttribute('aria-label', tr('Il mio Calendario'));
+  $('btnCal').removeAttribute('aria-label');   /* il nome è il testo visibile, «Calendario» e il numero (T-057; WCAG 2.5.3) */
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
   $('btnPieno').setAttribute('aria-pressed', st.pieno); $('btnPieno').setAttribute('aria-label', st.pieno ? tr('Esci dallo schermo intero') : tr('Mappa a schermo intero'));
   const per = nelPeriodo();

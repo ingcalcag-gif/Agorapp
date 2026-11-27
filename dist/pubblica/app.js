@@ -801,7 +801,11 @@ let segnaposti = [];
 function pulisciSegnaposti(){ segnaposti.forEach(m => m.remove()); segnaposti = []; }
 function mettiSegnaposto(html, lng, lat, cls){
   const el = document.createElement('div'); el.className = 'mk'+(cls?' '+cls:''); el.innerHTML = html;
+  /* il contenitore non è un comando: lo è il tasto che ha dentro, con la sua etichetta (T-057; MapLibre altrimenti gli dà
+     role="button" e un'etichetta inglese) */
+  el.setAttribute('role','none');
   const m = new maplibregl.Marker({element:el, anchor:'center'}).setLngLat([lng,lat]).addTo(map);
+  el.removeAttribute('aria-label');
   segnaposti.push(m); return m;
 }
 function raggruppa(lista){
@@ -892,6 +896,13 @@ function intervallo(){
   return f(a)+' – '+f(b);
 }
 function contaMiei(){ return miei().filter(e => !finito(e) && serieOk(e)).length; }
+/* Quante cose ci sono sulla mappa, detto dal lettore di schermo quando il numero cambia, non all'apertura (T-057; WCAG 4.1.3) */
+let contaDetta = null;
+function annunciaConta(n){
+  const el = $('statoMappa'); if(!el || n===contaDetta) return;
+  const prima = contaDetta; contaDetta = n; if(prima===null) return;
+  el.textContent = (n===1 ? tr('1 cosa') : tr('{n} cose',{n})) + ' ' + tr('sulla mappa');
+}
 function disegnaChips(){
   const c = (id, lab) => `<button class="chipt vetro" data-tempo="${id}" aria-pressed="${st.tempo===id}">${lab}</button>`;
   const n = contaMiei();
@@ -900,10 +911,11 @@ function disegnaChips(){
   $('chips').innerHTML = (st.lente ? `<button class="chipt vetro" data-az="togli-lente" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>${esc(st.lente.nome)} ${croce}</button>` : '')
     + c('tutto', tr('Tutto')) + c('adesso', tr('Adesso')) + c('oggi', tr('Oggi')) + c('domani', tr('Domani')) + c('weekend', tr('Weekend'))
     + `<button class="chipt vetro" data-az="date" aria-pressed="${st.tempo==='date'}">${icoGiorni()}${st.tempo==='date'&&st.da ? esc(intervallo()) : tr('Scegli i giorni')}</button>`;
-  $('btnElenco').innerHTML = `${icoElenco}${tr('Elenco')}<span class="conta">${visibili().length}</span>`;
+  const quante = visibili().length;
+  $('btnElenco').innerHTML = `${icoElenco}${tr('Elenco')}<span class="conta">${quante}</span>`; annunciaConta(quante);
   $('btnCal').innerHTML = `<span class="cal-lbl">${tr('Calendario')}</span>${n?`<span class="num">${n}</span>`:''}`;
   requestAnimationFrame(() => { if(typeof bordiChips==='function') bordiChips(); });
-  $('btnCal').setAttribute('aria-label', tr('Il mio Calendario'));
+  $('btnCal').removeAttribute('aria-label');   /* il nome è il testo visibile, «Calendario» e il numero (T-057; WCAG 2.5.3) */
   $('btnPieno').innerHTML = st.pieno ? icoRiduci : icoPieno;
   $('btnPieno').setAttribute('aria-pressed', st.pieno); $('btnPieno').setAttribute('aria-label', st.pieno ? tr('Esci dallo schermo intero') : tr('Mappa a schermo intero'));
   const per = nelPeriodo();
@@ -951,7 +963,7 @@ function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFog
 function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; st.conferma = null; st.pdf = null; st.segn = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
-  return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
+  return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="true"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
 }
 /* il trattino: il pannello scorre su e giù. Tocco = allarga o riduce con un'animazione; trascinando segue il dito e si ferma dove è più vicino.
    Allargato perde la trasparenza; ridotto la riprende (regola del 4 ottobre). */
@@ -1006,9 +1018,40 @@ function presaSu(){
   espandiFoglio(verso, h);
 }
 const chiudiBtn = az => `<button class="chiudi" data-az="${az||'chiudi'}" aria-label="${esc(tr('Chiudi'))}">${croce}</button>`;
+/* ---------- Fogli accessibili (T-057; libro mastro, § 11.1, riga «Finestre, avvisi e pannelli») ----------
+   Ogni foglio è una finestra di dialogo (role="dialog", aria-modal) con il nome del suo titolo: il lettore di schermo lo
+   annuncia e non ne esce. All'apertura il cursore va sul titolo; Tab e Maiusc+Tab restano dentro il foglio finché è aperto
+   (trattieniFuoco, in app6.js); Esc fa ciò che fa la sua croce; alla chiusura il cursore torna al comando che aveva aperto
+   il primo foglio. Quando un foglio si ridisegna, il cursore resta sul comando equivalente (stesso id o stessi data-*). */
+let fuocoDa = null;
+function segnoFuoco(el){
+  if(!el || !el.tagName || el===document.body) return null;
+  if(el.id) return '#'+CSS.escape(el.id);
+  const a = [...el.attributes].filter(x => /^data-|^name$|^value$/.test(x.name)).map(x => `[${x.name}="${CSS.escape(x.value)}"]`).join('');
+  return a ? el.tagName.toLowerCase()+a : null;
+}
+function nominaFoglio(slot, nuovo, segno){
+  const f = slot.querySelector('.foglio'); if(!f) return;
+  f.id = 'foglio-attuale'; f.setAttribute('tabindex','-1');
+  const t = f.querySelector('.testa-f h2, .testa-f h3, .corpo h2, .corpo h3');
+  if(t){ t.id = t.id || 'foglio-titolo'; t.setAttribute('tabindex','-1'); f.setAttribute('aria-labelledby', t.id); } else f.setAttribute('aria-label', NOME);
+  let el = null;
+  if(segno){ try{ el = f.querySelector(segno) || (segno==='#foglio-attuale' ? f : null); }catch(e){ el = null; } }
+  if(!el && nuovo && st.foglio!=='cerca') el = t || f;
+  if(el && (nuovo || segno)) el.focus({preventScroll:true});
+}
 function disegnaFoglio(){
   const slot = $('foglio-slot');
-  if(!st.foglio){ slot.innerHTML = ''; ultimoFoglio = null; st.espanso = false; return; }
+  const att = document.activeElement, dentro = !!(att && slot.contains(att));
+  if(!st.foglio){
+    slot.innerHTML = ''; ultimoFoglio = null; st.espanso = false;
+    /* dopo che chiudi() ha rimesso al loro posto i comandi attorno alla mappa */
+    const da = fuocoDa; fuocoDa = null;
+    if(dentro && da) setTimeout(() => { if(!st.foglio && document.contains(da) && (da.offsetParent || da.getClientRects().length) && (!document.activeElement || document.activeElement===document.body)) da.focus({preventScroll:true}); }, 0);
+    return;
+  }
+  if(!slot.querySelector('.foglio')) fuocoDa = att && att!==document.body && !dentro ? att : null;
+  const segno = dentro ? segnoFuoco(att) : null;
   const chiave = st.foglio + '|' + (st.sel||'') + (st.gruppo ? st.gruppo.join() : '') + (st.foglio==='calendario' ? st.cal.vista : '');
   if(ultimoFoglio && ultimoFoglio.split('|')[0]!==st.foglio) st.espanso = false;
   const stesso = chiave===ultimoFoglio, vecchio = slot.querySelector('.corpo'), scroll = stesso && vecchio ? vecchio.scrollTop : 0;
@@ -1026,6 +1069,7 @@ function disegnaFoglio(){
   slot.innerHTML = fn();
   if(stesso){ const f = slot.querySelector('.foglio'); if(f) f.style.animation = 'none'; const c = slot.querySelector('.corpo'); if(c) c.scrollTop = scroll; }
   if(st.foglio==='cerca' && !stesso){ const i = $('q'); if(i) setTimeout(() => i.focus(), 60); }
+  nominaFoglio(slot, !stesso, stesso ? segno : null);
 }
 
 /* --- Strati --- */
@@ -1922,7 +1966,7 @@ function fCitta(){
 }
 function applicaCitta(id, anima){
   citta = CITTA.find(x => x.id===id) ? id : 'torino'; MEM.scrivi('dl_citta', citta);
-  $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n;
+  $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n; etichettaCitta();
   vaiCitta(anima);
   if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
 }
@@ -1949,9 +1993,11 @@ function disegnaGuida(){
   if(st.guida==null){ slot.innerHTML = ''; return; }
   const G = GUIDA(), g = G[st.guida];
   if(g.el && $(g.el)) $(g.el).classList.add('evidenzia');
-  slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
+  slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-modal="true" aria-label="${esc(tr('Guida'))}" tabindex="-1"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
     <div class="tasti">${st.guida===G.length-1 ? `<button class="tasto pri" data-az="guida-salta">${tr('Inizia')}</button>` : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
   ombraGuida();
+  /* il lettore di schermo legge il cartellino; Tab resta dentro (T-057) */
+  const d = slot.querySelector('.guida'); if(d) d.focus({preventScroll:true});
 }
 
 /* ======================= Avvisi brevi in basso: un'azione da annullare e gli errori veri ======================= */
@@ -2017,7 +2063,7 @@ function testiFissi(){
   document.querySelectorAll('[data-t]').forEach(el => { el.textContent = tr(el.getAttribute('data-t')); });
   $('cercaLbl').textContent = tr('Cerca eventi, luoghi, indirizzi');
   $('btnHome').setAttribute('aria-label', tr('{nome}: torna alla vista della città'));
-  $('btnCitta').setAttribute('aria-label', tr('Scegli città o zona'));
+  etichettaCitta();
   $('btnImpo').setAttribute('aria-label', tr('Impostazioni'));
   $('btnGps').setAttribute('aria-label', tr('Mostra dove sono'));
   $('btnNuovo').setAttribute('aria-label', tr('Nuovo evento Off-Grid'));
@@ -2027,6 +2073,8 @@ function testiFissi(){
   avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
+/* il nome letto dal lettore di schermo comincia con il testo visibile, la città (T-057; WCAG 2.5.3) */
+function etichettaCitta(){ $('btnCitta').setAttribute('aria-label', cittaObj().n+' · '+tr('Scegli città o zona')); }
 function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); mostraNovita(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }
 
 
@@ -2127,7 +2175,7 @@ function vEsplora(){
       <span class="t-lente-p">${l.k.map(k => { const u = byK(k); return `<span class="pallino" style="background:${u.dot}" title="${esc(u.label)}"></span>`; }).join('')}<span class="meta">${n===1?tr('1 cosa ora'):tr('{n} cose ora',{n})}</span></span></button>`; };
   return `${testataTemi()}
   <section class="stack"><h1>${tr('Esplora per tema')}</h1><p>${tr('Tutti gli strati e tutti i temi, nessuna classifica. Parti da una lente, o scegli tu uno o più strati e temi: poi vedi insieme gli eventi, le pratiche e le istanze che li portano.')}</p></section>
-  <section class="stack-s"><div class="t-gruppo">${tr('Le lenti di {nome}')}</div><div class="t-lenti" role="list">${LENTI_AG.map(carta).join('')}</div>
+  <section class="stack-s"><div class="t-gruppo">${tr('Le lenti di {nome}')}</div><div class="t-lenti">${LENTI_AG.map(carta).join('')}</div>
     <p class="meta">${tr('Le propone la redazione. Non scelgono per te: mostrano tutto ciò che porta quei temi, in ordine di tempo.')}</p></section>
   <section class="stack-s"><div class="t-gruppo">${tr('Le tue lenti')}</div>
     ${mie.length?`<div class="ovali">${mie.map(l => `<button class="ovale lente" data-tz-lente="${l.i}">${ICT.segno}${esc(l.nome)} <span class="meta">${l.k.length}</span></button>`).join('')}${mie.length<3?`<span class="meta t-ancora">${3-mie.length===1?tr('1 libera'):tr('{n} libere',{n:3-mie.length})}</span>`:''}</div>`
@@ -2217,7 +2265,7 @@ function disegnaTemi(){
   const p = $('pagina-temi'); if(!p || p.hidden) return;
   if(!TM.scelti.length) TM.vista = 'esplora';
   const sc = p.scrollTop;
-  p.innerHTML = `<main class="pag-temi">${TM.vista==='risultati' ? vRisultati() : vEsplora()}</main>`;
+  p.innerHTML = `<div class="pag-temi">${TM.vista==='risultati' ? vRisultati() : vEsplora()}</div>`;
   p.scrollTop = sc;
 }
 function cambiaTemi(){ disegnaTemi(); if(TM.foglio){ if(TM.foglio==='lente' && $('tz-lente')) $('tz-lente').innerHTML = lenteDentro(); else disegnaFoglio(); } }
@@ -2445,9 +2493,27 @@ $('foglio-slot').addEventListener('keydown', ev => {
   else if(ev.target.id==='q'){ ev.preventDefault(); clearTimeout(sugg.t); cercaInvio(); }
   else if(ev.target.id==='f-indirizzo'){ ev.preventDefault(); const b = document.querySelector('#'+ev.target.id.charAt(0)+'-sugg [data-si]'); if(b) b.click(); }
 });
-document.addEventListener('keydown', ev => { if(ev.key==='Escape'){
+/* Esc chiude ciò che sta davanti come la sua croce (T-057): la guida, la scelta del punto, il foglio (con il suo ritorno,
+   per esempio dalle note legali al foglio di partenza). Tab resta dentro la guida o il foglio aperto (trattieniFuoco). */
+const FOCALIZZABILI = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+function trattieniFuoco(ev){
+  const box = st.guida!=null ? document.querySelector('#guida-slot .guida') : (st.foglio && !st.posa ? document.querySelector('#foglio-slot .foglio') : null);
+  if(!box) return;
+  const el = [...box.querySelectorAll(FOCALIZZABILI)].filter(x => x.offsetParent || x.getClientRects().length);
+  if(!el.length){ ev.preventDefault(); box.setAttribute('tabindex','-1'); box.focus(); return; }
+  const primo = el[0], ultimo = el[el.length-1], att = document.activeElement;
+  if(!box.contains(att)){ ev.preventDefault(); (ev.shiftKey ? ultimo : primo).focus(); return; }
+  if(ev.shiftKey && (att===primo || att===box || !el.includes(att) && att.compareDocumentPosition(primo) & Node.DOCUMENT_POSITION_FOLLOWING)){ ev.preventDefault(); ultimo.focus(); }
+  else if(!ev.shiftKey && att===ultimo){ ev.preventDefault(); primo.focus(); }
+}
+document.addEventListener('keydown', ev => {
+  if(ev.key==='Tab'){ trattieniFuoco(ev); return; }
+  if(ev.key!=='Escape') return;
   if(st.pieno && !st.foglio){ $('btnPieno').click(); return; }
-  if(st.guida!=null){ st.guida = null; disegnaGuida(); } else if(st.posa){ finePosa(false); } else if(st.foglio) chiudi(); } });
+  if(st.guida!=null){ st.guida = null; disegnaGuida(); return; }
+  if(st.posa){ finePosa(false); return; }
+  if(st.foglio){ const x = document.querySelector('#foglio-slot .foglio .testa-f .chiudi'); if(x) x.click(); else chiudi(); }
+});
 window.addEventListener('resize', () => { if(map) map.resize(); });
 
 /* ======================= La copia dell'app per l'uso senza rete (T-029) =======================
@@ -2527,9 +2593,18 @@ function avviaCopia(){
 
 /* ======================= Avvio ======================= */
 (function avvio(){
-  const tema = MEM.testo('dl_tema', null)==='dark' ? 'dark' : 'light';   /* al primo accesso sempre chiaro (Lorenzo, 4 ottobre) */
-  document.documentElement.setAttribute('data-theme', tema);
-  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', tema==='dark' ? '#211D18' : '#FFFDF8');
+  /* Tema: quello scelto in Impostazioni; finché la persona non sceglie, quello del telefono, anche se cambia mentre l'app è
+     aperta (T-058; libro mastro, § 11.1, «L'app rispetta le preferenze impostate sul telefono»). Prima del blocco 16 il
+     primo accesso era sempre chiaro (decisione del 4 ottobre, superata dal piano di adeguamento). */
+  const scelto = MEM.testo('dl_tema', null), scuroTel = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  const temaTel = () => scuroTel && scuroTel.matches ? 'dark' : 'light';
+  const tema = scelto==='dark' || scelto==='light' ? scelto : temaTel();
+  const metti = t => { document.documentElement.setAttribute('data-theme', t); const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', t==='dark' ? '#211D18' : '#FFFDF8'); };
+  metti(tema);
+  if(scuroTel && scuroTel.addEventListener) scuroTel.addEventListener('change', () => {
+    if(MEM.testo('dl_tema', null)) return;
+    metti(temaTel()); tingiMappa(); if(st.foglio) disegnaFoglio(); if(modoGiornata()) disegnaPins();
+  });
   if(st.semplice) $('app').classList.add('semplice');
   testiFissi(); purgeExpired(); ricostruisci();
   st.cal.giorno = oggi();

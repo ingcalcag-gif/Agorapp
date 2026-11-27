@@ -113,7 +113,7 @@ function fCitta(){
 }
 function applicaCitta(id, anima){
   citta = CITTA.find(x => x.id===id) ? id : 'torino'; MEM.scrivi('dl_citta', citta);
-  $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n;
+  $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola; document.title = NOME+' — '+cittaObj().n; etichettaCitta();
   vaiCitta(anima);
   if(!map) aggiornaZona(true);   /* senza mappa la zona degli eventi segue la città scelta (T-022) */
 }
@@ -140,9 +140,11 @@ function disegnaGuida(){
   if(st.guida==null){ slot.innerHTML = ''; return; }
   const G = GUIDA(), g = G[st.guida];
   if(g.el && $(g.el)) $(g.el).classList.add('evidenzia');
-  slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-label="${esc(tr('Guida'))}"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
+  slot.innerHTML = `<div class="guida-ombra" id="guidaOmbra" aria-hidden="true"></div><div class="guida vetro" role="dialog" aria-modal="true" aria-label="${esc(tr('Guida'))}" tabindex="-1"><div class="passi">${G.map((_,i) => `<span class="${i===st.guida?'on':''}"></span>`).join('')}</div><h3>${g.t}</h3><p>${g.d}</p>
     <div class="tasti">${st.guida===G.length-1 ? `<button class="tasto pri" data-az="guida-salta">${tr('Inizia')}</button>` : `<button class="tasto sec" data-az="guida-salta">${tr('Salta')}</button><button class="tasto pri" data-az="guida-avanti">${tr('Avanti')}</button>`}</div></div>`;
   ombraGuida();
+  /* il lettore di schermo legge il cartellino; Tab resta dentro (T-057) */
+  const d = slot.querySelector('.guida'); if(d) d.focus({preventScroll:true});
 }
 
 /* ======================= Avvisi brevi in basso: un'azione da annullare e gli errori veri ======================= */
@@ -208,7 +210,7 @@ function testiFissi(){
   document.querySelectorAll('[data-t]').forEach(el => { el.textContent = tr(el.getAttribute('data-t')); });
   $('cercaLbl').textContent = tr('Cerca eventi, luoghi, indirizzi');
   $('btnHome').setAttribute('aria-label', tr('{nome}: torna alla vista della città'));
-  $('btnCitta').setAttribute('aria-label', tr('Scegli città o zona'));
+  etichettaCitta();
   $('btnImpo').setAttribute('aria-label', tr('Impostazioni'));
   $('btnGps').setAttribute('aria-label', tr('Mostra dove sono'));
   $('btnNuovo').setAttribute('aria-label', tr('Nuovo evento Off-Grid'));
@@ -218,4 +220,6 @@ function testiFissi(){
   avvisoCorrezioni();
   $('cittaLbl').innerHTML = esc(cittaObj().n)+' '+giuPiccola;
 }
+/* il nome letto dal lettore di schermo comincia con il testo visibile, la città (T-057; WCAG 2.5.3) */
+function etichettaCitta(){ $('btnCitta').setAttribute('aria-label', cittaObj().n+' · '+tr('Scegli città o zona')); }
 function applicaLingua(l){ lang = l; MEM.scrivi('dl_lingua', l); testiFissi(); ricostruisci(); tutto(); mostraNovita(); disegnaFoglio(); if(st.sezione!=='mappa') vaiSezione(st.sezione); }

@@ -3,7 +3,7 @@
 .sez-progetti .anteprima b{color:var(--testo);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
 .sez-progetti .anteprima span{flex:1;min-width:0}
 .sez-progetti .anteprima button{min-height:36px;background:none;border:0;padding:0 2px;color:var(--verde);font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap}
-.sez-progetti main{flex:1;padding:4px 16px 28px;display:flex;flex-direction:column;gap:24px}
+.sez-progetti .pag-contenuto{flex:1;padding:4px 16px 28px;display:flex;flex-direction:column;gap:24px}
 .sez-progetti .indietro{align-self:flex-start;min-height:44px;display:inline-flex;align-items:center;gap:4px;font-weight:600;background:none;border:0;padding:0;color:var(--verde);cursor:pointer;font-size:14px}
 .sez-progetti h1{margin:0;font-family:var(--serif);font-weight:400;font-size:24px;line-height:28px;text-wrap:balance}
 .sez-progetti h2{margin:0;font-family:var(--serif);font-weight:400;font-size:20px;line-height:24px;text-wrap:balance}
@@ -108,7 +108,7 @@
 .sez-progetti .carta ul{margin:0;padding-inline-start:18px;font-size:13px;line-height:19px}
 .sez-progetti .carta .cr{border-top:1px solid var(--carta-linea);padding-top:8px;font-size:12px;line-height:17px;color:var(--carta-2)}
 .sez-progetti .carta .mano-c{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
-@media (prefers-reduced-motion: no-preference){.sez-progetti main{animation:entra .18s ease-out}
+@media (prefers-reduced-motion: no-preference){.sez-progetti .pag-contenuto{animation:entra .18s ease-out}
 @keyframes entra{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}}
 /* ===== Agorà (dal mockup v3, limitato alla sua sezione) ===== */
 .c-abitativo{--ic:#B03A2E;--it:#FDECEA;--ib:#F2B8B0}
@@ -130,7 +130,7 @@
 :root[data-theme="dark"] .c-autogestiti{--ic:#C39BD3;--it:#2E2238;--ib:#5E4470}
 :root[data-theme="dark"] .c-gentrificazione{--ic:#F0A04B;--it:#3A2A18;--ib:#7A5226}
 :root[data-theme="dark"] .c-uguaglianza{--ic:#85C1E9;--it:#1B2A38;--ib:#3A5A78}
-.sez-agora main{flex:1;padding:4px 16px 28px;display:flex;flex-direction:column;gap:24px}
+.sez-agora .pag-contenuto{flex:1;padding:4px 16px 28px;display:flex;flex-direction:column;gap:24px}
 .sez-agora .indietro{align-self:flex-start;min-height:44px;display:inline-flex;align-items:center;gap:4px;font-weight:600;background:none;border:0;padding:0;color:var(--verde);cursor:pointer;font-size:14px}
 .sez-agora h1{margin:0;font-family:var(--serif);font-weight:400;font-size:24px;line-height:28px;text-wrap:balance}
 .sez-agora h2{margin:0;font-family:var(--serif);font-weight:400;font-size:20px;line-height:24px}
@@ -217,7 +217,7 @@
 .sez-agora .ist .ob strong{color:var(--ic);font-weight:600}
 .sez-agora .mappa{border-radius:12px;overflow:hidden;border:1px solid var(--linea)}
 .sez-agora .mappa>svg{display:block;width:100%;height:auto}
-@media (prefers-reduced-motion: no-preference){.sez-agora main{animation:entra .18s ease-out}
+@media (prefers-reduced-motion: no-preference){.sez-agora .pag-contenuto{animation:entra .18s ease-out}
 @keyframes entra{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}}
 /* Agorà: il punto del cammino di ogni istanza */
 .sez-agora .fase{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:16px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--it);color:var(--ic);border:1px solid var(--ib)}

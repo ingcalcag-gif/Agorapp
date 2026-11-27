@@ -16,6 +16,7 @@
   --vetro-leggero:color-mix(in srgb,var(--superficie) 58%,transparent);
   --vetro-forte:color-mix(in srgb,var(--superficie) 90%,transparent);
   --pin-fondo:#FFFFFF;
+  --bordo-comando:#8C8273;   /* bordi di campi e interruttori: almeno 3:1 sullo sfondo (T-058; WCAG 1.4.11) */
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -25,7 +26,7 @@
     --mappa-terra:#1C1915; --mappa-strada:#332D25; --mappa-edificio:#26221C; --mappa-acqua:#1D2E36; --mappa-parco:#1F2C1E; --mappa-collina:#1E261B;
     --ombra-card:0 2px 10px -6px rgba(0,0,0,.6); --ombra-vetro:0 6px 24px -10px rgba(0,0,0,.7); --ombra-pin:0 2px 6px rgba(0,0,0,.6);
     --clay:#E0A070; --clay-ink:#E0A070; --clay-tenue:#3A2A1C; --clay-bordo:#7A5232;
-    --ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; color-scheme:dark}
+    --ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; --bordo-comando:#857A6C; color-scheme:dark}
 }
 :root[data-theme="dark"]{
   --fondo:#16130F; --superficie:#211D18; --incassata:#2B2620; --linea:rgba(242,235,224,.14); --linea-forte:rgba(242,235,224,.30);
@@ -34,7 +35,7 @@
   --mappa-terra:#1C1915; --mappa-strada:#332D25; --mappa-edificio:#26221C; --mappa-acqua:#1D2E36; --mappa-parco:#1F2C1E; --mappa-collina:#1E261B;
   --ombra-card:0 2px 10px -6px rgba(0,0,0,.6); --ombra-vetro:0 6px 24px -10px rgba(0,0,0,.7); --ombra-pin:0 2px 6px rgba(0,0,0,.6);
   --clay:#E0A070; --clay-ink:#E0A070; --clay-tenue:#3A2A1C; --clay-bordo:#7A5232;
-  --ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; color-scheme:dark}
+  --ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; --bordo-comando:#857A6C; color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -173,6 +174,16 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .foglio .corpo{overflow-y:auto;padding:0 16px 18px;display:flex;flex-direction:column;gap:16px;overscroll-behavior:contain}
 @keyframes sale{from{transform:translateY(24px);opacity:.3}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){.foglio{animation:none}.pressione{animation:none;opacity:.5}}
+/* Preferenze del telefono (T-058; libro mastro, § 11.1): con «riduci animazioni» niente movimento, in nessuna parte dell'app;
+   con «contrasto aumentato» le superfici sopra la mappa diventano piene, i testi secondari più scuri (o più chiari nel tema
+   scuro) e le linee più marcate. Il tema scuro del telefono vale finché la persona non sceglie Chiaro o Scuro. */
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media (prefers-contrast: more){
+  :root{--testo-2:#3D352C;--linea:rgba(60,50,30,.45);--linea-forte:rgba(60,50,30,.7);--bordo-comando:#5C5246;--vetro:var(--superficie);--vetro-leggero:var(--superficie);--vetro-forte:var(--superficie)}
+  :root[data-theme="dark"]{--testo-2:#DDD3C4;--linea:rgba(242,235,224,.45);--linea-forte:rgba(242,235,224,.7);--bordo-comando:#B5A998}
+  .vetro,.foglio{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark){:root:not([data-theme="light"]){--testo-2:#DDD3C4;--linea:rgba(242,235,224,.45);--linea-forte:rgba(242,235,224,.7);--bordo-comando:#B5A998}}
 .riga-titolo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .riga-titolo>div{min-width:0}
 .chiudi{width:44px;height:44px;margin:-8px -10px -8px 0;border-radius:50%;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--testo-2);flex-shrink:0}
@@ -186,7 +197,7 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .seg button{flex:1;min-height:44px;border:0;background:none;font-weight:600;font-size:13px;cursor:pointer;color:var(--testo-2);border-right:1px solid var(--linea);padding:0 6px}
 .seg button:last-child{border-right:0}
 .seg button[aria-pressed="true"]{background:var(--verde);color:var(--su-verde)}
-.interr{width:40px;height:24px;border-radius:999px;background:var(--linea-forte);position:relative;flex-shrink:0;transition:background .15s}
+.interr{width:40px;height:24px;border-radius:999px;background:var(--bordo-comando);position:relative;flex-shrink:0;transition:background .15s}
 .interr::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--superficie);box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
 [aria-pressed="true"] .interr{background:var(--pc,var(--verde))}
 [aria-pressed="true"] .interr::after{transform:translateX(16px)}
@@ -274,7 +285,7 @@ button.dato:last-child{border-bottom:0}
 .og-box svg{flex-shrink:0;color:var(--verde);margin-top:1px}
 
 /* Campi */
-.campo{min-height:48px;border-radius:12px;border:1.5px solid var(--linea-forte);background:var(--superficie);display:flex;align-items:center;gap:10px;padding:0 12px}
+.campo{min-height:48px;border-radius:12px;border:1.5px solid var(--bordo-comando);background:var(--superficie);display:flex;align-items:center;gap:10px;padding:0 12px}
 .campo input,.campo select,.campo textarea{flex:1;min-width:0;border:0;background:none;outline:none;min-height:44px;font-size:16px}
 .campo textarea{resize:vertical;min-height:64px;padding:10px 0;line-height:20px}
 .campo:focus-within{border-color:var(--verde)}

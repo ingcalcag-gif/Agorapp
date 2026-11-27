@@ -5,7 +5,7 @@ function apri(f, extra){ st.foglio = f; Object.assign(st, extra||{}); disegnaFog
 function chiudi(){ st.espanso = false; TM.foglio = null; TM.salva = null; st.foglio = null; st.sel = null; st.punto = null; st.copiato = null; st.gruppo = null; st.form = null; /*@red*/st.aform = null; /*@fine*/st.conferma = null; st.pdf = null; st.segn = null; disegnaFoglio(); disegnaPins(); posizioni(); disegnaChips(); }
 function foglio(cls, testa, corpo){
   const esp = st.espanso;
-  return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="false"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
+  return `<section class="foglio vetro ${cls}${esp?' espanso':''}" role="dialog" aria-modal="true"><div class="testa-f"><button class="maniglia-btn" data-az="espandi-foglio" aria-expanded="${esp}" aria-label="${esc(esp ? tr('Riduci il pannello') : tr('Allarga il pannello'))}"><span class="maniglia" aria-hidden="true"></span></button>${testa}</div><div class="corpo">${corpo}</div></section>`;
 }
 /* il trattino: il pannello scorre su e giù. Tocco = allarga o riduce con un'animazione; trascinando segue il dito e si ferma dove è più vicino.
    Allargato perde la trasparenza; ridotto la riprende (regola del 4 ottobre). */
@@ -60,9 +60,40 @@ function presaSu(){
   espandiFoglio(verso, h);
 }
 const chiudiBtn = az => `<button class="chiudi" data-az="${az||'chiudi'}" aria-label="${esc(tr('Chiudi'))}">${croce}</button>`;
+/* ---------- Fogli accessibili (T-057; libro mastro, § 11.1, riga «Finestre, avvisi e pannelli») ----------
+   Ogni foglio è una finestra di dialogo (role="dialog", aria-modal) con il nome del suo titolo: il lettore di schermo lo
+   annuncia e non ne esce. All'apertura il cursore va sul titolo; Tab e Maiusc+Tab restano dentro il foglio finché è aperto
+   (trattieniFuoco, in app6.js); Esc fa ciò che fa la sua croce; alla chiusura il cursore torna al comando che aveva aperto
+   il primo foglio. Quando un foglio si ridisegna, il cursore resta sul comando equivalente (stesso id o stessi data-*). */
+let fuocoDa = null;
+function segnoFuoco(el){
+  if(!el || !el.tagName || el===document.body) return null;
+  if(el.id) return '#'+CSS.escape(el.id);
+  const a = [...el.attributes].filter(x => /^data-|^name$|^value$/.test(x.name)).map(x => `[${x.name}="${CSS.escape(x.value)}"]`).join('');
+  return a ? el.tagName.toLowerCase()+a : null;
+}
+function nominaFoglio(slot, nuovo, segno){
+  const f = slot.querySelector('.foglio'); if(!f) return;
+  f.id = 'foglio-attuale'; f.setAttribute('tabindex','-1');
+  const t = f.querySelector('.testa-f h2, .testa-f h3, .corpo h2, .corpo h3');
+  if(t){ t.id = t.id || 'foglio-titolo'; t.setAttribute('tabindex','-1'); f.setAttribute('aria-labelledby', t.id); } else f.setAttribute('aria-label', NOME);
+  let el = null;
+  if(segno){ try{ el = f.querySelector(segno) || (segno==='#foglio-attuale' ? f : null); }catch(e){ el = null; } }
+  if(!el && nuovo && st.foglio!=='cerca') el = t || f;
+  if(el && (nuovo || segno)) el.focus({preventScroll:true});
+}
 function disegnaFoglio(){
   const slot = $('foglio-slot');
-  if(!st.foglio){ slot.innerHTML = ''; ultimoFoglio = null; st.espanso = false; return; }
+  const att = document.activeElement, dentro = !!(att && slot.contains(att));
+  if(!st.foglio){
+    slot.innerHTML = ''; ultimoFoglio = null; st.espanso = false;
+    /* dopo che chiudi() ha rimesso al loro posto i comandi attorno alla mappa */
+    const da = fuocoDa; fuocoDa = null;
+    if(dentro && da) setTimeout(() => { if(!st.foglio && document.contains(da) && (da.offsetParent || da.getClientRects().length) && (!document.activeElement || document.activeElement===document.body)) da.focus({preventScroll:true}); }, 0);
+    return;
+  }
+  if(!slot.querySelector('.foglio')) fuocoDa = att && att!==document.body && !dentro ? att : null;
+  const segno = dentro ? segnoFuoco(att) : null;
   const chiave = st.foglio + '|' + (st.sel||'') + (st.gruppo ? st.gruppo.join() : '') + (st.foglio==='calendario' ? st.cal.vista : '');
   if(ultimoFoglio && ultimoFoglio.split('|')[0]!==st.foglio) st.espanso = false;
   const stesso = chiave===ultimoFoglio, vecchio = slot.querySelector('.corpo'), scroll = stesso && vecchio ? vecchio.scrollTop : 0;
@@ -80,6 +111,7 @@ function disegnaFoglio(){
   slot.innerHTML = fn();
   if(stesso){ const f = slot.querySelector('.foglio'); if(f) f.style.animation = 'none'; const c = slot.querySelector('.corpo'); if(c) c.scrollTop = scroll; }
   if(st.foglio==='cerca' && !stesso){ const i = $('q'); if(i) setTimeout(() => i.focus(), 60); }
+  nominaFoglio(slot, !stesso, stesso ? segno : null);
 }
 
 /* --- Strati --- */

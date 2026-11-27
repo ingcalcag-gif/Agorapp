@@ -5,6 +5,8 @@ body{background:var(--fondo)}
 .app{padding-bottom:env(safe-area-inset-bottom,0px)}
 #map{position:absolute;inset:0;background:var(--mappa-terra)}
 #map .maplibregl-canvas{outline:none}
+/* chi arriva alla mappa con la tastiera vede dove è (T-057): il contorno sta dentro il bordo della mappa */
+#map .maplibregl-canvas:focus-visible{outline:3px solid var(--verde);outline-offset:-3px}
 #map .maplibregl-ctrl-bottom-right,#map .maplibregl-ctrl-bottom-left,#map .maplibregl-ctrl-top-right{display:none}
 .mk{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
 .mk.alto{z-index:3}
