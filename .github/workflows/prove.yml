@@ -9,7 +9,8 @@ permissions:
 jobs:
   prove:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Con 55 prove il lavoro dura 22-28 minuti sulle macchine di GitHub (27/11/2026): limite a 45 per i blocchi che seguono.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
