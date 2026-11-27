@@ -1,0 +1,94 @@
+# Fattorino dell'app (voce T-061 del piano di adeguamento; libro mastro, § 2.4: la pubblicazione parte da un processo
+# automatico dalla versione approvata, con la chiave di caricamento nello spazio riservato della piattaforma del codice;
+# § 2.6; documento: docs/montaggio.md).
+#
+# SCRITTO E SPENTO. A ogni invio monta le due app dagli stessi sorgenti, controlla che le uscite siano quelle del
+# repository e fa le prove senza browser (le prove nel browser le fa prove.yml). Poi:
+# - su main, carica le due app sulle loro zone di Bunny;
+# - su ogni altro ramo, le carica in una cartella di prova su Bunny (prove/<ramo>/), al posto di githack;
+# ma soltanto se esistono il segreto BUNNY_CHIAVE_CARICAMENTO (la chiave della zona, non quella dell'account) e la
+# variabile PUBBLICA_SU_BUNNY = si, cioè dopo T-065. Finché è spento si ferma prima del caricamento e lo scrive.
+# Ripristino: «Run workflow» con versione = un commit di main già pubblicato: rimonta quella versione e la ricarica.
+# Le pagine con il numero di versione nell'indirizzo (?v=…) restano a lungo nella cache; index.html, sw.js, avvisi.json
+# ed emergenza.json si caricano per ultimi e vanno serviti con scadenza breve (regole della zona, T-075).
+# Se qualcosa va storto, GitHub scrive a chi ha fatto l'invio o ha lanciato il lavoro; la notifica al Responsabile
+# infrastruttura si imposta nel suo profilo GitHub (Settings → Notifications → Actions, solo i lavori non riusciti).
+# Nessun dato di persone o di eventi: il lavoro carica soltanto il codice dell'app.
+name: Pubblica
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      versione:
+        description: 'Commit di main da ripubblicare (ripristino); vuoto = l''ultimo'
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: pubblica-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ACCESO: ${{ vars.PUBBLICA_SU_BUNNY == 'si' }}
+      PRINCIPALE: ${{ github.ref == 'refs/heads/main' }}
+      RAMO: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.versione || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Strumento del montaggio (terser, versione fissata)
+        working-directory: sorgenti
+        run: npm ci --no-audit --no-fund
+      - name: Montaggio e controlli (compattazione, controllo finale, prove senza browser)
+        run: npm run build
+      - name: Le uscite sono quelle del repository
+        run: |
+          if [ -n "$(git status --porcelain dist)" ]; then
+            git status --short dist | head -20
+            echo "::error::dist/ non è quello che i sorgenti producono: rimonta con npm run build e invia di nuovo"
+            exit 1
+          fi
+      - name: Acceso?
+        id: stato
+        env:
+          CHIAVE: ${{ secrets.BUNNY_CHIAVE_CARICAMENTO }}
+        run: |
+          if [ "$ACCESO" = "true" ] && [ -n "$CHIAVE" ]; then echo "carica=si" >> "$GITHUB_OUTPUT"
+          else echo "carica=no" >> "$GITHUB_OUTPUT"; echo "::notice::Fattorino spento (T-061): montaggio e controlli fatti, nessun caricamento. Si accende con T-065."; fi
+      - name: Caricamento su Bunny
+        if: steps.stato.outputs.carica == 'si'
+        env:
+          CHIAVE: ${{ secrets.BUNNY_CHIAVE_CARICAMENTO }}
+          HOST: ${{ vars.BUNNY_STORAGE_HOST }}
+          ZONA_PUBBLICA: ${{ vars.BUNNY_ZONA_PUBBLICA }}
+          ZONA_REDAZIONE: ${{ vars.BUNNY_ZONA_REDAZIONE }}
+          ZONA_PROVE: ${{ vars.BUNNY_ZONA_PROVE }}
+        run: |
+          set -euo pipefail
+          carica() {   # carica <cartella> <zona> <prefisso>: prima i file con la versione, per ultimi quelli a scadenza breve
+            local dir="$1" zona="$2" pre="$3" brevi='^(index\.html|sw\.js|avvisi\.json|emergenza\.json)$'
+            ( cd "$dir" && find . -type f | sed 's|^\./||' | sort ) > /tmp/elenco
+            for passo in lunghi brevi; do
+              while IFS= read -r f; do
+                if [[ "$f" =~ $brevi ]]; then [ "$passo" = brevi ] || continue; else [ "$passo" = lunghi ] || continue; fi
+                curl --fail --silent --show-error -X PUT -H "AccessKey: $CHIAVE" -H "Content-Type: application/octet-stream" \
+                  --data-binary "@$dir/$f" "https://$HOST/$zona/$pre$f" > /dev/null
+              done < /tmp/elenco
+            done
+            echo "Caricati $(wc -l < /tmp/elenco) file in $zona/$pre"
+          }
+          if [ "$PRINCIPALE" = "true" ]; then
+            carica dist/pubblica "$ZONA_PUBBLICA" ""
+            carica dist/redazione "$ZONA_REDAZIONE" ""
+          else
+            R=$(echo "$RAMO" | tr -c 'a-zA-Z0-9-' '-' | sed 's/-*$//')
+            carica dist/pubblica "$ZONA_PROVE" "prove/$R/pubblica/"
+            carica dist/redazione "$ZONA_PROVE" "prove/$R/redazione/"
+          fi

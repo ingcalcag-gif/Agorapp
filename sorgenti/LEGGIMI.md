@@ -53,7 +53,7 @@ Copia di prova con un altro nome: `npm run build` (o da sola `npm run build:prov
 
 ## I pezzi
 
-- `build.js`: il programma di montaggio.
+- `build.js`: il programma di montaggio; `package.json`: terser, lo strumento che compatta il codice (prima volta: `npm ci` qui); `controllo-uscita.js`: compattazione e controllo finale delle uscite; `intestazioni.json`: il modello delle intestazioni di sicurezza (T-060, `docs/montaggio.md`).
 - `sw.js`: il service worker (T-029); `emergenza.json`: l'interruttore d'emergenza; `testi/avvisi.json`: gli avvisi delle novità; `icone/`: l'icona provvisoria dell'app, disegnata da `strumenti/genera-icone.mjs`.
 - `licenze.js`: la pagina delle licenze, da `COMPONENTI_DI_TERZI.md` e `licenze/`.
 - `vendor/`: librerie e caratteri di terzi a versione fissa, con `elenco.js` (impronte) e `caratteri.css`.

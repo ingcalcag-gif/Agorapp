@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { RADICE, DIST, leggiUscita, config, esito, eseguiDaSola } = require('./comune.js');
-const { taglia } = require('../sorgenti/build.js');
+const { taglia, uscita } = require('../sorgenti/build.js');
 
 /* Ciò che nell'app pubblica non deve comparire, in nessun file suo (le librerie di terzi non si guardano). */
 const VIETATI = [
@@ -46,8 +46,11 @@ function prova() {
   }
 
   /* ---------- 2. l'app pubblica ---------- */
-  const pub = leggiUscita('pubblica'), red = leggiUscita('redazione');
-  if (!Object.keys(pub).length || !Object.keys(red).length) { err('uscite mancanti: lancia npm run build'); return e; }
+  /* dal blocco 17 le uscite sono compattate (T-060): i nomi del codice si cercano nella forma leggibile, che il montaggio
+     produce dagli stessi sorgenti (prove/uscite.js controlla che dist/ sia ciò che i sorgenti producono) */
+  const pubD = leggiUscita('pubblica'), redD = leggiUscita('redazione');
+  if (!Object.keys(pubD).length || !Object.keys(redD).length) { err('uscite mancanti: lancia npm run build'); return e; }
+  const pub = uscita(cfg, 'pubblica', { leggibile: true }), red = uscita(cfg, 'redazione', { leggibile: true });
   for (const [f, t] of Object.entries(pub)) {
     if (!SUOI.test(f) || typeof t !== 'string') continue;
     for (const [re, che] of VIETATI) { const m = t.match(re); if (m) err(`dist/pubblica/${f}: contiene «${m[0]}» (${che}): nell'app pubblica non entra nessuna riga degli strumenti della Redazione`); }

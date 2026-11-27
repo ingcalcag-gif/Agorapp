@@ -1,0 +1,8 @@
+{
+  "name": "montaggio-app",
+  "private": true,
+  "description": "Strumenti del solo montaggio (sorgenti/build.js): non vanno nell'app. terser compatta il codice delle due app (T-060).",
+  "devDependencies": {
+    "terser": "5.51.4"
+  }
+}

@@ -1,42 +1,37 @@
-/* Stesso sistema dei mockup Agorà e Progetti: carta, DM Serif + DM Sans, verde solo per le azioni,
-   colore e icona colorata per ogni oggetto. Tutto ciò che sta sopra la mappa è vetro in penombra.
-   Grammatica dei segnaposto: la FORMA dice che cos'è, il COLORE dice di che strato o di quale oggetto è.
-   v2: tutte le funzioni dell'app online (OG 1.7) riportate in questo stile. */
 :root{
-  --fondo:#F5F0E8; --superficie:#FFFDF8; --incassata:#F0EBE0; --linea:rgba(60,50,30,.14); --linea-forte:rgba(60,50,30,.28);
-  --testo:#1C1712; --testo-2:#5C5246; --verde:#2D5A3D; --verde-premuto:#1F4029; --su-verde:#FDFAF4; --verde-tenue:#E8F0EB;
-  --rosso:#B3261E; --rosso-tenue:#FBE9E7;
-  --mappa-terra:#ECE6D9; --mappa-strada:#FBF8F1; --mappa-edificio:#E2DBCC; --mappa-acqua:#C9DCE4; --mappa-parco:#D2E2C8; --mappa-collina:#DCE6CF;
-  --ombra-card:0 2px 10px -6px rgba(60,40,20,.22); --ombra-vetro:0 6px 24px -10px rgba(40,30,15,.35); --ombra-pin:0 2px 6px rgba(40,30,15,.30);
-  --serif:"DM Serif Display",Georgia,serif; --sans:"DM Sans",system-ui,sans-serif;
-  --clay:#C8743E; --clay-ink:#A85C2C; --clay-tenue:#F7E6D6; --clay-bordo:#E9C3A3;
-  --ic:#B03A2E; --it:#FDECEA; --ib:#F2B8B0;
-  --carta:#FFFFFF; --carta-testo:#1C1712; --carta-2:#5C5246; --carta-linea:rgba(60,50,30,.18);
-  --vetro:color-mix(in srgb,var(--superficie) 70%,transparent);
-  --vetro-leggero:color-mix(in srgb,var(--superficie) 58%,transparent);
-  --vetro-forte:color-mix(in srgb,var(--superficie) 90%,transparent);
-  --pin-fondo:#FFFFFF;
-  --bordo-comando:#8C8273;   /* bordi di campi e interruttori: almeno 3:1 sullo sfondo (T-058; WCAG 1.4.11) */
+--fondo:#F5F0E8; --superficie:#FFFDF8; --incassata:#F0EBE0; --linea:rgba(60,50,30,.14); --linea-forte:rgba(60,50,30,.28);
+--testo:#1C1712; --testo-2:#5C5246; --verde:#2D5A3D; --verde-premuto:#1F4029; --su-verde:#FDFAF4; --verde-tenue:#E8F0EB;
+--rosso:#B3261E; --rosso-tenue:#FBE9E7;
+--mappa-terra:#ECE6D9; --mappa-strada:#FBF8F1; --mappa-edificio:#E2DBCC; --mappa-acqua:#C9DCE4; --mappa-parco:#D2E2C8; --mappa-collina:#DCE6CF;
+--ombra-card:0 2px 10px -6px rgba(60,40,20,.22); --ombra-vetro:0 6px 24px -10px rgba(40,30,15,.35); --ombra-pin:0 2px 6px rgba(40,30,15,.30);
+--serif:"DM Serif Display",Georgia,serif; --sans:"DM Sans",system-ui,sans-serif;
+--clay:#C8743E; --clay-ink:#A85C2C; --clay-tenue:#F7E6D6; --clay-bordo:#E9C3A3;
+--ic:#B03A2E; --it:#FDECEA; --ib:#F2B8B0;
+--carta:#FFFFFF; --carta-testo:#1C1712; --carta-2:#5C5246; --carta-linea:rgba(60,50,30,.18);
+--vetro:color-mix(in srgb,var(--superficie) 70%,transparent);
+--vetro-leggero:color-mix(in srgb,var(--superficie) 58%,transparent);
+--vetro-forte:color-mix(in srgb,var(--superficie) 90%,transparent);
+--pin-fondo:#FFFFFF;
+--bordo-comando:#8C8273;
 }
 @media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --fondo:#16130F; --superficie:#211D18; --incassata:#2B2620; --linea:rgba(242,235,224,.14); --linea-forte:rgba(242,235,224,.30);
-    --testo:#F2EBE0; --testo-2:#B5A998; --verde:#86B795; --verde-premuto:#A3CDB0; --su-verde:#12201A; --verde-tenue:#1F3326;
-    --rosso:#F2B8B5; --rosso-tenue:#3A1F1C;
-    --mappa-terra:#1C1915; --mappa-strada:#332D25; --mappa-edificio:#26221C; --mappa-acqua:#1D2E36; --mappa-parco:#1F2C1E; --mappa-collina:#1E261B;
-    --ombra-card:0 2px 10px -6px rgba(0,0,0,.6); --ombra-vetro:0 6px 24px -10px rgba(0,0,0,.7); --ombra-pin:0 2px 6px rgba(0,0,0,.6);
-    --clay:#E0A070; --clay-ink:#E0A070; --clay-tenue:#3A2A1C; --clay-bordo:#7A5232;
-    --ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; --bordo-comando:#857A6C; color-scheme:dark}
+:root:not([data-theme="light"]){
+--fondo:#16130F; --superficie:#211D18; --incassata:#2B2620; --linea:rgba(242,235,224,.14); --linea-forte:rgba(242,235,224,.30);
+--testo:#F2EBE0; --testo-2:#B5A998; --verde:#86B795; --verde-premuto:#A3CDB0; --su-verde:#12201A; --verde-tenue:#1F3326;
+--rosso:#F2B8B5; --rosso-tenue:#3A1F1C;
+--mappa-terra:#1C1915; --mappa-strada:#332D25; --mappa-edificio:#26221C; --mappa-acqua:#1D2E36; --mappa-parco:#1F2C1E; --mappa-collina:#1E261B;
+--ombra-card:0 2px 10px -6px rgba(0,0,0,.6); --ombra-vetro:0 6px 24px -10px rgba(0,0,0,.7); --ombra-pin:0 2px 6px rgba(0,0,0,.6);
+--clay:#E0A070; --clay-ink:#E0A070; --clay-tenue:#3A2A1C; --clay-bordo:#7A5232;
+--ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; --bordo-comando:#857A6C; color-scheme:dark}
 }
 :root[data-theme="dark"]{
-  --fondo:#16130F; --superficie:#211D18; --incassata:#2B2620; --linea:rgba(242,235,224,.14); --linea-forte:rgba(242,235,224,.30);
-  --testo:#F2EBE0; --testo-2:#B5A998; --verde:#86B795; --verde-premuto:#A3CDB0; --su-verde:#12201A; --verde-tenue:#1F3326;
-  --rosso:#F2B8B5; --rosso-tenue:#3A1F1C;
-  --mappa-terra:#1C1915; --mappa-strada:#332D25; --mappa-edificio:#26221C; --mappa-acqua:#1D2E36; --mappa-parco:#1F2C1E; --mappa-collina:#1E261B;
-  --ombra-card:0 2px 10px -6px rgba(0,0,0,.6); --ombra-vetro:0 6px 24px -10px rgba(0,0,0,.7); --ombra-pin:0 2px 6px rgba(0,0,0,.6);
-  --clay:#E0A070; --clay-ink:#E0A070; --clay-tenue:#3A2A1C; --clay-bordo:#7A5232;
-  --ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; --bordo-comando:#857A6C; color-scheme:dark}
-
+--fondo:#16130F; --superficie:#211D18; --incassata:#2B2620; --linea:rgba(242,235,224,.14); --linea-forte:rgba(242,235,224,.30);
+--testo:#F2EBE0; --testo-2:#B5A998; --verde:#86B795; --verde-premuto:#A3CDB0; --su-verde:#12201A; --verde-tenue:#1F3326;
+--rosso:#F2B8B5; --rosso-tenue:#3A1F1C;
+--mappa-terra:#1C1915; --mappa-strada:#332D25; --mappa-edificio:#26221C; --mappa-acqua:#1D2E36; --mappa-parco:#1F2C1E; --mappa-collina:#1E261B;
+--ombra-card:0 2px 10px -6px rgba(0,0,0,.6); --ombra-vetro:0 6px 24px -10px rgba(0,0,0,.7); --ombra-pin:0 2px 6px rgba(0,0,0,.6);
+--clay:#E0A070; --clay-ink:#E0A070; --clay-tenue:#3A2A1C; --clay-bordo:#7A5232;
+--ic:#F1948A; --it:#3A1F1B; --ib:#7A3A32; --pin-fondo:#FFFDF8; --bordo-comando:#857A6C; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0}
@@ -46,7 +41,6 @@ button,input,select,textarea{font-family:inherit;color:inherit;font-size:14px}
 h1,h2,h3{margin:0;font-family:var(--serif);font-weight:400;text-wrap:balance}
 h1{font-size:24px;line-height:28px}
 h2{font-size:20px;line-height:24px}
-/* Pagine delle sezioni (Progetti, Agorà, Temi): scorrono sotto la stessa barra in alto */
 .pagina{position:absolute;inset:0;overflow-y:auto;background:var(--fondo);display:flex;flex-direction:column;overscroll-behavior:contain}
 .anteprima{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--incassata);border-bottom:1px dashed var(--linea-forte);font-size:12px;line-height:16px;color:var(--testo-2)}
 .anteprima b{color:var(--testo);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
@@ -61,14 +55,11 @@ h2{font-size:20px;line-height:24px}
 :root[data-theme="dark"] .sez-progetti{--ic:#E0A070;--pin:#E0A070;--it:#3A2A1C;--ib:#7A5232;--su-ic:#1E150D}
 h3{font-size:18px;line-height:22px}
 p{margin:0}
-/* testo che si sente ma non si vede: accompagna i segni che da soli non dicono nulla al lettore di schermo (T-025) */
 .solo-voce{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
 .meta{font-size:12px;line-height:16px;color:var(--testo-2)}
 .tipo{font-size:12px;line-height:16px;font-weight:600;color:var(--testo-2);letter-spacing:.04em;text-transform:uppercase}
 .stack{display:flex;flex-direction:column;gap:12px}
 .stack-s{display:flex;flex-direction:column;gap:6px}
-
-/* ---------- Telaio ---------- */
 .app{height:100%;height:100dvh;display:flex;flex-direction:column;background:var(--fondo);position:relative;overflow:hidden}
 .top{flex-shrink:0;height:52px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px 0 12px;background:var(--superficie);border-bottom:1px solid var(--linea);z-index:10}
 .marchio{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;min-height:44px;cursor:pointer;min-width:0}
@@ -82,14 +73,10 @@ p{margin:0}
 nav.bassa{flex-shrink:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--superficie);border-top:1px solid var(--linea);z-index:10}
 nav.bassa button{height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;line-height:16px;color:var(--testo-2);background:none;border:0;cursor:pointer}
 nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
-
-/* ---------- Mappa ---------- */
 #scena{flex:1;position:relative;overflow:hidden;overflow:clip}
 #area{position:absolute;inset:0;overflow:hidden;overflow:clip;background:var(--mappa-terra);touch-action:none;-webkit-user-select:none;user-select:none}
 .pressione{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:3px solid var(--verde);opacity:.0;animation:preme .6s linear forwards;pointer-events:none}
 @keyframes preme{from{transform:scale(.4);opacity:.9}to{transform:scale(1);opacity:.25}}
-
-/* Segnaposto */
 .pin{position:relative;padding:0;border:0;background:none;cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
 .pin .f{position:relative;display:flex;align-items:center;justify-content:center;box-shadow:var(--ombra-pin);transition:transform .15s}
 .pin.ev .f{width:32px;height:32px;border-radius:50%;background:var(--pin-fondo);border:2.5px solid var(--pc)}
@@ -106,20 +93,16 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .pin.sel::before{content:"";position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:color-mix(in srgb,var(--superficie) 55%,transparent);border:1.5px solid var(--linea-forte)}
 .pin.gruppo .f{width:40px;height:40px;border-radius:50%;background:var(--anello);padding:4px}
 .pin.gruppo .f span{width:100%;height:100%;border-radius:50%;background:var(--superficie);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;line-height:1;color:var(--testo)}
-/* Numero di eventi di una regione, sulla mappa vista da lontano (T-022): si tocca per avvicinarsi */
 .pin.regione{width:48px;height:48px}
 .pin.regione .f{width:46px;height:46px;border-radius:50%;background:var(--clay);padding:3px}
 .pin.regione .f span{width:100%;height:100%;border-radius:50%;background:var(--superficie);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:18px;line-height:1;color:var(--testo)}
 .tu-qui{position:relative;width:18px;height:18px;border-radius:50%;background:var(--superficie);border:4px solid var(--verde);box-shadow:0 0 0 8px color-mix(in srgb,var(--verde) 18%,transparent)}
 .cerca-qui{position:relative;width:26px;height:26px;border-radius:50%;border:2.5px dashed var(--testo);background:color-mix(in srgb,var(--superficie) 40%,transparent)}
-/* Giornata sulla mappa: tappe numerate e percorso */
 .tappa{position:relative;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;box-shadow:var(--ombra-pin);border:2.5px solid var(--pc);background:var(--pin-fondo);color:#1C1712;cursor:pointer;padding:0}
 .tappa.og{background:var(--verde);border-color:var(--pin-fondo);color:var(--su-verde)}
 .tratto-lbl{position:relative;font-size:12px;font-weight:700;line-height:16px;white-space:nowrap;border-radius:999px;padding:2px 8px;background:var(--vetro-forte);border:1px solid var(--linea-forte);color:var(--testo)}
 .tratto-lbl.stretto{background:var(--clay);color:#fff;border-color:var(--clay)}
 .tratto-lbl.sovrapp{background:var(--rosso);color:#fff;border-color:var(--rosso)}
-
-/* ---------- Vetro ---------- */
 .vetro{background:var(--vetro);-webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);border:1px solid color-mix(in srgb,var(--linea-forte) 70%,transparent);box-shadow:var(--ombra-vetro)}
 .sopra{position:absolute;left:0;right:0;top:0;padding:10px 12px 0;display:flex;flex-direction:column;gap:8px;z-index:6;pointer-events:none}
 .sopra>*{pointer-events:auto}
@@ -145,8 +128,8 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .fab:hover{background:var(--verde-premuto)}
 .tipi-mappa{position:absolute;left:10px;bottom:80px;z-index:6;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .tipo-p{position:relative;height:32px;border-radius:999px;padding:0 9px 0 3px;display:flex;align-items:center;gap:5px;font-weight:700;font-size:12px;cursor:pointer;color:var(--testo);
-  background:color-mix(in srgb,var(--superficie) 18%,transparent);border:1px solid color-mix(in srgb,var(--linea-forte) 40%,transparent);
-  -webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);text-shadow:0 0 2px var(--superficie),0 0 5px var(--superficie),0 0 8px var(--superficie)}
+background:color-mix(in srgb,var(--superficie) 18%,transparent);border:1px solid color-mix(in srgb,var(--linea-forte) 40%,transparent);
+-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);text-shadow:0 0 2px var(--superficie),0 0 5px var(--superficie),0 0 8px var(--superficie)}
 .tipo-p::after{content:"";position:absolute;inset:-5px -2px}
 .tipo-p .n{font-size:12px;font-weight:600;color:var(--testo-2)}
 .tipo-p[aria-pressed="false"]{opacity:.6}
@@ -155,15 +138,12 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .btn-elenco .conta{font-size:12px;font-weight:600;color:var(--testo-2)}
 .attrib{position:absolute;right:12px;bottom:72px;z-index:4;font-size:12px;line-height:16px;color:var(--testo-2);padding:2px 8px;border-radius:8px}
 .attrib-leg{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-
 .peek{position:absolute;left:0;right:0;bottom:0;z-index:7;border-radius:18px 18px 0 0;border-bottom:0;padding:8px 16px 10px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;min-height:66px}
 .peek .maniglia{position:absolute;left:50%;top:6px;margin-left:-20px}
 .peek>div{flex:1;min-width:0;padding-top:6px}
 .peek strong{font-family:var(--serif);font-weight:400;font-size:18px;line-height:22px;display:block}
 .peek .apri-el{font-weight:600;color:var(--verde);display:flex;align-items:center;gap:4px;padding-top:6px;white-space:nowrap}
 .maniglia{width:40px;height:4px;border-radius:2px;background:var(--linea-forte);flex-shrink:0}
-
-/* Fogli dal basso */
 .foglio{position:absolute;left:0;right:0;bottom:0;z-index:8;border-radius:20px 20px 0 0;border-bottom:0;display:flex;flex-direction:column;max-height:calc(100% - 64px);animation:sale .2s ease-out}
 .foglio.leggero{background:var(--vetro-leggero);-webkit-backdrop-filter:blur(5px) saturate(1.2);backdrop-filter:blur(5px) saturate(1.2);max-height:54%}
 .foglio.forte{background:var(--vetro-forte)}
@@ -174,14 +154,11 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .foglio .corpo{overflow-y:auto;padding:0 16px 18px;display:flex;flex-direction:column;gap:16px;overscroll-behavior:contain}
 @keyframes sale{from{transform:translateY(24px);opacity:.3}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){.foglio{animation:none}.pressione{animation:none;opacity:.5}}
-/* Preferenze del telefono (T-058; libro mastro, § 11.1): con «riduci animazioni» niente movimento, in nessuna parte dell'app;
-   con «contrasto aumentato» le superfici sopra la mappa diventano piene, i testi secondari più scuri (o più chiari nel tema
-   scuro) e le linee più marcate. Il tema scuro del telefono vale finché la persona non sceglie Chiaro o Scuro. */
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 @media (prefers-contrast: more){
-  :root{--testo-2:#3D352C;--linea:rgba(60,50,30,.45);--linea-forte:rgba(60,50,30,.7);--bordo-comando:#5C5246;--vetro:var(--superficie);--vetro-leggero:var(--superficie);--vetro-forte:var(--superficie)}
-  :root[data-theme="dark"]{--testo-2:#DDD3C4;--linea:rgba(242,235,224,.45);--linea-forte:rgba(242,235,224,.7);--bordo-comando:#B5A998}
-  .vetro,.foglio{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+:root{--testo-2:#3D352C;--linea:rgba(60,50,30,.45);--linea-forte:rgba(60,50,30,.7);--bordo-comando:#5C5246;--vetro:var(--superficie);--vetro-leggero:var(--superficie);--vetro-forte:var(--superficie)}
+:root[data-theme="dark"]{--testo-2:#DDD3C4;--linea:rgba(242,235,224,.45);--linea-forte:rgba(242,235,224,.7);--bordo-comando:#B5A998}
+.vetro,.foglio{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 }
 @media (prefers-contrast: more) and (prefers-color-scheme: dark){:root:not([data-theme="light"]){--testo-2:#DDD3C4;--linea:rgba(242,235,224,.45);--linea-forte:rgba(242,235,224,.7);--bordo-comando:#B5A998}}
 .riga-titolo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -189,8 +166,6 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .chiudi{width:44px;height:44px;margin:-8px -10px -8px 0;border-radius:50%;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--testo-2);flex-shrink:0}
 .link{align-self:flex-start;min-height:44px;display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--verde);background:none;border:0;padding:0;cursor:pointer;font-size:14px;text-align:left}
 .nota{font-size:12px;line-height:16px;color:var(--testo-2);text-align:center}
-
-/* Controlli comuni */
 .sezione{display:flex;flex-direction:column;gap:8px}
 .sez-testa{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .seg{display:flex;border:1px solid var(--linea-forte);border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--superficie) 60%,transparent)}
@@ -205,8 +180,6 @@ nav.bassa button[aria-current]{color:var(--verde);font-weight:600}
 .riga-int>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .riga-int .t{font-weight:600}
 .proposta{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--clay-ink);border:1.5px solid var(--clay-bordo);border-radius:999px;padding:1px 8px}
-
-/* Strati */
 .tipi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .tipo-btn{min-height:64px;border-radius:14px;border:1.5px solid var(--linea-forte);background:color-mix(in srgb,var(--superficie) 55%,transparent);display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;cursor:pointer}
 .tipo-btn>div{min-width:0;display:flex;flex-direction:column}
@@ -237,8 +210,6 @@ button.pillola{cursor:pointer;min-height:28px}
 .pill-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 :root[data-theme="dark"] .pillola,:root[data-theme="dark"] .sub button[aria-pressed="true"]{background:color-mix(in srgb,var(--pp) 22%,var(--superficie));color:color-mix(in srgb,var(--pp) 55%,#fff)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pillola,:root:not([data-theme="light"]) .sub button[aria-pressed="true"]{background:color-mix(in srgb,var(--pp) 22%,var(--superficie));color:color-mix(in srgb,var(--pp) 55%,#fff)}}
-
-/* Elenchi */
 .giorno{font-size:12px;line-height:16px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--testo-2);padding:4px 0 0}
 .lista{border-radius:14px;border:1px solid var(--linea);background:color-mix(in srgb,var(--superficie) 70%,transparent);display:flex;flex-direction:column}
 .riga-ev{display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px;border:0;border-bottom:1px solid var(--linea);background:none;text-align:left;cursor:pointer;width:100%}
@@ -249,8 +220,6 @@ button.pillola{cursor:pointer;min-height:28px}
 .riga-ev>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .riga-ev .t{font-weight:600;line-height:18px}
 .riga-ev .sv{color:var(--verde);flex-shrink:0}
-
-/* Scheda */
 .eyebrow{font-size:12px;line-height:16px;font-weight:600;letter-spacing:.01em}
 .scheda-testa{display:flex;gap:12px;align-items:flex-start}
 .scheda-testa>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
@@ -283,8 +252,6 @@ button.dato:last-child{border-bottom:0}
 .richiamo svg{flex-shrink:0;margin-top:1px}
 .og-box{border-radius:12px;padding:10px 12px;background:var(--verde-tenue);display:flex;gap:10px;align-items:flex-start}
 .og-box svg{flex-shrink:0;color:var(--verde);margin-top:1px}
-
-/* Campi */
 .campo{min-height:48px;border-radius:12px;border:1.5px solid var(--bordo-comando);background:var(--superficie);display:flex;align-items:center;gap:10px;padding:0 12px}
 .campo input,.campo select,.campo textarea{flex:1;min-width:0;border:0;background:none;outline:none;min-height:44px;font-size:16px}
 .campo textarea{resize:vertical;min-height:64px;padding:10px 0;line-height:20px}
@@ -314,8 +281,6 @@ button.dato:last-child{border-bottom:0}
 .luogo-r:last-child{border-bottom:0}
 .luogo-r>div{flex:1;min-width:0}
 .luogo-r .t{font-weight:600}
-
-/* Calendario */
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .cal .gs{font-size:12px;font-weight:600;color:var(--testo-2);text-align:center;padding-bottom:2px}
 .cal button{height:46px;border-radius:10px;border:1px solid var(--linea);background:color-mix(in srgb,var(--superficie) 80%,transparent);cursor:pointer;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;font-size:15px;padding:0}
@@ -355,8 +320,6 @@ button.dato:last-child{border-bottom:0}
 .carta .cp{font-size:12px;line-height:16px;color:var(--carta-2);border-top:1px solid var(--carta-linea);padding-top:8px}
 .casella{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--linea-forte);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--su-verde)}
 [aria-pressed="true"]>.casella{background:var(--verde);border-color:var(--verde)}
-
-/* Impostazioni e documenti */
 .menu-lista{border-radius:14px;border:1px solid var(--linea);background:color-mix(in srgb,var(--superficie) 70%,transparent);display:flex;flex-direction:column}
 .menu-r{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 12px;border:0;border-bottom:1px solid var(--linea);background:none;width:100%;text-align:left;cursor:pointer}
 .menu-r:last-child{border-bottom:0}
@@ -365,7 +328,6 @@ a.menu-r{color:inherit;text-decoration:none}
 .menu-r .t{font-weight:600}
 .menu-r.on .t{color:var(--verde)}
 .mail{font-weight:600;user-select:all;-webkit-user-select:all}
-/* coordinate della pressione prolungata (T-009): tutte selezionabili con un tocco lungo */
 .coordinate{margin:0;font-size:24px;line-height:32px;font-weight:600;font-variant-numeric:tabular-nums;user-select:all;-webkit-user-select:all}
 .legale{display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:21px;-webkit-user-select:text;user-select:text}
 .legale h3{font-family:var(--sans);font-weight:700;font-size:14px;line-height:20px;margin-top:6px}
@@ -384,8 +346,6 @@ a.menu-r{color:inherit;text-decoration:none}
 .seg.quattro button{border-right:0;border-inline-end:1px solid var(--linea);border-bottom:1px solid var(--linea)}
 .seg.quattro button:nth-child(2n){border-inline-end:0}
 .seg.quattro button:nth-last-child(-n+2){border-bottom:0}
-
-/* Posa e guida */
 .posa-croce{position:absolute;left:50%;top:50%;z-index:6;transform:translate(-50%,-100%);pointer-events:none;filter:drop-shadow(0 6px 8px rgba(0,0,0,.3))}
 .posa-ombra{position:absolute;left:50%;top:50%;z-index:5;width:14px;height:6px;margin:-3px 0 0 -7px;border-radius:50%;background:rgba(0,0,0,.25);pointer-events:none}
 .posa-barra{position:absolute;left:12px;right:12px;bottom:12px;z-index:8;border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px}
@@ -395,55 +355,39 @@ a.menu-r{color:inherit;text-decoration:none}
 .guida .passi span.on{background:var(--verde);width:20px;border-radius:4px}
 .tipi-mappa.evidenzia{border-radius:24px}
 .evidenzia{box-shadow:0 0 0 3px var(--verde),0 0 0 7px color-mix(in srgb,var(--verde) 25%,transparent)!important}
-
 .toast{position:absolute;left:12px;right:12px;top:12px;z-index:30;background:var(--testo);color:var(--fondo);border-radius:12px;padding:10px 14px;font-size:14px;box-shadow:var(--ombra-vetro);display:flex;align-items:center;gap:12px}
 .toast span{flex:1}
 .toast button{background:none;border:0;color:var(--fondo);font-weight:700;text-decoration:underline;cursor:pointer;min-height:36px}
-
-/* Modalità semplice: testi più grandi, meno comandi */
 .app.semplice{font-size:16px;line-height:23px}
 .app.semplice .meta{font-size:14px;line-height:19px}
 .app.semplice .chipt{font-size:15px;height:42px}
 .app.semplice .riga-ev .t,.app.semplice .strato-on .t,.app.semplice .tipo-btn .t{font-size:16px;line-height:21px}
 .app.semplice .avanzato{display:none!important}
-
-/* ===== Prestazioni sul telefono: sfocatura solo dove serve, e solo a mappa ferma ===== */
 .vetro{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-/* i controlli piccoli sopra la mappa: fondo semitrasparente, niente sfocatura */
 .chipt.vetro,.tondo.vetro,.attrib.vetro,.btn-strati.vetro,.posa-barra.vetro,.t-barra.vetro{-webkit-backdrop-filter:none;backdrop-filter:none}
 .chipt.vetro:not([aria-pressed="true"]),.tondo.vetro:not([aria-pressed="true"]),.attrib.vetro,.btn-strati.vetro,.posa-barra.vetro,.t-barra.vetro{background:color-mix(in srgb,var(--superficie) 88%,transparent)}
 .tipo-p{-webkit-backdrop-filter:none;backdrop-filter:none}
-/* mentre la mappa si muove: nessuna sfocatura, fondo un po' più pieno */
 #app.muove .vetro,#app.muove .foglio{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 #app.muove .vetro:not([aria-pressed="true"]),#app.muove .foglio{background:color-mix(in srgb,var(--superficie) 92%,transparent)}
-/* fuori dalla mappa (Progetti, Agorà, Temi) non c'è niente da sfocare dietro: fondo pieno */
 #app:not([data-sez="mappa"]) .vetro,#app:not([data-sez="mappa"]) .foglio{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--superficie)}
 .t-testa{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--fondo)}
-
-/* ===== Zoom ===== */
 .zoom{display:flex;flex-direction:column;align-items:center;width:40px;border-radius:20px;overflow:hidden;-webkit-backdrop-filter:none;backdrop-filter:none;background:color-mix(in srgb,var(--superficie) 88%,transparent)}
 .zoom button{width:40px;height:40px;border:0;background:none;color:var(--testo);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .zoom button:disabled{color:var(--testo-2);opacity:.4;cursor:default}
 .zoom-sep{width:22px;height:1px;background:var(--linea-forte)}
 .app.pieno .lato>.zoom{display:flex!important}
-/* i contenitori dei tasti non devono fermare il dito che vuole trascinare la mappa */
 .lato,.tipi-mappa{pointer-events:none}
 .lato>*,.tipi-mappa>*{pointer-events:auto}
 .lato,.tipi-mappa{touch-action:manipulation}
 html,body{overscroll-behavior:none}
-/* guida: ombra su tutto il resto, il pezzo descritto resta in luce */
 .guida-ombra{position:fixed;z-index:60;pointer-events:none;box-shadow:0 0 0 200vmax rgba(10,14,12,.55);transition:left .25s ease,top .25s ease,width .25s ease,height .25s ease}
 #guida-slot .guida{z-index:61}
 @media (prefers-reduced-motion:reduce){.guida-ombra{transition:none}}
-
-
-/* ===== App vera: mappa CARTO (MapLibre) al posto della mappa disegnata ===== */
 html,body{overscroll-behavior:none}
 body{background:var(--fondo)}
 .app{padding-bottom:env(safe-area-inset-bottom,0px)}
 #map{position:absolute;inset:0;background:var(--mappa-terra)}
 #map .maplibregl-canvas{outline:none}
-/* chi arriva alla mappa con la tastiera vede dove è (T-057): il contorno sta dentro il bordo della mappa */
 #map .maplibregl-canvas:focus-visible{outline:3px solid var(--verde);outline-offset:-3px}
 #map .maplibregl-ctrl-bottom-right,#map .maplibregl-ctrl-bottom-left,#map .maplibregl-ctrl-top-right{display:none}
 .mk{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
@@ -456,8 +400,7 @@ body{background:var(--fondo)}
 .attrib a{color:inherit;text-decoration:none}
 .top .nome{white-space:nowrap}
 .dato a{color:var(--verde);font-weight:600;text-decoration:none;overflow-wrap:anywhere}
-.fonte a{color:var(--verde);font-weight:600;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}   /* collegamento della fonte (T-022) */
-/* scheda dell'evento (T-023): nome del luogo e indirizzo su righe proprie, descrizione del luogo sotto */
+.fonte a{color:var(--verde);font-weight:600;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
 .dato-luogo .nome-luogo,.dato-luogo .indirizzo,.dato-luogo .come-arrivare,.dato-organizzatore .t,.dato-prezzo .t{overflow-wrap:anywhere}
 .dato-luogo .come-arrivare{font-size:14px;line-height:19px;color:var(--testo-2);margin-top:3px;white-space:pre-wrap}
 .dato-luogo .come-arrivare strong{color:var(--testo)}
@@ -474,11 +417,9 @@ body{background:var(--fondo)}
 .pagina-vuota{padding:24px 16px;display:flex;flex-direction:column;gap:12px}
 .pagina-vuota h1{font-size:24px;line-height:28px}
 .toast{top:12px}
-/* avviso delle novità (T-031): informa e basta, non copre l'app */
 .novita{position:absolute;left:12px;right:12px;bottom:12px;z-index:28;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--vetro-forte)}
 .novita p{margin:0;font-size:14px;line-height:21px;white-space:pre-line}
 .novita .eyebrow{color:var(--verde)}
-/* stato della copia per l'uso senza rete (T-029), in cima alla guida «Senza connessione» */
 .copia-stato{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--incassata);font-size:14px;line-height:20px}
 .copia-stato.pronta{background:var(--verde-tenue)}
 .copia-stato.errore{background:var(--it);border:1.5px solid var(--ib);color:var(--testo)}
@@ -486,10 +427,8 @@ body{background:var(--fondo)}
 .cal button .oggi-n{color:var(--verde)}
 .cal button.passato{opacity:.55}
 .carta .pr .nt{display:block;font-size:12px;color:var(--carta-2);white-space:pre-wrap}
-/* due tasti per le serie: grandi, con la riga piccola sotto */
 .tasto small{display:block;font-size:12px;font-weight:500;opacity:.85}
 .tasto.col{flex-direction:column;gap:0}
-/* Lingua araba: la pagina va da destra a sinistra */
 [dir="rtl"] .lato{right:auto;left:12px;align-items:flex-start}
 [dir="rtl"] .tipi-mappa{left:auto;right:10px;align-items:flex-end}
 [dir="rtl"] .attrib{right:auto;left:12px}
@@ -510,8 +449,6 @@ a.tasto.sec{color:var(--testo)}
 .vuoto-lbl{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px;border-radius:10px;background:var(--vetro-forte);border:1px solid var(--linea);font-size:12px;line-height:15px;color:var(--testo-2);white-space:nowrap;box-shadow:var(--ombra-card)}
 .vuoto-lbl b{color:var(--testo);font-weight:700}
 .mk-vuoto{width:auto;height:auto}
-
-/* ===== 4 ottobre: «Il tuo calendario» fermo, i tempi scorrono ===== */
 .riga-chips{display:flex;align-items:flex-start;gap:6px;margin-right:-12px}
 .riga-chips #chipCal{flex-shrink:0}
 .riga-chips .chips{flex:1;min-width:0;margin:0;padding:0 12px 4px 0}
@@ -519,38 +456,22 @@ a.tasto.sec{color:var(--testo)}
 [dir="rtl"] .riga-chips .chips{padding:0 0 4px 12px}
 .chip-cal:not([aria-pressed="true"]){color:var(--verde);border-color:color-mix(in srgb,var(--verde) 55%,transparent)}
 .chip-cal{box-shadow:var(--ombra-vetro)}
-
-/* ===== Il trattino dei pannelli: tocca per allargare a tutto lo spazio, ritocca per tornare giù ===== */
 .maniglia-btn{align-self:center;width:72px;height:22px;margin:-6px 0 -4px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none}
 .maniglia-btn .maniglia{transition:width .15s,background .15s}
 .maniglia-btn:hover .maniglia,.maniglia-btn:focus-visible .maniglia{background:var(--testo-2);width:48px}
-
-
-/* ===== PDF del calendario: con il segno del condividi ===== */
 .tasto-pdf{display:flex;align-items:center;gap:6px}
-
-/* ===== Progetti e Agorà: avviso sulle proposte ===== */
 .avviso-proposte{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--linea-forte);border-radius:14px;padding:10px 12px;font-size:13px;line-height:19px;color:var(--testo-2);background:color-mix(in srgb,var(--superficie) 60%,transparent)}
 .avviso-proposte svg{flex-shrink:0;margin-top:2px;color:var(--testo-2)}
 .avviso-proposte+.proponi{margin-top:-4px}
-
-/* ===== Import da Excel ===== */
 .imp-righe{display:flex;flex-direction:column;gap:4px;font-size:13px;line-height:18px;max-height:220px;overflow:auto;border:1px solid var(--linea);border-radius:12px;padding:8px 10px}
 .imp-righe .no{color:var(--rosso)}
 .colonne{font-size:12px;line-height:18px;color:var(--testo-2)}
 .colonne b{color:var(--testo)}
-
-/* ===== 4 ottobre, sera ===== */
-/* Calendario: solo la scritta, fondo come gli altri controlli; largo quanto Off-Grid, sopra di lui */
 #app #btnCal{align-self:stretch;width:auto;height:48px;border-radius:16px;padding:0 14px;color:var(--verde);font-size:15px;font-weight:700;letter-spacing:.01em}
 #app #btnCal .cal-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #app #btnCal .num{right:-6px;top:-6px}
 [dir="rtl"] #app #btnCal .num{right:auto;left:-6px}
-
-/* strumenti di navigazione della mappa (zoom, schermo intero, posizione): in trasparenza */
 #app .lato .zoom,#app .lato #btnPieno:not([aria-pressed="true"]),#app .lato #btnGps{background:color-mix(in srgb,var(--superficie) 55%,transparent);border-color:color-mix(in srgb,var(--linea-forte) 45%,transparent);box-shadow:0 2px 8px -4px rgba(40,30,20,.25)}
-
-/* tempi: si agganciano all'inizio; quello tagliato sfuma via */
 .chips{scroll-snap-type:x mandatory;scroll-padding-inline-start:0}
 .chips>*{scroll-snap-align:start;transition:opacity .18s ease}
 .chips>.fuori{opacity:0;pointer-events:none}
@@ -558,39 +479,25 @@ a.tasto.sec{color:var(--testo)}
 .chips-avanti{position:absolute;right:12px;top:4px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--testo-2);cursor:pointer;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:color-mix(in srgb,var(--superficie) 80%,transparent)!important}
 [dir="rtl"] .chips-avanti{right:auto;left:12px}
 [dir="rtl"] .chips-avanti svg{transform:scaleX(-1)}
-
-/* trattino: zona di presa larga, il pannello scorre */
 .maniglia-btn{width:100%;max-width:160px;height:26px}
 .foglio{transition:background-color .2s}
 .foglio.espanso{max-height:calc(100% - 8px);height:calc(100% - 8px)}
-/* regola generale: allargato perde la trasparenza, ridotto la riprende */
 .foglio.espanso,#app.muove .foglio.espanso{background:var(--superficie)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 .foglio.espanso *{text-shadow:none!important}
-
-/* Strati: trasparenti ma leggibili (la mappa si intravede, le sue scritte no) */
 .foglio.leggero{background:color-mix(in srgb,var(--superficie) 68%,transparent);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 #app.muove .foglio.leggero{background:color-mix(in srgb,var(--superficie) 86%,transparent);-webkit-backdrop-filter:none;backdrop-filter:none}
 .foglio.leggero .strati-lista,.foglio.leggero .riga-int,.foglio.leggero .seg{background:color-mix(in srgb,var(--superficie) 45%,transparent)}
 #app.muove .peek,.peek.vetro{-webkit-backdrop-filter:none;backdrop-filter:none;background:color-mix(in srgb,var(--superficie) 80%,transparent)}
-
-/* la freccina delle sottocategorie subito dopo il nome dello strato */
 .strato-riga .strato-on{flex:0 1 auto;padding-right:2px}
 .strato-riga .espandi{width:34px;flex-shrink:0}
 .strato-int{flex:1;min-height:56px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px 0 8px;background:none;border:0;cursor:pointer}
 [dir="rtl"] .strato-int{justify-content:flex-start;padding:0 8px 0 12px}
 .app.semplice .strato-riga .strato-on{flex:0 1 auto}
-
-/* schede: Salva in calendario in alto, sotto il titolo */
 .tasti-testa{margin-top:2px}
-
-/* modulo Proponi: l'avviso in verde, in cima */
 .avviso-proposte.verde{background:var(--verde);color:var(--su-verde);border:0;font-weight:600}
 .avviso-proposte.verde svg{color:var(--su-verde)}
-
-/* campo della barra dei nascosti: il tasto Sblocca non esce più dal riquadro sui telefoni stretti */
 #pw{min-width:0;width:100%}
 label.campo:has(#pw){min-width:0}
-/* Il modulo «Segnala» nella scheda dell'evento (T-050): scelte grandi da toccare, il gruppo con un errore si colora */
 .segn-evento{display:flex;flex-direction:column;gap:2px;margin-top:4px}
 .segn-evento .t{color:var(--testo);font-weight:600}
 .segn-gruppo{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -601,8 +508,6 @@ label.campo:has(#pw){min-width:0}
 .segn-gruppo.errore .segn-scelta{border-color:var(--rosso)}
 .segn-esito{color:var(--testo);font-size:16px;line-height:24px;margin:8px 0}
 a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-
-/* ===== Temi (come nell'app online: ovali, Strati e Temi trasversali) ===== */
 .pag-temi{flex:1 0 auto;padding:4px 16px 24px;display:flex;flex-direction:column;gap:20px}
 .pag-temi>*{flex-shrink:0}
 .sez-temi h1{margin:0;font-family:var(--serif);font-weight:400;font-size:26px;line-height:30px;text-wrap:balance}
@@ -623,7 +528,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .t-icona.p{width:40px;height:40px;border:0;background:none;color:var(--testo-2)}
 .t-badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;padding:0 5px;background:var(--verde);color:var(--su-verde);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .t-gruppo{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--testo-2)}
-/* gli ovali */
 .ovali{display:flex;flex-wrap:wrap;gap:7px}
 .ovale{min-height:36px;display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:0 13px 0 11px;border:1.5px solid var(--linea-forte);background:var(--superficie);color:var(--testo-2);font-size:13px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
 .ovale .pallino{width:7px;height:7px;border-radius:50%;background:var(--dot);flex-shrink:0}
@@ -640,7 +544,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .t-barra-t{flex:1;min-width:0;display:flex;flex-direction:column;padding-left:4px}
 .t-barra .tasto{flex:none;padding:0 14px}
 .t-azioni{display:flex;gap:18px;flex-wrap:wrap}
-/* risultati */
 .t-mappa{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--linea);height:170px}
 .t-mappa-svg{display:block;width:100%;height:100%;padding:0;border:0;background:var(--mappa-terra,#EDE6D8);cursor:pointer}
 .t-mappa-svg svg{display:block;width:100%;height:100%}
@@ -669,7 +572,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 :root[data-theme="dark"] .etichetta{background:color-mix(in srgb,var(--dot) 22%,var(--superficie));color:color-mix(in srgb,var(--dot) 55%,#fff)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .etichetta{background:color-mix(in srgb,var(--dot) 22%,var(--superficie));color:color-mix(in srgb,var(--dot) 55%,#fff)}}
 .t-vuoto{border:1.5px dashed var(--linea-forte);border-radius:12px;padding:12px;color:var(--testo-2)}
-/* fogli Lente e Strumenti */
 .sez-temi .t-lista{max-height:none}
 .t-slot{display:flex;align-items:center;gap:10px;width:100%;min-height:60px;padding:8px 10px;border-radius:14px;border:1.5px dashed var(--linea-forte);background:none;text-align:left;cursor:pointer}
 .t-slot.pieno{border-style:solid;border-color:var(--linea);background:color-mix(in srgb,var(--superficie) 60%,transparent)}
@@ -679,8 +581,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .t-slot.pieno .t-slot-i{background:var(--verde);color:var(--su-verde)}
 .sez-temi .riga-int>div{display:flex;flex-direction:column;gap:1px}
 .sez-temi .riga-int[disabled]{opacity:.5;cursor:default}
-
-/* ===== Proposte (Progetti e Agorà) ===== */
 .sez-proposta-in{gap:16px}
 .sez-proposta h3{margin:0;font-family:var(--serif);font-weight:400;font-size:22px;line-height:26px}
 .sez-proposta p{margin:0}
@@ -695,7 +595,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .p-sigillo{width:48px;height:48px;border-radius:50%;background:var(--verde);color:var(--su-verde);display:flex;align-items:center;justify-content:center}
 .p-sigillo svg{width:26px;height:26px}
 .sez-proposta .chips-in{flex-wrap:wrap}
-/* Le lenti dell'app */
 .t-lenti{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(232px,74%);gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:2px 16px 6px;scrollbar-width:none;scroll-padding:0 16px}
 .t-lenti::-webkit-scrollbar{display:none}
 .t-lente{scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:178px;padding:14px;border-radius:18px;text-align:left;cursor:pointer;border:1px solid color-mix(in srgb,var(--lc) 28%,var(--linea));background:color-mix(in srgb,var(--lc) 9%,var(--superficie));color:var(--testo)}
@@ -712,8 +611,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .t-ancora{align-self:center}
 :root[data-theme="dark"] .t-lente-m,:root[data-theme="dark"] .t-lente-motto,:root[data-theme="dark"] .t-lente-testa .t-gruppo{color:color-mix(in srgb,var(--lc) 45%,#fff)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .t-lente-m,:root:not([data-theme="light"]) .t-lente-motto,:root:not([data-theme="light"]) .t-lente-testa .t-gruppo{color:color-mix(in srgb,var(--lc) 45%,#fff)}}
-
-/* ===== Progetti (dal mockup v2, limitato alla sua sezione) ===== */
 .sez-progetti .anteprima{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--incassata);border-bottom:1px dashed var(--linea-forte);font-size:12px;line-height:16px;color:var(--testo-2)}
 .sez-progetti .anteprima b{color:var(--testo);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
 .sez-progetti .anteprima span{flex:1;min-width:0}
@@ -814,7 +711,7 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .sez-progetti .scelta[aria-pressed="true"] .casella{background:var(--verde);border-color:var(--verde)}
 .sez-progetti .profilo-testa{display:flex;gap:14px;align-items:center}
 .sez-progetti .profilo-testa>div{min-width:0;display:flex;flex-direction:column;gap:4px}
-.sez-progetti .fatti{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px;border:0;border-radius:0;background:none}   /* non la cornice dei .fatti delle schede evento */
+.sez-progetti .fatti{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px;border:0;border-radius:0;background:none}
 .sez-progetti .recapito{background:var(--incassata);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .sez-progetti .carta{background:var(--carta);color:var(--carta-testo);border:1px solid var(--carta-linea);border-radius:4px;padding:18px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--ombra-card)}
 .sez-progetti .carta .cm{font-size:11px;line-height:15px;color:var(--carta-2);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
@@ -825,7 +722,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .sez-progetti .carta .mano-c{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
 @media (prefers-reduced-motion: no-preference){.sez-progetti .pag-contenuto{animation:entra .18s ease-out}
 @keyframes entra{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}}
-/* ===== Agorà (dal mockup v3, limitato alla sua sezione) ===== */
 .c-abitativo{--ic:#B03A2E;--it:#FDECEA;--ib:#F2B8B0}
 .c-fuorisede{--ic:#2D5A3D;--it:#E8F0EB;--ib:#B9D3C1}
 .c-verde{--ic:#1E7A44;--it:#E6F5EC;--ib:#A9DCBC}
@@ -934,7 +830,6 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .sez-agora .mappa>svg{display:block;width:100%;height:auto}
 @media (prefers-reduced-motion: no-preference){.sez-agora .pag-contenuto{animation:entra .18s ease-out}
 @keyframes entra{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}}
-/* Agorà: il punto del cammino di ogni istanza */
 .sez-agora .fase{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:16px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--it);color:var(--ic);border:1px solid var(--ib)}
 .sez-agora .fase svg{width:14px;height:14px;margin-left:-3px}
 .sez-agora .fase-fine{background:var(--ic);color:var(--superficie);border-color:var(--ic)}
@@ -976,10 +871,7 @@ a.tasto{text-decoration:none;display:inline-flex;align-items:center;justify-cont
 .sez-agora .proponi:hover,.sez-progetti .proponi:hover{border-color:var(--verde)}
 .sez-agora .proponi>span:last-child,.sez-progetti .proponi>span:last-child{display:flex;flex-direction:column;gap:2px}
 .sez-agora .proponi .piu,.sez-progetti .proponi .piu{width:40px;height:40px;border-radius:50%;background:var(--verde);color:var(--su-verde);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;flex-shrink:0}
-
 .foglio .corpo>.sez-agora,.foglio .corpo>.sez-progetti,.foglio .corpo>.sez-proposta{display:flex;flex-direction:column;gap:14px}
 .pagina-vuota .tasto{flex:none}
-/* Demo (T-015): striscia in testa a ogni PDF; bollino delle schede di Agorà e Progetti in Temi */
 .carta .cs{align-self:flex-start;font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--carta-2);border:1px dashed currentColor;border-radius:6px;padding:2px 8px;margin-bottom:6px}
 .t-sez-demo{font-size:10px;line-height:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--testo-2);border:1px dashed var(--linea-forte);border-radius:999px;padding:0 6px}
-

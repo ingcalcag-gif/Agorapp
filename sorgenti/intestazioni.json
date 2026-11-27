@@ -1,0 +1,27 @@
+{
+  "formato": "intestazioni",
+  "versione": 1,
+  "nota": "Modello delle intestazioni di sicurezza delle due app (T-060; libro mastro, § 2.4, «Il codice»; § 3.11). Si attivano sulla zona di Bunny con T-075. I segnaposto {indirizzi.<nome>} prendono i valori di sorgenti/config.js (vuoto = tolto); il dominio dell'app è 'self'. Fonti ammesse: lo stesso indirizzo, la ricerca degli indirizzi (Photon) e, per l'app della redazione, gli sportelli; nessun codice scritto nella pagina (niente 'unsafe-inline' per gli script, niente 'unsafe-eval'); gli stili scritti negli attributi sono ammessi (style-src-attr), i fogli di stile solo dallo stesso indirizzo; i lavoratori della mappa nascono da blob:. La posizione resta permessa allo stesso indirizzo (QB-4). Prova: prove/montaggio.js e prove/browser/intestazioni.js.",
+  "app": {
+    "pubblica": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' {indirizzi.ricerca_indirizzi} {indirizzi.eventi} {indirizzi.mappa} {indirizzi.sportello_segnalazioni}; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; upgrade-insecure-requests",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Permissions-Policy": "geolocation=(self), camera=(), microphone=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), midi=(), display-capture=(), browsing-topics=()",
+      "tdm-reservation": "1"
+    },
+    "redazione": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' {indirizzi.ricerca_indirizzi} {indirizzi.eventi} {indirizzi.mappa} {indirizzi.sportello_pubblicazione} {indirizzi.sportello_segnalazioni} {indirizzi.archivio}; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; upgrade-insecure-requests",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Permissions-Policy": "geolocation=(self), camera=(), microphone=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), midi=(), display-capture=(), browsing-topics=()",
+      "X-Robots-Tag": "noindex, nofollow"
+    }
+  }
+}

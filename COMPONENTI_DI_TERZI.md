@@ -43,6 +43,14 @@ Stanno in `prove/package.json`, servono alle prove automatiche (T-005) e non van
 | Playwright | 1.63.0 | Apache 2.0 | Apre l'app in un Chromium senza finestra, con le misure di un telefono |
 | axe-core | 4.14.1 | Mozilla Public License 2.0 | Controllo automatico dell'accessibilità (WCAG 2.1 A e AA) |
 
+## Strumenti del montaggio
+
+Stanno in `sorgenti/package.json` (`npm ci` in `sorgenti/`), servono soltanto a `sorgenti/build.js` e non vanno mai nell'app: il codice compattato è il nostro, senza parti di terzi.
+
+| Strumento | Versione | Licenza | Uso |
+| --- | --- | --- | --- |
+| terser | 5.51.4 | BSD 2-Clause | Compatta app.js, moduli.js e sezioni.js delle due app, lasciando i commenti di licenza (T-060) |
+
 ## Note del controllo del 17/11/2026
 
 - I testi delle licenze di MapLibre GL JS e jsPDF vengono dai pacchetti npm delle versioni indicate, come i file delle librerie in `sorgenti/vendor/` (provenienza in `sorgenti/vendor/LEGGIMI.md`); quelli di DM Sans e DM Serif Display dal file `OFL.txt` del repository di Google Fonts; quelli di PMTiles e Protomaps basemaps dal repository di Protomaps; il testo dell'ODbL 1.0 dall'elenco SPDX. Gli avvisi contenuti nel file di jsPDF sono estratti dal file `jspdf.umd.min.js` della versione 2.5.1.

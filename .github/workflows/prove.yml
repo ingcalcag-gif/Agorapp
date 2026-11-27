@@ -15,6 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Strumento del montaggio (terser, solo per compattare: T-060)
+        working-directory: sorgenti
+        run: npm ci --no-audit --no-fund
       - name: Strumenti delle prove (Playwright e axe-core, solo per le prove)
         working-directory: prove
         run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium

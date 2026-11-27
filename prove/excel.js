@@ -115,7 +115,7 @@ async function prova() {
     if (fs.existsSync(path.join(dir, 'lib')) && fs.readdirSync(path.join(dir, 'lib')).some(f => /sheetjs/i.test(f))) err('dist/' + app + '/lib: c\'è ancora SheetJS');
   }
   const red = fs.readFileSync(path.join(RADICE, 'dist', 'redazione', 'moduli.js'), 'utf8'), pub = fs.readFileSync(path.join(RADICE, 'dist', 'pubblica', 'moduli.js'), 'utf8');
-  if (!red.includes('AGR_MODULI.excel') && !/\.excel = m/.test(red)) err('dist/redazione/moduli.js: manca il modulo Excel');
+  if (!red.includes('AGR_MODULI.excel') && !/\.excel\s*=\s*\w/.test(red)) err('dist/redazione/moduli.js: manca il modulo Excel');
   if (/File Excel letti e scritti/.test(pub)) err('dist/pubblica/moduli.js: il modulo Excel è solo dell\'app della redazione');
   e.note.push('scritto e riletto un file con 3 fogli; letti un file di openpyxl e uno costruito come Excel; CSV con tre separatori; fermati un file finto, un archivio rovinato, uno che si gonfia a 61 MB e un foglio di 10.001 righe');
   return e;

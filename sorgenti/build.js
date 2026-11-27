@@ -31,6 +31,13 @@
      --uscita=<cartella>   cartella delle uscite, relativa alla radice del repository (predefinita: dist)
      --nome=<nome>         monta con un altro nome (copie di prova: npm run build:prova-nome)
      --solo=pubblica       scrive soltanto l'uscita pubblica
+     --leggibile           non compatta il codice (per cercare un errore; le prove vogliono le uscite compattate)
+
+   Compattazione e controllo finale (T-060): app.js, moduli.js e sezioni.js escono compattati con terser (versione
+   fissata in sorgenti/package.json; npm ci in sorgenti/), che toglie commenti e spazi e accorcia i nomi interni, lasciando
+   i nomi globali e i commenti di licenza («/*!», @license, @preserve); app.css perde commenti e spazi. Prima di scrivere,
+   il controllo finale rifiuta l'uscita se contiene un indirizzo esterno non ammesso da config.js o qualcosa che sembra una
+   chiave (sorgenti/controllo-uscita.js). Il modello delle intestazioni di sicurezza sta in sorgenti/intestazioni.json.
 */
 'use strict';
 const fs = require('fs');
@@ -39,6 +46,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { fileLicenze } = require('./licenze.js');
 const { testiPubblicati, metaRiserva, politica } = require('./testi-pubblicati.js');
+const { compattaJs, compattaCss, controlloFinale } = require('./controllo-uscita.js');
 const { fileAnteprime } = require('./contenuti_esempio.js');
 const VENDOR = require('./vendor/elenco.js');
 
@@ -210,7 +218,8 @@ function traduzioniPubbliche(traduzioni, pubblici, redazione) {
 }
 
 /* ---------- Montaggio ---------- */
-function monta(cfg, quale = 'pubblica') {
+function monta(cfg, quale = 'pubblica', opzioni = {}) {
+  const leggibile = !!(opzioni.leggibile || opz.leggibile);
   if (!APP.includes(quale)) throw new Error('monta: app sconosciuta «' + quale + '»');
   const red = quale === 'redazione';
   const pezzo = (cartella, f) => taglia(leggi(cartella, f), quale, path.relative(SORGENTI, path.join(cartella, f)));
@@ -239,11 +248,11 @@ function monta(cfg, quale = 'pubblica') {
   const file = {
     // gli interruttori degli strumenti della Redazione (funzioni, T-049) restano fuori dall'app pubblica
     'config.js': '/* Configurazione montata da sorgenti/config.js: non modificare qui. */\nwindow.AGR_CONFIG = ' + JSON.stringify(red ? cfg : Object.assign({}, cfg, { funzioni: undefined }), null, 1) + ';\n',
-    'app.css': css + '\n',
+    'app.css': compattaCss(css, leggibile) + '\n',
     'traduzioni.js': traduzioni + '\n',
-    'moduli.js': moduli + '\n',
-    'app.js': app + '\n',
-    'sezioni.js': sezioni + '\n',
+    'moduli.js': compattaJs(moduli, 'moduli.js', leggibile) + '\n',
+    'app.js': compattaJs(app, 'app.js', leggibile) + '\n',
+    'sezioni.js': compattaJs(sezioni, 'sezioni.js', leggibile) + '\n',
   };
   // Il numero di versione nei collegamenti cambia quando cambia il file: il telefono non tiene copie vecchie.
   const v = f => crypto.createHash('sha256').update(file[f]).digest('hex').slice(0, 10);
@@ -352,14 +361,18 @@ function completa(file, cfg, quale = 'pubblica') {
   let sw = leggi(SORGENTI, 'sw.js');
   for (const k of ['VERSIONE', 'COPIA', 'PIGRI']) if (!sw.includes('/*@@' + k + '@@*/')) throw new Error('sw.js: manca il segnaposto ' + k);
   sw = sw.replace("/*@@VERSIONE@@*/''", () => JSON.stringify(versione)).replace('/*@@COPIA@@*/{}', () => JSON.stringify(copia)).replace('/*@@PIGRI@@*/[]', () => JSON.stringify(elenco.filter(pigro)));
+  // Il service worker resta leggibile (17 KB): le sue prime righe dicono versione e copia, e servono a capire un aggiornamento.
   file['sw.js'] = '/* Service worker montato da sorgenti/build.js (sorgenti/moduli/memoria.js e sorgenti/sw.js): non modificare qui. */\n' + leggi(MODULI, 'memoria.js') + '\n' + sw;
   return file;
 }
 // Tutti i file di un'uscita, come {percorso: testo o Buffer}.
-function uscita(cfg, quale = 'pubblica') {
+/* opzioni.leggibile: senza compattazione (le prove che cercano nomi del codice usano questa forma, T-060) */
+function uscita(cfg, quale = 'pubblica', opzioni = {}) {
   // la pagina delle licenze elenca i componenti che viaggiano con quell'app
   const fuori = VENDOR.filter(c => c.solo && c.solo !== quale).map(c => c.licenza);
-  return completa({ ...monta(cfg, quale), ...fileLicenze(cfg, fuori), ...testiPubblicati(cfg).file, ...fileVendor(quale) }, cfg, quale);
+  const file = completa({ ...monta(cfg, quale, opzioni), ...fileLicenze(cfg, fuori), ...testiPubblicati(cfg).file, ...fileVendor(quale) }, cfg, quale);
+  controlloFinale(file, cfg, quale);   // si ferma se trova un indirizzo non ammesso o una chiave (T-060)
+  return file;
 }
 
 /* ---------- Scrittura delle uscite ---------- */
